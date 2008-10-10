@@ -21,7 +21,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: shellcmd.c,v 1.13 2007/12/29 15:20:00 tom Exp tom $
+ *  $Id: shellcmd.c,v 1.15 2008/09/20 20:24:52 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -79,6 +79,7 @@ static CONST84 char * pCtxMenuTypeKeywords[] =
    "pi_context.undofilt",
    "pi_context.reminder_short",
    "pi_context.reminder_ext",
+   "pi_context.reminder_disable",
    (char *) NULL
 };
 
@@ -209,6 +210,7 @@ static void ShellCmd_AppendStringInfoTextCb( void *fp, const char * pDesc, bool 
          *pNewline = 0;  // XXX must not modify const string
          ShellCmd_AppendString(pCmdBuf, pDesc);
          ShellCmd_AppendString(pCmdBuf, " // ");
+         *pNewline = '\n';  // XXX must not modify const string
          // skip to text following the newline
          pDesc = pNewline + 1;
       }

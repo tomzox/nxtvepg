@@ -21623,3 +21623,468 @@ www/xiccc-proto.html [rev:1.9, 2008-01-06T20:32:58]:
 - fixed spelling and HTML syntax
 - improved META tags
 #>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> RELEASE_2_8_0 <<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+nxtvepg-de.pod [rev:1.15, 2008-01-05T20:40:52]:
+- Enclosed URLs in L<>
+nxtvepg.pod [rev:1.131, 2008-01-05T20:40:52]:
+- Enclosed URLs in L<>
+COPYRIGHT [rev:1.18, 2008-01-12T17:29:27]:
+- Updated copyright for 2008
+Makefile [rev:1.98, 2008-01-12T17:29:27]:
+- Updated copyright for 2008
+nxtvepg-de.pod [rev:1.16, 2008-01-12T17:29:50]:
+- updated copyright for 2008
+- improved description for VBI device PID file
+nxtvepg.pod [rev:1.132, 2008-01-12T17:29:50]:
+- updated copyright for 2008
+- improved description for VBI device PID file
+epgtcl/mainwin.tcl [rev:1.258, 2008-01-12T17:35:56]:
+- Updated copyright for 2008
+epgui/wintvcfg.c [rev:1.29, 2008-01-12T18:45:01]:
+- Bugfix KTV parser: freq and name lists were out of sync
+- names of channels with 0 freq were kept in the string table
+- reported in forum by dj1985 2008/01/10 (has vcr video-in as 1st channel)
+epgctl/epgversion.h [rev:1.87, 2008-01-13T22:52:58]:
+- set version to 2.8.1pre0
+www/changelog-2.8.0pre.html [rev:1.3, 2008-01-13T23:13:23]:
+- added pre-release 2.8.1pre0
+www/index-de.html [rev:1.96, 2008-01-13T23:13:40]:
+- Added link to German translation of the GPLv2
+epgui/statswin.c [rev:1.76, 2008-01-21T22:41:59]:
+- Stats windows: Corrected db count value for nxtv/ttx (line "Acq mode")
+epgui/dumphtml.c [rev:1.8, 2008-01-21T22:42:35]:
+- Added new type time32_t for 32-/64-bit binary compatibility
+- adapted calls to localtime()
+epgui/dumpraw.c [rev:1.33, 2008-01-21T22:42:35]:
+- Added new type time32_t for 32-/64-bit binary compatibility
+- adapted calls to localtime()
+epgui/dumptext.c [rev:1.18, 2008-01-21T22:42:35]:
+- Added new type time32_t for 32-/64-bit binary compatibility
+- adapted calls to localtime()
+epgui/uidump.c [rev:1.6, 2008-01-21T22:42:35]:
+- Added new type time32_t for 32-/64-bit binary compatibility
+- adapted calls to localtime()
+epgui/xawtv.c [rev:1.56, 2008-01-21T22:42:35]:
+- Added new type time32_t for 32-/64-bit binary compatibility
+- adapted calls to localtime()
+epgui/pinetbox.c [rev:1.46, 2008-01-21T22:46:08]:
+- Added new type time32_t for 32-/64-bit binary compatibility
+- adapted calls to localtime()
+epgui/pioutput.c [rev:1.60, 2008-01-21T22:49:03]:
+- new type time32_t for 32-/64-bit binary compatibility -> adapt localtime()
+- removed unnecessary memcpy() of localtime() result for strftime()
+epgdb/epgblock.c [rev:1.61, 2008-01-21T22:50:03]:
+- Added new type time32_t for 32-/64-bit binary compatibility
+- adapted calls to localtime()
+epgdb/epgdbfil.c [rev:1.50, 2008-01-21T22:50:03]:
+- Added new type time32_t for 32-/64-bit binary compatibility
+- adapted calls to localtime()
+epgctl/mytypes.h [rev:1.23, 2008-01-21T22:50:31]:
+- Added new type time32_t for 32-/64-bit binary compatibility
+- without compile switch USE_32BIT_COMPAT it's mapped to time_t
+epgui/epgmain.c [rev:1.157, 2008-01-22T21:12:41]:
+- Major bugfix: Moved Tcl_AsyncCreate() calls behind ui_init()
+- caused SEGV on NULL pointer in Tcl/Tk 8.5.0 with --enable-threads
+- bug reported vie email by Enrico Troeger 2009-01-04
+epgui/daemon.c [rev:1.12, 2008-01-22T21:47:52]:
+- Bugfix for -dump: db expire time was not passed to epgctxctl.c
+epgui/epgmain.c [rev:1.158, 2008-01-22T21:47:52]:
+- Bugfix for -dump: db expire time was not passed to epgctxctl.c
+epgui/epgmain.c [rev:1.159, 2008-01-22T22:05:16]:
+- Prepared debugging of NULL pointer param in TranscodeToUtf8():
+- pass caller's file and line num as parameters via macro wrapper
+epgui/epgmain.h [rev:1.26, 2008-01-22T22:05:16]:
+- Prepared debugging of NULL pointer param in TranscodeToUtf8():
+- pass caller's file and line num as parameters via macro wrapper
+epgtcl/dlg_acqmode.tcl [rev:1.10, 2008-01-22T22:07:49]:
+- Minor improvement of checkbutton description:
+- label for "cyclic_2" now "Manually selected (Cyclic: All)"
+epgtcl/dlg_prov.tcl [rev:1.22, 2008-01-22T22:10:09]:
+- mproved description text in merge dialog header
+- esp. to make clear it's intended to be used for multiple providers
+epgtcl/draw_stats.tcl [rev:1.8, 2008-01-22T22:11:41]:
+- Replaced message widget with label widget in "statistics" dialogs
+- because the message widget flickers during updates, but labels don't
+- also fixed help link for teletext stats dialog
+epgctl/epgversion.h [rev:1.88, 2008-01-22T22:20:08]:
+- set version to 2.8.1pre1
+www/download-de.html [rev:1.29, 2008-01-22T23:05:35]:
+- Switched win32 from zip file to setup.exe
+- sent via email by Neo 2008-01-17
+www/download.html [rev:1.27, 2008-01-22T23:05:35]:
+- Switched win32 from zip file to setup.exe
+- sent via email by Neo 2008-01-17
+www/index-de.html [rev:1.97, 2008-01-22T23:06:30]:
+- extended copyright to 2008
+- added credits to Neo for the win32 setup.exe
+www/index-fr.html [rev:1.30, 2008-01-22T23:06:30]:
+- extended copyright to 2008
+- added credits to Neo for the win32 setup.exe
+www/index.html [rev:1.106, 2008-01-22T23:06:30]:
+- extended copyright to 2008
+- added credits to Neo for the win32 setup.exe
+www/pre-releases-de.html [rev:1.15, 2008-01-22T23:07:36]:
+- Re-opened pre-release page for 2.8.1pre0 2008-01-13
+www/pre-releases.html [rev:1.87, 2008-01-22T23:07:36]:
+- Re-opened pre-release page for 2.8.1pre0 2008-01-13
+www/provnets-de.html [rev:1.7, 2008-01-22T23:09:43]:
+- Updated network lists for SF1, TSR1, TSI1 and TV5
+- provided by Roland Schilter 2008-01-16 in reply to tvbrowser forum post
+www/provnets.html [rev:1.52, 2008-01-22T23:09:43]:
+- Updated network lists for SF1, TSR1, TSI1 and TV5
+- provided by Roland Schilter 2008-01-16 in reply to tvbrowser forum post
+www/changelog-2.8.0pre.html [rev:1.4, 2008-01-23T21:19:32]:
+- added pre-release 2.8.1pre1
+www/pre-releases-de.html [rev:1.16, 2008-01-23T21:22:14]:
+- Updated for pre-release 2.8.1pre1
+www/pre-releases.html [rev:1.88, 2008-01-23T21:22:14]:
+- Updated for pre-release 2.8.1pre1
+www/index-de.html [rev:1.98, 2008-01-23T21:30:35]:
+- Removed "all rights reserved" from copyright notice
+www/index.html [rev:1.107, 2008-01-23T21:30:35]:
+- Removed "all rights reserved" from copyright notice
+www/index-fr.html [rev:1.31, 2008-01-23T21:30:45]:
+- translation of intro updated by Neo, via email 2008-01-23
+- removed "all rights reserved" from copyright notice
+epgvbi/btdrv4linux.c [rev:1.70, 2008-02-03T15:28:32]:
+- Safety-fix in v4l2 prio handling:
+- use switch to convert between internal and V4L2 driver enums
+- after review due to forum post by 2008-01-20 by stentenced
+epgdb/epgaifrag.c [rev:1.3, 2008-02-03T15:33:40]:
+- Major bugfix due to Kabel1 reception trouble Jan/2008:
+- block completeness check did not consider text segment at all (checked only
+    hamming and check-sum on control segment) -> half-read AI were used
+- added bit-field which records if all bytes were received
+epgdb/epgblock.h [rev:1.53, 2008-02-03T15:34:36]:
+- replaced time_t with time32_t in db structs for 32-/64-bit binary compat.
+- added macros to strip the 3 pointers in block headers during db reload
+epgdb/epgdbsav.h [rev:1.43, 2008-02-03T15:34:58]:
+- Added new type time32_t for 32-/64-bit binary compatibility
+- replaced time_t with time32_t in the database header
+epgdb/epgdbsav.c [rev:1.63, 2008-02-03T15:36:49]:
+- Prepared database format for 32-/64-bit binary compatibility
+- treat the 3 (dummy) pointers in the block header as 3*32 bit
+- also replaced time_t with time32_t in the database header
+epgdb/epgtscqueue.c [rev:1.8, 2008-02-03T15:42:36]:
+- Prepared database format for 32-/64-bit binary compatibility
+- packed prev/next pointers into union to reserve space for 64-bit pointers
+- replaced time_t with time32_t in struct EPGDB_PI_TSC_BUF
+epgdb/epgtscqueue.h [rev:1.6, 2008-02-03T15:42:36]:
+- Prepared database format for 32-/64-bit binary compatibility
+- packed prev/next pointers into union to reserve space for 64-bit pointers
+- replaced time_t with time32_t in struct EPGDB_PI_TSC_BUF
+epgctl/epgacqctl.h [rev:1.46, 2008-02-03T16:15:00]:
+- Prepared database format for 32-/64-bit binary compatibility
+- fixed struct alignment for 64-bit compatibility
+- replaced time_t with time32_t in statistics structs
+epgctl/epgacqsrv.c [rev:1.19, 2008-02-03T16:17:49]:
+- Prepared database format for 32-/64-bit binary compatibility
+- fixed struct alignment for 64-bit compatibility
+- replaced time_t with time32_t in statistics structs
+- MSG_STRUCT_STATS_IND: packed prev/next pointers into union for 64-bit ptrs.
+epgctl/epgacqsrv.h [rev:1.11, 2008-02-03T16:17:49]:
+- Prepared database format for 32-/64-bit binary compatibility
+- fixed struct alignment for 64-bit compatibility
+- replaced time_t with time32_t in statistics structs
+- MSG_STRUCT_STATS_IND: packed prev/next pointers into union for 64-bit ptrs.
+epgui/pifilter.c [rev:1.92, 2008-02-03T16:33:26]:
+- bugfix substr search via context menu: used unconverted title string
+- bugfix crash upon undefined theme string in theme filter undo via ctx. menu
+- reintroduced quotes around titles and network names in context menu
+    on request by tychobarfy (Kurt) in forum 2008-01-24
+epgui/epgsetup.c [rev:1.9, 2008-02-03T16:51:22]:
+- fixed CNI mapping for teletext grabber: added CNI normalization
+    + EpgSetup_UpdateProvCniTable: wrong CNIs added to merged db after reordering
+    + EpgSetup_InitMergeDbNetwops: normalize default CNI list for merged DB
+- EpgSetup_DaemonAcquisitionMode: added setup for TTX grabber
+    on request via forum 2008-01-20 by stentenced
+epgui/rcfile.c [rev:1.11, 2008-02-03T18:18:01]:
+- fixed CNI mapping for teletext grabber: match also on normalized CNIs
+- fixed app name in rc/ini file header (was "Nextview EPG")
+- strip DOS line ends (CR)
+epgui/rcfile.c [rev:1.12, 2008-02-03T18:19:27]:
+- Added new data type RC_TYPE_STRZ & force old RC_TYPE_STR non-NULL
+- to catch missing (non-optional) string params & avoid NULL pointers
+- (to fix crash on missing netname reported via forum 2008-01-14 by tychobarfy)
+epgui/wintvui.c [rev:1.4, 2008-02-03T18:23:09]:
+- WintvUi_GetConfig(): improved handling of NULL pointers for app paths
+epgui/dumphtml.c [rev:1.9, 2008-02-03T18:33:44]:
+- fixed for USE_UTF8: corrected charset in META; convert netnames to UTF8
+- likewise non-USE_UTF8: convert PI data deliverd by pioutput.c back to Latin-1
+- fixed and validated HTML-4.0 syntax (non-strict)
+epgui/menucmd.c [rev:1.132, 2008-02-03T18:45:38]:
+- fixed CNI mapping for teletext grabber (CNI normalization)
+    + MenuCmd_AppendNetwopList: add names for normalized CNIs, too
+    + added new Tcl proc C_NormalizeCni for netname and netsel cfg. dialogs
+- MenuCmd_GetNetwopNames: added NULL-pointer check for netnames from RC
+    + crash reported via forum 2008-01-14 by tychobarfy
+    + real cause: upgrade from 2.8.0pre16 garbled INI file: netnames missing
+      real fix: changed rc parser to drop entries with missing string param
+- MenuCmd_UpdateNetwopNames: added UTF8->ext conversion for netnam cfg update
+- MenuCmd_GetNetAcqConfig: added ext->UTF8 conversion and NULL pointer check
+    MenuCmd_GetTtxConfig: dito
+epgtcl/rcfile.tcl [rev:1.33, 2008-02-03T18:52:13]:
+- Major bugfix in 2.8.0pre16 INI-upgrade code:
+- netname line format was incorrect: only 2 elemens (middle "flags" elem misg.)
+- bug reported by tychobarfy in forum 2008-01-22
+epgtcl/mainwin.tcl [rev:1.259, 2008-02-03T18:54:36]:
+- Safety-fix FilterMenuAdd_Networks: check existance of netsel_names($cni)
+epgtcl/dlg_prov.tcl [rev:1.23, 2008-02-03T18:55:33]:
+- Improved some label texts in ProvmergeOptLabels array
+epgtcl/dlg_netsel.tcl [rev:1.14, 2008-02-03T19:10:14]:
+- Fixed CNI mapping for teletext grabber and merged databases:
+- suppress duplicate networks in network selection config dialog and in
+    UpdateProvCniTable: via new proc C_NormalizeCni and NormalizeCnis
+epgtcl/dlg_netsel.tcl [rev:1.15, 2008-02-03T19:19:47]:
+- Improved net selection config dialog layout (closer to standard dialog layout):
+- moved Ok/Abort buttons from in-between ai/se lists to the window bottom
+- use labelframe for network identification
+- also: fix in OK callback: check if dialog window still exists
+epgtcl/dlg_netname.tcl [rev:1.14, 2008-02-03T19:19:59]:
+- Fixed CNI mapping for teletext grabber and merged databases:
+- suppress duplicate networks in network list: via new proc NormalizeCnis
+- apply and use name config both to original and normalized CNI
+- also fixed handling of name change via click in prov. name list
+epgctl/epgversion.h [rev:1.89, 2008-02-03T21:18:31]:
+- set version to 2.8.1pre2
+xmltv/xmltv_db.c [rev:1.16, 2008-02-06T20:38:47]:
+- Bugfix: source_info_name/_url assignments were swapped
+xmltv/xmltv_cni.c [rev:1.5, 2008-02-06T20:41:56]:
+- Allow to override CNIs of channel IDs in the form "CNI%X", too
+epgui/shellcmd.c [rev:1.14, 2008-07-27T19:05:02]:
+- Bugfix ShellCmd_AppendStringInfoTextCb: description string was truncated
+- bug only occured for XMLTV import (else the func gets a copy of the text)
+- bug reported by "m-unter" in SF forum 2008-06-27
+xmltv/xmltv_db.c [rev:1.17, 2008-08-09T17:08:46]:
+- Fixed compiler warning about "type punned pointer"
+- reported via forum by "mmarek" 2008-04-08
+epgvbi/btdrv4linux.c [rev:1.71, 2008-08-10T18:53:01]:
+- Switched to v4l2 interface for channel change (when available)
+- vl41 didn't work for some cards, as reported in forum 2008-08-02 by devport
+epgvbi/cni_tables.c [rev:1.34, 2008-08-10T18:56:05]:
+- Undid removal of provider table: required by scan for bad reception (Feb/2008)
+epgvbi/cni_tables.h [rev:1.8, 2008-08-10T18:56:05]:
+- Undid removal of provider table: required by scan for bad reception (Feb/2008)
+epgctl/epgscan.c [rev:1.47, 2008-08-10T18:56:16]:
+- Undid removal of provider table: required by scan for bad reception (Feb/2008)
+epgtcl/dlg_hwcfg.tcl [rev:1.22, 2008-08-10T19:14:36]:
+- Added "-title" to modal message boxes
+epgtcl/dlg_xawtvcf.tcl [rev:1.15, 2008-08-10T19:14:36]:
+- Added "-title" to modal message boxes
+epgui/wintvui.c [rev:1.5, 2008-08-10T19:26:23]:
+- WintvUi_TestChanTab: Improved check for missing or empty path
+epgdb/epgblock.h [rev:1.54, 2008-08-10T19:29:39]:
+- Valgrind adaptions: added "reserved" elements in alignment gaps
+epgdb/epgblock.c [rev:1.62, 2008-08-10T19:29:59]:
+- Valgrind adaptions: zero out block headers and reserved elements
+epgdb/epgdbsav.c [rev:1.64, 2008-08-10T19:30:43]:
+- Valgrind adaptions: zero out block header
+epgctl/epgacqclnt.c [rev:1.20, 2008-08-10T19:38:27]:
+- Prepared database format for 32-/64-bit binary compatibility (Feb/2008)
+- added flags for UTF8 and 32-bit compat to CON_IND message
+- MSG_STRUCT_STATS_IND: packed prev/next pointers into union for 64-bit ptrs.
+- also fixed endian conversion for TTX grabber stats
+epgctl/epgacqsrv.c [rev:1.20, 2008-08-10T19:38:40]:
+- Added flags for UTF8 and 32-bit compat to CON_IND message (Feb/2008)
+- to display proper error message upon incompatibility
+epgctl/epgacqsrv.h [rev:1.12, 2008-08-10T19:38:40]:
+- Added flags for UTF8 and 32-bit compat to CON_IND message (Feb/2008)
+- to display proper error message upon incompatibility
+epgdb/epgnetio.c [rev:1.39, 2008-08-10T19:49:05]:
+- Prepared database format for 32-/64-bit binary compatibility (Feb/2008)
+- allow to omit pointers from EPG blocks in transmission via new "writeGap"
+epgdb/epgnetio.h [rev:1.29, 2008-08-10T19:49:05]:
+- Prepared database format for 32-/64-bit binary compatibility (Feb/2008)
+- allow to omit pointers from EPG blocks in transmission via new "writeGap"
+epgdb/epgnetio.c [rev:1.40, 2008-08-10T19:51:15]:
+- Fixed memory leak (reported valgrind):
+- freeaddrinfo() doesn't release memory in "ai_addr" for named socket
+epgvbi/btdrv4linux.c [rev:1.72, 2008-09-14T19:19:50]:
+- Fixed BtDriver_GetDevicePath() search algorithm (for /dev/v4l)
+- check for existance of device file, not just /dev/v4l directory
+- reported for Debian by Uwe Bugla via email 2008-08-24
+tvsim/tvsim_gui.tcl [rev:1.17, 2008-09-14T19:23:22]:
+- Late adaption for Tcl/Tk version 8.5
+- added new proc C_ClockSeconds et.al. to replace Tcl "clock" command (because
+    that one requires a library script which depends on msgcat and i18l library)
+tvsim/tvsim_main.c [rev:1.34, 2008-09-14T19:23:22]:
+- Late adaption for Tcl/Tk version 8.5
+- added new proc C_ClockSeconds et.al. to replace Tcl "clock" command (because
+    that one requires a library script which depends on msgcat and i18l library)
+tvsim/vbirec_main.c [rev:1.28, 2008-09-14T19:25:20]:
+- Added new type time32_t for 32-/64-bit binary compatibility
+- adapted calls to localtime(): use additional local var of type time_t
+epgui/dumphtml.c [rev:1.10, 2008-09-20T19:07:05]:
+- Bugfixes Latin1/UTF8 conversion for Tcl/Tk 8.5 [changed Feb 2008]
+- display char len may be different from byte len due to UTF8
+epgui/pioutput.c [rev:1.61, 2008-09-20T19:07:05]:
+- Bugfixes Latin1/UTF8 conversion for Tcl/Tk 8.5 [changed Feb 2008]
+- display char len may be different from byte len due to UTF8
+epgui/pioutput.h [rev:1.19, 2008-09-20T19:07:05]:
+- Bugfixes Latin1/UTF8 conversion for Tcl/Tk 8.5 [changed Feb 2008]
+- display char len may be different from byte len due to UTF8
+epgui/pifilter.c [rev:1.93, 2008-09-20T19:17:03]:
+- Bugfixes Latin1/UTF8 conversion for Tcl/Tk 8.5 [changed Feb 2008]
+- use encIso88591 for conversion of search text instead of NULL
+    because NULL performs no conversions so that search uses UTF8
+epgui/piremind.c [rev:1.21, 2008-09-20T20:24:49]:
+- Allow to disable reminder group via context menu [implemented Feb 2008]
+- added new function PiRemind_ContextMenuDisable()
+epgui/shellcmd.c [rev:1.15, 2008-09-20T20:24:52]:
+- Allow to disable reminder group via context menu [implemented Feb 2008]
+epgtcl/dlg_ctxmencf.tcl [rev:1.14, 2008-09-20T20:25:30]:
+- Allow to disable reminder group via context menu [implemented Feb 2008]
+epgtcl/dlg_remind.tcl [rev:1.24, 2008-09-20T20:25:30]:
+- Allow to disable reminder group via context menu [implemented Feb 2008]
+epgtcl/dlg_dump.tcl [rev:1.11, 2008-09-20T20:28:58]:
+- Fixed placement of hyperlinks on titles in HTML export [Feb 2008]
+- changed HtmlDump_Start to use new proc UserCols_IsTitleColumn
+epgtcl/dlg_udefcols.tcl [rev:1.20, 2008-09-20T20:28:58]:
+- Fixed placement of hyperlinks on titles in HTML export [Feb 2008]
+- added new helper proc UserCols_IsTitleColumn
+nxtvepg-de.pod [rev:1.17, 2008-09-20T20:32:21]:
+- added description of new reminder disable via context menu
+- fixed description of provider scan for Belgium (WE freq. table)
+nxtvepg.pod [rev:1.133, 2008-09-20T20:32:21]:
+- added description of new reminder disable via context menu
+- fixed description of provider scan for Belgium (WE freq. table)
+xmltv-etsi.map [rev:1.6, 2008-09-20T20:34:17]:
+- Added mapping of official VPS/PDC to transmitted codes: MTV, SWR, EU-Sport
+Makefile [rev:1.99, 2008-09-20T20:39:29]:
+- Added new compile switch USE_32BIT_COMPAT: [Feb 2008]
+- disabled by default to keep binary backwards compat with old DB format
+- enable if you have both 32-bit and 64-bit systems
+Makefile [rev:1.100, 2008-09-20T20:43:47]:
+- enabled new warning -Wcast-align; prepared 3 other new warnings
+- increased optimization level from 1 to 2 (same as used for release)
+- prepared coverage measurements via lcov
+Makefile.win32 [rev:1.71, 2008-09-20T20:45:26]:
+- Added new compile switch USE_32BIT_COMPAT: [Feb 2008]
+- disabled by default to keep binary backwards compat with old DB format
+- enable if you have both 32-bit and 64-bit systems
+Makefile [rev:1.101, 2008-09-20T20:51:38]:
+- Added module epgvbi/cni_tables for tvsim: indirectly required by rcfile.c
+epgctl/epgversion.h [rev:1.90, 2008-09-20T21:00:50]:
+- set version to 2.8.1pre3
+TODO [rev:1.38, 2008-09-21T21:25:00]:
+- Updated for release 2.9.0preX [late checkin]
+www/download-de.html [rev:1.30, 2008-09-22T14:52:22]:
+- added reference to debian package by Uwe Bugla
+- removed reference to predecessor version 2.7.7
+www/download.html [rev:1.28, 2008-09-22T14:52:22]:
+- added reference to debian package by Uwe Bugla
+- removed reference to predecessor version 2.7.7
+www/index-de.html [rev:1.99, 2008-09-22T14:54:09]:
+- Change note regarding NextViewPlugin.dll: [Mar 2008]
+- update is now done automatically by Neo's installer
+www/index-fr.html [rev:1.32, 2008-09-22T14:54:09]:
+- Change note regarding NextViewPlugin.dll: [Mar 2008]
+- update is now done automatically by Neo's installer
+www/index.html [rev:1.108, 2008-09-22T14:54:09]:
+- Change note regarding NextViewPlugin.dll: [Mar 2008]
+- update is now done automatically by Neo's installer
+epgdb/epgdbsav.c [rev:1.65, 2008-09-26T15:37:48]:
+- Added debug output for EPGDB_RELOAD_INT_WIDTH
+epgdb/ttxgrab.c [rev:1.7, 2008-09-26T16:24:16]:
+- Fail-safe only: prevent sending SIGTERM to pid 0
+epgvbi/btdrv4linux.c [rev:1.73, 2008-09-27T20:07:45]:
+- Syntax clean-up
+epgctl/epgctxctl.c [rev:1.30, 2008-09-27T20:27:44]:
+- Fixed nxtv load error handling: missing notification for reload errors
+- EpgContextCtl_Peek: consider db still "new" when in state STAT
+epgdb/ttxgrab.c [rev:1.8, 2008-10-03T20:12:16]:
+- Cleaned-up handling of external grabber script - LINUX only
+- moved definition of script name into makefile
+- start script directly (via $PATH) instead of invoking perl
+epgctl/epgctxctl.c [rev:1.31, 2008-10-03T20:20:03]:
+- Fixed database removal (used via EPG scan in refresh mode):
+- remove context from list so that it doesn't show upin next "refresh" scan
+Makefile [rev:1.102, 2008-10-03T20:34:17]:
+- added define TTX_GRAB_SCRIPT_NAME for ttx_grab.c
+- added define XMLTV_CNI_MAP_PATH for xmltv_cni.c
+    added xmltv-etsi.map as install target to /usr/share/nxtvepg
+Makefile.win32 [rev:1.72, 2008-10-03T20:40:46]:
+- added define TTX_GRAB_SCRIPT_NAME for ttx_grab.c
+- renamed ttx_grab.pl into tv_grab_ttx.pl for win32 ZIP packing
+CHANGES [rev:1.53, 2008-10-03T20:42:56]:
+- Added change-log for 2.8.1 pre-releases (pre0 - pre3)
+nxtvepg.spec [rev:1.27, 2008-10-03T20:45:43]:
+- set version number to 2.8.1
+- changed datbase path to /var/tmp (already done in Makefile long ago)
+- added install target .../share/nxtvepg/xmltv-etsi.map
+nxtvepg-de.pod [rev:1.18, 2008-10-03T21:02:17]:
+- added xmltv-etsi.map to FILES section
+- updated URL for xmltv.org
+- added comment about limitations of -dump html for nxtvepgd (daemon)
+- removed note that -remctrl is limited to WIN32 (not anymore since 2.8.0)
+nxtvepg.pod [rev:1.134, 2008-10-03T21:02:17]:
+- added xmltv-etsi.map to FILES section
+- updated URL for xmltv.org
+- added comment about limitations of -dump html for nxtvepgd (daemon)
+- removed note that -remctrl is limited to WIN32 (not anymore since 2.8.0)
+xmltv/xmltv_cni.c [rev:1.6, 2008-10-03T21:11:35]:
+- Cleaned-up handling of xmltv-etsi.map
+- moved definition of path to map file into makefile
+epgui/epgmain.c [rev:1.160, 2008-10-03T21:14:06]:
+- Bugfix main(): must skip EpgAcqCtl_Destroy() for IS_REMCTL_MODE
+epgctl/epgversion.h [rev:1.91, 2008-10-03T22:06:03]:
+- set version number to 2.8.1
+epgdb/ttxgrab.c [rev:1.9, 2008-10-05T16:33:01]:
+- Re-worked previous solution for script path:
+- search at 3 locations: ".", /usr/share/nxtvepg, /usr/bin (without .pl)
+Makefile [rev:1.103, 2008-10-05T16:37:15]:
+- Install TTX grabber script into /usr/share/nxtvepg
+Makefile.win32 [rev:1.73, 2008-10-05T16:37:59]:
+- Replaced definition of TTX grabber script name with path only
+nxtvepg.spec [rev:1.28, 2008-10-05T16:39:09]:
+- Install TTX grabber script into /usr/share/nxtvepg
+README [rev:1.46, 2008-10-05T16:46:39]:
+- fixed typo
+www/man-ttx_grab.html [rev:1.1, 2008-10-09T20:13:24]:
+- Initial revision
+www/ttx_grab.html [rev:1.1, 2008-10-09T20:13:24]:
+- Initial revision
+www/changelog-2.8.0pre.html [rev:1.5, 2008-10-10T20:05:49]:
+- added pre-releases 2.8.1pre2 and pre3
+www/pre-releases.html [rev:1.89, 2008-10-10T20:11:33]:
+- updated for pre-releases 2.8.0pre2 and subsequently pre3
+- moved teletext grabber download to dedicated page
+www/pre-releases-de.html [rev:1.17, 2008-10-10T20:12:39]:
+- updated for pre-releases 2.8.0pre2 and subsequently pre3
+- updated to teletext grabber release 1.0
+CHANGES [rev:1.54, 2008-10-10T20:15:04]:
+- updated for release 2.8.1
+README [rev:1.47, 2008-10-12T14:53:36 - LATE CHECKIN]:
+- updated date of provider list
+- fixed wording
+www/pre-releases-de.html [rev:1.18, 2008-10-10T20:19:28]:
+- moved teletext grabber download to dedicated page
+www/changelog-2.8.0pre.html [rev:1.6, 2008-10-11T20:13:10]:
+- updated intros on occasion of release 2.8.1
+www/changelog.html [rev:1.69, 2008-10-11T20:13:49]:
+- added changelog for release 2.8.1
+www/download-de.html [rev:1.31, 2008-10-11T20:15:56]:
+- updated for release 2.8.1
+- split off "Linux binary" section from source section
+- in win section: included WDM and UFT8 into download UL
+- various improvements in descriptions
+www/download.html [rev:1.29, 2008-10-11T20:15:56]:
+- updated for release 2.8.1
+- split off "Linux binary" section from source section
+- in win section: included WDM and UFT8 into download UL
+- various improvements in descriptions
+www/index-de.html [rev:1.100, 2008-10-11T20:16:25]:
+- updated for release 2.8.1
+www/index-fr.html [rev:1.33, 2008-10-11T20:16:25]:
+- updated for release 2.8.1
+www/index.html [rev:1.109, 2008-10-11T20:16:25]:
+- updated for release 2.8.1
+www/man-de.html [rev:1.3, 2008-10-11T20:17:20]:
+- updated for release 2.8.1
+www/man.html [rev:1.46, 2008-10-11T20:17:20]:
+- updated for release 2.8.1
+www/nxtvepg.css [rev:1.17, 2008-10-11T20:17:40]:
+- adapted div.box for download page; added H3
+- added new LI.spaced, also for download pages
+www/ttx_grab.html [rev:1.2, 2008-10-11T20:18:46]:
+- framed download sections in DIV "box", same as on nxtvepg download page
+#>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> RELEASE_2_8_1 <<<<<<<<<<<<<<<<<<<<<<<<<<<<<

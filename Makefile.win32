@@ -22,7 +22,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: Makefile.win32,v 1.70 2008/01/01 00:34:06 tom Exp tom $
+#  $Id: Makefile.win32,v 1.73 2008/10/05 16:37:59 tom Exp tom $
 #
 
 ifeq ($(OS),Windows_NT)
@@ -73,6 +73,8 @@ DEFS   += -DICON_PATCHED_INTO_DLL
 #DEFS   += -DUSE_THREADS
 # enable use of daemon and client/server connection (UNIX only)
 DEFS   += -DUSE_DAEMON
+# enable if you have both 32-bit and 64-bit systems
+#DEFS   += -DUSE_32BIT_COMPAT
 # testing TV app interaction on a host without a TV card
 #DEFS   += -DWITHOUT_TVCARD
 # use UTF-8 internally instead of Latin-1 (EXPERIMENTAL)
@@ -80,7 +82,8 @@ DEFS   += -DUSE_DAEMON
 # enable support for importing XMLTV files
 DEFS   += -DUSE_XMLTV_IMPORT
 # enable support for teletext EPG grabber (EXPERIMENTAL)
-DEFS   += -DUSE_TTX_GRABBER
+# note: in contrary to UNIX the script is expected in the working directory
+DEFS   += -DUSE_TTX_GRABBER -DTTX_GRAB_SCRIPT_PATH=\".\"
 
 DEFS   += -DWIN32
 
@@ -329,7 +332,7 @@ zip: all
 	zip -9 -j $$ARCHIVE $(BUILD_DIR)/nxtvepg.exe $(BUILD_DIR)/nxtvepgd.exe; \
 	zip -9 $$ARCHIVE tcl$(TCL_L).dll tk$(TCL_L).dll NextViewPlugin.dll dsdrv4.sys dsdrv4.vxd nxtvepg.ico; \
 	zip -9 $$ARCHIVE -l manual.html manual-de.html Nxtvepg.ad \
-	                    ttx_grab.pl xmltv-etsi.map; \
+	                    tv_grab_ttx.pl xmltv-etsi.map; \
 	zip -9 -j $$ARCHIVE dsdrv/CX2388xCards.ini dsdrv/SAA713xCards.ini; \
 	for v in TODO README CHANGES COPYRIGHT; do \
 	   mv $$v $${v}.txt; \

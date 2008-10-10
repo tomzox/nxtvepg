@@ -20,7 +20,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: pifilter.c,v 1.91 2007/12/29 16:56:11 tom Exp tom $
+ *  $Id: pifilter.c,v 1.93 2008/09/20 19:17:03 tom Exp tom $
  */
 
 #define __PIFILTER_C
@@ -402,11 +402,12 @@ static int SelectSubStr( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *
                EpgDbFilterSetSubStr(pPiFilterContext, subStr, scope_title, scope_descr, match_case, match_full);
 #else
                Tcl_DString ds;
-               char *native;
                // convert the String from Tcl internal format to Latin-1
-               native = Tcl_UtfToExternalDString(NULL, subStr, -1, &ds);
+               // FIXME encoding should be NULL but then no conversion occurs!?
+               Tcl_UtfToExternalDString(encIso88591, subStr, -1, &ds);
 
-               EpgDbFilterSetSubStr(pPiFilterContext, native, scope_title, scope_descr, match_case, match_full);
+               EpgDbFilterSetSubStr(pPiFilterContext, Tcl_DStringValue(&ds),
+                                    scope_title, scope_descr, match_case, match_full);
                Tcl_DStringFree(&ds);
 #endif
                enable = TRUE;
@@ -536,6 +537,7 @@ static int SelectMinMaxDuration( ClientData ttp, Tcl_Interp *interp, int objc, T
 static int SelectExpiredPiDisplay( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
 {  
    PiFilter_Expire();
+   //UiControl_CheckDbState();  // XXX TODO if all PI are expired: show some
    return TCL_OK; 
 }
 
@@ -1952,7 +1954,7 @@ static int PiFilter_ContextMenuUndoFilter( ClientData ttp, Tcl_Interp *interp, i
             if (idx > 1)
             {  // more than one network -> offer to remove only the selected one
                assert(pPiBlock != NULL);  // idx only > 0 if PI selected
-               Tcl_ListObjAppendElement(interp, pResultList, TranscodeToUtf8(EPG_ENC_NETNAME(isFromAi), "Remove network ", pCfNetname, NULL));
+               Tcl_ListObjAppendElement(interp, pResultList, TranscodeToUtf8(EPG_ENC_NETNAME(isFromAi), "Remove network '", pCfNetname, "'"));
                sprintf(comm, "SelectNetwopByIdx %d 0", pPiBlock->netwop_no);
                Tcl_ListObjAppendElement(interp, pResultList, Tcl_NewStringObj(comm, -1));
 
@@ -2094,8 +2096,11 @@ static int PiFilter_ContextMenuUndoFilter( ClientData ttp, Tcl_Interp *interp, i
 
             if (count == 1)
             {
-               pThemeStr = (theme > 0) ? PdcThemeGet(theme): NULL;
-               Tcl_ListObjAppendElement(interp, pResultList, TranscodeToUtf8(EPG_ENC_NXTVEPG, "Undo themes filter ", pThemeStr, NULL));
+               pThemeStr = PdcThemeGet(theme);
+               if (pThemeStr != NULL)
+                  Tcl_ListObjAppendElement(interp, pResultList, TranscodeToUtf8(EPG_ENC_NXTVEPG, "Undo themes filter ", pThemeStr, NULL));
+               else
+                  Tcl_ListObjAppendElement(interp, pResultList, Tcl_NewStringObj("Undo themes filter", -1));
                comm[0] = 0;
                for (class=0; class < THEME_CLASS_COUNT; class++)
                {
@@ -2208,14 +2213,14 @@ static int PiFilter_ContextMenuAddFilter( ClientData ttp, Tcl_Interp *interp, in
                        (EpgDbSearchNextPi(pUiDbContext, pPiFilterContext, pPiBlock) != NULL) )
                   {
                      char * p;
-                     Tcl_ListObjAppendElement(interp, pResultList, TranscodeToUtf8(EPG_ENC_NXTVEPG, "Filter title ", pTitle, NULL));
+                     Tcl_ListObjAppendElement(interp, pResultList, TranscodeToUtf8(EPG_ENC_NXTVEPG, "Filter title '", pTitle, "'"));
                      strncpy(comm, pTitle, TCL_COMM_BUF_SIZE);
                      comm[TCL_COMM_BUF_SIZE-1] = 0;
                      while ((p = strchr(comm, '{')) != NULL)
                         *p = '(';
                      while ((p = strchr(comm, '}')) != NULL)
                         *p = ')';
-                     Tcl_ListObjAppendElement(interp, pResultList, TranscodeToUtf8(EPG_ENC_NXTVEPG, "SubstrSetFilter {{", pTitle, "} 1 0 1 1 0 0}"));
+                     Tcl_ListObjAppendElement(interp, pResultList, TranscodeToUtf8(EPG_ENC_NXTVEPG, "SubstrSetFilter {{", comm, "} 1 0 1 1 0 0}"));
                   }
                   EpgDbFilterDisable(pPiFilterContext, FILTER_SUBSTR);
                }
@@ -2335,7 +2340,7 @@ static int PiFilter_ContextMenuAddFilter( ClientData ttp, Tcl_Interp *interp, in
             // netwop filter
             if ( EpgDbFilterIsEnabled(pPiFilterContext, FILTER_NETWOP) == FALSE )
             {  // no network filter yet -> offer to filter for the currently selected
-               Tcl_ListObjAppendElement(interp, pResultList, TranscodeToUtf8(EPG_ENC_NETNAME(isFromAi), "Filter network ", pCfNetname, NULL));
+               Tcl_ListObjAppendElement(interp, pResultList, TranscodeToUtf8(EPG_ENC_NETNAME(isFromAi), "Filter network '", pCfNetname, "'"));
                sprintf(comm, "SelectNetwopByIdx %d 1", pPiBlock->netwop_no);
                Tcl_ListObjAppendElement(interp, pResultList, Tcl_NewStringObj(comm, -1));
             }
@@ -2347,7 +2352,7 @@ static int PiFilter_ContextMenuAddFilter( ClientData ttp, Tcl_Interp *interp, in
                      break;
                if (netwop < pAiBlock->netwopCount)
                {
-                  Tcl_ListObjAppendElement(interp, pResultList, TranscodeToUtf8(EPG_ENC_NETNAME(isFromAi), "Filter only network ", pCfNetname, NULL));
+                  Tcl_ListObjAppendElement(interp, pResultList, TranscodeToUtf8(EPG_ENC_NETNAME(isFromAi), "Filter only network '", pCfNetname, "'"));
                   sprintf(comm, "ResetNetwops; SelectNetwopByIdx %d 1", pPiBlock->netwop_no);
                   Tcl_ListObjAppendElement(interp, pResultList, Tcl_NewStringObj(comm, -1));
                }

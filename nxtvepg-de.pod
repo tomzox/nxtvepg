@@ -1,6 +1,6 @@
  ---------------------------------------------------------------------------
 #
-#  Nextview decoder online manual - German version
+#  nxtvepg online manual - German version
 #
 #  This program is free software; you can redistribute it and/or modify
 #  it under the terms of the GNU General Public License Version 2 as
@@ -20,7 +20,7 @@
 #  Author: Tom Zoerner (Original)
 #          German translation by Kurt Lettmaier & Olaf Nöhring
 #
-# $Id: nxtvepg-de.pod,v 1.14 2008/01/01 01:13:28 tom Exp tom $
+# $Id: nxtvepg-de.pod,v 1.18 2008/10/03 21:02:17 tom Exp tom $
 # ---------------------------------------------------------------------------
 
 =head1 NAME
@@ -33,7 +33,7 @@ B<nxtvepg> S<[ options ]> S<[ database ]>
 
 =head1 DESCRIPTION
 
-B<nxtvepg> ist eine X11- und Windows-Anwendung zum Empfang, Anzeige und Analyse von TV-Programmzeitschriften, die über analoge TV-Kanäle gemäß Standard ETS 300 707 ("Protocol for a TV Guide using electronic data transmission") übertragen werden. Dieser offene Standard wurde vom European Telecommunications Standards Institute in den Jahren 1995-1997 entwickelt und ist bei http://www.etsi.org/ frei verfügbar.
+B<nxtvepg> ist eine X11- und Windows-Anwendung zum Empfang, Anzeige und Analyse von TV-Programmzeitschriften, die über analoge TV-Kanäle gemäß Standard ETS 300 707 ("Protocol for a TV Guide using electronic data transmission") übertragen werden. Dieser offene Standard wurde vom European Telecommunications Standards Institute in den Jahren 1995-1997 entwickelt und ist bei L<http://www.etsi.org/> frei verfügbar.
 
 NexTView EPG wurde für den Gebrauch in Fernsehgeräten entwickelt, jedoch können die Daten auch in einem PC empfangen und verwendet werden. Voraussetzung ist lediglich eine Teletext-fähige TV-Tuner-Karte und natürlich der Empfang eines TV-Senders auf dem das EPG ausgestrahlt wird.
 
@@ -107,7 +107,7 @@ Gibt an welche TV-Hardware benutzt werden soll, wenn mehr als eine Karte verfügb
 
 =item B<-dvbpid> I<number>
 
-Nur UNIX, und auch dort nur verfügbar wenn nxtvepg bei der Compilierung mit Benutzung der I<ZVBI library> (C<http://zapping.sf.net/>) konfiguriert wurde (d.h. in der Datei I<Makefile>)
+Nur UNIX, und auch dort nur verfügbar wenn nxtvepg bei der Compilierung mit Benutzung der I<ZVBI library> (L<http://zapping.sourceforge.net/ZVBI/index.html>) konfiguriert wurde (d.h. in der Datei I<Makefile>)
 
 Diese Option gibt an dass ein DVB device zur Akquisition verwendet werden soll. Der Kanal muß jedoch mittels externer Applikationen eingestellt werden. Ebenso muß der PID Parameter anderweitig ermittelt werden. Die PID bezeichnet den Datenstrom in dem Teletext des gewünschten Senders übertragen wird. Beachten Sie dass DVB support rein experimentell ist und nicht offiziell unterstützt wird. Des weiteren funktionieren der EPG scan und aktive Akqusitionsmodi nicht für DVB devices da nxtvepg nicht in der Lage ist DVB TV-Sender umzuschalten.
 
@@ -160,7 +160,7 @@ Mit diesem Argument exportiert nxtvepg nur die Datenbank und beendigt sich danac
 
 Verwenden Sie das Schlüsselwort I<xml> als Modus, um die Datenbank in das XML-Format zu exportieren. Benötigen Sie eine andere als die zuletzt im "Export"-Dialog des Control-Menüs eingestellte XMLTV-Version, verwenden Sie I<xml5>, I<xml5ltz> oder I<xml6> um eine Version direkt auszuwählen. Weitere Details siehe L<"CONTROL: Export as XMLTV">.
 
-Verwenden Sie das Schlüsselwort I<html> als Modus, um Programmdaten in ein HTML Dokument zu exportieren.  Es werden die zuletzt im HTML-Export Dialog eingestellten Optionen verwendet (siehe L<"CONTROL: Export as HTML">.)  Zusätzlich können Sie die Zahl der exportierten Programme limitieren indem Sie das Limit durch Doppelpunkt getrennt anhängen (z.B. C<-dump html:50>.)  Das Format der Programmliste ist nicht konfigurierbar.
+Verwenden Sie das Schlüsselwort I<html> als Modus, um Programmdaten in ein HTML Dokument zu exportieren.  Es werden die zuletzt im HTML-Export Dialog eingestellten Optionen verwendet. (Es sei denn "nxtvepgd", d.h. der reine Akquisitions-Daemon wird für den export verwendet.)  Weitere Details siehe L<"CONTROL: Export as HTML">.  Zusätzlich können Sie die Zahl der exportierten Programme limitieren indem Sie das Limit durch Doppelpunkt getrennt anhängen (z.B. C<-dump html:50>.)  Das Format der Programmliste ist jedoch nicht über Kommandozeilenparameter konfigurierbar.
 
 Um die Daten in tabellarischer Form in eine Textdatei zu exportieren (z.B. für den Import in eine SQL-Datenbank) sind die folgenden Schlüsselwörter vorhanden: I<pi>, um die gesamte TV-Sendungsbeschreibungen auszugeben; I<ai>, um die Kanal- bzw. Sendertabelle auszugeben; I<pdc>, um die Themenkategorien-Tabelle auszugeben. Weitere Details siehe L<"CONTROL: Export as text">.
 
@@ -183,7 +183,7 @@ Das erste Beispiel schreibt die Sendertabelle des Providers I<Kabel1> (CNI I<0xd
 
 =item B<-remctrl> I<command>
 
-Nur Windows: mit dieser Option können Sie eine andere, zuvor gestartete GUI-Instanz von nxtvepg fernsteuern, also den jeweiligen Befehl an die andere Instanz senden.
+Mit dieser Option können Sie eine andere, zuvor gestartete GUI-Instanz von nxtvepg fernsteuern, also den jeweiligen Befehl an die andere Instanz senden.
 
 Folgende Befehle sind verfügbar: I<quit> beendet den anderen nxtvepg-Prozess; I<iconify> minimiert das Fenster; I<deiconify> macht eine vorhergehende Minimierung rückgängig; I<raise> macht eine Minimierung des anderen Fensters rückgängig und holt es in den Vordergrund (für den Fall, dass es von anderen Fenstern überdeckt sein sollte); I<acqon> startet die Akquisition; I<acqoff> beendet die Akquisition.
 
@@ -361,7 +361,7 @@ Auf Windows-Systemen kann dieser Modus verwendet werden, falls der Tuner nxtvepg
 
 Dies ist der Standard-Modus: die Akquisition arbeitet immer für den Provider, den Sie für den Browser (d.h. die Benutzerschnittstelle) gewählt haben. Ändern Sie den Provider im Browserfenster, folgt die Akquisition dem neu eingestellten Kanal. Natürlich wird dazu mindestens ein EPG-Suchlauf benötigt, damit die Tuner-Frequenzen aller Provider bekannt sind. Verwenden Sie im Browser eine zusammengeführte (engl. "merged") Datenbank, arbeitet die Akquisition bei jedem der zusammengeführten Provider nacheinander, ähnlich dem Modus, der als Nächstes beschrieben wird.
 
-=item B<Manually selected>
+=item B<Manually selected (Cyclic: All>
 
 Dieser Modus ermöglicht es Ihnen, manuell auszuwählen, für welchen Provider die Akquisition arbeiten soll. Sollten Sie mehr als einen Provider auswählen, werden diese Provider einer nach dem anderen in der von Ihnen festgelegten Reihenfolge geladen. Warnung: falls Sie für den Browser einen Provider wählen, der nicht in der Liste steht, werden keine Daten in den Browser geladen, auch wenn die Liste vollkommen leer ist.
 
@@ -387,7 +387,7 @@ Die zyklischen Modi ermöglichen es Ihnen, die Startzeit zu optimieren. Während i
 
 Verwenden Sie die manuelle Akquisition gemeinsam mit einer zusammengeführten Datenbank, sollten Sie sicherstellen, dass sich der gleiche Provider in beiden Listen oben befindet, d.h. die Akquisition sollte immer mit der "Haupt-Datenbank" der Zusammenführung (engl. "merge") beginnen.
 
-Bitte beachten Sie, dass die Zeit bis alle Datenbanken komplettiert sind, in den zyklischen Modi länger ist als im standardmäßig manuellen Modus. Allgemein kommt die für die I<Now>- und I<Next>-Stufen benötigte Zeit zur Vervollständigungszeit der Datenbank hinzu.
+Bitte beachten Sie, dass die Zeit bis alle Datenbanken komplettiert sind, in den zyklischen Modi länger ist als im standardmäßig manuellen Modus. Generell kommt die für die I<Now>- und I<Next>-Stufen benötigte Zeit zur Vervollständigungszeit der Datenbank hinzu.
 
 Beachten Sie außerdem, dass die zyklischen Modi von den Übermittlungszyklen der Provider abhängen. Dies bedeutet erstens, dass sich die von den zyklischen Modi belegten Zeitspannen von Provider zu Provider unterscheiden. Zweitens werden die Zykluszeiten differieren. Im schlimmsten Fall läuft der I<Near>-Zyklus so lange wie der Zyklus für die gesamte Datenbank (z.B. der des deutschen Anbieters RTL2). In diesem Fall gewinnen Sie nichts durch die Wahl eines Modus, der eine I<Near>-Stufe enthält.
 
@@ -829,7 +829,7 @@ Alle Änderungen, die in diesem Dialog vorgenommen werden, treten sofort in Kraft
 
 Standardmäßig hat nxtvepg nur eine Gruppe, die eine Nachricht 5 Minuten vor und direkt zur Startzeit auftauchen lässt. Sie können dies ändern, indem Sie die Gruppe in der linken Liste auswählen und dann die Parameter rechts modifizieren. Oder erstellen Sie einen neuen Reminder durch eine Klick auf I<New>. Ebenso können Sie die Sortierreihenfolge der Gruppen ändern (nur aus Komfortgründen vorhanden; außer für Gruppe Null ist die Reihenfolge irrelevant). Der Button I<Show> setzt einen Filter für die Programmliste, sodass nur Sendungen angezeigt werden, die auf Reminder in der gleichen Gruppe zutreffen, wie der aktuell gewählte Shortcut.
 
-Am oberen Rand der Sektion zur Parametereingabe befindet sich das Eingabefeld I<Label>. Es erlaubt der Gruppe einen Namen zu geben, welcher dann in den Reminderlisten und in den Bestätigungsmeldungen der Reminder Verwendung findet. Darunter liegt eine Checkbox mit Namen "I<Disable all group events>". Ist diese aktiviert, werden alle Aktionen für diese Gruppe unterdrückt. Sie bekommen beispielsweise keine Popupnachricht und Skripte werden nicht ausgeführt. Die Sendungen werden somit im Listenfeld nur markiert.
+Am oberen Rand der Sektion zur Parametereingabe befindet sich das Eingabefeld I<Label>. Es erlaubt der Gruppe einen Namen zu geben, welcher dann in den Reminderlisten und in den Bestätigungsmeldungen der Reminder Verwendung findet. Darunter liegt eine Checkbox mit Namen "I<Temporarily disable all group events>". Ist diese aktiviert, werden alle Aktionen für diese Gruppe unterdrückt. Sie bekommen beispielsweise keine Popupnachricht und Skripte werden nicht ausgeführt. Die Sendungen werden somit im Listenfeld nur markiert. Die Einstellung ist nur während der aktuellen Sitzung gültig und wird beim nächsten Start von nxtvepg zurückgesetzt. (Um die Benachrichtigungen dauerhaft zu unterdrücken leeren Sie die Aktionsliste.)
 
 Weiter unten liegt ein Eingabefeld, in das Sie eine Liste durch Kommas getrennter Werte eingeben können, die definieren, mit welchen Zeitversätzen Remindernachrichten angezeigt werden; diese Versätze werden von der Startzeit subtrahiert, d.h. wenn Sie "5" eingeben, wird eine Nachricht 5 Minuten vor der nominalen Startzeit der Sendung erscheinen. Sie können auch negative Werte verwenden (z.B. "-5"), wenn Sie Reminder nach der Startzeit erscheinen lassen wollen. Zusätzlich können Sie Startzeiten für Befehle setzen. Befehle werden still im Hintergrund ausgeführt, es sei denn Sie aktivieren "I<Ask before executing script>".
 
@@ -963,7 +963,7 @@ B<Tipp:> Die Dateien können auch direkt über die Befehlszeile mittels der Schalt
 
 =head2 Export as XMLTV
 
-Öffnet einen Dialog, der es erlaubt, alle Programminformationen im XML-Format zu exportieren. Das Format ist durch die B<XmlTV DTD> genau festgelegt (siehe Projekt I<xmltv> auf http://sourceforge.net/ ). Die erzeugte Datei enthält sowohl die Sendertabelle als auch die Programmdaten.  Sie umfasst auch Sender, die Sie möglicherweise in der Auflistung innerhalb nxtvepg abgestellt haben.
+Öffnet einen Dialog, der es erlaubt, alle Programminformationen im XML-Format zu exportieren. Das Format ist durch die B<XmlTV DTD> genau festgelegt (siehe L<http://xmltv.org/>.) Die erzeugte Datei enthält sowohl die Sendertabelle als auch die Programmdaten.  Sie umfasst auch Sender, die Sie möglicherweise in der Auflistung innerhalb nxtvepg abgestellt haben.
 
 B<Tipp:> Sie können die Menge der exportierten Daten einschränken indem Sie eine zusammengeführte Datenbank konfigurieren. Dies ist auch für einen einzelnen Provider möglich. Auf diese Weise können Sie bestimmte Sender oder Attribute ausschließen, z.B. um Themen-Kategorien von der Ausgabe auszuschließen (siehe Untermenü I<Configure> im Dialog der Merge-Konfiguration).
 
@@ -987,7 +987,7 @@ Wenn Sie "I<Write descriptions>" wählen, werden Sie für jede exportierte Sendung
 
 Wenn Sie "I<Write titles and descriptions>" wählen, enthält das HTML-Dokument zuerst eine tabellarische Titelübersicht und darunter die zugehörigen Beschreibungen. In diesem Modus können Sie "I<Add hyperlinks to titles>" auswählen, um Hyperlinks von den Titeln in der Tabelle zu den entsprechenden Beschreibungen hinzuzufügen.
 
-Das Aussehen des erzeugten Dokuments wird durch ein internes CSS-Stylesheet festgelegt. Mögen Sie dieses Aussehen nicht, können Sie es mit einem eigenen Stylesheet überschreiben. Speichern Sie dieses in eine Datei mit Namen F<nxtvhtml.css> und legen Sie diese in dasselbe Verzeichnis wie die generierte HTML-Datei. Siehe I<http://www.w3.org/> für mehr Informationen zu HTML und Stylesheets. Wenn Ihre Spalten-Konfiguration Bilder enthält (siehe L<"COMPOSITE ATTRIBUTES">), müssen Sie diese in ein Unterverzeichnis namens F<images> legen; des Weiteren sollte Ihr Web-Browser das Bildformat B<PNG> unterstützen.
+Das Aussehen des erzeugten Dokuments wird durch ein internes CSS-Stylesheet festgelegt. Mögen Sie dieses Aussehen nicht, können Sie es mit einem eigenen Stylesheet überschreiben. Speichern Sie dieses in eine Datei mit Namen F<nxtvhtml.css> und legen Sie diese in dasselbe Verzeichnis wie die generierte HTML-Datei. Siehe L<http://www.w3.org/> für mehr Informationen zu HTML und Stylesheets. Wenn Ihre Spalten-Konfiguration Bilder enthält (siehe L<"COMPOSITE ATTRIBUTES">), müssen Sie diese in ein Unterverzeichnis namens F<images> legen; des Weiteren sollte Ihr Web-Browser das Bildformat B<PNG> unterstützen.
 
 =head2 View statistics/timescales
 
@@ -1045,7 +1045,7 @@ B<Bitte beachten> Sie dass sich dieses Feature noch in der Entwicklung befindet.
 
 Dieser Grabber ist dazu gedacht Nextview EPG zu ergänzen. Der Hauptnachteil gegenüber Nextview ist die lange Ladezeit. Diese kommt hauptsächlich dadurch zustande, dass die TV-Übersicht auf mehrere Unterseiten einzelner Teletext-Seiten verteilt sind. Dadurch werden mehrere Teletext-Zyklen für jeden TV-Sender benötigt um alle relevanten Seiten zu laden, meist mindestens 90 Sekunden. Bei nur 30 TV-Sendern beträgt die Ladezeit also insgesamt schon 45 Minuten.  Ein weiteres zentrales Problem besteht darin dass die TV-Übersicht kein einheitliches Format hat, so dass die Erkennung nicht immer zuverlässig arbeiten kann. Insbesondere können aktuell keine Kategorien erkannt werden.  Dieser Nachteil kann jedoch überwunden werden, indem die aus dem Teletext gewonnenen Daten mit einer Nextview Datenbank vereinigt werden (siehe L<"MERGED DATABASES">)
 
-Um den grabber starten zu können müssen Sie auf Ihrem PC einen "Perl Interpreter" installieren. Perl ist in jeder bekannten Linux-Desktop-Distribution enthalten und kann dort falls nötig ganz einfach über den Paketmanager installiert werden, Sektion "Programmiersprachen."  Bei MS-Windows müssen Sie Perl manuell herunterladen und installieren (http://www.activestate.com/Products/ActivePerl/?mp=1 oder http://www.cygwin.com/) und im Konfigurationsdialog den Installationspfad angeben. (Alternativ können Sie natürlich auf die C<PATH> Environment-Variable um den Pfad zu perl.exe erweitern.)
+Um den grabber starten zu können müssen Sie auf Ihrem PC einen "Perl Interpreter" installieren. Perl ist in jeder bekannten Linux-Desktop-Distribution enthalten und kann dort falls nötig ganz einfach über den Paketmanager installiert werden, Sektion "Programmiersprachen."  Bei MS-Windows müssen Sie Perl manuell herunterladen und installieren (L<http://www.activestate.com/Products/ActivePerl/?mp=1> oder L<http://www.cygwin.com/>) und im Konfigurationsdialog den Installationspfad angeben. (Alternativ können Sie natürlich auf die C<PATH> Environment-Variable um den Pfad zu perl.exe erweitern.)
 
 Nach der Installation ist der Teletext-Grabber zuerst deaktiviert, da er noch in einer Beta-Testphase ist. Um ihn zu aktivieren, müssen Sie die Option "Enable teletext grabber" einschalten. Falls Sie noch keine TV-Applikation konfiguriert haben wird eine diesbezügliche Fehlermeldung erscheinen, denn der grabber benötigt eine TV-Kanaltabelle. Der Grabber liest EPG Daten startend mit dem ersten in der Tabelle gelisteten Sender und danach der Reihe nach die folgenden Sender. Diese Reihenfolge läßt sich momentan noch nicht ändern, jedoch können Sie die Anzahl der Sender begrenzen.
 
@@ -1058,7 +1058,7 @@ Um die vom Teletext gelesenen EPG Daten zu verwenden, müssen Sie zuerst warten b
 
 Öffnet einen Dialog mit dem alle TV-Kanäle nach Nextview-EPG-Anbietern abgesucht werden können. Diese Suche sollte mindestens einmal ausgeführt werden, zum einen um die empfangbaren Provider zu erkennen und zum anderen um die TV-Kanäle bzw. Frequenzen der EPG-Anbieter festzustellen. Diese werden für die meisten Akquisitionsmodi benötigt und sind bei alten bttv-Treibern (<=0.7.50) sonst oft nicht verfügbar. Bedenken Sie, dass der Scan nur funktionieren kann, wenn sie den internen TV-Tuner als Video-Input eingestellt haben. Siehe auch L<"GETTING STARTED"> und die folgenden Kapitel zur Konfiguration der TV-Karte.
 
-In Frankreich oder Belgien sollte die französische Frequenztabelle (welche gleichzeitig die I<Secam L> TV-Norm impliziert) für die Sendersuche ausgewählt werden. In allen anderen Ländern sollte die Standard-Frequenztabelle ausgewählt werden. Letztere deckt alle üblichen westeuropäischen Frequenzen in Kabel- und Antennenausstrahlung mit PAL TV-Norm ab. Andere Länder werden zurzeit nicht unterstützt, da hier keine NexTView-Provider bekannt sind. In einer Gegend, in der sowohl PAL- als auch SECAM-Sender empfangen werden können, sollte die Suche zweimal mit verschiedenen Frequenztabellen ausgeführt werden.
+In Frankreich sollte die französische Frequenztabelle (welche gleichzeitig die I<Secam L> TV-Norm impliziert) für die Sendersuche ausgewählt werden. In allen anderen Ländern sollte die Standard-Frequenztabelle ausgewählt werden. Letztere deckt alle üblichen westeuropäischen Frequenzen in Kabel- und Antennenausstrahlung mit PAL TV-Norm ab. Andere Länder werden zurzeit nicht unterstützt, da hier keine NexTView-Provider bekannt sind. In einer Gegend, in der sowohl PAL- als auch SECAM-Sender empfangen werden können, sollte die Suche zweimal mit verschiedenen Frequenztabellen ausgeführt werden.
 
 Der Button "I<Use TV app.>" wird automatisch ausgewählt, wenn eine TV-Anwendung im Dialog "I<TV app. interaction>" eingestellt wurde. Anstatt alle möglichen TV-Kanäle oder -Frequenzen in allen Bändern zu durchsuchen, wird nxtvepg dann lediglich die dort definierten TV-Kanäle überprüfen. So wird die Suche nicht nur verkürzt, sondern auch zuverlässiger.
 
@@ -1436,6 +1436,10 @@ Verzeichnis, das eine Datei für die Datenbank jedes Providers enthält. Dieser Pf
 
 Die letzten 4 Stellen der Dateinamen stellen den hexadezimalen CNI (Country and Network Identifier = Landes- und Senderkennung) des Providers dar.
 
+=item B</usr/share/nxtvepg/xmltv-etsi.map>
+
+Diese Datei wird beim Import von EPG Daten aus XMLTV Dateien verwendet um Senderbezeichnungen in numerische Senderkennungsn umzuwandeln, wie sie von nxtvepg verwendet werden. Genauer gesagt, die Datei entählt Zuweisungen von ETSI CNIs (Canonic Network Identification) an Namen die in XML I<E<lt>channel id="..."E<gt>> Tags in importierten XMLTV Datei verwendet werden.
+
 =item B</dev/vbi0>, B</dev/vbi1>, etc.
 
 Gerätedateien, aus denen die NexTView-Daten während der Akquisition gelesen werden. Der Index von Postfix kann mit der Befehlszeilenoption B<-card> (siehe L<"OPTIONS">) spezifiziert werden. Sie müssen Lese-/Schreibzugriff auf diese Dateien haben; standardmäßig ist dies bei vielen Linux-Distributionen aus Sicherheitsgründen nicht der Fall (da Sie eine Webcam angeschlossen haben könnten und Mike oder sonst wer Sie aus der Ferne ausspionieren könnte). Auf einem Einzelplatzsystem ist es aber sicher, diese world-readable und writable zu machen, geben Sie dazu in der Root-Shell ein:
@@ -1460,7 +1464,7 @@ Haben Sie I<devfs> in in Ihrem Linux-Kernel aktiviert, werden die VBI- und Video
 
 =item B</tmp/.vbi0.pid>, B</tmp/.vbi1.pid>, etc.
 
-Diese Datei enthält die Prozessnummer des NexTView-Dekoders (oder des Akquisitions-Subprozesses, wenn kein Threading genutzt wird) solange ein VBI-Gerät geöffnet ist. Der Prozess kann gezwungen werden, das Gerät freizugeben, indem ihm das Signal SIGHUP gesendet wird, zum Beispiel durch ein Wrapper-Skript für einen Teletext-Dekoder. Ein Beispiel, das mit sh, bash oder tcsh funktioniert:
+Diese Datei enthält die PID des nxtvepg Prozesses (oder des Akquisitions-Subprozesses, wenn kein Threading genutzt wird) solange ein VBI device geöffnet ist. Der Prozess kann gezwungen werden, das Gerät freizugeben, indem ihm das Signal SIGHUP gesendet wird, zum Beispiel durch ein Wrapper-Skript für einen Teletextdekoder. Ein Beispiel, das mit allen Shells funktioniert:
 
    kill -HUP `cat /tmp/.vbi0.pid`
 
@@ -1498,6 +1502,10 @@ Schriften müssen als Triplets bestehend aus Familie, Größe (verwenden Sie negati
 
 Konfigurationsdatei, in die alle Konfigurations- und persönliche Einstellungen gespeichert werden. Standardmäßig wird diese im Arbeitsverzeichnis erzeugt, es kann jedoch ein anderer Pfad oder Dateiname mittels der Option B<-rcfile> spezifiziert werden (siehe L<"OPTIONS">).
 
+=item B<xmltv-etsi.map>
+
+Diese Datei wird beim Import von EPG Daten aus XMLTV Dateien verwendet um Senderbezeichnungen in numerische Senderkennungsn umzuwandeln, wie sie von nxtvepg verwendet werden. Genauer gesagt, die Datei entählt Zuweisungen von ETSI CNIs (Canonic Network Identification) an Namen die in XML I<E<lt>channel id="..."E<gt>> Tags in importierten XMLTV Datei verwendet werden.
+
 =item B<Nxtvepg.ad>
 
 Erlaubt die Änderung des Erscheinungsbildes der Anwendung, d.h. Farben oder Schrift des Textes. Das Format und der Inhalt der Datei ist identisch der Datei F<.Xdefaults>, wie in der UNIX-Sektion beschrieben.
@@ -1514,7 +1522,7 @@ Diese versteckte Datei wird verwendet, um gemeinsam genutzten Arbeitsspeicher ei
 
 =head1 SEE ALSO
 
-Detaillierte Informationen über NexTView sind in den Spezifikationen ETS 300 707 (data structures and basic principles), ETS 300 708 (transmission protocol) und ETR 288 (code of practice) enthalten. Diese Spezifikationen sind erhältlich unter http://www.etsi.org/
+Detaillierte Informationen über NexTView sind in den Spezifikationen ETS 300 707 (data structures and basic principles), ETS 300 708 (transmission protocol) und ETR 288 (code of practice) enthalten. Diese Spezifikationen sind erhältlich unter L<http://www.etsi.org/>
 
 Sie können NexTView auch direkt im TV-Set haben - zu ersehen aus den Katalogen von Grundig, Loewe, Metz, Sony, Philips, Thompson, Telefunken oder Quelle Universum. Beachten Sie jedoch, dass nicht alle Modelle dieselben Eigenschaften von NexTView unterstützen.
 
@@ -1552,11 +1560,11 @@ und nicht zuletzt an die Autoren von bttv und v4l für ihre exzellente Arbeit, un
 
 =head1 COPYRIGHT
 
-Copyright (C) 1999 - 2007 by Th. Zörner. Alle Rechte vorbehalten.
+Copyright (C) 1999 - 2008 by Th. Zörner. Alle Rechte vorbehalten.
 
 Zusätzliche Copyrights gelten für Teile des verwendeten Quelltexts. Bitte in der Datei COPYRIGHT und den Kommentaren im Quelltext nach Details sehen.
 
-Dieses Programm ist freie Software; Sie können es unter den Bedingungen der GNU General Public License Version 2, wie von der Free Software Foundation unter http://www.fsf.org/ veröffentlicht, verbreiten oder verändern.
+Dieses Programm ist freie Software; Sie können es unter den Bedingungen der GNU General Public License Version 2, wie von der Free Software Foundation unter L<http://www.fsf.org/> veröffentlicht, verbreiten oder verändern.
 
 Dieses Programm wird in der Hoffnung weitergegeben, nützlich zu sein, jedoch B<OHNE JEDE GARANTIE>; insbesondere ohne Garantie zur Eignung zu jedweden Anwendungszwecken. Siehe Datei F<COPYRIGHT> für mehr Details.
 

@@ -18,7 +18,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgtscqueue.c,v 1.7 2007/03/03 20:37:02 tom Exp tom $
+ *  $Id: epgtscqueue.c,v 1.8 2008/02/03 15:42:36 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB
@@ -62,10 +62,10 @@ static bool EpgTscQueue_CheckConsistancy( EPGDB_PI_TSC * pQueue )
       assert(pWalk->popIdx <= pWalk->fillCount);  // == is allowed
 
       // check the queue linkage
-      assert(pWalk->pPrev == pPrev);
+      assert(pWalk->u.p.pPrev == pPrev);
 
       pPrev = pWalk;
-      pWalk = pWalk->pNext;
+      pWalk = pWalk->u.p.pNext;
    }
    assert (pPrev == pQueue->pTail);
 
@@ -104,7 +104,7 @@ void EpgTscQueue_Clear( EPGDB_PI_TSC * pQueue )
       pTscBuf = pQueue->pHead;
       while (pTscBuf != NULL)
       {
-         pNext = pTscBuf->pNext;
+         pNext = pTscBuf->u.p.pNext;
          xfree(pTscBuf);
          pTscBuf = pNext;
       }
@@ -122,18 +122,18 @@ void EpgTscQueue_Clear( EPGDB_PI_TSC * pQueue )
 //
 static void EpgTscQueue_Unlink( EPGDB_PI_TSC * pQueue, EPGDB_PI_TSC_BUF * pTscBuf )
 {
-   if (pTscBuf->pPrev != NULL)
-      pTscBuf->pPrev->pNext = pTscBuf->pNext;
+   if (pTscBuf->u.p.pPrev != NULL)
+      pTscBuf->u.p.pPrev->u.p.pNext = pTscBuf->u.p.pNext;
    else
-      pQueue->pHead = pTscBuf->pNext;
+      pQueue->pHead = pTscBuf->u.p.pNext;
 
-   if (pTscBuf->pNext != NULL)
-      pTscBuf->pNext->pPrev = pTscBuf->pPrev;
+   if (pTscBuf->u.p.pNext != NULL)
+      pTscBuf->u.p.pNext->u.p.pPrev = pTscBuf->u.p.pPrev;
    else
-      pQueue->pTail = pTscBuf->pPrev;
+      pQueue->pTail = pTscBuf->u.p.pPrev;
 
-   pTscBuf->pPrev = NULL;
-   pTscBuf->pNext = NULL;
+   pTscBuf->u.p.pPrev = NULL;
+   pTscBuf->u.p.pNext = NULL;
 
    assert(EpgTscQueue_CheckConsistancy(pQueue));
 }
@@ -194,7 +194,7 @@ void EpgTscQueue_UnlockBuffers( EPGDB_PI_TSC * pQueue )
          {
             pTscBuf->locked = FALSE;
          }
-         pTscBuf = pTscBuf->pNext;
+         pTscBuf = pTscBuf->u.p.pNext;
       }
    }
    else
@@ -220,14 +220,14 @@ static void EpgTscQueue_ClearIncremental( EPGDB_PI_TSC * pQueue, uint provCni )
               (pTscBuf->mode == PI_TSC_MODE_INCREMENTAL) )
          {
             // first unlink the buffer from the queue...
-            pTemp = pTscBuf->pNext;
+            pTemp = pTscBuf->u.p.pNext;
             EpgTscQueue_Unlink(pQueue, pTscBuf);
             // ...then free it
             xfree(pTscBuf);
             pTscBuf = pTemp;
          }
          else
-            pTscBuf = pTscBuf->pNext;
+            pTscBuf = pTscBuf->u.p.pNext;
       }
    }
    else
@@ -251,14 +251,14 @@ void EpgTscQueue_ClearUnprocessed( EPGDB_PI_TSC * pQueue )
          if (pTscBuf->locked == FALSE)
          {
             // first unlink the buffer from the queue...
-            pTemp = pTscBuf->pNext;
+            pTemp = pTscBuf->u.p.pNext;
             EpgTscQueue_Unlink(pQueue, pTscBuf);
             // ...then free it
             xfree(pTscBuf);
             pTscBuf = pTemp;
          }
          else
-            pTscBuf = pTscBuf->pNext;
+            pTscBuf = pTscBuf->u.p.pNext;
       }
    }
    else
@@ -339,14 +339,14 @@ bool EpgTscQueue_PushBuffer( EPGDB_PI_TSC * pQueue, EPGDB_PI_TSC_BUF * pTscBuf, 
          // insert the buffer at the head of the queue
          if (pQueue->pHead != NULL)
          {
-            pQueue->pHead->pPrev = pTscBuf;
-            pTscBuf->pNext = pQueue->pHead;
-            pTscBuf->pPrev = NULL;
+            pQueue->pHead->u.p.pPrev = pTscBuf;
+            pTscBuf->u.p.pNext = pQueue->pHead;
+            pTscBuf->u.p.pPrev = NULL;
             pQueue->pHead = pTscBuf;
          }
          else
          {
-            pTscBuf->pPrev = pTscBuf->pNext = NULL;
+            pTscBuf->u.p.pPrev = pTscBuf->u.p.pNext = NULL;
             pQueue->pHead = pQueue->pTail = pTscBuf;
          }
 
@@ -393,7 +393,7 @@ bool EpgTscQueue_IsIncremental( EPGDB_PI_TSC * pQueue )
                break;
             }
          }
-         pTscBuf = pTscBuf->pPrev;
+         pTscBuf = pTscBuf->u.p.pPrev;
       }
    }
    else
@@ -428,7 +428,7 @@ const EPGDB_PI_TSC_ELEM * EpgTscQueue_PopElem( EPGDB_PI_TSC * pQueue, time_t * p
             if (pTscBuf->popIdx >= pTscBuf->fillCount)
             {  // found a fully popped buffer -> free it
 
-               pTemp = pTscBuf->pPrev;
+               pTemp = pTscBuf->u.p.pPrev;
                // first unlink the buffer from the queue...
                EpgTscQueue_Unlink(pQueue, pTscBuf);
                // ...then free it
@@ -443,7 +443,7 @@ const EPGDB_PI_TSC_ELEM * EpgTscQueue_PopElem( EPGDB_PI_TSC * pQueue, time_t * p
                   break;
                }
                // try the next buffer
-               pTscBuf = pTscBuf->pPrev;
+               pTscBuf = pTscBuf->u.p.pPrev;
             }
          } while (pTscBuf != NULL);
 
@@ -490,7 +490,7 @@ const EPGDB_PI_TSC_ELEM * EpgTscQueue_PeekTail( EPGDB_PI_TSC * pQueue, uint prov
                debug2("EpgTscQueue-PeekTail: empty TSC buffer 0x%lx, provCni 0x%04X", (long)pTscBuf, provCni);
             break;
          }
-         pTscBuf = pTscBuf->pNext;
+         pTscBuf = pTscBuf->u.p.pNext;
       }
    }
    else
@@ -537,14 +537,14 @@ static EPGDB_PI_TSC_BUF * EpgTscQueue_CreateNew( EPGDB_PI_TSC * pQueue )
    // insert the buffer at the head of the queue
    if (pQueue->pHead != NULL)
    {
-      pQueue->pHead->pPrev = pTscBuf;
-      pTscBuf->pNext = pQueue->pHead;
-      pTscBuf->pPrev = NULL;
+      pQueue->pHead->u.p.pPrev = pTscBuf;
+      pTscBuf->u.p.pNext = pQueue->pHead;
+      pTscBuf->u.p.pPrev = NULL;
       pQueue->pHead = pTscBuf;
    }
    else
    {
-      pTscBuf->pPrev = pTscBuf->pNext = NULL;
+      pTscBuf->u.p.pPrev = pTscBuf->u.p.pNext = NULL;
       pQueue->pHead = pQueue->pTail = pTscBuf;
    }
 
@@ -555,8 +555,8 @@ static EPGDB_PI_TSC_BUF * EpgTscQueue_CreateNew( EPGDB_PI_TSC * pQueue )
    pTscBuf->fillCount = 0;
    pTscBuf->popIdx    = 0;
 
-   if ((pTscBuf->pNext != NULL) && (pTscBuf->provCni == pTscBuf->pNext->provCni))
-      pTscBuf->baseTime = pTscBuf->pNext->baseTime;
+   if ((pTscBuf->u.p.pNext != NULL) && (pTscBuf->provCni == pTscBuf->u.p.pNext->provCni))
+      pTscBuf->baseTime = pTscBuf->u.p.pNext->baseTime;
    else
       pTscBuf->baseTime = 0;
 

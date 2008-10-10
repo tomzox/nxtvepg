@@ -20,7 +20,7 @@
  *  Author:
  *          Tom Zoerner
  *
- *  $Id: epgacqsrv.c,v 1.18 2007/01/21 11:24:09 tom Exp tom $
+ *  $Id: epgacqsrv.c,v 1.20 2008/08/10 19:38:40 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGCTL
@@ -87,11 +87,11 @@ typedef struct REQUEST_struct
    uint            dumpProvIdx;
    uint            dumpCnis[MAX_MERGED_DB_COUNT];
    uint            dumpedLastCni;
-   time_t          dumpStartTimes[MAX_MERGED_DB_COUNT];
+   time32_t        dumpStartTimes[MAX_MERGED_DB_COUNT];
 
    SRV_STATS_STATE doTtxStats;
    bool            doVpsPdc;
-   time_t          sendDbUpdTime;
+   time32_t        sendDbUpdTime;
    bool            enableAllBlocks;
    uint            cniCount;
    uint            provCnis[MAX_MERGED_DB_COUNT];
@@ -189,7 +189,7 @@ static void EpgAcqServer_BuildStatsMsg( EPGDBSRV_STATE * req, bool aiFollows )
 
    if (EpgAcqCtl_GetAcqStats(&acqStats))
    {
-      req->msgBuf.stats_ind.pNext     = NULL;
+      req->msgBuf.stats_ind.p.pNext   = NULL;
       req->msgBuf.stats_ind.aiFollows = aiFollows;
       // always include description of acq state
       EpgAcqCtl_DescribeAcqState(&req->msgBuf.stats_ind.descr);
@@ -293,7 +293,7 @@ static void EpgAcqServer_BuildDbUpdateMsg( EPGDBSRV_STATE * req )
 //
 static bool EpgAcqServer_DumpReqDb( EPGDBSRV_STATE * req )
 {
-   time_t swapTime;
+   time32_t swapTime;
    uint   swapCni;
    bool   result;
 
@@ -362,7 +362,7 @@ static bool EpgAcqServer_DumpReqDb( EPGDBSRV_STATE * req )
 // Initialize the state for start of dump of requested dbs
 // - called after reception of forward request message
 //
-static void EpgAcqServer_DumpReqInit( EPGDBSRV_STATE * req, const time_t * pDumpStartTimes )
+static void EpgAcqServer_DumpReqInit( EPGDBSRV_STATE * req, const time32_t * pDumpStartTimes )
 {
    memcpy(req->dumpCnis, req->provCnis, sizeof(req->dumpCnis));
    memcpy(req->dumpStartTimes, pDumpStartTimes, sizeof(req->dumpStartTimes));
@@ -560,6 +560,16 @@ static bool EpgAcqServer_TakeMessage( EPGDBSRV_STATE *req, EPGDBSRV_MSG_BODY * p
             req->msgBuf.con_cnf.daemon_pid            = getpid();
 #else
             req->msgBuf.con_cnf.daemon_pid            = 0;
+#endif
+#ifdef USE_UTF8
+            req->msgBuf.con_cnf.use_utf8              = TRUE;
+#else
+            req->msgBuf.con_cnf.use_utf8              = FALSE;
+#endif
+#ifdef USE_32BIT_COMPAT
+            req->msgBuf.con_cnf.use_32_bit_compat     = TRUE;
+#else
+            req->msgBuf.con_cnf.use_32_bit_compat     = FALSE;
 #endif
             EpgNetIo_WriteMsg(&req->io, MSG_TYPE_CONNECT_CNF, sizeof(req->msgBuf.con_cnf), &req->msgBuf.con_cnf, FALSE);
 

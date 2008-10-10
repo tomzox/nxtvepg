@@ -21,7 +21,7 @@
  *  Author:
  *          Tom Zoerner
  *
- *  $Id: epgacqclnt.c,v 1.19 2007/01/21 11:23:20 tom Exp tom $
+ *  $Id: epgacqclnt.c,v 1.20 2008/08/10 19:38:27 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGCTL
@@ -186,7 +186,7 @@ static void EpgAcqClient_FreeStats( void )
    pWalk = clientState.pStatsMsg;
    while (pWalk != NULL)
    {
-      pNext = pWalk->stats_ind.pNext;
+      pNext = pWalk->stats_ind.p.pNext;
       xfree(pWalk);
       pWalk = pNext;
    }
@@ -203,10 +203,12 @@ static void EpgAcqClient_SwapEpgAcqDescr( EPGACQ_DESCR * pDescr )
    swap32(&pDescr->mode);
    swap32(&pDescr->cyclePhase);
    swap32(&pDescr->passiveReason);
-   swap16(&pDescr->cniCount);
-   swap16(&pDescr->ttxGrabIdx);
-   swap32(&pDescr->cycleCni);
    swap32(&pDescr->nxtvDbCni);
+   swap32(&pDescr->cycleCni);
+   swap16(&pDescr->cniCount);
+   swap16(&pDescr->ttxSrcCount);
+   swap16(&pDescr->ttxGrabIdx);
+   swap16(&pDescr->ttxGrabDone);
 }
 
 static void EpgAcqClient_SwapEpgdbBlockCount( EPGDB_BLOCK_COUNT * pCounts )
@@ -329,19 +331,30 @@ static bool EpgAcqClient_CheckMsg( uint len, EPGNETIO_MSG_HEADER * pHead, EPGDBS
          break;
 
       case MSG_TYPE_BLOCK_IND:
+#ifdef USE_32BIT_COMPAT
+         pNewBlock = (EPGDB_BLOCK *)((uint8_t *)pBody + BLK_HEAD_SIZE_DATA - BLK_UNION_OFF);
+         if (pHead->len >= sizeof(EPGNETIO_MSG_HEADER) + BLK_HEAD_SIZE_DATA)
+#else
          pNewBlock = (EPGDB_BLOCK *) pBody;
          if (pHead->len >= sizeof(EPGNETIO_MSG_HEADER) + BLK_UNION_OFF)
+#endif
          {
             uint32_t blockSize = pNewBlock->size;
+            uint32_t checkSize;
             if (clientState.endianSwap)
                swap32(&blockSize);
-            if (pHead->len == sizeof(EPGNETIO_MSG_HEADER) + blockSize + BLK_UNION_OFF)
+#ifdef USE_32BIT_COMPAT
+            checkSize = sizeof(EPGNETIO_MSG_HEADER) + blockSize + BLK_HEAD_SIZE_DATA;
+#else
+            checkSize = sizeof(EPGNETIO_MSG_HEADER) + blockSize + BLK_UNION_OFF;
+#endif
+            if (pHead->len == checkSize)
             {
                result = (!clientState.endianSwap || EpgBlockSwapEndian(pNewBlock)) &&
                         EpgBlockCheckConsistancy(pNewBlock);
             }
             else
-               debug2("EpgAcqClient-CheckMsg: BLOCK_IND msg len %d != block size=%d", pHead->len, (uint)sizeof(EPGNETIO_MSG_HEADER) + blockSize + BLK_UNION_OFF);
+               debug2("EpgAcqClient-CheckMsg: BLOCK_IND msg len %d != block size=%d", pHead->len, checkSize);
          }
          else
             debug1("EpgAcqClient-CheckMsg: BLOCK_IND msg too short: len=%d", pHead->len);
@@ -354,7 +367,7 @@ static bool EpgAcqClient_CheckMsg( uint len, EPGNETIO_MSG_HEADER * pHead, EPGDBS
 
             if (clientState.endianSwap)
             {
-               swap16(&pTscBuf->provCni);
+               swap32(&pTscBuf->provCni);
                swap16(&pTscBuf->fillCount);
                swap16(&pTscBuf->popIdx);
                swap32(&pTscBuf->baseTime);
@@ -540,10 +553,26 @@ static bool EpgAcqClient_TakeMessage( EPGACQ_EVHAND * pAcqEv, EPGDBSRV_MSG_BODY 
             // first server message received: contains version info
             // note: nxtvepg and endian magics are already checked
             if ( (pMsg->con_cnf.blockCompatVersion != DUMP_COMPAT) ||
+#ifdef USE_32BIT_COMPAT
+                 (pMsg->con_cnf.use_32_bit_compat == FALSE) ||
+#else
+                 (pMsg->con_cnf.use_32_bit_compat) ||
+#endif
                  (pMsg->con_cnf.protocolCompatVersion != PROTOCOL_COMPAT) )
             {
                SystemErrorMessage_Set(&clientState.pErrorText, 0, "Incompatible server version", NULL);
             }
+#ifdef USE_UTF8
+            else if (pMsg->con_cnf.use_utf8 == FALSE)
+            {
+               SystemErrorMessage_Set(&clientState.pErrorText, 0, "Incompatible text encoding (not UTF-8)", NULL);
+            }
+#else
+            else if (pMsg->con_cnf.use_utf8)
+            {
+               SystemErrorMessage_Set(&clientState.pErrorText, 0, "Incompatible text encoding (server uses UTF-8)", NULL);
+            }
+#endif
             else
             {  // version ok -> request block forwarding
                clientState.daemonPid = pMsg->con_cnf.daemon_pid;
@@ -607,13 +636,13 @@ static bool EpgAcqClient_TakeMessage( EPGACQ_EVHAND * pAcqEv, EPGDBSRV_MSG_BODY 
          if (clientState.state == CLNT_STATE_WAIT_DUMP)
          {  // dumps for all requested databases are finished
             // -> next time "process blocks" function is invoked insert all cached EPG blocks
-            dprintf0("EpgDbClient-TakeMessage: FORWARD_IND: initial dump finished\n");
+            dprintf1("EpgDbClient-TakeMessage: FORWARD_IND: initial dump finished CNI:0x%04X\n", pMsg->fwd_ind.cni);
             clientState.state = CLNT_STATE_WAIT_BLOCKS;
             result = TRUE;
          }
          else if (clientState.state == CLNT_STATE_WAIT_BLOCKS)
          {  // unused message
-            dprintf0("EpgDbClient-TakeMessage: FORWARD_IND: acq prov switch dump finished\n");
+            dprintf1("EpgDbClient-TakeMessage: FORWARD_IND: acq prov switch dump finished CNI:0x%04X\n", pMsg->fwd_ind.cni);
             result = TRUE;
          }
          else if (clientState.state == CLNT_STATE_WAIT_FWD_CNF)
@@ -626,7 +655,21 @@ static bool EpgAcqClient_TakeMessage( EPGACQ_EVHAND * pAcqEv, EPGDBSRV_MSG_BODY 
          if ( (clientState.state == CLNT_STATE_WAIT_DUMP) ||
               (clientState.state == CLNT_STATE_WAIT_BLOCKS) )
          {
-            EPGDB_BLOCK * pNewBlock = (EPGDB_BLOCK *) pMsg;
+            EPGDB_BLOCK * pNewBlock;
+#ifdef USE_32BIT_COMPAT
+            uint blkSize;
+
+            pNewBlock = (EPGDB_BLOCK *)((uint8_t *)pMsg + BLK_HEAD_SIZE_DATA - BLK_UNION_OFF);
+            blkSize = pNewBlock->size;
+
+            pNewBlock = xmalloc(blkSize + BLK_HEAD_SIZE_MEM);
+            memcpy((uchar *)pNewBlock + BLK_HEAD_PTR_OFF_MEM,
+                   (uchar *)pMsg, blkSize + BLK_HEAD_SIZE_DATA);
+#else
+            pNewBlock = (EPGDB_BLOCK *) pMsg;
+            // must not free the message because it's added to the EPG block queue
+            pMsg = NULL;
+#endif
 
             if (pNewBlock->type == BLOCK_TYPE_AI)
                dprintf1("EpgDbClient-TakeMessage: BLOCK_IND: AI block CNI 0x%04x\n", AI_GET_THIS_NET_CNI(&pNewBlock->blk.ai));
@@ -641,8 +684,6 @@ static bool EpgAcqClient_TakeMessage( EPGACQ_EVHAND * pAcqEv, EPGDBSRV_MSG_BODY 
             EpgDumpRaw_IncomingBlock(&pNewBlock->blk, pNewBlock->type, pNewBlock->stream);
             // append the block to the end of the input queue
             EpgDbQueue_Add(&clientState.acqDbQueue, pNewBlock);
-            // must not free the message because it's added to the EPG block queue
-            pMsg = NULL;
             result = TRUE;
          }
          else if (clientState.state == CLNT_STATE_WAIT_FWD_CNF)
@@ -664,17 +705,17 @@ static bool EpgAcqClient_TakeMessage( EPGACQ_EVHAND * pAcqEv, EPGDBSRV_MSG_BODY 
             EPGDBSRV_MSG_BODY  * pWalk, * pPrev;
 
             dprintf2("EpgDbClient-TakeMessage: STATS_IND: type=%d, histIdx=%d\n", pMsg->stats_ind.type, pMsg->stats_ind.u.update.histIdx);
-            pMsg->stats_ind.pNext = NULL;
+            pMsg->stats_ind.p.pNext = NULL;
             // append the message to the queue of stats reports
             pPrev = NULL;
             pWalk = clientState.pStatsMsg;
             while (pWalk != NULL)
             {
                pPrev = pWalk;
-               pWalk = pWalk->stats_ind.pNext;
+               pWalk = pWalk->stats_ind.p.pNext;
             }
             if (pPrev != NULL)
-               pPrev->stats_ind.pNext = pMsg;
+               pPrev->stats_ind.p.pNext = pMsg;
             else
                clientState.pStatsMsg = pMsg;
             // must not free the message yet
@@ -1571,7 +1612,7 @@ static bool EpgAcqClient_ProcessStats( bool * pAiFollows )
       dprintf6("ProcessStats-ProcessStats: type %d, AI follows=%d, acqstate=%d, cyCni=%04X, dbCni=%04X, histIdx=%d\n", pUpd->type, pUpd->aiFollows, pUpd->descr.nxtvState, pUpd->descr.cycleCni, pUpd->descr.nxtvDbCni, pAcqStats->nxtv.histIdx);
 
       // free the message
-      pNext = clientState.pStatsMsg->stats_ind.pNext;
+      pNext = clientState.pStatsMsg->stats_ind.p.pNext;
       xfree((void *) clientState.pStatsMsg);
       clientState.pStatsMsg = pNext;
    }

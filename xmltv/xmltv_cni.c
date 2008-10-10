@@ -23,7 +23,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: xmltv_cni.c,v 1.4 2007/02/11 19:54:33 tom Exp tom $
+ *  $Id: xmltv_cni.c,v 1.6 2008/10/03 21:11:35 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_XMLTV
@@ -51,7 +51,16 @@
 #include "xmltv/xml_hash.h"
 #include "xmltv/xmltv_cni.h"
 
-#define XMLTV_ETSI_CHN_ID_MAP_FILE "xmltv-etsi.map"
+#if !defined (XMLTV_CNI_MAP_PATH)  // should be defined in makefile
+#define XMLTV_CNI_MAP_PATH "."
+#endif
+#define XMLTV_CNI_MAP_NAME "xmltv-etsi.map"
+
+#ifndef WIN32
+#define XMLTV_CNI_MAP_FULL_PATH XMLTV_CNI_MAP_PATH "/" XMLTV_CNI_MAP_NAME
+#else
+#define XMLTV_CNI_MAP_FULL_PATH XMLTV_CNI_MAP_PATH "\\" XMLTV_CNI_MAP_NAME
+#endif
 
 #ifndef WIN32
 static char * pXmlCniCwd;
@@ -178,7 +187,10 @@ static void XmltvCni_LoadEtsiMap( XML_HASH_PTR pNameHash,
    bool skip;
    bool isNew;
 
-   fp = fopen(XMLTV_ETSI_CHN_ID_MAP_FILE, "r");
+   fp = fopen(XMLTV_CNI_MAP_NAME, "r");
+   if (fp == NULL)
+      fp = fopen(XMLTV_CNI_MAP_FULL_PATH, "r");
+
    if (fp != NULL)
    {
       skip = TRUE;
@@ -268,8 +280,8 @@ void XmltvCni_MapInit( XMLTV_CNI_CTX * pCniCtx, uint provCni,
                pCniCtx->freeCni = *pCniVal + 1;
             }
          }
-         else
-            debug1("XmltvCni-MapInit: duplicate channel ID %s", pRc->xmltv_nets[idx].chn_id);
+         else  // not an error if the user added an xmltv-etsi mapping (we still keep the old ID forever)
+            debug3("XmltvCni-MapInit: duplicate channel ID '%s' have CNI 0x%05X, drop 0x%05X", pRc->xmltv_nets[idx].chn_id, *pCniVal, pRc->xmltv_nets[idx].net_cni);
       }
    }
 }
@@ -288,7 +300,6 @@ void XmltvCni_MapDestroy( XMLTV_CNI_CTX * pCniCtx )
 uint XmltvCni_MapNetCni( XMLTV_CNI_CTX * pCniCtx, const char * pChannelId )
 {
    uint  * pCniVal;
-   uint  result;
    sint  scni;
    int   scan_pos;
    int   nscan;
@@ -296,27 +307,26 @@ uint XmltvCni_MapNetCni( XMLTV_CNI_CTX * pCniCtx, const char * pChannelId )
 
    assert(IS_XMLTV_CNI(pCniCtx->provCni));
 
-   nscan = sscanf(pChannelId, "CNI%04X%n", &scni, &scan_pos);
-   if ( (nscan >= 1) && (scan_pos == 3+4) && (pChannelId[3+4] == 0) &&
-        (scni != 0) && IS_NXTV_CNI(scni) )
+   pCniVal = XmlHash_CreateEntry(pCniCtx->nameHash, pChannelId, &is_new);
+   if (is_new)
    {
-      // ID is already a CNI
-      result = (uint) scni;
-   }
-   else
-   {
-      pCniVal = XmlHash_CreateEntry(pCniCtx->nameHash, pChannelId, &is_new);
-      if (is_new)
+      nscan = sscanf(pChannelId, "CNI%04X%n", &scni, &scan_pos);
+      if ( (nscan >= 1) && (scan_pos == 3+4) && (pChannelId[3+4] == 0) &&
+           (scni != 0) && IS_NXTV_CNI(scni) )
+      {
+         // ID is already a CNI
+         *pCniVal = (uint) scni;
+      }
+      else
       {
          // TODO check for overflow in "++" modulo XMLTV_NET_CNI_MASK
          *pCniVal = pCniCtx->freeCni++;
 
          RcFile_AddXmltvNetwork(pCniCtx->provCni, *pCniVal, pChannelId);
       }
-      result = *pCniVal;
+      dprintf2("XmltvCni-MapNetCni: NEW %s -> CNI 0x%05X\n", pChannelId, *pCniVal);
    }
-
-   return result;
+   return *pCniVal;
 }
 
 // ----------------------------------------------------------------------------

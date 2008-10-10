@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgacqctl.h,v 1.45 2006/11/25 22:12:10 tom Exp tom $
+ *  $Id: epgacqctl.h,v 1.46 2008/02/03 16:15:00 tom Exp tom $
  */
 
 #ifndef __EPGACQCTL_H
@@ -133,9 +133,9 @@ typedef struct
 
 typedef struct
 {
-   time_t    lastAiTime;
-   time_t    minAiDistance;
-   time_t    maxAiDistance;
+   time32_t  lastAiTime;
+   time32_t  minAiDistance;
+   time32_t  maxAiDistance;
    uint32_t  sumAiDistance;
    uint32_t  aiCount;
 } EPGDB_ACQ_AI_STATS;
@@ -149,27 +149,26 @@ typedef struct
 
 typedef struct
 {
-   time_t              acqStartTime;
+   time32_t            acqStartTime;
 
    EPGDB_ACQ_AI_STATS  ai;
    EPG_STREAM_STATS    stream;
 
    EPGDB_HIST          hist[STATS_HIST_WIDTH];
    uint16_t            histIdx;
-   uint8_t             resvd_0[6];       // for 64-bit alignment (Sun-Sparc)
+   uint8_t             resvd_0[6];      // for 64-bit alignment
 
    EPGDB_BLOCK_COUNT   count[2];
    EPGDB_VAR_HIST      varianceHist[2];
    uint32_t            nowMaxAcqRepCount;
    uint32_t            nowMaxAcqNetCount;
-   uint8_t             resvd_1[4];
 } EPG_NXTV_ACQ_STATS;
 
 #define EPG_TTX_STATS_NAMLEN 32
 
 typedef struct
 {
-   time_t              acqStartTime;
+   time32_t            acqStartTime;
    uint8_t             srcName[EPG_TTX_STATS_NAMLEN];
    int32_t             srcIdx;
    TTX_GRAB_STATS      pkgStats;
@@ -177,10 +176,11 @@ typedef struct
 
 typedef struct
 {
-   time_t              lastStatsUpdate;
+   time32_t            lastStatsUpdate;
    uint8_t             nxtvMaster;
    TTX_DEC_STATS       ttx_dec;
    EPG_TTX_GRAB_STATS  ttx_grab;
+   uint32_t            resvd_0;         // for 64-bit alignment
    EPG_NXTV_ACQ_STATS  nxtv;
 } EPG_ACQ_STATS;
 

@@ -18,7 +18,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: dlg_xawtvcf.tcl,v 1.14 2007/12/29 21:03:39 tom Exp tom $
+#  $Id: dlg_xawtvcf.tcl,v 1.15 2008/08/10 19:14:36 tom Exp tom $
 #
 set xawtvcf_popup 0
 
@@ -280,16 +280,16 @@ proc XawtvConfigTestPathAndType {} {
    if {$chn_count > 0} {
       # OK
       if {[llength [C_GetNetwopNames]] > 0} {
-         tk_messageBox -type ok -icon info -parent .xawtvcf \
+         tk_messageBox -type ok -icon info -title "Info" -parent .xawtvcf \
                        -message "Test sucessful: found $chn_count names in the $name channel table."
       } else {
-         tk_messageBox -type ok -icon info -parent .xawtvcf \
+         tk_messageBox -type ok -icon info -title "Info" -parent .xawtvcf \
                        -message "Test sucessful: found $chn_count channels. You can now use the network name dialog in the configure menu to synchronize names between nxtvepg and $name"
       }
 
    } elseif {$chn_count == 0} {
       # opened ok, but no channels found
-      tk_messageBox -type ok -icon warning -parent .xawtvcf \
+      tk_messageBox -type ok -icon warning -title "Warning" -parent .xawtvcf \
                     -message "No channels found in the $name channel table!"
    }
 }

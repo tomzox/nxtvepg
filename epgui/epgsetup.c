@@ -21,7 +21,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgsetup.c,v 1.8 2007/12/29 16:26:40 tom Exp tom $
+ *  $Id: epgsetup.c,v 1.9 2008/02/03 16:51:22 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -48,6 +48,7 @@
 #include "epgctl/epgctxmerge.h"
 #include "epgctl/epgctxctl.h"
 #include "epgvbi/vbidecode.h"
+#include "epgvbi/cni_tables.h"
 #include "epgvbi/btdrv.h"
 #include "epgtcl/dlg_hwcfg.h"
 #include "epgui/epgmain.h"
@@ -56,6 +57,8 @@
 #include "epgui/cmdline.h"
 #include "epgui/wintvcfg.h"
 #include "epgui/epgsetup.h"
+
+#define NORM_CNI(C)  (IS_NXTV_CNI(C) ? CniConvertUnknownToPdc(C) : (C))
 
 // ----------------------------------------------------------------------------
 // Determine a network's name
@@ -179,8 +182,18 @@ void EpgSetup_UpdateProvCniTable( void )
          {
             cni = pOrdList->net_cnis[netIdx];
             for (aiIdx = 0; aiIdx < pAiBlock->netwopCount; aiIdx++)
+            {
                if (pAiCni[aiIdx] == cni)
+               {
                   break;
+               }
+               else if (NORM_CNI(pAiCni[aiIdx]) == NORM_CNI(cni))
+               {
+                  cni = pAiCni[aiIdx];
+                  update = TRUE;
+                  break;
+               }
+            }
             if (aiIdx < pAiBlock->netwopCount)
             {
                pAiCni[aiIdx] = ~0u;
@@ -203,7 +216,7 @@ void EpgSetup_UpdateProvCniTable( void )
             {
                cni = pSupList->net_cnis[netIdx];
                for (aiIdx = 0; aiIdx < pAiBlock->netwopCount; aiIdx++)
-                  if (pAiCni[aiIdx] == cni)
+                  if (NORM_CNI(pAiCni[aiIdx]) == NORM_CNI(cni))
                      break;
                if (aiIdx < pAiBlock->netwopCount)
                {
@@ -272,7 +285,7 @@ static bool EpgSetup_InitMergeDbNetwops( uint provCniCount, const uint * pProvCn
 
             // check if the CNI already is in the generated table
             for (prevIdx = 0; prevIdx < netwopCount; prevIdx++)
-               if (cni == pCniTab[prevIdx])
+               if (NORM_CNI(cni) == NORM_CNI(pCniTab[prevIdx]))
                   break;
 
             // if not found, append
@@ -561,6 +574,8 @@ static bool EpgSetup_GetTtxConfig( uint * pCount, char ** ppNames, uint ** ppFre
             ps = *ppNames;
             for (chnIdx = 0; chnIdx < *pCount; chnIdx++)
             {
+               //dprintf3("TTX channel #%d: '%s' freq:%d\n", chnIdx, ps, (*ppFreq)[chnIdx]);
+
                while (*ps != 0)
                {
                   if ( ((*ps >= 'A') && (*ps <= 'Z')) ||
@@ -796,6 +811,7 @@ bool EpgSetup_DaemonAcquisitionMode( uint cmdLineCni, bool forcePassive, int max
    uint          ttxFreqCount;
    const uint  * pProvList;
    uint cniCount, cniTab[MAX_MERGED_DB_COUNT];
+   uint rdIdx, wrIdx;
 
    if (cmdLineCni != 0)
    {  // CNI given on command line with -provider option
@@ -876,6 +892,14 @@ bool EpgSetup_DaemonAcquisitionMode( uint cmdLineCni, bool forcePassive, int max
                mode = ACQMODE_COUNT;
             }
          }
+         else // error
+            cniCount = 0;
+
+         // remove XMLTV pseudo-CNIs from the CNI list
+         for (rdIdx = 0, wrIdx = 0; rdIdx < cniCount; rdIdx++)
+            if (IS_NXTV_CNI(cniTab[rdIdx]))
+               cniTab[wrIdx++] = cniTab[rdIdx];
+         cniCount = wrIdx;
       }
       else if (mode >= ACQMODE_COUNT)
       {

@@ -30,7 +30,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: Makefile,v 1.97 2007/12/31 23:19:00 tom Exp $
+#  $Id: Makefile,v 1.103 2008/10/05 16:37:15 tom Exp $
 #
 
 ifeq ($(OS),Windows_NT)
@@ -51,6 +51,7 @@ exec_prefix = ${prefix}
 bindir  = $(ROOT)${exec_prefix}/bin
 mandir  = $(ROOT)${prefix}/man/man1
 resdir  = $(ROOT)/etc/X11
+cfgdir  = $(ROOT)/usr/share/nxtvepg
 
 # if you have perl and/or flex set their path here, else just leave them alone
 PERL    = /usr/bin/perl
@@ -89,13 +90,17 @@ ACQLIBS += -lpthread
 #DEFS   += -DUSE_UTF8 -DXMLTV_OUTPUT_UTF8
 
 # enable support for importing XMLTV files
-DEFS   += -DUSE_XMLTV_IMPORT
+DEFS   += -DUSE_XMLTV_IMPORT -DXMLTV_CNI_MAP_PATH=\"$(cfgdir)\"
 
 # enable support for teletext EPG grabber (EXPERIMENTAL)
-DEFS   += -DUSE_TTX_GRABBER
+# external grabber script is searched for in $PATH (unless you define an absolute path)
+DEFS   += -DUSE_TTX_GRABBER -DTTX_GRAB_SCRIPT_PATH=\"$(cfgdir)\"
 
 # enable use of daemon and client/server connection
 DEFS   += -DUSE_DAEMON
+
+# enable if you have both 32-bit and 64-bit systems
+#DEFS   += -DUSE_32BIT_COMPAT
 
 # specify path to header file for video4linux device driver (default: use internal copy)
 #DEFS  += -DPATH_VIDEODEV_H=\"/usr/include/linux/videodev.h\"
@@ -119,16 +124,22 @@ endif
 
 WARN    = -Wall -Wnested-externs -Wstrict-prototypes -Wmissing-prototypes
 WARN   += -Wno-pointer-sign
-#WARN  += -Wpointer-arith -Werror
+#WARN  += -Wcast-align -Wpointer-arith -Werror
+#WARN  += -Wcast-qual -Wwrite-strings -Wshadow
 CC      = gcc
 # the following flags can be overridden by an environment variable with the same name
 CFLAGS ?= -pipe -g -O2
 CFLAGS += $(WARN) $(INCS) $(DEFS)
 LDFLAGS += -lm
+#CFLAGS += -ftest-coverage -fprofile-arcs
+#LDFLAGS += -ftest-coverage -fprofile-arcs
 #LDFLAGS += -pg
 
 BUILD_DIR  = build-$(shell uname -m | sed -e 's/i.86/i386/' -e 's/ppc/powerpc/')
 INCS      += -I$(BUILD_DIR)
+
+# FIXME required for O2
+$(BUILD_DIR)/epgui/rcfile.o : CFLAGS += -fno-strict-aliasing
 
 # end Linux specific part
 endif
@@ -170,7 +181,8 @@ TCLSRC  = epgtcl/mainwin epgtcl/dlg_hwcfg epgtcl/dlg_xawtvcf \
 
 TVSIM_CSRC    = tvsim/tvsim_main
 TVSIM_CSRC2   = epgctl/debug epgui/pdc_themes epgvbi/tvchan epgvbi/syserrmsg \
-                epgui/wintvcfg epgui/wintvui epgui/xiccc epgui/rcfile
+                epgvbi/cni_tables epgui/wintvcfg epgui/wintvui epgui/xiccc \
+                epgui/rcfile
 TVSIM_TCLSRC  = tvsim/tvsim_gui
 VBIREC_CSRC   = tvsim/vbirec_main
 VBIREC_CSRC2  = epgvbi/btdrv4linux epgvbi/vbidecode epgvbi/zvbidecoder \
@@ -214,6 +226,7 @@ install: daemon Nxtvepg.ad nxtvepgd.1
 	test -d $(bindir) || install -d $(bindir)
 	test -d $(mandir) || install -d $(mandir)
 	test -d $(resdir)/app-defaults || install -d $(resdir)/app-defaults
+	test -d $(cfgdir) || install -d $(cfgdir)
 ifndef USER_DBDIR
 	test -d $(INST_DB_DIR) || install -d $(INST_DB_DIR)
 	chmod $(INST_DB_PERM) $(INST_DB_DIR)
@@ -223,6 +236,8 @@ endif
 	install -c -m 0644 nxtvepg.1   $(mandir)
 	install -c -m 0644 nxtvepgd.1  $(mandir)
 	install -c -m 0644 Nxtvepg.ad  $(resdir)/app-defaults/Nxtvepg
+	install -c -m 0644 xmltv-etsi.map $(cfgdir)/xmltv-etsi.map
+	install -c -m 0644 tv_grab_ttx.pl $(cfgdir)/tv_grab_ttx.pl
 
 .SUFFIXES: .c .o .tcl
 
@@ -304,6 +319,11 @@ $(TCL_LIBRARY_PATH)/tclIndex $(TK_LIBRARY_PATH)/tclIndex :
 
 epgui/loadtcl.c :: $(TCL_LIBRARY_PATH)/tclIndex $(TK_LIBRARY_PATH)/tclIndex
 
+.PHONY: covstats
+covstats:
+	geninfo -b `pwd` $(BUILD_DIR)/epg{db,ctl,ui,vbi}/. $(BUILD_DIR)/xmltv/.
+	genhtml --output-directory $(BUILD_DIR)/html --legend -t "nxtvepg" $(BUILD_DIR)/*/*.gcda.info
+
 .PHONY: bak
 bak:
 	cd .. && tar cvf /tmp/pc.tar -X pc/tar-ex pc ttx
@@ -358,7 +378,7 @@ nxtvepg.1 nxtvepgd.1 manual.html: nxtvepg.pod epgctl/epgversion.h
 	  EPG_VERSION_STR=`egrep '[ \t]*#[ \t]*define[ \t]*EPG_VERSION_STR' epgctl/epgversion.h | head -1 | sed -e 's#.*"\(.*\)".*#\1#'`; \
 	  echo "pod2man nxtvepg.pod > nxtvepg.1"; \
 	  pod2man -date " " -center "Nextview EPG Decoder" -section "1" \
-	          -release "nxtvepg "$$EPG_VERSION_STR" (C) 1999-2007 Tom Zoerner" \
+	          -release "nxtvepg "$$EPG_VERSION_STR" (C) 1999-2008 Tom Zoerner" \
 	     nxtvepg.pod > nxtvepg.1; \
           echo ".so man1/nxtvepg.1" > nxtvepgd.1 \
 	  echo "pod2html nxtvepg.pod > manual.html"; \

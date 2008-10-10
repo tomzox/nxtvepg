@@ -18,7 +18,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: dlg_netname.tcl,v 1.13 2008/01/01 02:36:17 tom Exp tom $
+#  $Id: dlg_netname.tcl,v 1.14 2008/02/03 19:19:59 tom Exp tom $
 #
 set netname_popup 0
 
@@ -79,18 +79,25 @@ proc NetworkNamingPopup {} {
       # sort provider list according to user preferences
       set netname_prov_cnis [SortProvList $netname_prov_cnis]
 
-      # retrieve all networks from all providers
+      # retrieve all network names from all providers
       foreach prov $netname_prov_cnis {
          array unset tmparr
          set cnilist [C_GetAiNetwopList $prov tmparr ai_names]
          foreach cni $cnilist {
             set netname_provnets($prov,$cni) $tmparr($cni)
+            set netname_provnets($prov,[C_NormalizeCni $cni]) $tmparr($cni)
          }
       }
       array unset tmparr
 
       # retrieve list of all networks of the current provider
-      set netname_ailist [lindex [C_GetProvCniConfig $cur_prov_cni] 0]
+      set netname_ailist [eval concat [C_GetProvCniConfig $cur_prov_cni]]
+
+      # remove duplicate networks from merged database
+      if {$cur_prov_cni == 0x00FF} {
+         set netname_ailist [NormalizeCnis $netname_ailist]
+      }
+
       if {[llength $netname_ailist] == 0} {
          # network selection dialog was not used yet
          set netname_ailist [C_GetAiNetwopList $cur_prov_cni tmparr ai_names]
@@ -108,25 +115,32 @@ proc NetworkNamingPopup {} {
          if [info exists cfnetnames($cni)] {
             # network name is already configured by the user
             set netname_names($cni) $cfnetnames($cni)
+         } elseif [info exists cfnetnames([C_NormalizeCni $cni])] {
+            set netname_names($cni) $cfnetnames([C_NormalizeCni $cni])
+            lappend netname_automatch $cni
          } else {
             # no name yet configured -> search best among all providers
             lappend netname_automatch $cni
             foreach prov $netname_prov_cnis {
-               if [info exists netname_provnets($prov,$cni)] {
+               set key "$prov,$cni"
+               if {![info exists netname_provnets($key)]} {
+                  set key "$prov,[C_NormalizeCni $cni]"
+               }
+               if [info exists netname_provnets($key)] {
                   # remove non-alphanumeric ASCII characters from the name
-                  regsub -all -- {[\0-\/\:-\?\[\\\]\^\_\{\|\}\~]*} $netname_provnets($prov,$cni) {} name
+                  regsub -all -- {[\0-\/\:-\?\[\\\]\^\_\{\|\}\~]*} $netname_provnets($key) {} name
                   # make it lower-case
                   set name [string tolower $name]
-                  if [info exists netname_xawtv($netname_provnets($prov,$cni))] {
+                  if [info exists netname_xawtv($netname_provnets($key))] {
                      incr xawtv_auto_match
-                     set netname_names($cni) $netname_xawtv($netname_provnets($prov,$cni))
+                     set netname_names($cni) $netname_xawtv($netname_provnets($key))
                      break
                   } elseif [info exists netname_xawtv($name)] {
                      incr xawtv_auto_match
                      set netname_names($cni) $netname_xawtv($name)
                      break
                   } elseif {![info exists netname_names($cni)]} {
-                     set netname_names($cni) $netname_provnets($prov,$cni)
+                     set netname_names($cni) $netname_provnets($key)
                   }
                }
             }
@@ -507,10 +521,14 @@ proc NetworkNameSelection {} {
       set netname_provlist {}
       .netname.ctrl.id.provnams.lbox delete 0 end
       foreach prov $netname_prov_cnis {
-         if [info exists netname_provnets($prov,$cni)] {
+         set key "$prov,$cni"
+         if {![info exists netname_provnets($key)]} {
+            set key "$prov,[C_NormalizeCni $cni]"
+         }
+         if [info exists netname_provnets($key)] {
             # the netname_provlist keeps track which providers are listed in the box
             lappend netname_provlist $prov
-            .netname.ctrl.id.provnams.lbox insert end [list $netname_prov_names($prov) $netname_provnets($prov,$cni)]
+            .netname.ctrl.id.provnams.lbox insert end [list $netname_prov_names($prov) $netname_provnets($key)]
          }
       }
    }
@@ -526,15 +544,13 @@ proc NetworkNameProvSelection {} {
    set sel [.netname.ctrl.id.provnams.lbox curselection]
    if {([string length $sel] > 0) && ($sel < [llength $netname_provlist])} {
       set prov [lindex $netname_provlist $sel]
-
-      if [info exists netname_provnets($prov,$cni)] {
-         set netname_entry $netname_provnets($prov,$cni)
-         .netname.list.ailist delete $netname_idx
-         .netname.list.ailist insert $netname_idx $netname_entry
-         .netname.list.ailist selection set $netname_idx
-         if {![NetworkNameIsInXawtv $netname_names($cni)]} {
-            .netname.list.ailist itemconfigure $netname_idx -foreground red -selectforeground red
-         }
+      set key "$prov,$cni"
+      if {![info exists netname_provnets($key)]} {
+         set cni [C_NormalizeCni $cni]
+         set key "$prov,$cni"
+      }
+      if [info exists netname_provnets($key)] {
+         set netname_entry $netname_provnets($key)
       }
    }
 }
@@ -547,10 +563,6 @@ proc NetworkNameXawtvSelection {} {
    if {[llength $sel] == 1} {
       set netname_entry [.netname.ctrl.tv.tvl.ailist get $sel]
       .netname.ctrl.myname icursor end
-
-      .netname.list.ailist delete $netname_idx
-      .netname.list.ailist insert $netname_idx $netname_entry
-      .netname.list.ailist selection set $netname_idx
    }
 }
 

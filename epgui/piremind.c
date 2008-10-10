@@ -24,7 +24,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: piremind.c,v 1.20 2007/12/29 20:32:56 tom Exp tom $
+ *  $Id: piremind.c,v 1.21 2008/09/20 20:24:49 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -367,7 +367,7 @@ static int PiRemind_SearchRemGroupMatch( const EPGDB_CONTEXT * dbc, const PI_BLO
    int        groupCount;
    int        tagIdx;
    int        cacheIdx;
-   bool       groupMatch = FALSE;
+   int        groupTag = -1;
 
    pGrpTagList = Tcl_GetVar2Ex(interp, "remgroup_order", NULL, TCL_GLOBAL_ONLY);
    if ( (pGrpTagList != NULL) &&
@@ -384,7 +384,7 @@ static int PiRemind_SearchRemGroupMatch( const EPGDB_CONTEXT * dbc, const PI_BLO
             {
                if (PiFilter_ContextCacheMatch(pPi, cacheIdx))
                {
-                  groupMatch = TRUE;
+                  Tcl_GetIntFromObj(NULL, pGrpTagArgv[tagIdx], &groupTag);
                   break;
                }
             }
@@ -398,10 +398,7 @@ static int PiRemind_SearchRemGroupMatch( const EPGDB_CONTEXT * dbc, const PI_BLO
    else
       debug0("PiRemind-SearchRemGroupMatch: remgroup_order variable not found");
 
-   if (groupMatch)
-      return groupCount;
-   else
-      return -1;
+   return groupTag;
 }
 
 // ----------------------------------------------------------------------------
@@ -1235,6 +1232,98 @@ static int PiRemind_ContextMenu( ClientData ttp, Tcl_Interp *interp, int objc, T
    return result;
 }
 
+// ----------------------------------------------------------------------------
+// Add reminder group dis-/enable command to the PI listbox context menu
+// - returns the number of added menu entries
+//
+static int PiRemind_ContextMenuDisable( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
+{
+   const char * const pUsage = "Usage: C_PiRemind_ContextMenuDisable <menu>";
+   const char * pMenu;
+   const PI_BLOCK * pPiBlock;
+   Tcl_Obj  * pRemListObj;
+   Tcl_Obj  * pRemObj;
+   Tcl_Obj  * pGrpTagObj;
+   Tcl_Obj  * pGrpCfgObj;
+   Tcl_Obj ** pGrpCfgArgv;
+   char  tag_buf[20];
+   int   groupTag;
+   int   disable;
+   int   elemCount;
+   uint  entryCount = 0;
+   sint  remIdx;
+   int   result;
+
+   if (objc != 2)
+   {
+      Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
+      result = TCL_ERROR;
+   }
+   else
+   {
+      EpgDbLockDatabase(dbc, TRUE);
+      pPiBlock = PiBox_GetSelectedPi();
+      if (pPiBlock != NULL)
+      {
+         pMenu = Tcl_GetString(objv[1]);
+
+         // search for match on single reminder
+         remIdx = PiRemind_SearchRemPiMatch(dbc, pPiBlock, MATCH_ALL_REM_GROUPS);
+         if (remIdx != -1)
+         {
+            pRemListObj = Tcl_GetVar2Ex(interp, "reminders", NULL, TCL_GLOBAL_ONLY);
+            if ( (pRemListObj != NULL) &&
+                 (Tcl_ListObjIndex(interp, pRemListObj, remIdx, &pRemObj) == TCL_OK) &&
+                 (Tcl_ListObjIndex(interp, pRemObj, EPGTCL_RPI_GRPTAG_IDX, &pGrpTagObj) == TCL_OK) &&
+                 (Tcl_GetIntFromObj(interp, pGrpTagObj, &groupTag) == TCL_OK) )
+            {
+               assert(groupTag != -1);  // continues below
+            }
+            else
+            {
+               debug1("PiRemind-ContextMenuDisable: parse error reminders index %d", remIdx);
+               groupTag = -1;
+            }
+         }
+         else
+         {  // search for match on shortcut-based reminder
+            groupTag = PiRemind_SearchRemGroupMatch(dbc, pPiBlock);
+         }
+
+         if (groupTag != -1)
+         {
+            snprintf(tag_buf, sizeof(tag_buf), "%d", groupTag);
+            pGrpCfgObj = Tcl_GetVar2Ex(interp, "remgroups", tag_buf, TCL_GLOBAL_ONLY);
+            if (pGrpCfgObj != NULL)
+            {
+               if ( (Tcl_ListObjGetElements(interp, pGrpCfgObj, &elemCount, &pGrpCfgArgv) == TCL_OK) &&
+                    (elemCount == EPGTCL_RGP_IDX_COUNT) &&
+                    (Tcl_GetIntFromObj(interp, pGrpCfgArgv[EPGTCL_RGP_DISABLE_IDX], &disable) == TCL_OK) )
+               {
+                  sprintf(comm, "%s add command -label {%s all reminders in group '%s'}"
+                                " -command {Reminder_DisableGroup %d %d}\n",
+                                pMenu,
+                                (disable ? "Enable" : "Disable"),
+                                Tcl_GetString(pGrpCfgArgv[EPGTCL_RGP_NAME_IDX]),
+                                groupTag, !disable);
+                  eval_check(interp, comm);
+                  entryCount += 1;
+               }
+               else
+                  debug2("PiRemind-ContextMenuDisable: parse error remgroup(%s) '%s'", tag_buf, Tcl_GetString(pGrpCfgObj));
+            }
+            else
+               debug1("PiRemind-ContextMenuDisable: group with tag %d not found", groupTag);
+         }
+      }
+      EpgDbLockDatabase(dbc, FALSE);
+
+      Tcl_SetObjResult(interp, Tcl_NewIntObj(entryCount));
+      result = TCL_OK;
+   }
+   return result;
+}
+
 // ---------------------------------------------------------------------------
 // En-/Disable reminder menu entries
 //
@@ -1476,6 +1565,7 @@ void PiRemind_Create( void )
       Tcl_CreateObjCommand(interp, "C_SetReminderMenuStates", PiRemind_SetReminderMenuStates, (ClientData) NULL, NULL);
       Tcl_CreateObjCommand(interp, "C_PiRemind_ContextMenuShort", PiRemind_ContextMenu, (ClientData) INT2PVOID(FALSE), NULL);
       Tcl_CreateObjCommand(interp, "C_PiRemind_ContextMenuExtended", PiRemind_ContextMenu, (ClientData) INT2PVOID(TRUE), NULL);
+      Tcl_CreateObjCommand(interp, "C_PiRemind_ContextMenuDisable", PiRemind_ContextMenuDisable, (ClientData) NULL, NULL);
 
       Tcl_CreateObjCommand(interp, "C_PiRemind_AddPi", PiRemind_AddPi, (ClientData) NULL, NULL);
       Tcl_CreateObjCommand(interp, "C_PiRemind_RemovePi", PiRemind_RemovePi, (ClientData) NULL, NULL);

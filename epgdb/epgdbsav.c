@@ -29,7 +29,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgdbsav.c,v 1.62 2007/12/30 23:52:45 tom Exp tom $
+ *  $Id: epgdbsav.c,v 1.65 2008/09/26 15:37:48 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB
@@ -96,8 +96,8 @@ static bool EpgDbDumpHeader( CPDBC dbc, int fd )
 
    if (dbc->pAiBlock != NULL)
    {
+      memset(&header, 0, sizeof(header));
       strncpy(header.magic, MAGIC_STR, MAGIC_STR_LEN);
-      memset(header.reserved, 0, sizeof(header.reserved));
       header.endianMagic   = ENDIAN_MAGIC;
       header.encoding      = DUMP_ENCODING_SUP;
       header.compatVersion = DUMP_COMPAT;
@@ -146,22 +146,18 @@ static bool EpgDbDumpHeader( CPDBC dbc, int fd )
 }
 
 // ---------------------------------------------------------------------------
-// Append a single block to the output file
+// Wrapper to append a chunk of data to a file with I/O error handling
 //
-static bool EpgDbDumpAppendBlock( const EPGDB_BLOCK * pBlock, int fd )
+static bool EpgDbDumpWrite( int fd, const uchar * pData, size_t rest )
 {
    ssize_t size;
-   size_t  rest;
-   const uchar *p;
 
-   rest = pBlock->size + BLK_UNION_OFF;
-   p = (uchar *)pBlock;
    do
    {
-      size = write(fd, p, rest);
+      size = write(fd, pData, rest);
       if (size > 0)
       {
-         p += size;
+         pData += size;
          rest -= size;
       }
       else if ( ((size < 0) && (errno != EINTR)) || (size == 0) )
@@ -176,6 +172,22 @@ static bool EpgDbDumpAppendBlock( const EPGDB_BLOCK * pBlock, int fd )
    while (rest > 0);
 
    return TRUE;
+}
+
+// ---------------------------------------------------------------------------
+// Append a single block to the output file
+//
+static bool EpgDbDumpAppendBlock( const EPGDB_BLOCK * pBlock, int fd )
+{
+#ifdef USE_32BIT_COMPAT
+   const uchar blockHeadPtrs[BLK_HEAD_PTR_OFF_FILE] = {0};
+
+   return EpgDbDumpWrite(fd, blockHeadPtrs, BLK_HEAD_PTR_OFF_FILE) &&
+          EpgDbDumpWrite(fd, (uchar *)pBlock + BLK_HEAD_PTR_OFF_MEM,
+                             pBlock->size + BLK_HEAD_SIZE_DATA);
+#else
+   return EpgDbDumpWrite(fd, (uchar *)pBlock, pBlock->size + BLK_UNION_OFF);
+#endif
 }
 
 // ---------------------------------------------------------------------------
@@ -437,7 +449,7 @@ static EPGDB_RELOAD_RESULT EpgDbReloadAddDefectPiBlock( PDBC dbc, EPGDB_BLOCK * 
          }
          else
          {
-            debug4("EpgDbReload-AddDefectPiBlock: prov=0x%04X: invalid netwop=%d stop=%ld block_no=%d", dbc->provCni, pBlock->blk.pi.netwop_no, pBlock->blk.pi.stop_time, pBlock->blk.pi.block_no);
+            debug4("EpgDbReload-AddDefectPiBlock: prov=0x%04X: invalid netwop=%d stop=%ld block_no=%d", dbc->provCni, pBlock->blk.pi.netwop_no, (long)pBlock->blk.pi.stop_time, pBlock->blk.pi.block_no);
             xfree(pBlock);
          }
       }
@@ -529,7 +541,7 @@ static EPGDB_RELOAD_RESULT EpgDbReloadAddPiBlock( PDBC dbc, EPGDB_BLOCK * pBlock
             }
             else
             {  // unexpected block number or start time -> refuse the block (should never happen)
-               debug4("EpgDbReload-AddPiBlock: PI not consecutive: prov=0x%04X: netwop=%02d block_no=%d start=%ld", dbc->provCni, netwop, pBlock->blk.pi.block_no, pBlock->blk.pi.start_time);
+               //debug4("EpgDbReload-AddPiBlock: PI not consecutive: prov=0x%04X: netwop=%02d block_no=%d start=%ld", dbc->provCni, netwop, pBlock->blk.pi.block_no, pBlock->blk.pi.start_time);
                xfree(pBlock);
             }
 
@@ -579,7 +591,7 @@ static EPGDB_RELOAD_RESULT EpgDbReloadHeader( uint cni, int fd, EPGDBSAV_HEADER 
 
                swap32(&pHead->compatVersion);
                swap32(&pHead->swVersion);
-               swap32(&pHead->lastPiDate);
+               swap32(&pHead->lastPiDate);      // XXX FIXME 64-bit timestamps not supported
                swap32(&pHead->firstPiDate);
                swap32(&pHead->lastAiUpdate);
                swap32(&pHead->cni);
@@ -611,6 +623,7 @@ static EPGDB_RELOAD_RESULT EpgDbReloadHeader( uint cni, int fd, EPGDBSAV_HEADER 
                {
                   // CNI is located behind the time values in the header, so it's OK only if the int width matches
                   // FIXME doesn't work if endian swap was done above
+                  debug1("EpgDbReload-Header: reload db 0x%04X: incompatible integer width", cni);
                   result = EPGDB_RELOAD_INT_WIDTH;
                }
                else
@@ -700,7 +713,7 @@ static PDBC EpgDbReloadInt( const char * pFilename, uint cni,
    EPGDB_BLOCK *pPrevNetwop[MAX_NETWOP_COUNT];
    EPGDB_BLOCK *pPrevGeneric[BLOCK_TYPE_GENERIC_COUNT];
    EPGDB_BLOCK *pBlock;
-   uchar   buffer[BLK_UNION_OFF];
+   uchar   buffer[BLK_HEAD_SIZE_FILE];
    uint32_t size;
    ssize_t readSize;
    int     fd;
@@ -741,9 +754,9 @@ static PDBC EpgDbReloadInt( const char * pFilename, uint cni,
 
          // load the header of the next block from the file (including the block type)
          while ( (result == EPGDB_RELOAD_OK) &&
-                 (read(fd, buffer, BLK_UNION_OFF) == BLK_UNION_OFF) )
+                 (read(fd, buffer, BLK_HEAD_SIZE_FILE) == BLK_HEAD_SIZE_FILE) )
          {
-            size = ((EPGDB_BLOCK *)buffer)->size;
+            size = BLK_HEAD_PTR_FILE(buffer)->size;
             if (swapEndian)
                swap32(&size);
             // plausibility check for block size (avoid malloc failure, which results in program abort)
@@ -751,7 +764,9 @@ static PDBC EpgDbReloadInt( const char * pFilename, uint cni,
             {
                result = EPGDB_RELOAD_CORRUPT;
                pBlock = (EPGDB_BLOCK *) xmalloc(size + BLK_UNION_OFF);
-               memcpy(pBlock, buffer, BLK_UNION_OFF);
+               memcpy((uchar *)pBlock + BLK_HEAD_PTR_OFF_MEM,
+                      buffer + BLK_HEAD_PTR_OFF_FILE,
+                      BLK_HEAD_SIZE_DATA);
                // load the rest of the block from the file
                readSize = read(fd, (uchar *)pBlock + BLK_UNION_OFF, size);
                if (readSize == size)
@@ -894,29 +909,31 @@ PDBC EpgDbReload( uint cni, EPGDB_RELOAD_RESULT * pResult, time_t * pMtime )
 static EPGDB_BLOCK * EpgDbPeekOi( int fd, bool swapEndian )
 {
    EPGDB_BLOCK * pBlock;
-   uchar buffer[BLK_UNION_OFF];
+   uchar buffer[BLK_HEAD_SIZE_FILE];
    BLOCK_TYPE  type;
    ssize_t     readSize;
    uint32_t    size;
 
    pBlock = NULL;
 
-   while (read(fd, buffer, BLK_UNION_OFF) == BLK_UNION_OFF)
+   while (read(fd, buffer, BLK_HEAD_SIZE_FILE) == BLK_HEAD_SIZE_FILE)
    {
-      size = ((EPGDB_BLOCK *)buffer)->size;
+      size = BLK_HEAD_PTR_FILE(buffer)->size;
       if (swapEndian)
          swap32(&size);
       // plausibility check for block size (avoid malloc failure, which reults in program abort)
       if (size <= EPGDBSAV_MAX_BLOCK_SIZE)
       {
-         type = ((EPGDB_BLOCK *)buffer)->type;
+         type = BLK_HEAD_PTR_FILE(buffer)->type;
          if (swapEndian)
             swap32(&type);
 
          if (type == BLOCK_TYPE_OI)
          {
             pBlock = (EPGDB_BLOCK *) xmalloc(size + BLK_UNION_OFF);
-            memcpy(pBlock, buffer, BLK_UNION_OFF);
+            memcpy((uchar *)pBlock + BLK_HEAD_PTR_OFF_MEM,
+                   buffer + BLK_HEAD_PTR_OFF_FILE,
+                   BLK_HEAD_SIZE_DATA);
             // load the rest of the block from the file
             readSize = read(fd, (uchar *)pBlock + BLK_UNION_OFF, size);
             if (readSize == size)
@@ -950,7 +967,7 @@ static EPGDB_BLOCK * EpgDbPeekOi( int fd, bool swapEndian )
                break;
             }
          }
-         else if ( ((EPGDB_BLOCK *)buffer)->type >= BLOCK_TYPE_PI )
+         else if ( BLK_HEAD_PTR_FILE(buffer)->type >= BLOCK_TYPE_PI )
          {  // read past all generic blocks -> finished
             break;
          }
@@ -980,7 +997,7 @@ EPGDB_CONTEXT * EpgDbPeek( uint cni, EPGDB_RELOAD_RESULT * pResult, time_t * pMt
    EPGDBSAV_HEADER head;
    EPGDB_CONTEXT * pDbContext;
    EPGDB_BLOCK   * pBlock;
-   uchar buffer[BLK_UNION_OFF];
+   uchar buffer[BLK_HEAD_SIZE_FILE];
    uint32_t size;
    ssize_t readSize;
    int     fd;
@@ -1010,16 +1027,18 @@ EPGDB_CONTEXT * EpgDbPeek( uint cni, EPGDB_RELOAD_RESULT * pResult, time_t * pMt
          pDbContext->fileNameFormat = nameFmt;
          pDbContext->expireDelayPi = epgDbReloadExpireDelayPi;
 
-         if (read(fd, buffer, BLK_UNION_OFF) == BLK_UNION_OFF)
+         if (read(fd, buffer, BLK_HEAD_SIZE_FILE) == BLK_HEAD_SIZE_FILE)
          {
-            size = ((EPGDB_BLOCK *)buffer)->size;
+            size = BLK_HEAD_PTR_FILE(buffer)->size;
             if (swapEndian)
                swap32(&size);
             // plausibility check for block size (avoid malloc failure, which reults in program abort)
             if (size <= EPGDBSAV_MAX_BLOCK_SIZE)
             {
                pBlock = (EPGDB_BLOCK *) xmalloc(size + BLK_UNION_OFF);
-               memcpy(pBlock, buffer, BLK_UNION_OFF);
+               memcpy((uchar *)pBlock + BLK_HEAD_PTR_OFF_MEM,
+                      buffer + BLK_HEAD_PTR_OFF_FILE,
+                      BLK_HEAD_SIZE_DATA);
                // load the rest of the block from the file
                readSize = read(fd, (uchar *)pBlock + BLK_UNION_OFF, size);
                if (readSize == size)

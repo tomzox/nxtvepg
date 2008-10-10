@@ -18,7 +18,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: dlg_acqmode.tcl,v 1.9 2007/12/29 21:03:39 tom Exp tom $
+#  $Id: dlg_acqmode.tcl,v 1.10 2008/01/22 22:07:49 tom Exp tom $
 #
 set acqmode_popup 0
 set netacqcf_popup 0
@@ -85,7 +85,7 @@ proc PopupAcqMode {} {
       }
       radiobutton .acqmode.mode.mode1 -text "External (don't touch TV tuner)" -variable acqmode_sel -value "external" -command UpdateAcqModePopup
       radiobutton .acqmode.mode.mode2 -text "Follow browser database" -variable acqmode_sel -value "follow-ui" -command UpdateAcqModePopup
-      radiobutton .acqmode.mode.mode3 -text "Manually selected" -variable acqmode_sel -value "cyclic_2" -command UpdateAcqModePopup
+      radiobutton .acqmode.mode.mode3 -text "Manually selected (Cyclic: All)" -variable acqmode_sel -value "cyclic_2" -command UpdateAcqModePopup
       radiobutton .acqmode.mode.mode4 -text "Cyclic: Now->Near->All" -variable acqmode_sel -value "cyclic_012" -command UpdateAcqModePopup
       radiobutton .acqmode.mode.mode5 -text "Cyclic: Now->All" -variable acqmode_sel -value "cyclic_02" -command UpdateAcqModePopup
       radiobutton .acqmode.mode.mode6 -text "Cyclic: Near->All" -variable acqmode_sel -value "cyclic_12" -command UpdateAcqModePopup

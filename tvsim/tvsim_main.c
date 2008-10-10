@@ -21,7 +21,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: tvsim_main.c,v 1.33 2007/12/31 17:14:05 tom Exp tom $
+ *  $Id: tvsim_main.c,v 1.34 2008/09/14 19:23:22 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_TVSIM
@@ -1926,6 +1926,109 @@ static int TclCb_TuneChan( ClientData ttp, Tcl_Interp *interp, int argc, CONST84
    return result;
 }
 
+// ----------------------------------------------------------------------------
+// Return the current time as UNIX "epoch"
+// - replacement for Tcl's [clock seconds] which requires an overly complicated
+//   library script since 8.5
+//
+static int ClockSeconds( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
+{
+   const char * const pUsage = "Usage: C_ClockSeconds";
+   int  result;
+
+   if (objc != 1)
+   {  // parameter count or format is invalid
+      Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
+      result = TCL_ERROR;
+   }
+   else
+   {
+      Tcl_SetObjResult(interp, Tcl_NewIntObj(time(NULL)));
+      result = TCL_OK;
+   }
+   return result;
+}
+
+// ----------------------------------------------------------------------------
+// Format time in the given format
+// - workaround for Tcl library on Windows: current locale is not used for weekdays etc.
+//
+static int ClockFormat( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
+{
+   const char * const pUsage = "Usage: C_ClockFormat <time> <format>";
+   long reqTimeVal;
+   time_t reqTime;
+   int  result;
+
+   if ( (objc != 1+2) ||
+        (Tcl_GetLongFromObj(interp, objv[1], &reqTimeVal) != TCL_OK) ||
+        (Tcl_GetString(objv[2]) == NULL) )
+   {  // parameter count or format is invalid
+      Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
+      result = TCL_ERROR;
+   }
+   else
+   {
+      reqTime = (time_t) reqTimeVal;
+      if (strftime(comm, sizeof(comm) - 1, Tcl_GetString(objv[2]), localtime(&reqTime)) == 0)
+      {  // error
+         comm[0] = 0;
+      }
+      Tcl_SetObjResult(interp, TranscodeToUtf8(EPG_ENC_SYSTEM, NULL, comm, NULL));
+      result = TCL_OK;
+   }
+   return result;
+}
+
+// ----------------------------------------------------------------------------
+// Scan time and date strings in ISO format and return epoch value
+// - format: 2008-09-07 01:25:00
+// - workaround for Tcl library on Windows: current locale is not used for weekdays etc.
+//
+static int ClockScanIso( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
+{
+   const char * const pUsage = "Usage: C_ClockScanIso <date> <time>";
+   const char * pDate;
+   const char * pTime;
+   struct tm t;
+   time_t epoch;
+   int  result;
+
+   if ( (objc != 1+2) ||
+        (Tcl_GetString(objv[1]) == NULL) ||
+        (Tcl_GetString(objv[2]) == NULL) )
+   {  // parameter count or format is invalid
+      Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
+      result = TCL_ERROR;
+   }
+   else
+   {
+      pDate = Tcl_GetString(objv[1]);
+      pTime = Tcl_GetString(objv[2]);
+      memset(&t, 0, sizeof(t));
+
+      if ((sscanf(pDate, "%u-%u-%u",
+                         &t.tm_year, &t.tm_mon, &t.tm_mday) == 3) &&
+          (sscanf(pTime, "%u:%u:00", &t.tm_hour, &t.tm_min) == 2))
+      {
+         t.tm_year -= 1900;
+         t.tm_mon -= 1;
+         t.tm_isdst = -1;
+         t.tm_sec = 0;
+
+         epoch = mktime(&t);
+      }
+      else
+      {
+         debug2("C_ClockScanIso: format error '%s' or '%s'", pDate, pTime);
+         epoch = 0;
+      }
+      Tcl_SetObjResult(interp, Tcl_NewIntObj( epoch ));
+      result = TCL_OK;
+   }
+   return result;
+}
+
 // ---------------------------------------------------------------------------
 // Initialize the Tcl/Tk interpreter and load our scripts
 //
@@ -2022,6 +2125,10 @@ static int ui_init( int argc, char **argv )
    Tcl_CreateCommand(interp, "C_GrantTuner", TclCb_GrantTuner, (ClientData) NULL, NULL);
    Tcl_CreateCommand(interp, "C_TuneChan", TclCb_TuneChan, (ClientData) NULL, NULL);
    Tcl_CreateObjCommand(interp, "C_GetPdcString", GetPdcString, (ClientData) NULL, NULL);
+
+   Tcl_CreateObjCommand(interp, "C_ClockSeconds", ClockSeconds, (ClientData) NULL, NULL);
+   Tcl_CreateObjCommand(interp, "C_ClockFormat", ClockFormat, (ClientData) NULL, NULL);
+   Tcl_CreateObjCommand(interp, "C_ClockScanIso", ClockScanIso, (ClientData) NULL, NULL);
 
    if (TCL_EVAL_CONST(interp, tvsim_gui_tcl_static) != TCL_OK)
    {

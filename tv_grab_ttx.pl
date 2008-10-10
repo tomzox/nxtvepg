@@ -1,30 +1,35 @@
 #!/usr/bin/perl -w
 #
-#  This script grabs TV schedules from teletext pages and exports them
-#  in XMLTV format (DTD version 0.5)  Input is a file with pre-processed
-#  VBI data captured from a TV card.
+#  This script captures teletext from a VBI device, scrapes TV programme
+#  schedules and descriptions from teletext pages and exports them in
+#  XMLTV format (DTD version 0.5)
 #
-#  This program is free software; you can redistribute it and/or modify
-#  it under the terms of the GNU General Public License Version 2 as
-#  published by the Free Software Foundation. You find the full text here:
-#  http://www.fsf.org/copyleft/gpl.html
+#    This program is free software: you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation, either version 3 of the License, or
+#    (at your option) any later version.
 #
-#  THIS PROGRAM IS DISTRIBUTED IN THE HOPE THAT IT WILL BE USEFUL,
-#  BUT WITHOUT ANY WARRANTY; WITHOUT EVEN THE IMPLIED WARRANTY OF
-#  MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE.  See the
-#  GNU General Public License for more details.
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
 #
-#  Author: Tom Zoerner (tomzo at users.sf.net)
+#    You should have received a copy of the GNU General Public License
+#    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
-#  $Id: ttxacq.pl,v 1.15 2006/12/10 11:30:51 tom Exp tom $
+#  Copyright 2006-2008 by Tom Zoerner (tomzo at users.sf.net)
+#
+#  $Id: tv_grab_ttx.pl,v 1.22 2008/10/05 18:33:19 tom Exp tom $
 #
 
 use POSIX;
 use locale;
-use strict;
 use Time::Local;
+use strict;
 
-my $version = "Teletext EPG grabber, v0.6\nCopyright 2006 Tom Zoerner";
+my $version = 'Teletext EPG grabber, v1.1';
+my $copyright = 'Copyright 2006-2008 Tom Zoerner';
+my $home_url = 'http://nxtvepg.sourceforge.net/tv_grab_ttx';
 
 my %Pkg;
 my %PkgCni;
@@ -35,25 +40,47 @@ my %PageCtrl;
 my %PageText;
 my $VbiCaptureTime;
 
+# command line options for capturing from device
+my $opt_duration = 0;
+my $opt_device = "/dev/vbi0";
+my $opt_dvbpid = undef;
+my $opt_verbose = 0;
+my $opt_debug = 0;
+
+# command line options for grabbing
 my $opt_infile;
 my $opt_outfile;
 my $opt_mergefile;
 my $opt_chname;
 my $opt_chid;
 my $opt_dump = 0;
-my $opt_debug = 0;
 my $opt_verify = 0;
 my $opt_tv_start = 0x301;
 my $opt_tv_end = 0x399;
-my $opt_expire = 1;
+my $opt_expire = 120;
 
 # ------------------------------------------------------------------------------
 # Command line argument parsing
 #
 sub ParseArgv {
-   my $usage = "Usage: $0 [-page <NNN>-<MMM>] [-chn_name <name>] [-chn_id <ID>] [-outfile <name>] {<file>|-}\n".
-               "Other options: -help -version -expire <minutes>\n".
-               "Debug options: -debug -dump -dumpraw <page_range> -verify\n";
+   my $usage = "Usage: $0 [OPTIONS] [<file>]\n".
+               "  -device <path>\t: VBI device used for input (when no file given)\n".
+               "  -dvbpid <PID>\t\t: Use DVB stream with given PID\n".
+               "  -page <NNN>-<MMM>\t: Page range for TV schedules\n".
+               "  -chn_name <name>\t: display name for XMLTV \"<channel>\" tag\n".
+               "  -chn_id <name>\t: channel ID for XMLTV \"<channel>\" tag\n".
+               "  -outfile <path>\t: Redirect XMLTV or dump output into the given file\n".
+               "  -merge <path>\t\t: Merge output with programmes from file\n".
+               "  -expire <N>\t\t: Omit programmes which ended X minutes ago\n".
+               "  -dumpvbi\t\t: Dump captured VBI data; no grabbing\n".
+               "  -dump\t\t\t: Dump teletext pages as clear text; no grabbing\n".
+               "  -dumpraw <NNN>-<MMM>\t: Dump teletext packets in given range; no grabbing\n".
+               "  -verify\t\t: Load previously dumped \"raw\" teletext packets\n".
+               "  -verbose\t\t: Print teletext page numbers during capturing\n".
+               "  -debug\t\t: Emit debug messages during grabbing and device open\n".
+               "  -version\t\t: Print version number only, then exit\n".
+               "  -help\t\t\t: Print this text, then exit\n".
+               "  file or \"-\"\t\t: Read VBI input from file instead of device\n";
 
    while ($_ = shift @ARGV) {
       # -chn_name: display name in XMLTV <channel> tag
@@ -117,14 +144,43 @@ sub ParseArgv {
             die "-dumpraw: invalid parameter: \"$_\", expecting two 3-digit ttx page numbers\n";
          }
 
+      # -dump: write all teletext and VPS packets to file
+      } elsif (/^-dumpvbi$/) {
+         $opt_dump = 3;
+
       # -verify: read pre-processed teletext from file (for verification only)
       } elsif (/^-verify$/) {
          $opt_verify = 1;
 
+      # -duration <seconds|"auto">: stop capturing from VBI device after the given time
+      } elsif (/^-duration$/) {
+         die "$0: missing argument for $_\n$usage" unless $#ARGV>=0;
+         $opt_duration = shift @ARGV;
+         die "$0: $_ requires a numeric argument\n" unless $opt_duration =~ m#^[0-9]+$#;
+         die "$0: Invalid -duration value: $opt_duration\n" unless $opt_duration > 0;
+
+      # -dev <device>: specify VBI device
+      } elsif (/^-dev(ice)?$/) {
+         die "$0: missing argument for $_\n$usage" unless $#ARGV>=0;
+         $opt_device = shift @ARGV;
+         die "$0: -dev $opt_device: doesn't exist\n" unless -e $opt_device;
+         die "$0: -dev $opt_device: not a character device\n" unless -c $opt_device;
+
+      # -dvbpid <number>: capture from DVB device from a stream with the given PID
+      } elsif (/^-dvbpid$/) {
+         die "$0: missing argument for $_\n$usage" unless $#ARGV>=0;
+         $opt_dvbpid = shift @ARGV;
+         die "$_ requires a numeric argument\n" if $opt_dvbpid !~ m#^[0-9]+$#;
+
+      # -verbose: print page numbers during capturing, progress info during grabbing
+      } elsif (/^-verbose$/) {
+         $opt_verbose = 1;
+
       } elsif (/^-version$/) {
-         print STDERR $version .
+         print STDERR "$version\n$copyright" .
                       "\nThis is free software with ABSOLUTELY NO WARRANTY.\n" .
-                      "Licensed under the GNU Public License version 2\n";
+                      "Licensed under the GNU Public License version 3 or later.\n" .
+                      "For details see <http://www.gnu.org/licenses/\n";
          exit 0;
 
       # -help: print usage (i.e. command line syntax) and exit
@@ -138,21 +194,506 @@ sub ParseArgv {
          last;
 
       } elsif (/^-/) {
-         die "$_: unknown argument\n";
+         die "$_: unknown argument \"$_\"\n$usage";
 
       } else {
          $opt_infile = $_;
-         last;
+         die "$0: no more than one input file expected.\n" .
+             "Error after '$opt_infile'\n$usage" unless $#ARGV <= 0;
       }
    }
+}
 
-   die $usage unless defined($opt_infile) && $#ARGV<0;
+=head1 NAME
+
+tv_grab_ttx - Grab TV listings from teletext through a TV card
+
+=head1 SYNOPSIS
+
+tv_grab_ttx [options] [file]
+
+=head1 DESCRIPTION
+
+This EPG grabber allows to extract TV programme listings in XMLTV
+format from teletext pages as broadcast by most European TV networks.
+The grabber works by collecting teletext pages through a TV card,
+locating pages holding programme schedule tables and then scraping
+starting times, titles and attributes from those. Additionally,
+the grabber follows references to further teletext pages in the
+overviews to extract description texts. The grabber needs to be
+started separately for each TV channel from which EPG data shall be
+collected.
+
+Teletext data is captured directly from I</dev/vbi0> or the device
+given by the I<-dev> command line parameter, unless an input I<file>
+is named on the command line. In case of the latter, the grabber expects
+a stream of pre-processed VBI packets as generated when using
+option I<-dumpvbi>.  Use file name C<-> to read from standard input
+(i.e. from a pipe.)
+
+The XMLTV output is written to standard out unless redirected to a
+file by use of the I<-outfile> option. There are also "dump" options
+which allow to write each VBI packet or assembled teletext input
+pages in raw or clear text format. See L<"OPTIONS"> for details.
+
+The EPG output generated by this grabber is compatible to all
+applications which can process XML files which adhere to XMLTV
+DTD version 0.5. See L<http://xmltv.org/> for a list of applications
+and a copy of the DTD specification. In particular, the output can
+be imported into L<nxtvepg(1)> and merged with I<Nextview EPG>.
+
+=head1 OPTIONS
+
+=over 4
+
+=item B<-page> NNN-MMM
+
+This limits the range of the teletext page numbers which are extracted
+from the input stream. At the same time this defines the range of pages
+which are scanned for programme schedule tables. The default page range
+is 300 to 399.
+
+=item B<-outfile> path
+
+This option can be used to redirect the XMLTV output into a file.
+By default the output is written to standard out.
+
+=item B<-chn_name> name
+
+This option can be used to set the value of the I<display-name> tag
+in the channel table of the generated XMLTV output. By default the
+name is extracted from teletext page headers.
+
+=item B<-chn_id> id
+
+This option can be used to set the value of the channel I<id> attribute
+in the channel table of the generated XMLTV output.
+
+By default the identifier is derived from the canonical network
+identifier (CNI) which is broadcast as part of VPS and PDC.
+The grabber uses an internal table to map these numerical values
+to strings in the form suggested by RFC2838 (e.g. CNI C<1DC1>
+is mapped to C<ard.de>)
+
+=item B<-merge> file
+
+This option can be used to merge the newly grabber data with previously
+grabbed data, or with data grabbed from other channels.
+
+B<Caution:> This option only allows to merge input files which have
+been written by the same version of the grabber. This is because
+the grabber does not include a complete XMLTV parser, so the input
+is expected in the exact format in which the grabber has written it.
+
+=item B<-expire> minutes
+
+This option can be used to omit programmes which have completed
+more than the given number of minutes ago. Note for programmes
+for which the stop time is unknown the start time plus 120 minutes
+is used. By default the expire time is 120 minutes.
+
+This option is particularily intended for use together with
+the I<-merge> option.
+
+=item B<-dumpvbi>
+
+This option can be used to omit almost all processing after
+digitization ("slicing") of VBI data and write incoming teletext and
+VPS packets to the output. The output can later be read by the grabber
+as input file.
+
+In the output, each data record consists of 46 bytes of which the first
+two contain the magazine and page number (0x000..0x7FF), the next three
+the header control bits including sub-page number, the next byte the
+packet number (0 for page header, 1..29 for teletext packets, 30 for
+PDC/NI packets, 32 for VPS) and finally the last 40 bytes the payload
+data (only 16-bit CNI value in case of VPS/PDC/NI) Note the byte-order
+of 16-bit values is platform-dependent.
+
+=item B<-dump>
+
+This option can be used to omit grabbing and instead print all
+teletext pages received in the input stream as text
+in Latin-1 encoding. Note control characters and characters which
+cannot be represented in Latin-1 are replaced with spaces. This
+option is intended for debugging purposes only.
+
+=item B<-dumpraw> NNN-MMM
+
+This option can be used to disable grabbing and instead write all
+teletext pages in the given page range to the output stream in a
+specific format which can later be imported again via option I<-verify>.
+The output includes the raw teletext packets for each page including
+all control characters. Additionally, the output contains VPS/PDC
+packets and a timestamp which indicates the capture time. (The latter
+is required when parsing relative time and date specifications.)
+
+=item B<-verify>
+
+This option can be used to read input data in the format as written
+by use of option I<dumpraw> instead of the standard VBI packet stream.
+As the name indicates, this mode is used in regression testing to
+compare the grabber output for pre-defined input page sequences with
+stored output files.
+
+=item B<-dev> I<path>
+
+This option can be used to specify the VBI device from which teletext
+is captured. By default F</dev/vbi0> is used.
+
+=item B<-dvbpid> I<PID>
+
+This option enables data acquisition from a DVB device and specifies
+the PID which is the identifier of the data stream which contains
+teletext data. The PID must be determined by external means. Likewise
+to analog sources, the TV channel also must be tuned with an external
+application.
+
+=item B<-duration> I<seconds>
+
+This option can be used to limit capturing from the VBI device to the
+given number of seconds. EPG grabbing will start afterwards.
+If this option is not present, capturing stops automatically after a
+sufficient number of pages have been read.  
+This option has no effect when reading VBI data from a file.
+
+=item B<-verbose>
+
+This option can be used to enable output of the number of each
+teletext page when capturing from a VBI device. This allows monitoring
+the capture progress.
+
+=item B<-debug>
+
+This option can be used to enable output of debugging information
+to standard output. You can use this to get additional diagnostic
+messages in case of trouble with the capture device. (Note most of
+these messages originate directly from the "ZVBI" library I<libzvbi>.)
+Additionally this option enables messages during parsing teletext
+pages; these are probably only helpful for developers.
+
+=item B<-version>
+
+This option prints version and license information, then exits.
+
+=item B<-help>
+
+This option prints the command line syntax, then exits.
+
+=back
+
+=head1 GRABBING PROCESS
+
+This chapter describes the process in which EPG information is extracted
+from teletext pages. This information is not needed to use the grabber
+but may help you to understand the goals and limitations. The main
+challenge of the grabber is that source data is not formatted
+consistently. Formats used for tables, dates and other attributes may
+vary widely between networks and may also vary over time or even
+between pages in a cycle for a specific network. So far the grabber
+avoids any network-specific hacks and instead attempts to address
+the problem algorithmically.
+
+Before starting the actual grabbing, all teletext packets are read
+from the input file or stream into memory and associated with
+teletext page numbers. In case the same packet is received more than
+once, the one with the lower parity error count is selected.
+
+The first step of grabbing is identification of the overview pages
+which contain tables with start times and programme titles. This is
+done by searching all pages for lines starting with a time value,
+but allowing for exceptions such as markers or hidden VPS labels:
+
+   20.00  Tagesschau UT ............ 310
+ ! 20.15  Die Stein (10/13) UT ..... 324
+          Zwischen Baum und Borke
+          Fernsehserie, D 2008
+ ! 21.05  In aller Freundschaft UT . 326
+          Grossmuetiges Herz (D, 2008)
+ ! 21.50  Plusminus UT ............. 328
+
+Of course there may be unrelated rows which also start with a
+time value. Hence the grabber builds statistics about the number
+of occurences of lines where the time and title start in the same
+column. In the end, the format found most often is selected as the
+one used for detecting time tables.
+
+In the second step, the grabber revisits all pages and extracts
+start times and titles from all lines which are formatted in the
+way selected in step 1 above. Additionally, the title lines are 
+broken apart into time, title, episode title, feature attributes
+(stereo, sub-titles etc.), description page references. Afterwards
+stop times are calculated by asserting the start of subsequent
+programmes as the stop time of the previous one.
+
+Finally the date is derived. In some cases the data is printed in
+full on top of the page, but often the data is just given as "Today",
+"Tomorrow" etc. or a weekday name. Even more difficult, a day on
+these pages sometimes is considered to span until apx. 6:00 on
+the next day, so finding "today" after midnight may actually mean
+"yesterday".  The latter is resolved by comparing dates between
+adjacent pages.
+
+Format of dates is understood in many different formats. Examples:
+
+  Heute
+  29.04.06
+  Sa 29.04.06
+  Sa,29.04.
+  Samstag, 29.April
+  Sonnabend, 29.04.06
+  29.04.2006
+
+In the third step, descriptions are grabbed from all pages which
+were referenced by the overview tables. Often, different sub-pages
+of the same page are used for descriptions belonging to different
+programmes. Hence the grabber must make a match between the
+referencing programmes start time and title and the content on
+the description page to identify the correct sub-page. Often this
+gets difficult when repetitions of an episode refer to the same
+description page (most often without listing only the original
+air date). Example:
+
+  Relic Hunter - Die Schatzj{gerin
+  Der magische Handschuh
+  
+  Sa 06.05 18:01-18:59           (vorbei)
+  So 07.05 05:10-05:57           (vorbei)
+
+In the final step, the channel name and identifier are derived from
+teletext page headers and channel identification codes. Once more
+statistics are used to filter out transmission errors. Since the
+teletext page header usually contains additional text after the
+actual network name (e.g. "ARDtext Sa 10.06.06" instead of "ARD")
+the name is derived by stripping all appendices which match known
+time/date formats or other common postfixes.
+
+The data collected in all the above steps is then formatted in XMLTV,
+optionally merged with an input XMLTV file, and printed to the output
+file.
+
+=head1 FILES
+
+=over 4
+
+=item B</dev/vbi0>, B</dev/v4l/vbi0>
+
+Device files from which teletext data is being read during acquisition
+when using an analog TV card on Linux.  Different paths can be selected
+with the B<-dev> command line option.  Depending on your Linux version,
+the device files may be located directly beneath C</dev> or inside
+C</dev/v4l>. Other operating systems may use different names.
+
+=item B</dev/dvb/adapter0/demux0>
+
+Device files from which teletext data is being read during acquisition
+when using a DVB device, i.e. when the B<-dvbpid> option is present.
+Different paths can be selected with the B<-dev> command line option.
+(If you have multiple DVB cards, increment the device index after
+I<adapter> to get the second card etc.)
+
+=back
+
+=head1 SEE ALSO
+
+L<xmltv(5)>,
+L<tv_cat(1)>,
+L<nxtvepg(1)>,
+L<v4lctl(1)>,
+L<zvbid(1)>,
+L<alevt(1)>,
+L<Video::ZVBI(3pm)>,
+L<perl(1)>
+
+=head1 AUTHOR
+
+Written by Tom Zoerner (tomzo at users.sourceforge.net) since 2006
+as part of the nxtvepg project.
+
+The official homepage is L<http://nxtvepg.sourceforge.net/tv_grab_ttx>
+
+=head1 COPYRIGHT
+
+Copyright 2006-2008 Tom Zoerner.
+
+This is free software. You may redistribute copies of it under the terms
+of the GNU General Public License version 3 or later
+L<http://www.gnu.org/licenses/gpl.html>.
+There is B<no warranty>, to the extent permitted by law.
+
+=cut
+
+# ------------------------------------------------------------------------------
+# Decoding of teletext packets (esp. hamming decoding)
+# - for page header (packet 0) the page number is derived
+# - for teletext packets (packet 1..25) the payload data is just copied
+# - for PDC and NI (packet 30) the CNI is derived
+# - returns a list with 5 elements: page/16, ctrl/16, ctrl/8, pkg/8, data/40*8
+# 
+sub FeedTtxPkg {
+   my ($last_pg, $data) = @_;
+   my @ret_buf;
+
+   my $mpag = Video::ZVBI::unham16p($data);
+   my $mag = $mpag & 7;
+   my $y = ($mpag & 0xf8) >> 3;
+
+   if ($y == 0) {
+      # teletext page header (packet #0)
+      my $page = ($mag << 8) | Video::ZVBI::unham16p($data, 2);
+      my $ctrl = (Video::ZVBI::unham16p($data, 4)) |
+                 (Video::ZVBI::unham16p($data, 6) << 8) |
+                 (Video::ZVBI::unham16p($data, 8) << 16);
+      # drop filler packets
+      if (($page & 0xFF) != 0xFF) {
+         Video::ZVBI::unpar_str($data);
+         #$sub = $ctrl & 0xffff;
+         # format: pageno, ctrl bis, ctrl bits, pkgno
+         @ret_buf = ($page, ($ctrl & 0xFFFF), ($ctrl >> 16), $y, substr($data, 2, 40));
+         if ($opt_dump == 3) {
+            syswrite(STDOUT, pack("SSCCa40", @ret_buf));
+         }
+         my $spg = ($page << 16) | ($ctrl & 0x3f7f);
+         if ($spg != $$last_pg) {
+            print STDERR sprintf("%03X.%04X\n", $page, $ctrl & 0x3f7f) if $opt_verbose;
+            $$last_pg = $spg;
+         }
+      }
+
+   } elsif ($y<=25) {
+      # regular teletext packet (lines 1-25)
+      Video::ZVBI::unpar_str($data);
+      @ret_buf = (($mag << 8), 0, 0, $y, substr($data, 2, 40));
+      if ($opt_dump == 3) {
+         syswrite(STDOUT, pack("SSCCa40", @ret_buf));
+      }
+   } elsif ($y == 30) {
+      my $dc = (Video::ZVBI::unham16p($data, 2) & 0x0F) >> 1;
+      if ($dc == 0) {
+         # packet 8/30/1
+         my $cni = Video::ZVBI::rev16p($data, 2+7);
+         if (($cni != 0) && ($cni != 0xffff)) {
+            @ret_buf = (($mag << 8), 0, 0, $y, $cni);
+            if ($opt_dump == 3) {
+               syswrite(STDOUT, pack("SSCCSx18x20", @ret_buf));
+            }
+         }
+      } elsif ($dc == 1) {
+         # packet 8/30/2
+         my $c0 = Video::ZVBI::rev8(Video::ZVBI::unham16p($data, 2+9+0));
+         my $c6 = Video::ZVBI::rev8(Video::ZVBI::unham16p($data, 2+9+6));
+         my $c8 = Video::ZVBI::rev8(Video::ZVBI::unham16p($data, 2+9+8));
+
+         my $cni = (($c0 & 0xf0) << 8) |
+                   (($c0 & 0x0c) << 4) |
+                   (($c6 & 0x30) << 6) |
+                   (($c6 & 0x0c) << 6) |
+                   (($c6 & 0x03) << 4) |
+                   (($c8 & 0xf0) >> 4);
+         $cni &= 0x0FFF if (($cni & 0xF000) == 0xF000);
+         if (($cni != 0) && ($cni != 0xffff)) {
+            @ret_buf = (($mag << 8), 0, 0, $y, $cni);
+            if ($opt_dump == 3) {
+               syswrite(STDOUT, pack("SSCCSx18x20", @ret_buf));
+            }
+         }
+      }
+   }
+   return @ret_buf;
 }
 
 # ------------------------------------------------------------------------------
-# Read VBI data from a file
-# - the data has already been pre-processed by cap.pl
-# - each record has a small header plus 40 bytes payload (see unpack below)
+# Decoding of VPS packets
+# - returns a list of 5 elements (see TTX decoder), but data contains only 16-bit CNI
+#
+sub FeedVps {
+   my @ret_buf;
+   #my $cni = Video::ZVBI::decode_vps_cni($_[0]); # only since libzvbi 0.2.22
+
+   my $cd_02 = ord(substr($_[0],  2, 1));
+   my $cd_08 = ord(substr($_[0],  8, 1));
+   my $cd_10 = ord(substr($_[0], 10, 1));
+   my $cd_11 = ord(substr($_[0], 11, 1));
+
+   my $cni = (($cd_10 & 0x3) << 10) | (($cd_11 & 0xc0) << 2) |
+             ($cd_08 & 0xc0) | ($cd_11 & 0x3f);
+
+   if ($cni == 0xDC3) {
+      # special case: "ARD/ZDF Gemeinsames Vormittagsprogramm"
+      $cni = ($cd_02 & 0x20) ? 0xDC1 : 0xDC2;
+   }
+   if (($cni != 0) && ($cni != 0xfff)) {
+      @ret_buf = (0, 0, 0, 32, $cni);
+      if ($opt_dump == 3) {
+         syswrite(STDOUT, pack("SSCCSx18x20", @ret_buf));
+      }
+   }
+   return @ret_buf;
+}
+
+# ------------------------------------------------------------------------------
+# Open the VBI device for capturing, using the ZVBI library
+# - require is done here (and not via "use") to avoid dependency
+#
+sub DeviceOpen {
+   require Video::ZVBI;
+
+   my $srv = &Video::ZVBI::VBI_SLICED_VPS |
+             &Video::ZVBI::VBI_SLICED_TELETEXT_B |
+             &Video::ZVBI::VBI_SLICED_TELETEXT_B_525;
+   my $err;
+   my $cap;
+
+   if (defined($opt_dvbpid)) {
+      $cap = Video::ZVBI::capture::dvb_new($opt_device, 0, $srv, 0, $err, $opt_debug);
+      $cap->dvb_filter($opt_dvbpid) 
+   } else {
+      $cap = Video::ZVBI::capture::v4l2_new($opt_device, 6, $srv, 0, $err, $opt_debug);
+   }
+
+   die "$0: failed to open capture device $opt_device: $err\n" unless $cap;
+   return $cap;
+}
+
+# ------------------------------------------------------------------------------
+# Read one frame's worth of teletext and VPS packets
+# - blocks until the device delivers the next packet
+# - returns a flat list; 5 elements in list for each teletext packet
+#
+sub DeviceRead {
+   my ($cap, $last_pg) = @_;
+   my @ret_buf = ();
+
+   my $rin = "";
+   vec($rin, $cap->fd(), 1) = 1;
+   select($rin, undef, undef, undef);
+
+   my $buf;
+   my $lcount;
+   my $ts;
+   my $ret = $cap->pull_sliced($buf, $lcount, $ts, 0);
+   if (($ret > 0) && ($lcount > 0)) {
+      for (my $idx = 0; $idx < $lcount; $idx++) {
+         my @tmpl = Video::ZVBI::get_sliced_line($buf, $idx);
+         if ($tmpl[1] & (&Video::ZVBI::VBI_SLICED_TELETEXT_B |
+                         &Video::ZVBI::VBI_SLICED_TELETEXT_B_525)) {
+            push @ret_buf, FeedTtxPkg($last_pg, $tmpl[0]);
+
+         } elsif ($tmpl[1] & &Video::ZVBI::VBI_SLICED_VPS) {
+            push @ret_buf, FeedVps($tmpl[0]);
+         }
+      }
+
+   } elsif ($ret < 0) {
+      die "$0: capture device error: $opt_device: $!\n";
+   }
+
+   return @ret_buf;
+}
+
+# ------------------------------------------------------------------------------
+# Read VBI data from a device or file
+# - when reading from a file, each record has a small header plus 40 bytes payload
 # - TODO: use MIP to find TV overview pages
 #
 sub ReadVbi {
@@ -160,32 +701,62 @@ sub ReadVbi {
    my @CurSub = (0,0,0,0,0,0,0,0,0);
    my @CurPkg = (0,0,0,0,0,0,0,0,0);
    my $cur_mag = 0;
-   my $buf;
    my $intv;
-   my $line_off;
-   my $rstat;
+   my $last_pg = -1;
+   my $cap;
+   my @CapPkgs;
    my $mag_serial = 0;
    my ($mag, $page, $sub, $ctl1, $ctl2, $pkg, $data);
 
-   if ($opt_infile eq "") {
-      open(TTX, "<&0") || die "Failed to dup STDIN: $!\n";
-      $VbiCaptureTime = time;
+   if (defined $opt_infile) {
+      # read VBI input data from a stream or file
+      if ($opt_infile eq "") {
+         open(TTX, "<&0") || die "Failed to dup STDIN: $!\n";
+         $VbiCaptureTime = time;
+      } else {
+         open(TTX, "<$opt_infile") || die "Failed to open $opt_infile: $!\n";
+         $VbiCaptureTime = (stat($opt_infile))[9];
+      }
+      binmode(TTX);
    } else {
-      open(TTX, "<$opt_infile") || die "Failed to open $opt_infile: $!\n";
-      $VbiCaptureTime = (stat($opt_infile))[9];
+      # capture input data from a VBI device
+      $VbiCaptureTime = time;
+      $cap = DeviceOpen();
+      @CapPkgs = ();
+      if (defined($opt_outfile)) {
+         close STDOUT;
+         open(STDOUT, ">$opt_outfile") || die "Failed to create $opt_outfile: $!\n";
+      }
    }
-   binmode(TTX);
 
    $intv = 0;
+   FRAMELOOP:
    while (1) {
-      $line_off = 0;
-      while (($rstat = sysread(TTX, $buf, 46 - $line_off, $line_off)) > 0) {
-         $line_off += $rstat;
-         last if $line_off >= 46;
+      if (defined $opt_infile) {
+         my $line_off = 0;
+         my $rstat;
+         my $buf;
+         while (($rstat = sysread(TTX, $buf, 46 - $line_off, $line_off)) > 0) {
+            $line_off += $rstat;
+            last if $line_off >= 46;
+         }
+         last FRAMELOOP if $rstat <= 0;
+         ($page, $ctl1, $ctl2, $pkg, $data) = unpack("SSCCa40", $buf);
+         if (($pkg == 30) || ($pkg == 32)) {
+            # extract CNI value
+            $data = (unpack("Sx18a20", $data))[0];
+         }
+      } else {
+         while ($#CapPkgs < 0) {
+            if (($opt_duration > 0) && ((time - $VbiCaptureTime) > $opt_duration)) {
+               # capture duration limit reached -> terminate loop
+               last FRAMELOOP;
+            }
+            push @CapPkgs, DeviceRead($cap, \$last_pg);
+         }
+         ($page, $ctl1, $ctl2, $pkg, $data) = splice(@CapPkgs, 0, 5, ());
       }
-      last if $rstat <= 0;
 
-      ($page, $ctl1, $ctl2, $pkg, $data) = unpack("SSCCa40", $buf);
       $page += 0x800 if $page < 0x100;
       $mag = ($page >> 8) & 7;
       $sub = $ctl1 & 0x3f7f;
@@ -228,18 +799,20 @@ sub ReadVbi {
             $PgSub{$page} = $sub if $sub >= $PgSub{$page};
          }
 
-         # check if every page was received twice in average
+         # check if every page (NOT sub-page) was received N times in average
          # (only do the check every 50th page to save CPU)
-         $intv += 1;
-         if ($intv >= 50) {
-            my $page_cnt = 0;
-            my $page_rep = 0;
-            foreach (keys %PgCnt) {
-               $page_cnt += 1;
-               $page_rep += $PgCnt{$_};
+         if ($opt_duration == 0) {
+            $intv += 1;
+            if ($intv >= 50) {
+               my $page_cnt = 0;
+               my $page_rep = 0;
+               foreach (keys %PgCnt) {
+                  $page_cnt += 1;
+                  $page_rep += $PgCnt{$_};
+               }
+               last FRAMELOOP if ($page_cnt > 0) && (($page_rep / $page_cnt) >= 10);
+               $intv = 0;
             }
-            last if ($page_cnt > 0) && (($page_rep / $page_cnt) >= 10);
-            $intv = 0;
          }
 
          $CurPage[$mag] = $page;
@@ -261,11 +834,12 @@ sub ReadVbi {
             }
          }
       } elsif (($pkg == 30) || ($pkg == 32)) {
-         my ($cni, $foo) = unpack("Sx18a20", $data);
-         $PkgCni{$cni} += 1;
+         $PkgCni{$data} += 1;
       }
    }
-   close(TTX);
+   if (defined $opt_infile) {
+      close(TTX);
+   }
 }
 
 # Erase the page with the given number from memory
@@ -591,7 +1165,8 @@ my %MonthNames =
    "april" => [(1<<1)|(1<<0),4,1], "mai" => [(1<<4)|(1<<1),5,3], "juni" => [(1<<1),6,1],
    "juli" => [(1<<1),7,1], "august" => [(1<<1)|(1<<0),8,1], "september" => [(1<<1)|(1<<0),9,1],
    "oktober" => [(1<<1),10,1], "november" => [(1<<1)|(1<<0),11,1], "dezember" => [(1<<1),12,1],
-   "jan" => [(1<<1)|(1<<0),1,2], "feb" => [(1<<1)|(1<<0),2,2], "mär" => [(1<<1),3,2],
+   "jan" => [(1<<1)|(1<<0),1,2], "feb" => [(1<<1)|(1<<0),2,2],
+   "mär" => [(1<<1),3,2], "mar" => [(1<<1),3,2],
    "apr" => [(1<<1)|(1<<0),4,2], "jun" => [(1<<1)|(1<<0),6,2], "jul" => [(1<<1)|(1<<0),7,2],
    "aug" => [(1<<1)|(1<<0),8,2], "sep" => [(1<<1)|(1<<0),9,2], "okt" => [(1<<1),10,2],
    "nov" => [(1<<1)|(1<<0),11,2], "dez" => [(1<<1),12,2],
@@ -614,6 +1189,8 @@ my %WDayNames =
    # German
    "sa" => [(1<<1),6,2], "so" => [(1<<1),0,2], "mo" => [(1<<1),1,2], "di" => [(1<<1),2,2],
    "mi" => [(1<<1),3,2], "do" => [(1<<1),4,2], "fr" => [(1<<1),5,2],
+   "sam" => [(1<<1),6,2], "son" => [(1<<1),0,2], "mon" => [(1<<1),1,2], "die" => [(1<<1),2,2],
+   "mit" => [(1<<1),3,2], "don" => [(1<<1),4,2], "fre" => [(1<<1),5,2],
    "samstag" => [(1<<1),6,1], "sonnabend" => [(1<<1),6,1], "sonntag" => [(1<<1),0,1],
    "montag" => [(1<<1),1,1], "dienstag" => [(1<<1),2,1], "mittwoch" => [(1<<1),3,1],
    "donnerstag" => [(1<<1),4,1], "freitag" => [(1<<1),5,1],
@@ -776,18 +1353,21 @@ sub ParseOvHeaderDate {
    my $wday_abbrv_match = GetDateNameRegExp(\%WDayNames, $lang, 2);
    my $mname_match = GetDateNameRegExp(\%MonthNames, $lang, undef);
    my $relday_match = GetDateNameRegExp(\%RelDateNames, $lang, undef);
+   my $prio = -1;
 
    PAGE_LOOP:
    for (my $line = 1; $line < $pgdate->{head_end}; $line++) {
       $_ = $pgtext->[$line];
 
-      PARSE_DATE: {
-         # [Mo.]13.04.2006
-         if (m#(^| |($wday_abbrv_match)\.)(\d{1,2})\.(\d{1,2})\.(\d{2}|\d{4})?([ ,:]|$)#i) {
-            my @NewDate = CheckDate($3, $4, $5, undef, undef);
+      {
+         # [Mo.]13.04.[2006]
+         # So,06.01.
+         if (m#(^| |($wday_abbrv_match)(\.|\.,|,) ?)(\d{1,2})\.(\d{1,2})\.(\d{2}|\d{4})?([ ,:]|$)#i ||
+             m#(^| |($wday_match)(, ?| ))(\d{1,2})\.(\d{1,2})\.(\d{2}|\d{4})?([ ,:]|$)#i) {
+            my @NewDate = CheckDate($4, $5, $6, undef, undef);
             if (@NewDate) {
                ($day_of_month, $month, $year) = @NewDate;
-               last PARSE_DATE;
+               $prio = 3;
             }
          }
          # 13.April [2006]
@@ -795,7 +1375,7 @@ sub ParseOvHeaderDate {
             my @NewDate = CheckDate($2, undef, $5, undef, $3);
             if (@NewDate) {
                ($day_of_month, $month, $year) = @NewDate;
-               last PARSE_DATE;
+               $prio = 3;
             }
          }
          # Sunday 22 April (i.e. no dot after month)
@@ -804,29 +1384,32 @@ sub ParseOvHeaderDate {
             my @NewDate = CheckDate($4, undef, $7, $2, $5);
             if (@NewDate) {
                ($day_of_month, $month, $year) = @NewDate;
-               last PARSE_DATE;
+               $prio = 3;
             }
          }
-         # today, tomorrow, ...
-         if (m#(^| )($relday_match)([ ,:]|$)#i) {
-            my $rel_name = lc($2);
-            $reldate = $RelDateNames{$rel_name}->[1] if defined($RelDateNames{$rel_name});
-            last PARSE_DATE;
-         }
-         # monday, tuesday, ... (non-abbreviated only)
-         if (m#(^| )($wday_match)([ ,:]|$)#i) {
-            my $off = GetWeekDayOffset($2);
-            $reldate = $off if $off >= 0;
-            last PARSE_DATE;
-         }
+         next PAGE_LOOP if $prio >= 3;
          # "Do. 21-22 Uhr" (e.g. on VIVA)  --  TODO internationalize "Uhr"
          # "Do  21:00-22:00" (e.g. Tele-5)
-         if (m#(^| )(($wday_abbrv_match)\.?|($wday_match)) +((\d{1,2}(\-| \- )\d{1,2}( +Uhr| ?h))|(\d{1,2}[\.\:]\d{2}(\-| \- )\d{1,2}[\.\:]\d{2}))( |$)#i) {
+         if (m#(^| )(($wday_abbrv_match)\.?|($wday_match)) *((\d{1,2}(\-| \- )\d{1,2}( +Uhr| ?h|   ))|(\d{1,2}[\.\:]\d{2}(\-| \- )(\d{1,2}[\.\:]\d{2})?))( |$)#i) {
             my $wday_name = $2;
             $wday_name = $3 if !defined($2);
             my $off = GetWeekDayOffset($wday_name);
             $reldate = $off if $off >= 0;
-            last PARSE_DATE;
+            $prio = 2;
+         }
+         next PAGE_LOOP if $prio >= 2;
+         # monday, tuesday, ... (non-abbreviated only)
+         if (m#(^| )($wday_match)([ ,:]|$)#i) {
+            my $off = GetWeekDayOffset($2);
+            $reldate = $off if $off >= 0;
+            $prio = 1;
+         }
+         next PAGE_LOOP if $prio >= 1;
+         # today, tomorrow, ...
+         if (m#(^| )($relday_match)([ ,:]|$)#i) {
+            my $rel_name = lc($2);
+            $reldate = $RelDateNames{$rel_name}->[1] if defined($RelDateNames{$rel_name});
+            $prio = 0;
          }
       }
    }
@@ -1058,33 +1641,33 @@ sub ParseOvList {
          ParseVpsLabel($_, $vps_data, 0);
       }
       # remove remaining control characters
-      s#[\x00-\x1F\x7F]# #g;
+      (my $text = $_) =~ s#[\x00-\x1F\x7F]# #g;
 
       $new_title = 0;
       if ($vps_off >= 0) {
          # TODO: Phoenix wraps titles into 2nd line, appends subtitle with "-"
          # m#^ {0,2}(\d\d)[\.\:](\d\d)( {1,3}(\d{4}))? +#
-         if (substr($_, 0, $time_off) =~ m#^ *([\*\!] +)?$#) {
+         if (substr($text, 0, $time_off) =~ m#^ *([\*\!] +)?$#) {
             $is_tip = $1;
-            if (substr($_, $time_off, $vps_off - $time_off) =~ m#^(\d\d)[\.\:](\d\d) +$#) {
+            if (substr($text, $time_off, $vps_off - $time_off) =~ m#^(\d\d)[\.\:](\d\d) +$#) {
                $hour = $1;
                $min = $2;
                # VPS time has already been extractied above
-               if (substr($_, $vps_off, $title_off - $vps_off) =~ m#^ +$#) {
-                  $title = substr($_, $title_off);
+               if (substr($text, $vps_off, $title_off - $vps_off) =~ m#^ +$#) {
                   $new_title = 1;
+                  $title = substr($_, $title_off);
                }
             }
          }
       } else {
          # m#^( {0,5}| {0,3}\! {1,3})(\d\d)[\.\:](\d\d) +#
-         if (substr($_, 0, $time_off) =~ m#^ *([\*\!] +)?$#) {
+         if (substr($text, 0, $time_off) =~ m#^ *([\*\!] +)?$#) {
             $is_tip = $1;
-            if (substr($_, $time_off, $title_off - $time_off) =~ m#^(\d\d)[\.\:](\d\d) +$#) {
+            if (substr($text, $time_off, $title_off - $time_off) =~ m#^(\d\d)[\.\:](\d\d) +$#) {
                $hour = $1;
                $min = $2;
-               $title = substr($_, $title_off);
                $new_title = 1;
+               $title = substr($_, $title_off);
             }
          }
       }
@@ -1107,10 +1690,7 @@ sub ParseOvList {
             $vps_data->{new_vps_date} = 0;
          }
 
-         ParseTrailingFeat($title, $slot);
-         $title =~ s#^ +##;
-         $title =~ s# +$##;
-         $title =~ s#  +# #g;
+         $title = ParseTrailingFeat($title, $slot);
          print "OV TITLE: \"$title\", $slot->{hour}:$slot->{min}\n" if $opt_debug;
 
          # kika special: subtitle appended to title
@@ -1133,8 +1713,8 @@ sub ParseOvList {
          # check if last line specifies and end time
          # (usually last line of page)
          # TODO internationalize "bis", "Uhr"
-         if ( m#^ *(\(?bis |ab |\- ?)(\d{1,2})[\.\:](\d{2})( Uhr| ?h)( |\)|$)# ||   # ARD,SWR,BR-alpha
-              m#^( *)(\d\d)[\.\:](\d\d) (oo)? *$# ) {                               # arte, RTL
+         if ( $text =~ m#^ *(\(?bis |ab |\- ?)(\d{1,2})[\.\:](\d{2})( Uhr| ?h)( |\)|$)# ||   # ARD,SWR,BR-alpha
+              $text =~ m#^( *)(\d\d)[\.\:](\d\d) (oo)? *$# ) {                               # arte, RTL
             $slot->{end_hour} = $2;
             $slot->{end_min} = $3;
             $new_title = 1;
@@ -1143,16 +1723,13 @@ sub ParseOvList {
          # check if we're still in a continuation of the previous title
          # time column must be empty (possible VPS labels were already removed above)
          } else {
-            if ( (substr($_, 0, $subt_off) =~ m#[^ ]#) ||
-                 (substr($_, $subt_off) =~ m#^ *$#) ) {
+            if ( (substr($text, 0, $subt_off) =~ m#[^ \x00-\x07\x10-\x17]#) ||
+                 (substr($text, $subt_off) =~ m#^[ \x00-\x07\x10-\x17]*$#) ) {
                $new_title = 1;
             }
          }
          if ($new_title == 0) {
-            ParseTrailingFeat($_, $slot);
-            s#^ +##;
-            s# +$# #;
-            s#  +# #;
+            $_ = ParseTrailingFeat($_, $slot);
             # combine words separated by line end with "-"
             if ( !defined($slot->{subtitle}) &&
                  ($slot->{title} =~ m#\S\-$#) && m#^[[:lower:]]#) {
@@ -1299,62 +1876,85 @@ my %FeatToFlagMap =
    "surround" => "is_dolby",
    "stereo" => "is_stereo",
    "mono" => "is_mono",
-   "tipp" => "is_top"
+   "tipp" => "is_top",
+   # ORF
+   "°°" => "is_stereo",
+   "°*" => "is_2chan",
+   "ds" => "is_dolby",
+   "ss" => "is_dolby",
+   "dd" => "is_dolby",
+   "zs" => "is_2chan"
 );
 # note: must correct $n below if () are added to pattern
 my $FeatPat = "UT(( auf | )?[1-8][0-9][0-9])?|".
               "[Uu]ntertitel|[Hh]örfilm|HF|".
-              "s\/?w|S\/?W|tlw. s\/w|AD|oo|°°|OmU|16:9|".
+              "s\/?w|S\/?W|tlw. s\/w|AD|oo|°°|°\*|OmU|16:9|".
               "2K|2K-Ton|[Mm]ono|[Ss]tereo|[Dd]olby|[Ss]urround|".
+              "DS|SS|DD|ZS|".
               "Wh\.?|Wdh\.?|Whg\.?|Tipp\!?";
 
-sub ParseTrailingFeat {
-   my ($foo, $slot) = @_;
+sub MapTrailingFeat {
+   my ($feat, $slot, $orig_title) = @_;
 
-   # teletext reference
-   # these are always right-most, so parse these first and outside of the loop
-   if ($_[0] =~ s#( \.+|\.\.+|\.+\>|\>\>?|\-\-?\>|\>{0,4} +|\.* +)([1-8][0-9][0-9]) {0,3}$##) {
+   $feat =~ s#^ut.*#ut#;
+   my $flag = $FeatToFlagMap{$feat};
+   if (defined($flag)) {
+      print "FEAT \"$feat\" -> $flag on TITLE $orig_title\n" if $opt_debug;
+      $slot->{$flag} = 1;
+   } else {
+      print "FEAT dropping \"$feat\" on TITLE $orig_title\n" if $opt_debug;
+   }
+}
+
+sub ParseTrailingFeat {
+   my ($title, $slot) = @_;
+   (my $orig_title = $title) =~ s#[\x00-\x1F\x7F]# #g;
+
+   # teletext reference (there's at most one at the very right, so parse this first)
+   if ($title =~ s#( \.+|\.\.+|\.+\>|\>\>?|\-\-?\>|\>{1,4} +|\.* +|[\.\>]*[\x00-\x07\x1D]+)([1-8][0-9][0-9]) {0,3}$##) {
       my $ref = $2;
       $slot->{ttx_ref} = ((ord(substr($ref, 0, 1)) - 0x30)<<8) |
                              ((ord(substr($ref, 1, 1)) - 0x30)<<4) |
                              (ord(substr($ref, 2, 1)) - 0x30);
+      print "FEAT TTX ref \"$ref\" on TITLE $orig_title\n" if $opt_debug;
    }
 
    # note: remove trailing space here, not in the loop to allow max. 1 space between features
-   $_[0] =~ s# +$##;
+   $title =~ s#[ \x00-\x1F\x7F]+$##;
 
-   # features (e.g. WDR: "Stereo, UT")
-   while (1) {
-      if ($_[0] =~ s#(, {0,2}| {1,2})($FeatPat)$##) {
-         my $feat = lc($2);
-         $feat =~ s#^ut.*#ut#;
-         my $flag = $FeatToFlagMap{$feat};
-         if (defined($flag)) {
-            print "FEAT \"$feat\" -> $flag on TITLE $_[0]\n" if $opt_debug;
-            $slot->{$flag} = 1;
-         } else {
-            print "FEAT dropping \"$feat\" on TITLE $_[0]\n" if $opt_debug;
-         }
-      }
-      # ARTE: (oo) (2K) (Mono)
-      # SWR: "(16:9/UT)", "UT 150", "UT auf 150"
-      # (Note on 2nd match: using $6 due to two () inside feature pattern!)
-      elsif ( ($_[0] =~ s# \(($FeatPat)\)$##) ||
-              ($_[0] =~ s# \(($FeatPat)((, ?|\/| )($FeatPat))*\)$# ($6)#) ) { # $6: see note
-         my $feat = lc($1);
-         $feat =~ s#^ut.*#ut#;
-         my $flag = $FeatToFlagMap{$feat};
-         if (defined($flag)) {
-            print "FEAT \"$feat\" -> $flag on TITLE $_[0]\n" if $opt_debug;
-            $slot->{$flag} = 1;
-         } else {
-            print "FEAT dropping \"$feat\" on TITLE $_[0]\n" if $opt_debug;
-         }
+   # ARTE: (oo) (2K) (Mono)
+   # SWR: "(16:9/UT)", "UT 150", "UT auf 150"
+   if ($title =~ m#^(.*)[ \x00-\x07\x1D]\((($FeatPat)(( ?\/ ?|, ?| )($FeatPat))*)\)$#) {
+      $title = $1;
+      my $feat_list = substr($2, length($3));
+
+      MapTrailingFeat(lc($3), $slot, $orig_title);
+
+      if (length $feat_list)  {
+         while ($feat_list =~ s#( ?\/ ?|, ?| )($FeatPat)$##) {
+            MapTrailingFeat(lc($2), $slot, $orig_title);
+         } 
       } else {
-         last;
+         while ($title =~ s#[ \x00-\x07\x1D]*\(($FeatPat)\)$##) {
+            MapTrailingFeat(lc($1), $slot, $orig_title);
+         }
       }
-   } 
-   $_[0] =~ s# +$##;
+
+   } elsif ($title =~ m#^(.*)(  +|[\x00-\x07\x1D]+)(($FeatPat)((, ?|\/ ?| |[,\/]?[\x00-\x07\x1D]+)($FeatPat))*)$#) {
+      $title = $1;
+      my $feat_list = substr($3, length($4));
+      MapTrailingFeat(lc($4), $slot, $orig_title);
+
+      while ($feat_list =~ s#(, ?|\/ ?| |[,\/]?[\x00-\x07\x1D]+)($FeatPat)$##) {
+         MapTrailingFeat(lc($2), $slot, $orig_title);
+      } 
+   } #else { print "NONE $orig_title\n"; }
+
+   $title =~ s#[\x00-\x1F\x7F]# #g;
+   $title =~ s#^ +##;
+   $title =~ s# +$##;
+   $title =~ s#  +# #g;
+   return $title;
 }
 
 # ------------------------------------------------------------------------------
@@ -1736,7 +2336,7 @@ sub DetermineLto {
 # Filter out expired programmes
 # - the stop time is relevant for expiry (and this really makes a difference if
 #   the expiry time is low (e.g. 6 hours) since there may be programmes exceeding
-#   it and we certainly shouldn't descard programmes which are still running
+#   it and we certainly shouldn't discard programmes which are still running
 # - resulting problem: we don't always have the stop time
 #
 sub FilterExpiredSlots {
@@ -1746,7 +2346,7 @@ sub FilterExpiredSlots {
 
    foreach (@$Slots) {
       if ( (defined($_->{stop_t}) && ($_->{stop_t} >= $exp_thresh)) ||
-           ($_->{start_t} >= $exp_thresh) ) {
+           ($_->{start_t} + 120*60 >= $exp_thresh) ) {
          push @NewSlots, $_;
       }
    }
@@ -1971,6 +2571,7 @@ sub XmlToLatin1 {
 # SWR:   14. April, 00.55 - 02.50 Uhr
 # WDR:   Freitag, 14.04.06   13.40-14.40
 # BR3:   Freitag, 14.04.06 // 13.30-15.05
+#        12.1., 19.45 
 # HR3:   Montag 8.45-9.15 Uhr
 #        Montag // 9.15-9.45 (i.e. 2-line format)
 # Kabl1: Fr 14.04 20:15-21:11
@@ -1995,9 +2596,9 @@ sub ParseDescDate {
 
       PARSE_DATE: {
          # [Fr] 14.04.[06] (year not optional for single-digit day/month)
-         if ( m#(^| )(\d{1,2})\.(\d{2})\.(\d{4}|\d{2})?( |,|;|\:|$)# ||
-              m#(^| )(\d)\.(\d)\.(\d{4}|\d{2})( |,|;|\:|$)# ||
-              m#(^| )(\d)\.(\d)\.?(\d{4}|\d{2})?(,|;| -)? +\d{1,2}[\.\:]\d{2}(h| |,|;|\:|$)#) {
+         if ( m#(^| )(\d{1,2})\.(\d{1,2})\.(\d{4}|\d{2})?( |,|;|\:|$)# ||
+              m#(^| )(\d{1,2})\.(\d)\.(\d{4}|\d{2})( |,|;|\:|$)# ||
+              m#(^| )(\d{1,2})\.(\d)\.?(\d{4}|\d{2})?(,|;| ?-)? +\d{1,2}[\.\:]\d{2}(h| |,|;|\:|$)#) {
             my @NewDate = CheckDate($2, $3, $4, undef, undef);
             if (@NewDate) {
                ($lmday, $lmonth, $lyear) = @NewDate;
@@ -2007,8 +2608,8 @@ sub ParseDescDate {
          }
          # Fr 14.04 (i.e. no dot after month)
          # here's a risk to match on a time, so we must require a weekday name
-         if (m#(^| )($wday_match)(, ?| | - )(\d{1,2})\.(\d{1,2})( |,|;|$)#i ||
-             m#(^| )($wday_abbrv_match)(\.,? ?|, ?| - | )(\d{1,2})\.(\d{1,2})( |,|;|\:|$)#i) {
+         if (m#(^| )($wday_match)(, ?| | - )(\d{1,2})\.(\d{1,2})( |\.|,|;|$)#i ||
+             m#(^| )($wday_abbrv_match)(\.,? ?|, ?| - | )(\d{1,2})\.(\d{1,2})( |\.|,|;|\:|$)#i) {
             my @NewDate = CheckDate($4, $5, undef, $2, undef);
             if (@NewDate) {
                ($lmday, $lmonth, $lyear) = @NewDate;
@@ -2027,7 +2628,7 @@ sub ParseDescDate {
          }
          # Sunday 22 April (i.e. no dot after day)
          if ( m#(^| )($wday_match)(, ?| - | )(\d{1,2})\.? ?($mname_match)( (\d{4}|\d{2}))?( |,|;|\:|$)#i ||
-              m#(^| )($wday_abbrv_match)(\.,? ?|, ?| - | )(\d{1,2})\.? ?($mname_match)( (\d{4}|\d{2}))?( |,|;|\:|$)#i) {
+              m#(^| )($wday_abbrv_match)(\.,? ?|, ?| ?- ?| )(\d{1,2})\.? ?($mname_match)( (\d{4}|\d{2}))?( |,|;|\:|$)#i) {
             my @NewDate = CheckDate($4, undef, $7, $2, $5);
             if (@NewDate) {
                ($lmday, $lmonth, $lyear) = @NewDate;
@@ -2077,7 +2678,9 @@ sub ParseDescDate {
          }
 
       # 15.40 (Uhr|h)
-      } elsif (m#(^| )(\d{1,2})[\.\:](\d{1,2})( ?h| Uhr)( |,|;|\:|$)# ||
+      } elsif (($new_date && m#(^| )(\d{1,2})[\.\:](\d{1,2})( |,|;|\:|$)#) ||
+               m#(^| )(\d{1,2})[\.\:](\d{1,2}) *$# ||
+               m#(^| )(\d{1,2})[\.\:](\d{1,2})( ?h| Uhr)( |,|;|\:|$)# ||
                m#(^| )(\d{1,2})h(\d{2})( |,|;|\:|$)#) {
          my $hour = $2;
          my $min = $3;
@@ -2089,13 +2692,14 @@ sub ParseDescDate {
       }
 
       if ($check_time && defined($lyear)) {
-         # TODO: allow slight mismatch of <5min? (for TV5: list says 17:03, desc says 17:05)
+         # allow slight mismatch of <5min (for ORF2 or TV5: list says 17:03, desc says 17:05)
          my $start_t = POSIX::mktime(0, $lmin, $lhour, $lmday, $lmonth - 1, $lyear - 1900, 0, 0, -1);
-         if (defined($start_t) && ($start_t == $slot->{start_t})) {
+         if (defined($start_t) && (abs($start_t - $slot->{start_t}) < 5*60)) {
             # match found
             if (defined($lend_hour) && !defined($slot->{end_hour})) {
                # add end time to the slot data
                # TODO: also add VPS time
+               # XXX FIXME: these are never used because stop_t is already calculated!
                $slot->{end_hour} = $lend_hour;
                $slot->{end_min} = $lend_min;
             }
@@ -2209,10 +2813,92 @@ sub ParseDescTitle {
    return 0;
 }
 
+# Reformat tables in "cast" format into plain lists. Note this function
+# must be called before removing control characters so that columns are
+# still aligned. Example:
+#
+# Dr.Hermann Seidel .. Heinz Rühmann
+# Vera Bork .......... Wera Frydtberg
+# Freddy Blei ........ Gert Fröbe
+# OR
+# Regie..............Ute Wieland
+# Produktion.........Ralph Schwingel,
+#                    Stefan Schubert
+#
+sub DescFormatCastTable {
+   my ($Lines) = @_;
+   my %Tabs;
+   my $tab_max;
+   my $result;
+
+   # step #1: build statistic about lines with ".." (including space before and after)
+   foreach (@$Lines) {
+      if (m#^((.*?)( ?)(\.\.+)( ?))#) {
+         my $rec = join(",", length($1), length($3), length($5));
+         $Tabs{$rec}++;
+         $tab_max = $rec if !defined($tab_max) || ($Tabs{$tab_max} < $Tabs{$rec});
+      }
+   }
+
+   # minimum is two lines looking like table rows
+   if (defined($tab_max) && ($Tabs{$tab_max} >= 2)) {
+      print "DESC reformat table into list: $Tabs{$tab_max} rows, FMT $tab_max\n" if $opt_debug;
+      my ($off, $spc1, $spc2) = split(/,/, $tab_max);
+
+      # step #2: find all lines with dots ending at the right column and right amount of spaces
+      my $last_row = -1;
+      my $row = 0;
+      foreach (@$Lines) {
+         if ((substr($_, 0, $off) =~ m#^(.*?)( ?)(\.+)( ?)$#) &&
+             ((!$2 && !$spc1) || (length($2) == $spc1)) &&
+             ((!$4 && !$spc2) || (length($4) == $spc2)) ) {
+            my $tab1 = $1;
+            my $tab2 = substr($_, $off);
+            if ($tab2 =~ m#^[^ .]#) {
+               # match -> replace dots with colon
+               $tab1 =~ s# *:$##;
+               $tab2 =~ s#,? +$##g;
+               $_ = "$tab1: $tab2,";
+               $last_row = $row;
+
+            } elsif ($last_row > 0) {
+               # end of table (non-empty line) -> terminate list with semicolon
+               $Lines->[$last_row] =~ s#,$#;#;
+               $last_row = -1;
+            }
+         } elsif (($last_row != -1) &&
+                  (substr($_, 0, $off + 1) =~ m#^ +[^ ]$#)) {
+            # right-side table column continues (left side empty)
+            $Lines->[$last_row] =~ s#,$##;
+            my $tab2 = substr($_, $off);
+            $tab2 =~ s#,? +$##g;
+            $_ = "$tab2,";
+            $last_row = $row;
+
+         } elsif ($last_row > 0) {
+            # end of table: if paragraph break remove comma; else terminate with semicolon
+            if (!m#[^ ]#) {
+               $Lines->[$last_row] =~ s#,$##;
+            } else {
+               $Lines->[$last_row] =~ s#,$#;#;
+            }
+            $last_row = -1;
+         }
+         $row++;
+      }
+      if ($last_row > 0) {
+         $Lines->[$last_row] =~ s#,$##;
+      }
+      $result = 1;
+   }
+   return $result;
+}
+
 sub ParseDescContent {
    my ($page, $sub, $head, $foot) = @_;
    my $vps_data = {};
    my $line;
+   my @Lines;
 
    my $pgctrl = $PageCtrl{$page | ($sub << 12)};
    my $is_nl = 0;
@@ -2233,6 +2919,12 @@ sub ParseDescContent {
       s#^ +[0-9A-F]{2}\d{3} (\d{2})(\d{2})(\d{2}) [0-9A-F]{2} *$##;
       s# +VPS \d{4} *$##;
 
+      push @Lines, $_;
+   }
+
+   DescFormatCastTable(\@Lines);
+
+   foreach (@Lines) {
       # TODO: replace 0x7f (i.e. square) at line start with "-"
       # line consisting only of "-": treat as paragraph break
       s#^ *[\-\_\+]{20,} *$##;
@@ -2358,13 +3050,14 @@ sub ParseChannelName {
             if (s#(^| )\Q$pgn\E( |$)#$1$2# &&
                 s# \d{2}[\.\: ]?\d{2}([\.\: ]\d{2}) *$# #) {
 
-               # remove date
-               s#((($wday_abbrv_match)\.?|($wday_match))(\, ?|  ?\-  ?|  ?)?)?\d{1,2}(\.\d{1,2}|[ \.]($mname_match))(\.|[ \.]\d{2,4})? *$##i;
+               # remove date: "Sam.12.Jan" OR "12 Sa Jan" (VOX)
+               s#((($wday_abbrv_match)|($wday_match))(\, ?|\. ?|  ?\-  ?|  ?)?)?\d{1,2}(\.\d{1,2}|[ \.]($mname_match))(\.|[ \.]\d{2,4}\.?)? *$##i ||
+                  s#\d{1,2}(\, ?|\. ?|  ?\-  ?|  ?)((($wday_abbrv_match)|($wday_match))(\, ?|\. ?|  ?\-  ?|  ?)?)?(\.\d{1,2}|[ \.]($mname_match))(\.|[ \.]\d{2,4}\.?)? *$##i;
                # remove and compress whitespace
                s#(^ +| +$)##g;
                s#  +# #g;
                # remove possible "text" postfix
-               s#[ \.\-]?text$##i;
+               s#[ \.\-]?text$##i; # || s#[ \.\-]?Text .*##;
 
                if (defined($ChName{$_})) {
                   $ChName{$_} += 1;
@@ -2731,7 +3424,7 @@ sub ImportXmltvFile {
       # handling XML header
       if ($state == 0) {
          if (/^\s*\<(\?xml|\!)[^>]*\>\s*$/i) {
-         } elsif (/^\s*\<tv>\s*$/i) {
+         } elsif (/^\s*\<tv([^>"=]+(="[^"]*")?)*>\s*$/i) {
             $state = 2;
          } elsif (/\S/) {
             chomp;
@@ -2952,8 +3645,13 @@ sub ExportXmltv {
    }
 
    print "<?xml version=\"1.0\" encoding=\"ISO-8859-1\"?>\n".
-         "<!DOCTYPE tv SYSTEM \"xmltv.dtd\">\n".
-         "<tv>\n";
+         "<!DOCTYPE tv SYSTEM \"xmltv.dtd\">\n";
+   if ($opt_verify) {
+      print "<tv>\n";
+   } else {
+      print "<tv generator-info-name=\"$version\" generator-info-url=\"$home_url\" ".
+                "source-info-name=\"teletext\">\n";
+   }
 
    # print channel table
    if (!defined($MergeChn->{$ch_id})) {
@@ -3033,6 +3731,9 @@ if ($opt_dump == 1) {
 } elsif ($opt_dump == 2) {
    DumpRawTeletext();
 
+} elsif ($opt_dump == 3) {
+   # dump already done while capturing
+
 # parse and export programme data
 } else {
    my $NewSlots;
@@ -3045,7 +3746,9 @@ if ($opt_dump == 1) {
    $NewSlots = ParseAllOvPages();
 
    # remove programmes beyond the expiration threshold
-   $NewSlots = FilterExpiredSlots($NewSlots);
+   if ($opt_verify == 0) {
+      $NewSlots = FilterExpiredSlots($NewSlots);
+   }
 
    # make sure to never write an empty file
    if ($#{$NewSlots} >= 0) {
@@ -3053,10 +3756,12 @@ if ($opt_dump == 1) {
       # get channel name from teletext header packets
       $ch_name = $opt_chname;
       $ch_name = ParseChannelName() if !defined $ch_name;
-      $ch_name = "???" if $ch_name eq "";
 
       $ch_id = $opt_chid;
       $ch_id = ParseChannelId() if !defined $ch_id;
+
+      $ch_name = $ch_id if $ch_name eq "";
+      $ch_name = "???" if $ch_name eq "";
       $ch_id = $ch_name if $ch_id eq "";
 
       # read and merge old data from XMLTV file

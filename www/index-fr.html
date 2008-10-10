@@ -1,6 +1,6 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/HTMLlat1.ent">
 <HTML lang="fr">
-<!-- $Id: index-fr.html,v 1.29 2008/01/06 20:32:58 tom Exp $ -->
+<!-- $Id: index-fr.html,v 1.33 2008/10/11 20:16:25 tom Exp $ -->
 <!-- Translated by Néo (hotmail's neojudgment, 2004-03-15) -->
 <HEAD>
 <TITLE>nxtvepg - Logiciel de Décodage nexTView EPG</TITLE>
@@ -29,6 +29,7 @@
 
 <H2 class="navhead">News</H2>
 <P>
+10.10.2008: <A HREF="index-de.html#new_2_8_1">Release 2.8.1</A>
 </P>
 
 <H2 class="navhead">Documentation</H2>
@@ -40,6 +41,7 @@
 <A HREF="faq.html">FAQ</A><BR>
 <BR>
 <A HREF="man.html">manuel de nxtvepg</A><BR>
+<A HREF="ttx_grab.html">teletext grabber</A><BR>
 <BR>
 <A HREF="http://www.nxtvepg-kastortv.org/">Introduction K!TV et nxtvepg</A>
 (écrit par Néo)
@@ -75,15 +77,15 @@ width="125" height="37" alt="SourceForge.net Logo"></a></span></span>
 <BR>Logiciel de Décodage EPG</SPAN></H1>
 
 <P>
-Bienvenue sur la page d'accueil du progiciel <I>nxtvepg</I>: Un décodeur
-pour nexTView EPG, un guide électronique de programmes TV dans le domaine
-analogique (par opposition au EPGs numériques qui viennent avec les émissions
-numériques, bien que vous puissiez recevoir Nextview EPG
-<A HREF="intro.html#DVB">numérique</A>, aussi).
-Il vous permet de recevoir et passer en revue les programmes TV pour tous les
-<A HREF="provnets.html">réseaux principaux</A> en Allemagne, Autriche, la Suisse,
-la France et la Belgique par l'intermédiaire d'une carte de TV analogique,
-sans accès à Internet.  <A HREF="intro.html">Plus...</A>
+Bienvenue sur la page d'accueil du logiciel <I>nxtvepg</I>, celui-ci vous
+permet de recevoir et de parcourir la liste des programmes TV sur votre PC.
+Nextview est un standart de l'ETSI dans le but d'offrir "un magazine
+électronique de télévision". Le protocole de transmission est basé sur
+le système télétexte (analogique et numérique via le <A HREF="intro.html#DVB">DVB</A>.)
+Ce service gratuit vous est offert par différents fournisseurs en Allemagne,
+Autriche, Suisse, France et Belgique.  Ensemble ils couvrent quotidiennements
+les programmes TV des réseaux importants de ces pays.
+<A HREF="intro.html">En savoir plus...</A>
 </P>
 
 <H2>Plan du site</H2>
@@ -100,45 +102,34 @@ sans accès à Internet.  <A HREF="intro.html">Plus...</A>
 </UL>
 
 
-<!-- French translation by Néo 2008-Jan-02 -->
-<H2><A NAME="releases">Versions actuelles 2.7.7 et 2.8.0 (31/Dec/2007)</A></H2>
+<!-- French translation by Néo 2008-Oct-11 -->
+<H2><A NAME="releases">Versions actuelle 2.8.1 (10/Oct/2008)</A></H2>
 <P>
-Après 3 ans de développement (sporadique), il y a finalement une version
-officielle 2.8.0 qui inclut plusieurs nouvelles fonctionnalités importantes.
-La version 2.7.7 plus ancienne qui a toujours été jusqu'à récemment 
-maintenue à jour reste disponible au cas où vous rencontreriez des
-problèmes avec cette nouvelle version.
-</P>
-<P>
-Les changements importants dans la version 2.8.0 comparée à la 2.7.7 sont :
+La dernière version 2.8.1 corrige beaucoup d'erreurs plus ou moins sérieuses.
+Il est vivement conseillé à tous les utilisateurs de la version 2.8.0
+d'effectuer cette mise à jour.
+Les corrections principales les plus importantes sont :
 </P>
 <UL>
-<LI>Séparation de l'acquisition EPG sans interface graphique ("nxtvepgd")<BR>
-  (Principalement destiné aux systèmes multimédia Linux sans bibliothèques X11)
-<LI>Saisie des données EPG à partir des pages régulières des systèmes télétexte
-  (réseaux allemands seulement)<BR>
-  (Note : ceci exige l'installation d'un <A HREF="http://www.cpan.org/">interprèteur Perl</A>.<BR>
-  Ce dispositif est également disponible dans un
-  <A HREF="pre-releases.html#ttx_grabber">script Perl séparé</A>.)
-<LI>Importation et fusion des données EPG à partir de sources extérieures
-  par l'intermédiaire de fichiers au format <A HREF="http://xmltv.org/">XMLTV</A>.
-<LI>Informations EPG étendues en OSD dans les applications TV (pour
-  <A HREF="xiccc-proto.html#iccc">UNIX</A> et Windows)<BR>
-  (Note : du à ce changement tous les utilisateurs de <A HREF="http://www.kastortv.org/">K!TV</A>
-  doivent remplacer leur plugin Nextview EPG.)
-<LI>Support des cartes TV exotiques et non-PCI sous Windows<BR>
-  (Note : Ceci exige de télécharger séparément la
-  <A HREF="pre-releases.html#wdm_if_lib">bibliothèques WDM</A>.<BR>
-  Un grand merci à Gérard Chevalier pour le développement de la bibliothèque.)
+<LI>Plusieurs erreurs concernant les drivers Linux ont été corrigée
+  celles-ci faisaient échouer l'acquisition sous certaines installations Linux.
+<LI>Une erreur dans le décodage du flux des données Nextview EPG a été
+  corrigée laquelle affichait quelquefois des noms de réseaux corrompus ou vides.
+<LI>Une erreur dans l'importation de la table des Chaînes d'une application TV
+  a été corrigée laquelle provoquait occasionnellement une mauvaise
+  association des noms avec les chaînes.
+<LI>Diverses erreurs d'affichages ont été corrigées lesquelles ont été
+  introduites lors de la mise à jour de la librairie Tcl/Tk 8.5 dans
+  nxtvepg 2.8.0 (comme l'affiche incorrecte de caractères spéciaux dans
+  la fenêtre principale et les dialogues de configuration; problèmes en
+  recherchant de tels caractères; provoquait un crash au démarrage sous
+  Linux avec certaines version de la librairie Tcl/Tk.)
 </UL>
 <P>
 Vous trouverez cette nouvelle version dans
 <A HREF="download.html">la section téléchargement</A>.
 <BR>Regardez aussi la liste détaillée des
 <A HREF="changelog.html">modifications majeures</A>.
-<!--  //this note would be confusing as there's no installer for 2.8.0 yet//
-<BR><SPAN class="anno">Merci encore à Néo de fournir l'installateur pour la version de Windows.</SPAN>
--->
 </P>
 
 
@@ -172,8 +163,7 @@ si la même question n'a pas été posée récemment.
 
 <H2><A NAME="copyright">Copyright</A></H2>
 <P>
-&copy; Copyright 1999 - 2007 par T. Zoerner (et autres).
-Tous droits réservés.
+&copy; Copyright 1999 - 2008 par T. Zoerner (et autres).
 </P><P>
 L'auteur du logiciel de ce site n'est pas un membre de
 l' <A href="http://www.etsi.org/">ETSI</A> - mais il espère toujours que ses efforts
@@ -196,7 +186,7 @@ permission au préalable.
 
 </DIV>
 <DIV class="footer">
-<P>Thanks to Néo for the French translation.</P>
+<P>Thanks to Néo for translating this page into French and keeping it up-to-date since 2004.</P>
 
 </DIV>
 </BODY>

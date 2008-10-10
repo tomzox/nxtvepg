@@ -20,7 +20,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgblock.c,v 1.60 2007/01/20 20:06:30 tom Exp tom $
+ *  $Id: epgblock.c,v 1.62 2008/08/10 19:29:59 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB
@@ -113,10 +113,8 @@ EPGDB_BLOCK * EpgBlockCreate( uchar type, uint size )
 
    pBlock = (EPGDB_BLOCK *) xmalloc(size + BLK_UNION_OFF);
 
-   pBlock->pNextBlock       = NULL;
-   pBlock->pPrevBlock       = NULL;
-   pBlock->pNextNetwopBlock = NULL;
-   pBlock->pPrevNetwopBlock = NULL;
+   // initialize all pointers to NULL (and alignment gaps in header struct)
+   memset(pBlock, 0, BLK_UNION_OFF);
 
    pBlock->type = type;
    pBlock->size = size;
@@ -227,12 +225,16 @@ static void SetStartAndStopTime(uint bcdStart, uint julian, uint bcdStop, PI_BLO
 
    if (provLtoDaily)
    {
+      time_t start_time;
+      time_t stop_time;
       struct tm *pTm;
       // provider times are not real UTC: they use a constant LTO across the complete
       // preview duration, regardless of daylight saving time changes
-      pTm = localtime(&pPiBlock->start_time);
+      start_time = pPiBlock->start_time;
+      pTm = localtime(&start_time);
       pPiBlock->start_time -= provLtoDelta + (pTm->tm_isdst * 60*60);
-      pTm = localtime(&pPiBlock->stop_time);
+      stop_time = pPiBlock->stop_time;
+      pTm = localtime(&stop_time);
       pPiBlock->stop_time  -= provLtoDelta + (pTm->tm_isdst * 60*60);
       // fail-safety
       if (pPiBlock->stop_time < pPiBlock->start_time)
@@ -1019,6 +1021,9 @@ EPGDB_BLOCK * EpgBlockConvertPi(const uchar *pCtrl, uint ctrlLen, uint strLen)
    // initialize values that are maintained elsewhere
    pi.block_no_in_ai = TRUE;
    pi.series_code    = 0;
+#if !defined (USE_32BIT_COMPAT) && (__WORDSIZE == 64)
+   pi.reserved_0 = 0;  // avoid undef'd elements in struct
+#endif
  
    // concatenate the various parts of PI to a compound structure
    // 1st step: sum up the length & compute the offsets of each element from the start
@@ -1120,7 +1125,7 @@ static bool EpgBlockCheckPi( EPGDB_BLOCK * pBlock )
    {
       // note: stop == start is allowed for "defective" blocks
       // but stop < start is never possible because the duration is transmitted in Nextview
-      debug2("EpgBlock-CheckPi: illegal start/stop times: %ld, %ld", pPi->start_time, pPi->stop_time);
+      debug2("EpgBlock-CheckPi: illegal start/stop times: %ld, %ld", (long)pPi->start_time, (long)pPi->stop_time);
    }
    else if ( PI_HAS_SHORT_INFO(pPi) &&
              ( (pPi->off_short_info <= pPi->off_title) ||
@@ -1582,6 +1587,8 @@ EPGDB_BLOCK * EpgBlockConvertNi(const uchar *pCtrl, uint ctrlLen, uint strLen)
 
    ni.msg_attrib = psd[0];
    psd += 1;
+
+   memset(&ev, 0, sizeof(EVENT_ATTRIB) * ni.no_events);
 
    for (i=0; i<ni.no_events; i++)
    {

@@ -56,19 +56,23 @@ div.box {
         border-width: 1px;
         margin-bottom: 0.5em;
 }
-div.box H2 {
+div.box H2,
+div.box H3 {
         MARGIN: 0px;
         PADDING: 0.2em;
         PADDING-LEFT: 0.5em;
         COLOR: #333333;
         BACKGROUND: #dcdcdc;
         FONT-FAMILY: Verdana,Geneva,Arial,sans-serif;
-        FONT-SIZE: 14pt;
         FONT-WEIGHT: bold;
 }
 div.box P {
         PADDING-LEFT: 0.5em;
         PADDING-RIGHT: 0.5em;
+}
+LI.spaced {
+        PADDING-TOP: 0.5em;
+        PADDING-BOTTOM: 0.2em;
 }
 div.footer P {
         PADDING-TOP: 2em;

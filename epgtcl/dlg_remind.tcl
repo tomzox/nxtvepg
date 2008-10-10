@@ -51,7 +51,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: dlg_remind.tcl,v 1.23 2007/12/29 21:09:16 tom Exp tom $
+#  $Id: dlg_remind.tcl,v 1.24 2008/09/20 20:25:30 tom Exp tom $
 #
 # import constants from other modules
 #=INCLUDE= "epgtcl/dlg_udefcols.h"
@@ -874,6 +874,20 @@ proc Reminder_PostGroupMenu {wid rem_idx} {
       # for mode (ii): set current group in dummy variable
       set fooMenubarRemGroup [lindex [lindex $reminders $rem_idx] $::rpi_grptag_idx]
    }
+}
+
+## ---------------------------------------------------------------------------
+## En-/Disable reminder group
+##
+proc Reminder_DisableGroup {grp_tag flag} {
+   global remgroups
+
+   if [info exists remgroups($grp_tag)] {
+      set elem $remgroups($grp_tag)
+      set elem [lreplace $elem $::rgp_disable_idx $::rgp_disable_idx $flag]
+      set remgroups($grp_tag) $elem
+   }
+   # TODO: update group config dialog
 }
 
 ## ---------------------------------------------------------------------------
@@ -1887,7 +1901,7 @@ proc PopupReminderConfig {} {
       grid       .remcfg.frm1.frm12.ent_name -row 0 -column 1 -sticky we -padx 5
       bind       .remcfg.frm1.frm12.ent_name <Enter> {SelectTextOnFocus %W}
       bind       .remcfg.frm1.frm12.ent_name <Return> RemCfg_OptionsUpdate
-      checkbutton .remcfg.frm1.frm12.chk_ena -text "Disable all group events" -variable remcfg_disable -command RemCfg_OptionsUpdate
+      checkbutton .remcfg.frm1.frm12.chk_ena -text "Temporarily disable all group events" -variable remcfg_disable -command RemCfg_OptionsUpdate
       grid       .remcfg.frm1.frm12.chk_ena -row 1 -column 0 -columnspan 2 -sticky w -pady 5
       label      .remcfg.frm1.frm12.lab_msgh -text "Display messages:"
       grid       .remcfg.frm1.frm12.lab_msgh -row 2 -column 0 -columnspan 2 -sticky w

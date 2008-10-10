@@ -76,7 +76,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: xmltv_db.c,v 1.15 2007/12/31 19:04:11 tom Exp tom $
+ *  $Id: xmltv_db.c,v 1.17 2008/08/09 17:08:46 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_XMLTV
@@ -539,7 +539,7 @@ static bool XmltvDb_AddPiBlock( EPGDB_CONTEXT * dbc, EPGDB_BLOCK *pBlock )
 
    // when stop time is missing, fake it as start + 1 second (XXX FIXME choose start of next PI)
    if (pBlock->blk.pi.stop_time == 0)
-      *(int*)&pBlock->blk.pi.stop_time = pBlock->blk.pi.start_time + 1;
+      *(time32_t*)&pBlock->blk.pi.stop_time = pBlock->blk.pi.start_time + 1;
 
    if ( (pBlock->blk.pi.start_time != 0) &&
         (pBlock->blk.pi.start_time < pBlock->blk.pi.stop_time) )
@@ -639,13 +639,13 @@ static EPGDB_BLOCK * XmltvDb_BuildPi( void )
 // DTD 0.5 only (DTD 0.6 uses <link>)
 void Xmltv_AboutSetSourceInfoUrl( XML_STR_BUF * pBuf )
 {
-   XmlCdata_AssignOrAppend(&xds.source_info_name, pBuf);
+   XmlCdata_AssignOrAppend(&xds.source_info_url, pBuf);
 }
 
 // DTD 0.5 only (DTD 0.6 uses <link>)
 void Xmltv_AboutSetSourceInfoName( XML_STR_BUF * pBuf )
 {
-   XmlCdata_AssignOrAppend(&xds.source_info_url, pBuf);
+   XmlCdata_AssignOrAppend(&xds.source_info_name, pBuf);
 }
 
 void Xmltv_AboutSetSourceDataUrl( XML_STR_BUF * pBuf )

@@ -1,6 +1,6 @@
 # ---------------------------------------------------------------------------
 #
-#  Nextview decoder online manual
+#  nxtvepg online manual
 #
 #  This program is free software; you can redistribute it and/or modify
 #  it under the terms of the GNU General Public License Version 2 as
@@ -24,7 +24,7 @@
 #
 #  Author: Tom Zoerner
 #
-# $Id: nxtvepg.pod,v 1.130 2008/01/01 01:13:28 tom Exp tom $
+# $Id: nxtvepg.pod,v 1.134 2008/10/03 21:02:17 tom Exp tom $
 # ---------------------------------------------------------------------------
 
 =head1 NAME
@@ -165,7 +165,7 @@ but still constant (i.e. the order is determined by the driver, not nxtvepg)
 
 UNIX only. Also only available when nxtvepg was configured at
 compile time (i.e. in the Makefile) to use the I<ZVBI library>
-(C<http://zapping.sf.net/>) for acquisition.
+(L<http://zapping.sourceforge.net/ZVBI/index.html>) for acquisition.
 
 This option enables data acquisition from a DVB device.  The channel
 must be tuned with an external application. The PID is the identifier
@@ -294,11 +294,12 @@ For more details see L<"CONTROL: Export as XMLTV">.
 
 To export programme data into a HTML document, use keyword I<html>
 as mode.  The same options as configured in the HTML export dialog
-are applied.  For details see L<"CONTROL: Export as HTML">.  The
-number of exported programmes can be limited by adding a number
+are applied (unless you are using the daemon executable I<nxtvepgd> 
+to perform the export.) For details see L<"CONTROL: Export as HTML">.
+The number of exported programmes can be limited by adding a number
 after the keyword, separated by a colon (e.g. C<-dump html:50>.)
-The format of the programme list is currently not configurable
-though.
+However the format of the programme list is currently not configurable
+via command line options.
 
 To export the database into a plain text file (e.g. for import into an
 SQL database) three mode keywords are supported:
@@ -345,7 +346,7 @@ respectively.
 
 =item B<-remctrl> I<command>
 
-Windows only: This option can be used to remote control an other,
+This option can be used to remote control an other,
 previously started GUI instance of nxtvepg, i.e. to send the given
 command to the other process and then exit.
 
@@ -907,7 +908,7 @@ the tuner frequencies of all providers are known. When you use a merged
 database in the browser, acquisition works on each of the merged providers,
 one after another, just like in the mode described next.
 
-=item B<Manually selected>
+=item B<Manually selected (Cyclic: All>
 
 This mode enables you to manually select for which providers the acquisition
 should work. If you select more than one provider, they are loaded one after
@@ -2039,10 +2040,12 @@ in the same group as the currently selected shortcut are displayed.
 At the top of the parameter input section is the I<Label> entry field.
 It allows to give the group a name, which is then used in the reminder
 lists and in reminder confirmation messages.  Below is a checkbutton
-called I<Disable all group events>.  When enabled all actions for that
-group are suppressed, i.e. you'll get no popup messages and scripts
-are not executed.  The programmes are still marked in the listbox
-though.
+called I<Temporarily disable all group events>.  While enabled all
+actions for that group are suppressed, i.e. you'll get no popup messages
+and scripts are not executed. Note this setting only applies to the
+current session and is reset when nxtvepg is restarted (you should clear
+the action lists if you want to disable reminder messages permanently.)
+The programmes are still marked in the listbox though.
 
 Further below is an entry field where you can give a list of comma separated
 values which define at which offsets reminder messages are displayed;
@@ -2303,8 +2306,8 @@ line by using B<-dump pi>, B<-dump ai> or B<-dump pdc> (see L<"OPTIONS">)
 =head2 Export as XMLTV
 
 Open a dialog that allows to export the complete database in XML format,
-as defined by the B<xmltv.dtd> version 0.5 (see I<xmltv> project on
-http://sourceforge.net/)
+as defined by the B<xmltv.dtd> version 0.5
+(see L<http://xmltv.org/>)
 The generated file contains both the channel table and the complete
 TV schedule, including any networks you might have suppressed from the
 listing inside nxtvepg.
@@ -2370,7 +2373,7 @@ The look of the generated document is almost entirely determined by use
 of an internal CSS stylesheet. If you don't like the look you can override
 it with your own stylesheet. Save it to a file named F<nxtvhtml.css> and
 put it in the same directory as the generated HTML file. For more
-information on HTML and style sheets see I<http://www.w3.org/>.  If your
+information on HTML and style sheets see L<http://www.w3.org/>.  If your
 column configuration contains images (see L<"COMPOSITE ATTRIBUTES">),
 you have to put them into a subdirectory called F<images>; also your
 browser has to support the B<PNG> image format.
@@ -2501,8 +2504,8 @@ and Linux installation, so you probably already have it if you use
 one of these operating systems.  If not, you'll probably find it in
 section "programming languages" on your distribution's CD or DVD.
 M$-Windows users have to download and install Perl manually (from
-http://www.activestate.com/Products/ActivePerl/?mp=1 or
-http://www.cygwin.com/) and then specify the path to perl in the
+L<http://www.activestate.com/Products/ActivePerl/?mp=1> or
+L<http://www.cygwin.com/>) and then specify the path to perl in the
 configuration dialog.  (Alternatively you can extend your C<PATH>
 environment variable so that perl.exe is automatically found.)
 
@@ -2547,7 +2550,7 @@ driver <= 0.7.50).  Note that the provider scan only works if you use
 the internal tuner as input source.  See also L<"GETTING STARTED"> and
 the subsequent chapter on TV card configuration.
 
-If you live in France or Belgium, select the French frequency table
+If you live in France, select the French frequency table
 (which implies the I<Secam L> TV norm) to be used for the EPG scan;
 else use the default frequency table which covers common cable network
 frequencies in Western Europe with the PAL TV norm.
@@ -3442,6 +3445,15 @@ The last 4 digits of the file names are the hexadecimal CNI (Country
 and Network Identifier) of the provider.
 
 
+=item B</usr/share/nxtvepg/xmltv-etsi.map>
+
+This file is used when importing EPG data from XMLTV file to map XMLTV
+channel identification strings (i.e. the name given in the
+I<E<lt>channel id="..."E<gt>> XML tags) to ETSI channel identification
+numbers. If a file with the same name is in the current working directory,
+that one is used instead.
+
+
 =item B</dev/vbi0>, B</dev/vbi1>, etc.
 
 Device files from which Nextview data is being read during acquisition.
@@ -3501,21 +3513,21 @@ This device is used when option I<-dvbpid> is present.
 
 =item B</tmp/.vbi0.pid>, B</tmp/.vbi1.pid>, etc.
 
-This file contains the process id of the Nextview decoder (or the
-acquisition slave process unless threading is used) whenever a vbi device
+This file contains the PID of the nxtvepg process (or the
+acquisition slave process unless threading is used) whenever a VBI device
 is kept open. The process can be forced to free the device by sending
-it signal SIGHUP, e.g. from a wrapper script around a teletext decoder.
-An example which works with sh, bash or tcsh:
+it signal I<SIGHUP>, e.g. from a wrapper script around a teletext decoder.
+An example which works with all shells:
 
    kill -HUP `cat /tmp/.vbi0.pid`
 
 Note that the daemon is not kept alive when acquisition is disabled,
-so that sending HUP equals sending TERM.  You can restart acquisition
-by starting a new daemon.  The browser attempts to reconnect every
-10 seconds when the connection was broken, but you can also trigger
-an immediate reconnect be signalling it a HUP.
+so that sending HUP to the daemon equals sending TERM.  You can restart
+acquisition by starting a new daemon.  The browser attempts to reconnect
+every 10 seconds when the connection was broken, but you can also trigger
+an immediate reconnect be sending the GUI process SIGHUP.
 
-To restart acquisition in non-daemon mode, signal again with HUP,
+To restart acquisition in non-daemon mode, signal again with SIGHUP,
 either to the acquisition slave process or the browser process.
 
 
@@ -3586,6 +3598,11 @@ are stored. By default this is created in the working directory, but a
 different path and file name can be specified with the B<-rcfile> option
 (see L<"OPTIONS">).
 
+=item B<xmltv-etsi.map>
+
+This file is used when importing EPG data from XMLTV file to map XMLTV
+channel identification strings (see UNIX section above for details.)
+
 =item B<Nxtvepg.ad>
 
 Allows to change the application's appearance, i.e. colors and text fonts.
@@ -3617,7 +3634,7 @@ L<"CONFIGURATION: TV application interaction">).
 For in-depth information about Nextview please refer to the specifications
 ETS 300 707 (data structures and basic principles), ETS 300 708
 (transmission protocol) and ETR 288 (code of practice). These specs
-are available from http://www.etsi.org/
+are available from L<http://www.etsi.org/>
 
 You can also have Nextview directly inside your television set - check
 out the catalogues of Grundig, Loewe, Metz, Sony, Philips, Thompson,
@@ -3673,7 +3690,7 @@ would never have been ported to M$ Windows.
 
 =head1 COPYRIGHT
 
-Copyright (C) 1999 - 2007 by T. Zoerner.
+Copyright (C) 1999 - 2008 by T. Zoerner.
 All rights reserved.
 
 Additional copyrights apply to portions of the code herein.
@@ -3682,7 +3699,7 @@ Please see file COPYRIGHT and source file headers for details.
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License Version 2 as
 published by the Free Software Foundation, e.g. at
-http://www.fsf.org/
+L<http://www.fsf.org/>
 
 This program is distributed in the hope that it will be useful, but
 B<WITHOUT ANY WARRANTY>; without even the implied warranty of

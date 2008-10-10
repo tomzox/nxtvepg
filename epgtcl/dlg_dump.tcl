@@ -18,7 +18,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: dlg_dump.tcl,v 1.10 2007/12/29 21:03:39 tom Exp tom $
+#  $Id: dlg_dump.tcl,v 1.11 2008/09/20 20:28:58 tom Exp tom $
 #
 set dumpdb_pi 1
 set dumpdb_xi 1
@@ -452,7 +452,21 @@ proc HtmlDump_Start {} {
 
    # select a column to use for hyperlinks
    set hyperCol [lsearch -exact $pilistbox_cols title]
-   if {$hyperCol == -1} {set hyperCol 0}
+   if {$hyperCol == -1} {
+      set idx 0
+      # title column not included as such -> search in user-defined columns for title attribute
+      foreach col $pilistbox_cols  {
+         if {[regsub {^user_def_} $col {} sc_tag] &&
+             [UserCols_IsTitleColumn $sc_tag]} {
+            set hyperCol $idx
+            break
+         }
+         incr idx
+      }
+      if {$hyperCol == -1} {
+         set hyperCol 0
+      }
+   }
 
    if {[string length $dumphtml_filename] > 0} {
       if [DlgDump_CheckOutputFile .dumphtml dumphtml_filename .html 0 \

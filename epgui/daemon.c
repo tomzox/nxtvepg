@@ -18,7 +18,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: daemon.c,v 1.11 2007/12/31 16:34:24 tom Exp tom $
+ *  $Id: daemon.c,v 1.12 2008/01/22 21:47:52 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -220,6 +220,8 @@ void Daemon_SystemClockCmd( EPG_CLOCK_CTRL_MODE clockMode, uint cni )
 void Daemon_StartDump( void )
 {
    uint provCni;
+
+   EpgContextCtl_SetPiExpireDelay(RcFile_Query()->db.piexpire_cutoff * 60);
 
    provCni = CmdLine_GetStartProviderCni();
    if (provCni == MERGED_PROV_CNI)

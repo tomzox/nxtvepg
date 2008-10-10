@@ -1,8 +1,8 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/HTMLlat1.ent">
 <HTML lang="en">
-<!-- $Id: changelog-2.8.0pre.html,v 1.2 2008/01/06 20:32:58 tom Exp $ -->
+<!-- $Id: changelog-2.8.0pre.html,v 1.6 2008/10/11 20:13:10 tom Exp $ -->
 <HEAD>
-<TITLE>nxtvepg 2.8.0 pre-releases changelog</TITLE>
+<TITLE>nxtvepg 2.8.x pre-releases changelog</TITLE>
 <META http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
 <META name="language" content="en">
 <META name="author" content="Tom Zoerner">
@@ -70,11 +70,99 @@ width="125" height="37" alt="SourceForge.net Logo"></a></span></span>
 
 <DIV class="mainBlock">
 
-<H1>nxtvepg 2.8.0 pre-releases changelog</H1>
+<H1>nxtvepg 2.8.x pre-releases changelog</H1>
+<H2>2.8.1 pre-releases changelog</H2>
 <P>
-This page summarizes changes between pre-releases which led from 2.7.4 to the 2.8.0
-release.  It's only kept for historical interest as the main change log summarizes
-all changes that finally went into 2.8.0.
+The following lists summarize changes between individual pre-releases
+which led from 2.8.0 to the 2.8.1 release.  It's only kept for historical
+interest as the <A HREF="changelog.html#release_2_8_1">main change log</A>
+summarizes all changes that finally went into release 2.8.1.
+</P>
+
+<H3>Changes between 2.8.1pre2 and 2.8.1pre3 (2008-09-21)</H3>
+<UL>
+<LI>A bug in reminder message display was fixed which caused empty
+  programme descriptions after the message was displayed.
+  Thanks to "m-unter" for reporting this bug.
+<LI>Two independent bugs in the Linux driver interface were fixed which
+  made acquisition fail to start on certain Linux installations.
+  Thanks to "devport" and Uwe Bugla for reporting these bugs.
+<LI>A bug in the separate "tvsim" debugging tool was fixed which made
+  that too lnear unusable on Windows systems. Thanks to Kurt for
+  reporting this bug.
+<LI>The teletext grabber perl script was adapted to recent changes in
+  formats of German teletext broadcasts.
+</UL>
+
+<H3>Changes between 2.8.1pre1 and 2.8.1pre2 (2008-02-03)</H3>
+<UL>
+<LI>The position of reminder markers and other images in the programme
+  list behind titles with special characters was fixed (thanks to
+  Kurt Lettmaier for reporting this bug.)
+<LI>A bug in the INI file upgrade from nxtvepg versions 2.8.0pre16 or
+  earlier, which caused loss of the network name configuration, was
+  fixed (again, thanks to Kurt.)  Additionally compatibility between
+  UNIX and Windows INI/rc files was restored.
+<LI>The HTML export was fixed to be fully compliant with HTML 4.0
+<LI>A new entry was added to the context menu which allows to disable
+  reminder popups for selected reminder groups (to use the new feature
+  you must add the new menu entry in the context menu config dialog.)
+<LI>Bugs in handling of special characters were fixed in several more
+  configuration dialogs (Network name and Client/Server configuration,
+  as well as HTML export from UTF-8 executables.)
+<LI>Bug fixes in endian conversion in the acquisition daemon protocol have
+  restored compatibility between big- and little-endian architectures.
+</UL>
+
+<H3>Changes between 2.8.1pre0 and 2.8.1pre1 (2008-01-22)</H3>
+<UL>
+<LI>A bug in the Nextview EPG data stream decoder was fixed which
+  allowed half-received blocks to be used (under weak signal conditions
+  and heavy packet loss), which sometimes caused all network names
+  to be blank.
+<LI>Mapping of network identifiers (CNI) for merged databases in the GUI
+  was further improved since 2.8.1pre0.  This fixes some remaining bugs
+  in the network selection and network name configuration dialogs when
+  handling merged databases with Nextview and teletext data.
+<LI>Fixed database export via option -dump so that the user-configured
+  expire time setting is applied.
+<LI>Prepared binary compatibility between 32-bit and 64-bit systems for
+  database files and the daemon protocol (enabling compatibility
+  requires to define compile switch USE_32BIT_COMPAT in the Makefile;
+  not enabled by default to maintain backwards compatibility for
+  existing 64-bit databases)
+</UL>
+
+<H3>Changes between 2.8.0 and 2.8.1pre0 (2008-01-13)</H3>
+<UL>
+<LI>A bug in TV application channel table reading was fixed which
+  sometimes caused wrong names to be associated with channels.
+  (Thanks to "dj1985" for reporting this bug.)
+<LI>For merged databases duplicate networks in the network name
+  and network selection configuration dialogs are now filtered out.
+  (Relevant when merging teletext with Nextview EPG.)
+<LI>Changed XMLTV import to allow overriding of network identification
+  codes via xmltv-etsi.map even for files written by the teletext EPG
+  grabber which contain a valid VPS/PDC code.
+<LI>The network identification map (xmltv-etsi.map) was extended for
+  the teletext grabber for networks with inconsistent VPS/PDC
+  identification.
+<LI>UNIX: A bug was fixed which caused a crash immediately after start-up
+  with Tcl/Tk 8.5.0 when the libraries were compiled with multi-thread
+  support. (Thanks to Enrico for reporting this bug.)
+</UL>
+
+<!-- ===================================================================== -->
+
+<H2>2.8.0 pre-releases changelog</H2>
+<P>
+The following lists summarize changes between pre-releases which led
+from 2.7.4 to the 2.8.0 release. Note during development of 2.8.0 there
+were multiple maintenance releases on the 2.7.x line (2.7.5 to 2.7.7),
+which contained back-ported bugfixes from the 2.8.0 development line.
+The changelog is only kept for historical interest as the
+<A HREF="changelog.html#release_2_8_0">main change log</A>
+summarizes all changes that finally went into release 2.8.0.
 </P>
 
 <H3>Changes between 2.8.0pre18 and 2.8.0 (2007-12-31)</H3>

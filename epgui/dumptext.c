@@ -21,7 +21,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: dumptext.c,v 1.17 2007/12/29 15:20:00 tom Exp tom $
+ *  $Id: dumptext.c,v 1.18 2008/01/21 22:42:35 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -85,9 +85,12 @@ static void DumpText_Pi( PI_DESCR_BUF * pb, const PI_BLOCK * pPi, const EPGDB_CO
    const uchar * pShort;
    const uchar * pLong;
    uchar hour, minute, day, month;
+   uint  year;
    uchar str_buf[128];
    uchar *pStrSoundFormat;
-   struct tm *pStart, *pStop;
+   struct tm *pTm;
+   time_t start_time;
+   time_t stop_time;
    sint  len;
 
    if (pPi != NULL)
@@ -97,18 +100,15 @@ static void DumpText_Pi( PI_DESCR_BUF * pb, const PI_BLOCK * pPi, const EPGDB_CO
       len = sprintf(str_buf, "%u\t", pPi->netwop_no);
       PiDescription_BufAppend(pb, str_buf, len);
 
-      pStart = localtime(&pPi->start_time);
-      if (pStart != NULL)
-         strftime(str_buf, sizeof(str_buf), "%Y-%m-%d\t%H:%M:00\t", pStart);
-      else
-         strcpy(str_buf, "\t");
+      start_time = pPi->start_time;
+      pTm = localtime(&start_time);
+      strftime(str_buf, sizeof(str_buf), "%Y-%m-%d\t%H:%M:00\t", pTm);
       PiDescription_BufAppend(pb, str_buf, -1);
+      year = pTm->tm_year + 1900;
 
-      pStop  = localtime(&pPi->stop_time);
-      if (pStop != NULL)
-         strftime(str_buf, sizeof(str_buf), "%H:%M:00\t", pStop);
-      else
-         strcpy(str_buf, "\t");
+      stop_time = pPi->stop_time;
+      pTm = localtime(&stop_time);
+      strftime(str_buf, sizeof(str_buf), "%H:%M:00\t", pTm);
       PiDescription_BufAppend(pb, str_buf, -1);
 
       day    = (pPi->pil >> 15) & 0x1f;
@@ -116,11 +116,10 @@ static void DumpText_Pi( PI_DESCR_BUF * pb, const PI_BLOCK * pPi, const EPGDB_CO
       hour   = (pPi->pil >>  6) & 0x1f;
       minute =  pPi->pil        & 0x3f;
 
-      if ((day > 0) && (month > 0) && (month <= 12) && (hour < 24) && (minute < 60) &&
-          (pStart != NULL))
+      if ((day > 0) && (month > 0) && (month <= 12) && (hour < 24) && (minute < 60))
       {
          len = sprintf(str_buf, "%04d-%02d-%02d %02d:%02d:00\t",
-                                pStart->tm_year + 1900, month, day, hour, minute);
+                                year, month, day, hour, minute);
          PiDescription_BufAppend(pb, str_buf, len);
       }
       else

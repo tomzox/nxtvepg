@@ -23,7 +23,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: wintvui.c,v 1.3 2007/12/29 20:38:25 tom Exp tom $
+ *  $Id: wintvui.c,v 1.5 2008/08/10 19:26:23 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -452,7 +452,7 @@ static int WintvUi_TestChanTab( ClientData ttp, Tcl_Interp *interp, int objc, Tc
       }
       else
       {
-         if ((needPath == FALSE) || (pTvAppPath != NULL))
+         if ((needPath == FALSE) || ((pTvAppPath != NULL) && (*pTvAppPath != 0)))
          {
             pChanTabPath = WintvCfg_GetRcPath(pTvAppPath, newAppIdx);
             if (pChanTabPath != NULL)
@@ -500,6 +500,8 @@ static int WintvUi_GetConfig( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_
 {
    const char * const pUsage = "Usage: C_Tvapp_GetConfig";
    const RCFILE * pRc;
+   const char * appPath;
+   uint appType;
    Tcl_Obj * pResultList;
    int  result;
 
@@ -511,17 +513,21 @@ static int WintvUi_GetConfig( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_
    else
    {
       pRc = RcFile_Query();
-      pResultList = Tcl_NewListObj(0, NULL);
-
 #ifdef WIN32
-      Tcl_ListObjAppendElement(interp, pResultList, Tcl_NewIntObj(pRc->tvapp.tvapp_win));
-      if (pRc->tvapp.tvpath_win != NULL)
-         Tcl_ListObjAppendElement(interp, pResultList, TranscodeToUtf8(EPG_ENC_SYSTEM, NULL, pRc->tvapp.tvpath_win, NULL));
+      appType = pRc->tvapp.tvapp_win;
+      appPath = pRc->tvapp.tvpath_win;
 #else
-      Tcl_ListObjAppendElement(interp, pResultList, Tcl_NewIntObj(pRc->tvapp.tvapp_unix));
-      if (pRc->tvapp.tvpath_unix != NULL)
-         Tcl_ListObjAppendElement(interp, pResultList, TranscodeToUtf8(EPG_ENC_SYSTEM, NULL, pRc->tvapp.tvpath_unix, NULL));
+      appType = pRc->tvapp.tvapp_unix;
+      appPath = pRc->tvapp.tvpath_unix;
 #endif
+
+      pResultList = Tcl_NewListObj(0, NULL);
+      Tcl_ListObjAppendElement(interp, pResultList, Tcl_NewIntObj(appType));
+
+      if (appPath != NULL)
+         Tcl_ListObjAppendElement(interp, pResultList, TranscodeToUtf8(EPG_ENC_SYSTEM, NULL, appPath, NULL));
+      else
+         Tcl_ListObjAppendElement(interp, pResultList, Tcl_NewStringObj("", 0));
 
       Tcl_SetObjResult(interp, pResultList);
       result = TCL_OK;

@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgmain.h,v 1.25 2007/12/29 16:22:33 tom Exp tom $
+ *  $Id: epgmain.h,v 1.26 2008/01/22 22:05:16 tom Exp tom $
  */
 
 #ifndef __EPGMAIN_H
@@ -43,7 +43,10 @@ typedef enum
 #define EPG_ENC_NETNAME(AI) ((AI) ? EPG_ENC_NXTVEPG : EPG_ENC_SYSTEM)
 extern Tcl_Encoding encIso88591;
 
-Tcl_Obj * TranscodeToUtf8( T_EPG_ENCODING enc, const char * pPrefix, const char * pStr, const char * pPostfix );
+Tcl_Obj * TranscodeToUtf8( T_EPG_ENCODING enc,
+                           const char * pPrefix, const char * pStr, const char * pPostfix
+                           /*,const char * pCallerFile, int callerLine*/ );
+//#define TranscodeToUtf8(E,S0,S1,S2) TranscodeToUtf8_Dbg(E,S0,S1,S2,__FILE__,__LINE__)
 Tcl_Obj * AppendToUtf8( T_EPG_ENCODING enc, Tcl_Obj * pObj, const char * pStr, const char * pPostfix );
 
 bool EpgMain_StartDaemon( void );

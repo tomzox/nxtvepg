@@ -31,7 +31,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: vbirec_main.c,v 1.27 2007/12/31 18:52:45 tom Exp tom $
+ *  $Id: vbirec_main.c,v 1.28 2008/09/14 19:25:20 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_TVSIM
@@ -939,19 +939,22 @@ static int TclCb_SendEpgOsd( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_O
       uint  epgCnt;
       char  station[50];
       uchar start_str[40], stop_str[20];
-      struct tm *pStart, *pStop;
+      struct tm *pTm;
+      time_t time_ts;
 
       WintvSharedMem_GetStation(station, sizeof(station), &chanQueryIdx, &epgCnt);
 
-      pStart = localtime((time_t *)&start_time);
-      if (pStart != NULL)
-         strftime(start_str, sizeof(start_str), "%Y-%m-%d\t%H:%M:00", pStart);
+      time_ts = start_time;
+      pTm = localtime(&time_ts);
+      if (pTm != NULL)
+         strftime(start_str, sizeof(start_str), "%Y-%m-%d\t%H:%M:00", pTm);
       else
          strcpy(start_str, "");
 
-      pStop  = localtime((time_t *)&stop_time);
-      if (pStop != NULL)
-         strftime(stop_str, sizeof(stop_str), "%H:%M:00", pStop);
+      time_ts = stop_time;
+      pTm  = localtime(&time_ts);
+      if (pTm != NULL)
+         strftime(stop_str, sizeof(stop_str), "%H:%M:00", pTm);
       else
          strcpy(stop_str, "");
 

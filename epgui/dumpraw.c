@@ -21,7 +21,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: dumpraw.c,v 1.32 2007/01/21 14:10:07 tom Exp tom $
+ *  $Id: dumpraw.c,v 1.33 2008/01/21 22:42:35 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -82,21 +82,16 @@ static void EpgDumpRaw_Pi( FILE *fp, const PI_BLOCK * pPi, uchar stream, uchar v
    uchar pilStr[50];
    uchar netname[NETNAME_LENGTH+1];
    uchar *pStrSoundFormat;
-   struct tm *pStart, *pStop;
+   time_t start_time;
+   time_t stop_time;
 
    if (pPi != NULL)
    {
-      pStart = localtime(&pPi->start_time);
-      if (pStart != NULL)
-         strftime(start_str, sizeof(start_str), "%a %d.%m.%Y %H:%M", pStart);
-      else
-         strcpy(start_str, "??");
+      start_time = pPi->start_time;
+      strftime(start_str, sizeof(start_str), "%a %d.%m.%Y %H:%M", localtime(&start_time));
 
-      pStop  = localtime(&pPi->stop_time);
-      if (pStop != NULL)
-         strftime(stop_str, sizeof(stop_str), "%H:%M", pStop);
-      else
-         strcpy(stop_str, "??");
+      stop_time = pPi->stop_time;
+      strftime(stop_str, sizeof(stop_str), "%H:%M", localtime(&stop_time));
 
       if ((pAi != NULL) && (pPi->netwop_no < pAi->netwopCount))
       {

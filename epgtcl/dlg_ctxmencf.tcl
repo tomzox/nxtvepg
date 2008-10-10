@@ -19,14 +19,15 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: dlg_ctxmencf.tcl,v 1.13 2007/12/29 21:03:24 tom Exp tom $
+#  $Id: dlg_ctxmencf.tcl,v 1.14 2008/09/20 20:25:30 tom Exp tom $
 #
 set ctxmencf_popup 0
 set ctxmencf [list {pi_context.addfilt {} {}} \
                    {menu_separator {} {}} \
                    {pi_context.undofilt {} {}} \
                    {menu_separator {} {}} \
-                   {pi_context.reminder_ext {} {}}]
+                   {pi_context.reminder_ext {} {}} \
+                   {pi_context.reminder_disable {} {}}]
 set tunetv_cmd_unix {tvapp.xawtv "Tune TV" {setstation ${network}}}
 set tunetv_cmd_win {tvapp.wintv "Tune TV" {setstation ${network}}}
 set ctxmencf_wintv_vcr 0
@@ -80,6 +81,9 @@ proc PopupDynamicContextMenu {w unused} {
          }
          pi_context.reminder_ext {
             incr entry_count [C_PiRemind_ContextMenuExtended $w]
+         }
+         pi_context.reminder_disable {
+            incr entry_count [C_PiRemind_ContextMenuDisable $w]
          }
          tvapp.wintv {
             if {!$is_unix && [C_Tvapp_IsConnected]} {
@@ -392,6 +396,7 @@ proc ContextMenuGetTypeDescription {type} {
       pi_context.undofilt {return "Undo programme filters"}
       pi_context.reminder_short {return "Add/remove reminder (short)"}
       pi_context.reminder_ext {return "Add/remove reminder (extended)"}
+      pi_context.reminder_disable {return "Disable this reminder group"}
    }
 }
 

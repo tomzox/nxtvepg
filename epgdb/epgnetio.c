@@ -22,7 +22,7 @@
  *  Author:
  *          Tom Zoerner
  *
- *  $Id: epgnetio.c,v 1.38 2007/12/29 22:28:07 tom Exp tom $
+ *  $Id: epgnetio.c,v 1.40 2008/08/10 19:51:15 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB
@@ -388,7 +388,7 @@ bool EpgNetIo_HandleIO( EPGNETIO_STATE * pIO, bool * pBlocked, bool closeOnZeroR
       // write the message body, if the header is written
       if ((err == FALSE) && (pIO->writeOff >= sizeof(EPGNETIO_MSG_HEADER)) && (pIO->writeOff < pIO->writeLen))
       {
-         len = send(pIO->sock_fd, ((char *)pIO->pWriteBuf) + pIO->writeOff - sizeof(EPGNETIO_MSG_HEADER), pIO->writeLen - pIO->writeOff, 0);
+         len = send(pIO->sock_fd, ((char *)pIO->pWriteBuf) + pIO->writeGap + pIO->writeOff - sizeof(EPGNETIO_MSG_HEADER), pIO->writeLen - pIO->writeOff, 0);
          if (len > 0)
          {
             pIO->lastIoTime = now;
@@ -556,6 +556,7 @@ void EpgNetIo_WriteMsg( EPGNETIO_STATE * pIO, EPGNETIO_MSG_TYPE type, uint msgLe
    pIO->pWriteBuf    = pMsg;
    pIO->freeWriteBuf = freeBuf;
    pIO->writeLen     = sizeof(EPGNETIO_MSG_HEADER) + msgLen;
+   pIO->writeGap     = 0;
    pIO->writeOff     = 0;
 
    // message header: length is coded in network byte order (i.e. big endian)
@@ -576,14 +577,20 @@ bool EpgNetIo_WriteEpgQueue( EPGNETIO_STATE * pIO, EPGDB_QUEUE * pOutQueue )
 
    while ((pBlock = EpgDbQueue_Get(pOutQueue)) != NULL)
    {
-      dprintf2("EpgNetIo-WriteEpgQueue: fd %d: write EPG block, msg size %d\n", pIO->sock_fd, (int)sizeof(EPGNETIO_MSG_HEADER) + pBlock->size + BLK_UNION_OFF);
-
       pIO->pWriteBuf        = (void *) pBlock;
       pIO->freeWriteBuf     = TRUE;
+#ifdef USE_32BIT_COMPAT
+      pIO->writeLen         = sizeof(EPGNETIO_MSG_HEADER) + pBlock->size + BLK_HEAD_SIZE_DATA;
+      pIO->writeGap         = BLK_HEAD_PTR_OFF_MEM;
+#else
       pIO->writeLen         = sizeof(EPGNETIO_MSG_HEADER) + pBlock->size + BLK_UNION_OFF;
+      pIO->writeGap         = 0;
+#endif
       pIO->writeOff         = 0;
       pIO->writeHeader.len  = htons(pIO->writeLen);
       pIO->writeHeader.type = MSG_TYPE_BLOCK_IND;
+
+      dprintf2("EpgNetIo-WriteEpgQueue: fd %d: write EPG block, msg size %d\n", pIO->sock_fd, pIO->writeLen);
 
       if (EpgNetIo_HandleIO(pIO, &ioBlocked, FALSE))
       {
@@ -618,10 +625,18 @@ bool EpgNetIo_WriteUncopiedEpgBlock( EPGDB_BLOCK * pBlock, EPGNETIO_STATE * pIO 
 
    pIO->pWriteBuf        = (void *) pBlock;
    pIO->freeWriteBuf     = FALSE;
+#ifdef USE_32BIT_COMPAT
+   pIO->writeLen         = sizeof(EPGNETIO_MSG_HEADER) + pBlock->size + BLK_HEAD_SIZE_DATA;
+   pIO->writeGap         = BLK_HEAD_PTR_OFF_MEM;
+#else
    pIO->writeLen         = sizeof(EPGNETIO_MSG_HEADER) + pBlock->size + BLK_UNION_OFF;
+   pIO->writeGap         = 0;
+#endif
    pIO->writeOff         = 0;
    pIO->writeHeader.len  = htons(pIO->writeLen);
    pIO->writeHeader.type = MSG_TYPE_BLOCK_IND;
+
+   dprintf2("EpgNetIo-WriteUncopiedEpgBlock: type %d, len %d\n", pBlock->type, pIO->writeLen);
 
    // write the EPG block to the socket
    if (EpgNetIo_HandleIO(pIO, &ioBlocked, FALSE))
@@ -661,6 +676,7 @@ bool EpgNetIo_WriteTscQueue( EPGNETIO_STATE * pIO, EPGDB_PI_TSC * pTscQueue )
       pIO->pWriteBuf    = (void *) pTscBuf;
       pIO->freeWriteBuf = TRUE;
       pIO->writeLen     = sizeof(EPGNETIO_MSG_HEADER) + bufLen;
+      pIO->writeGap     = 0;
       pIO->writeOff     = 0;
       pIO->writeHeader.len  = htons(pIO->writeLen);
       pIO->writeHeader.type = MSG_TYPE_TSC_IND;
@@ -841,7 +857,7 @@ bool EpgNetIo_DumpAllBlocks( EPGNETIO_STATE * pIO, EPGDB_CONTEXT * dbc, EPGNETIO
                   break;
 
                case BLOCK_TYPE_PI:
-                  dprintf2("EpgNetIo-DumpEpgBlock: dump PI net=%0d start=%ld\n", pBlock->blk.pi.netwop_no, pBlock->blk.pi.start_time);
+                  dprintf2("EpgNetIo-DumpEpgBlock: dump PI net=%0d start=%ld\n", pBlock->blk.pi.netwop_no, (long)pBlock->blk.pi.start_time);
                   // add to PI timescale queue, if requested
                   if (pTscQueue != NULL)
                   {
@@ -1190,7 +1206,14 @@ int EpgNetIo_ListenSocket( bool is_tcp_ip, const char * listen_ip, const char * 
    }
 
    if (res != NULL)
+   {
+      if ((res->ai_family == PF_UNIX) && (res->ai_addr != NULL))
+      {  // free manually allocated memory for UNIX domain socket
+         free(res->ai_addr);
+         res->ai_addr = NULL;
+      }
       freeaddrinfo(res);
+   }
 
    if ((result == FALSE) && (sock_fd != -1))
    {
@@ -1515,7 +1538,14 @@ int EpgNetIo_ConnectToServer( bool use_tcp_ip, const char * pSrvHost, const char
    }
 
    if (res != NULL)
+   {
+      if ((res->ai_family == PF_UNIX) && (res->ai_addr != NULL))
+      {  // free manually allocated memory for UNIX domain socket
+         free(res->ai_addr);
+         res->ai_addr = NULL;
+      }
       freeaddrinfo(res);
+   }
 
    return sock_fd;
 }

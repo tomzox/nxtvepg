@@ -20,7 +20,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: rcfile.tcl,v 1.32 2007/12/29 21:11:12 tom Exp tom $
+#  $Id: rcfile.tcl,v 1.33 2008/02/03 18:52:13 tom Exp tom $
 #
 
 proc LoadRcFile {filename } {
@@ -481,7 +481,7 @@ proc ConvertV28Pre16RcFile {} {
       append rcfileUpgradeStr {[NETWORK NAMES]} "\n"
       if [array exists cfnetnames] {
          foreach {cni name} [array get cfnetnames] {
-            append rcfileUpgradeStr [concat $cni $name] "\n"
+            append rcfileUpgradeStr [concat $cni 0x0 $name] "\n"
          }
       }
 

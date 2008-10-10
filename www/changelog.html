@@ -1,6 +1,6 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/HTMLlat1.ent">
 <HTML lang="en">
-<!-- $Id: changelog.html,v 1.68 2008/01/06 20:32:58 tom Exp $ -->
+<!-- $Id: changelog.html,v 1.69 2008/10/11 20:13:49 tom Exp $ -->
 <HEAD>
 <TITLE>Change log of nxtvepg releases</TITLE>
 <META http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
@@ -78,6 +78,82 @@ For details on work in progress please refer to
 <A HREF="http://sourceforge.net/mailarchive/forum.php?forum_id=14102">mailing list archives</A>.
 </P>
 
+
+<H2><A NAME="release_2_8_1">From 2.8.0 to 2.8.1 (Oct/10/2008)</A></H2>
+<P>
+This release fixes many large and small bugs which have come up
+in release 2.8.0.
+</P>
+<UL>
+<LI>Two independent bugs in the Linux driver interface were fixed which
+  made acquisition fail to start on certain Linux installations.
+  <SPAN class="anno">Thanks to "devport" and Uwe Bugla for reporting these bugs.</SPAN>
+<LI>A bug in the Nextview EPG data stream decoder was fixed which
+  sometimes allowed half-received blocks to be used (under weak signal
+  conditions and heavy packet loss), which then caused all network
+  names to be blank.
+<LI>A bug in TV application channel table import was fixed which
+  sometimes caused wrong names to be associated with channels.
+  <SPAN class="anno">Thanks to "dj1985" for reporting this bug.</SPAN>
+<LI>Various display bugs were fixed which were introduced by the upgrade
+  to Tcl/Tk version 8.5 in nxtvepg release 2.8.0. In particular:
+  <UL>
+  <LI>The position of reminder markers and other images in the programme
+    list behind titles with special characters was fixed (thanks to
+    Kurt Lettmaier for reporting this bug.)
+  <LI>Bugs in handling of special characters were fixed in several more
+    configuration dialogs (Network name and Client/Server configuration,
+    as well as HTML export from UTF-8 executables.)
+  <LI>Windows only: A work-around was applied which fixes title search via
+    context menu for titles containing special characters.
+  <LI>UNIX: A bug was fixed which caused a crash immediately after start-up
+    with Tcl/Tk 8.5.0 when the libraries were compiled with multi-thread
+    support. <SPAN class="anno">Thanks to Enrico for reporting this bug.</SPAN>
+  </UL>
+  <SPAN class="anno">Many thanks to Kurt for reporting these bugs.</SPAN>
+<LI>A bug in reminder message display was fixed which caused empty
+  programme descriptions after the message was displayed. This only
+  occured for databases which were imported from XMLTV files.
+  <SPAN class="anno">Thanks to "m-unter" for reporting this bug.</SPAN>
+<LI>A new entry was added to the context menu which allows to disable
+  reminder popups for selected reminder groups (to use the new feature
+  you must add the new menu entry in the context menu config dialog.)
+<LI>The HTML export was fixed to be fully compliant with HTML 4.0
+<LI>Database export via option -dump was changed to apply the expire
+  threshold configured by the user via GUI (before, all expired
+  programmes were included in the export.)
+  <SPAN class="anno">Thanks to Jürgen (jb) for reporting this bug.</SPAN>
+<LI>Changed XMLTV import to allow overriding of network identification
+  codes via xmltv-etsi.map even for files written by the teletext EPG
+  grabber with a valid VPS/PDC code. Also the network identification map
+  (xmltv-etsi.map) was extended for the teletext grabber for networks
+  with inconsistent VPS/PDC identification.
+<LI>A bug was fixed in the INI file upgrade from nxtvepg versions 2.7.7
+  or earlier, which caused loss of the network name configuration.
+  Additionally compatibility between UNIX and Windows INI/rc files
+  was restored.
+  <SPAN class="anno">Thanks to Kurt for reporting this bug.</SPAN>
+<LI>Bug fixes in endian conversion in the acquisition daemon protocol have
+  restored compatibility between big- and little-endian architectures.
+<LI>Prepared binary compatibility between 32-bit and 64-bit systems for
+  database files and the daemon protocol (enabling compatibility
+  requires to define compile switch USE_32BIT_COMPAT in the Makefile;
+  not enabled by default to maintain backwards compatibility for
+  existing 64-bit databases)
+<LI>The network name and network selection configuration dialogs were
+  improved, especially for use with databases imported from XMLTV.
+<LI>A bug in the separate "tvsim" debugging tool was fixed which made
+  that tool near unusable on Windows systems since release 2.8.0.
+  <SPAN class="anno">Thanks to Kurt for reporting this bug.</SPAN>
+<LI>The <A HREF="http://nxtvepg.sourceforge.net/tv_grab_ttx">teletext grabber</A>
+  script was adapted to recent changes in formats of German teletext
+  broadcasts.
+  <SPAN class="anno">Thanks to Jürgen (jb) for the feedback.</SPAN>
+</UL>
+<P>
+There'a also a more detailed changelog of all four
+<A HREF="changelog-2.8.0pre.html">2.8.1 pre-releases</A>.
+</P>
 
 <H2><A NAME="release_2_8_0">From 2.7.7 to 2.8.0 (Dec/31/2007)</A></H2>
 <P>

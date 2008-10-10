@@ -18,7 +18,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: dlg_udefcols.tcl,v 1.19 2007/12/29 21:21:53 tom Exp tom $
+#  $Id: dlg_udefcols.tcl,v 1.20 2008/09/20 20:28:58 tom Exp tom $
 #
 # import constants from other modules
 #=INCLUDE= "epgtcl/dlg_remind.h"
@@ -193,6 +193,24 @@ proc UserCols_ShortcutsChanged {} {
       }
       # note: obsolete shortcuts not removed here (done upon save)
    }
+}
+
+## ---------------------------------------------------------------------------
+##  Look for a title attribute in the given shortcut
+##
+proc UserCols_IsTitleColumn {sc_tag} {
+   global usercols
+
+   if [info exists usercols($sc_tag)] {
+      foreach filt $usercols($sc_tag) {
+         if {[lindex $filt $::ucf_type_idx] == 2} {
+            if {[string compare [lindex $filt $::ucf_value_idx] "title"] == 0} {
+               return 1
+            }
+         }
+      }
+   }
+   return 0
 }
 
 #=LOAD=PopupUserDefinedColumns
@@ -1115,7 +1133,7 @@ proc UserColsDlg_CalcDefaultWidth {filt_list} {
    foreach filt $filt_list {
       set type [lindex $filt $::ucf_type_idx]
       if {$type == 0} {
-         # this shortcut match is disaplyed with a static text
+         # this shortcut match is displayed with a static text
          if {[lsearch [lindex $filt $::ucf_fmt_idx] bold] == -1} {
             set font $font_normal
          } else {

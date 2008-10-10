@@ -23,7 +23,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgdbfil.c,v 1.49 2006/11/25 20:43:49 tom Exp tom $
+ *  $Id: epgdbfil.c,v 1.50 2008/01/21 22:50:03 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB
@@ -1436,7 +1436,8 @@ static bool EpgDbFilterMatchAct( const EPGDB_CONTEXT *dbc, const FILTER_CONTEXT 
    }
    else if (fc_act->enabledFilters & FILTER_TIME_DAILY)
    {
-      struct tm * ptm = localtime(&pPi->start_time);
+      time_t start_time = pPi->start_time;
+      struct tm * ptm = localtime(&start_time);
       int timeOfDay = ptm->tm_min + (ptm->tm_hour * 60);
 
       if (fc_act->timeBegin < fc_act->timeEnd)
@@ -1450,7 +1451,8 @@ static bool EpgDbFilterMatchAct( const EPGDB_CONTEXT *dbc, const FILTER_CONTEXT 
    }
    else if (fc_act->enabledFilters & FILTER_TIME_WEEKLY)
    {
-      struct tm * ptm = localtime(&pPi->start_time);
+      time_t start_time = pPi->start_time;
+      struct tm * ptm = localtime(&start_time);
       int timeOfDay = ptm->tm_min + (ptm->tm_hour * 60);
 
       fail = ((((uint)ptm->tm_wday + 1) % 7) != fc_act->timeDayOffset);
@@ -1468,7 +1470,8 @@ static bool EpgDbFilterMatchAct( const EPGDB_CONTEXT *dbc, const FILTER_CONTEXT 
    }
    else if (fc_act->enabledFilters & FILTER_TIME_MONTHLY)
    {
-      struct tm * ptm = localtime(&pPi->start_time);
+      time_t start_time = pPi->start_time;
+      struct tm * ptm = localtime(&start_time);
       int timeOfDay = ptm->tm_min + (ptm->tm_hour * 60);
 
       fail = ((uint)ptm->tm_mday != fc_act->timeDayOffset);
@@ -1723,7 +1726,8 @@ static bool EpgDbFilterMatchAct( const EPGDB_CONTEXT *dbc, const FILTER_CONTEXT 
       }
       else if (fc_act->vps_pdc_mode == 2)
       {
-         struct tm * pTm = localtime(&pPi->start_time);
+         time_t start_time = pPi->start_time;
+         struct tm * pTm = localtime(&start_time);
          if (pPi->pil == INVALID_VPS_PIL)
             fail = TRUE;
          else if ( (pTm->tm_min == (sint)(pPi->pil & 0x3f)) &&

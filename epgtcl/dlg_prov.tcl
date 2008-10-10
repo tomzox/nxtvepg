@@ -19,7 +19,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: dlg_prov.tcl,v 1.21 2007/12/29 21:03:39 tom Exp tom $
+#  $Id: dlg_prov.tcl,v 1.23 2008/02/03 18:55:33 tom Exp tom $
 #
 set provwin_popup 0
 set provmerge_popup 0
@@ -244,7 +244,7 @@ proc PopupProviderMerge {} {
       CreateTransientPopup .provmerge "Merging provider databases"
       set provmerge_popup 1
 
-      message .provmerge.msg -aspect 800 -text "Select the providers who's databases you want to merge and their priority:"
+      message .provmerge.msg -aspect 600 -text "This dialog allows to merge the EPG of multiple providers into a single database. Note the provider order defines their priority in case of conflicts:"
       pack .provmerge.msg -side top -expand 1 -fill x -pady 5
 
       # create the two listboxes for database selection
@@ -255,17 +255,17 @@ proc PopupProviderMerge {} {
       # create menu for option sub-windows
       array set ProvmergeOptLabels {
          cftitle "Title"
-         cfdescr "Description"
-         cfthemes "Themes"
+         cfdescr "Description text"
+         cfthemes "Theme categories"
          cfseries "Series codes"
-         cfsortcrit "Sorting Criteria"
+         cfsortcrit "Sorting criteria"
          cfeditorial "Editorial rating"
          cfparental "Parental rating"
          cfsound "Sound format"
          cfformat "Picture format"
          cfrepeat "Repeat flag"
          cfsubt "Subtitle flag"
-         cfmisc "misc. features"
+         cfmisc "misc. feature flags"
          cfvps "VPS/PDC label"
       }
       menubutton .provmerge.mb -menu .provmerge.mb.men -text "Configure" -underline 0

@@ -1,6 +1,6 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/HTMLlat1.ent">
 <HTML lang="de">
-<!-- $Id: download-de.html,v 1.28 2008/01/06 20:32:58 tom Exp $ -->
+<!-- $Id: download-de.html,v 1.31 2008/10/11 20:15:56 tom Exp $ -->
 <HEAD>
 <TITLE>Nxtvepg Download</TITLE>
 <META http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
@@ -46,6 +46,7 @@
 <A HREF="faq-de.html">FAQ</A><BR>
 <BR>
 <A HREF="man-de.html">nxtvepg manual</A><BR>
+<A HREF="ttx_grab.html">teletext grabber</A><BR>
 </P>
 
 <H2 class="navhead">Download</H2>
@@ -72,20 +73,15 @@ width="125" height="37" alt="SourceForge.net Logo"></a></span></span>
 <DIV class="mainBlock">
 <H1>Nxtvepg Download</H1>
 <P>
-Der neueste offizielle Release von nxtvepg ist Version <B>2.8.0</B>, die
-letzte stabile Version ist <B>2.7.7</B>.  Der Unterschied zwischen den
-beiden sind eine Reihe <A HREF="index-de.html#releases">neuer Features</A>
-(siehe auch <A HREF="changelog.html#release_2_8_0">detaillierte Liste</A>)
-im neuen Release 2.8.0.  Falls Sie bereits eine funktionierende nxtvepg
-Installation haben, brauchen sie nur auf die neue Version umzustellen
-falls Sie an den Features Interesse haben. Für neue Anwender wird aber
-empfohlen gleich die neueste Version zu verwenden und nur bei Problemen
-auf eine ältere Version zurückzugreifen. (Bitte denken Sie daran Fehler im
-<A HREF="http://sourceforge.net/forum/forum.php?forum_id=217872">Forum</A>
-zu melden damit sie behoben werden können.)
+Der neueste offizielle Release von nxtvepg ist Version <B>2.8.1</B>
+Dieser Release behebt eine Reihe größerer und viele kleinere Fehler,
+daher wird der Update allen Benutzern der Vorgängerversion 2.8.0
+empfohlen (siehe auch das detaillierte
+<A HREF="changelog.html#release_2_8_1">Änderungsprotokoll</A>.)
 </P>
 <P>
-Falls Sie eine ältere Version von nxtvepg ersetzen, sollten Sie
+Falls Sie nxtvepg unter MS Windows benutzen und eine ältere
+Version von nxtvepg ersetzen, sollten Sie
 eine Kopie Ihrer alten <KBD>nxtvepg.ini</KBD> Datei aufheben damit
 Sie zur alten Version zurückkehren können. (Denn ältere Versionen von
 nxtvepg können INI Dateien die von neueren Versionen modifiziert
@@ -100,22 +96,41 @@ verfügbar.
 </P>
 
 <DIV CLASS="box">
-<H2 class="navhead"><A NAME="download_unix">Source Distribution</A></H2>
+<H3><A NAME="download_unix">Source Distribution</A></H3>
 <UL>
-<LI><A HREF="http://prdownloads.sourceforge.net/nxtvepg/nxtvepg-2.8.0.tar.gz?download">nxtvepg-2.8.0.tar.gz</A>
-<LI><A HREF="http://prdownloads.sourceforge.net/nxtvepg/nxtvepg-2.7.7.tar.gz?download">nxtvepg-2.7.7.tar.gz</A>
+<LI><A HREF="http://prdownloads.sourceforge.net/nxtvepg/nxtvepg-2.8.1.tar.gz?download">nxtvepg-2.8.1.tar.gz</A>
 </UL>
 <P>
-Source Distribution für Linux, NetBSD und FreeBSD: entpacken
-Sie das Archiv, wechseln Sie in das angelegte Verzeichnis mit einer Shell und
-geben Sie die Kommandos "make" und "make install" ein.  Detailliertere Infos
+Dies sind die Quellen aus denen alle Binärdistributionen erzeugt werden können.
+Um für Linux, NetBSD oder FreeBSD zu compilieren, entpacken Sie das Archiv,
+wechseln Sie in das angelegte Verzeichnis mit einer Shell, editieren Sie die
+Eintellungen in Makefile bzw. Makefile.bsd falls nötig und geben Sie die
+Kommandos "make" und "make install" ein.  Detailliertere Instruktionen
 können Sie der README Datei entnehmen.  Die Windows Version kann natürlich
 auch aus den Sourcen compiliert werden; eine Anleitung dazu findet sich ebenso
 in der README Datei.
 </P><P>
-Aus dem source tarball läßt sich auch ein RPM package bauen mit dem
-Kommando: <KBD>rpm -ta nxtvepg-2.8.0.tar.gz</KBD>. Das erzeugte package
-kann dann wie üblich mit <KBD>rpm -i</KBD> installiert werden.
+Aus dem source tarball läßt sich auch ein RPM package (z.B. für SuSE) bauen
+mit dem Kommando: <KBD>rpm -ta nxtvepg-2.8.1.tar.gz</KBD>. Das erzeugte
+package kann dann wie üblich mit <KBD>rpm -i</KBD> installiert werden.
+</P>
+</DIV>
+
+<DIV CLASS="box">
+<H3><A NAME="download_unix">Binärdistributionen für Linux and BSD</A></H3>
+<P>
+Viele Linux Distributionen enthalten nxtvepg bereits. In diesem Fall können
+Sie nxtvepg einfach über die Softwarepaketverwaltung Ihres Systems installieren.
+Üblicherweise findet sich nxtvepg in der Multimedia-Sektion zusammen mit
+den TV-Applikationen.
+</P><P>
+Hier ist ein vorcompiliertes package des aktuellen releases für
+Debian (und kompatible Distributionen wie z.B. Ubuntu):
+</P>
+<UL>
+<LI><A HREF="http://prdownloads.sourceforge.net/nxtvepg/nxtvepg_2.8.1-2_i386.deb?download">nxtvepg_2.8.1-2_i386.deb</A>
+</UL>
+<P>
 Alternativ sind auch fertige packages verfügbar (jedoch nicht
 unbedingt immer die neueste Version):</P>
 <UL>
@@ -130,35 +145,24 @@ unbedingt immer die neueste Version):</P>
 <LI>Für FreeBSD von
     <A HREF="http://www.freebsd.org/cgi/cvsweb.cgi/ports/multimedia/nxtvepg/">freebsd.org</A>
 </UL>
+<P><SPAN CLASS="anno">Vielen Dank an Uwe Bugla für das Debian Paket.</SPAN></P>
 </DIV>
 
 <DIV CLASS="box">
-<H2 class="navhead"><A NAME="download_windows">Binärdistribution für M$ Windows</A></H2>
+<H3><A NAME="download_windows">Binärdistribution für M$ Windows</A></H3>
 <UL>
-<LI><A HREF="http://prdownloads.sourceforge.net/nxtvepg/nxtvepg-2.8.0-win.zip?download">nxtvepg-2.8.0-win.zip</A>
-<LI><A HREF="http://prdownloads.sourceforge.net/nxtvepg/nxtvepg-2.7.7-win.exe?download">nxtvepg-2.7.7-win.exe</A>
+<LI CLASS="spaced"><A HREF="http://prdownloads.sourceforge.net/nxtvepg/setup-nxtvepg-2.8.1.exe?download">setup-nxtvepg-2.8.1.exe</A>
+<LI CLASS="spaced">Falls Ihre TV-Karte nicht vom nxtvepg-internen <I>dsdrv4</I> Treiber 
+  unterstützt wird, können Sie eine separate
+  <A HREF="pre-releases.html#wdm_if_lib">WDM interface library</A>
+  herunterladen die es erlaubt den WDM Treiber des Kartenherstellers zu verwenden.
+<LI CLASS="spaced">Alternativ gibt es eine Version von release 2.8.1:
+  <A HREF="http://prdownloads.sourceforge.net/nxtvepg/nxtvepg-2.8.1-win-utf8.zip?download">nxtvepg-2.8.1-win-utf8.zip</A>
+  die intern UTF-8 Zeichenkodierung verwendet um XMLTV Dateien von
+  außerhalb Westeuropas verarbeiten zu können.
 </UL>
 <P>
-Falls Ihre TV-Karte nicht vom nxtvepg-internen <I>dsdrv4</I> Treiber 
-unterstützt wird, können Sie eine separate
-<A HREF="pre-releases.html#wdm_if_lib">WDM interface library</A>
-herunterladen die es erlaubt den WDM Treiber des Kartenherstellers zu verwenden.
-</P>
-<P>
-<B>Wichtig</B> für Benutzer von <A HREF="http://www.kastortv.org/">K!TV</A>:
-Um nxtvepg 2.8.0 zusammen mit K!TV zu verwenden müssen Sie unbedingt die
-<KBD>NextViewPlugin.dll</KBD> library aus dem 2.8.0 Release in das
-<KBD>Plugin</KBD> Unterverzeichnis Ihrer K!TV Installation kopieren.
-</P>
-<P>
-Zuguterletzt: Es gibt einer alternative Version von release 2.8.0:
-<A HREF="http://prdownloads.sourceforge.net/nxtvepg/nxtvepg-2.8.0-win-utf8.zip?download">nxtvepg-2.8.0-win-utf8.zip</A>.
-die intern UTF-8 die Zeichenkodierung verwendet mit XMLTV Dateien von
-außerhalb Westeuropas verarbeiten zu können.
-</P>
-<P>
-Ein Windows-Installer für Version 2.8.0 wird in wenigen Tagen vefügbar
-sein. Bis dahin können sie die Software mittels der ZIP Datei installieren:
+Falls Sie nxtvepg aus einer ZIP Datei installieren:
 Das nxtvepg ZIP Archiv muß lediglich in ein neues, leeres Verzeichnis entpackt
 werden, dann kann nxtvepg.exe direkt gestartet werden.
 </P><P>
@@ -170,17 +174,18 @@ Abschnitt <A HREF="man-de.html#getting_started">Getting Started</A>.
 </P><P>
 Für Entwickler: Demo zur Interaktion mit TV Applikationen
 (siehe auch <A HREF="tvsim-faq.html">FAQ</A>):
-<A HREF="http://prdownloads.sourceforge.net/nxtvepg/nxtvepg-2.8.0-tvsim.zip?download">nxtvepg-2.8.0-tvsim.zip</A>
+<A HREF="http://prdownloads.sourceforge.net/nxtvepg/nxtvepg-2.8.1-tvsim.zip?download">nxtvepg-2.8.1-tvsim.zip</A>
 (siehe auch <A HREF="tvsim.html">tvsim</A>,
 <A HREF="vbirec.html">vbirec</A> oder
 <A HREF="vbiplay.html">vbiplay</A> manuals, oder
 <A HREF="screenshot-tvsim.gif">tvsim &amp; nxtvepg</A> und
 <A HREF="screenshot-vbirec.gif">tvsim &amp; vbirec screenshot</A>)
 </P>
+<P><SPAN class="anno">Vielen Dank an Néo für das Windows Installationsprogramm.</SPAN></P>
 </DIV>
 
 <DIV CLASS="box">
-<H2 class="navhead"><A NAME="download_demodb">Demo Datenbank</A></H2>
+<H3><A NAME="download_demodb">Demo Datenbank</A></H3>
 <P>
 <A HREF="http://prdownloads.sourceforge.net/nxtvepg/nxdemodb.epg.gz">nxdemodb.epg.gz</A>
 </P><P>
@@ -225,14 +230,14 @@ werden.
 </P>
 
 <DIV CLASS="box">
-<H2 class="navhead">Linux Softwareanforderungen</H2>
+<H3>Linux Softwareanforderungen</H3>
 <UL>
 <LI><I>video4linux</I> Treiber mit <I>VBI</I>-Unterstützung für Ihre TV-Karte.
   Ab Kernel Version 2.6.x sind video4linux Treiber für die gängisten analogen
   TV-Karten standardmäßig im Linux Kernel enthalten. Einschränkungen:
   bttv Treiber in Kernel Versionen 2.6.16 oder neuer werden erst ab nxtvepg 2.7.7
   unterstützt.  bttv Treiber in Kernel Versionen 2.6.21 oder neuer funktionieren
-  erst ab nxtvepg 2.8.0.<BR>
+  erst ab nxtvepg 2.8.1.<BR>
   Ältere Kernel Versionen::
   <UL>
   <LI>Für TV-Karten mit Brooktree Bt848 oder Bt878 Capture-Chip: Kernel 2.0.35 oder
@@ -259,7 +264,7 @@ Bei alleiniger Verwendung des "nxtvepgd" Akquisitionsprozesses entfällt die Vora
 </DIV>
 
 <DIV CLASS="box">
-<H2 class="navhead">NetBSD Softwareanforderungen</H2>
+<H3>NetBSD Softwareanforderungen</H3>
 <UL>
 <LI>Kernel &gt;= 1.5 mit dem
 <A HREF="http://vulture.dmem.strath.ac.uk/bt848/">bktr Treiber</A> Version 2.17 oder neuer,
@@ -272,7 +277,7 @@ Bei alleiniger Verwendung des "nxtvepgd" Akquisitionsprozesses entfällt die Vora
 </DIV>
 
 <DIV CLASS="box">
-<H2 class="navhead">FreeBSD Softwareanforderungen</H2>
+<H3>FreeBSD Softwareanforderungen</H3>
 <UL>
 <LI><A href="http://www.FreeBSD.org/">FreeBSD</A> 4-STABLE ab dem 1. November
 2000 oder FreeBSD 5, d.h. ein System, das den bktr(4)-Treiber in der Version
@@ -296,7 +301,7 @@ weiterhelfen.
 </DIV>
 
 <DIV CLASS="box">
-<H2 class="navhead">Windows Softwareanforderungen</H2>
+<H3>Windows Softwareanforderungen</H3>
 <UL>
 <LI>nxtvepg benötigt keine zusätzliche Software, d.h. alle für den Decoder
 benötigte Software ist in der Distribution enthalten.

@@ -18,7 +18,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: dlg_netsel.tcl,v 1.13 2007/12/29 21:03:39 tom Exp tom $
+#  $Id: dlg_netsel.tcl,v 1.15 2008/02/03 19:19:47 tom Exp tom $
 #
 set netsel_popup 0
 
@@ -28,7 +28,7 @@ set netsel_popup 0
 ## - generates mapping tables between AI order and user config order
 ##
 proc UpdateProvCniTable {prov} {
-   global netwop_ai2sel netwop_sel2ai netselmenu
+   global netwop_ai2sel netwop_sel2ai
 
    # fetch CNI list from AI block in database
    set ailist [C_GetAiNetwopList 0 {}]
@@ -39,7 +39,6 @@ proc UpdateProvCniTable {prov} {
    set suplist [lindex $net_cf 1]
    if {([llength $selist] == 0) && ([llength $suplist] == 0)} {
       set selist $ailist
-      set suplist {}
    }
 
    set netwop_ai2sel {}
@@ -47,6 +46,9 @@ proc UpdateProvCniTable {prov} {
    set index 0
    foreach cni $ailist {
       set order($cni) $index
+      if {$prov == 0xFF} {
+         set order([C_NormalizeCni $cni]) $index
+      }
       incr index
    }
 
@@ -85,6 +87,24 @@ proc RemoveObsoleteCnisFromList {alist ref_list} {
    }
 }
 
+##  --------------------------------------------------------------------------
+##  Normalize a list of CNIs
+##
+proc NormalizeCnis {cnis} {
+   set result {}
+   foreach cni $cnis {
+      if {![info exists h($cni)]} {
+         set norm [C_NormalizeCni $cni]
+         if {![info exists h($norm)]} {
+            set h($cni) 1
+            set h($norm) 1
+            lappend result $cni
+         }
+      }
+   }
+   return $result
+}
+
 
 #=LOAD=PopupNetwopSelection
 #=LOAD=SelBoxCreate
@@ -111,6 +131,12 @@ proc PopupNetwopSelection {} {
          # as a side effect this function stores all netwop names into the array netsel_names
          set netsel_ailist [C_GetAiNetwopList 0 netsel_names allmerged]
 
+         # remove duplicate networks from merged database
+         # (i.e. networks which have different CNIs, but are considered equal anyway)
+         if {$netsel_prov == 0x00FF} {
+            set netsel_ailist [NormalizeCnis $netsel_ailist]
+         }
+
          # initialize list of user-selected CNIs
          set tmpl [C_GetProvCniConfig $netsel_prov]
          if {([llength [lindex $tmpl 0]] == 0) && ([llength [lindex $tmpl 1]] == 0)} {
@@ -127,23 +153,18 @@ proc PopupNetwopSelection {} {
 
          frame .netsel.lb
          SelBoxCreate .netsel.lb netsel_ailist netsel_selist netsel_names
-
-         button .netsel.lb.cmd.help -text "Help" -width 7 -command {PopupHelp $helpIndex(Configuration) "Select networks"}
-         button .netsel.lb.cmd.abort -text "Abort" -width 7 -command {destroy .netsel}
-         button .netsel.lb.cmd.ok -text "Ok" -width 7 -command {SaveSelectedNetwopList}
-         pack  .netsel.lb.cmd.help .netsel.lb.cmd.abort .netsel.lb.cmd.ok -side bottom -anchor sw
          pack  .netsel.lb -side top -fill both -expand 1
 
          global netsel_off_name
          global cfnettimes netsel_times netsel_start netsel_stop netsel_cni
          global font_fixed
-         frame .netsel.bottom -borderwidth 2 -relief groove
+         labelframe .netsel.bottom -text "Network identification"
          label .netsel.bottom.lab_offi -text "Official name:"
-         grid  .netsel.bottom.lab_offi -row 0 -column 0 -sticky w
+         grid  .netsel.bottom.lab_offi -row 0 -column 0 -sticky w -padx 5
          entry .netsel.bottom.ent_offi -relief flat -textvariable netsel_off_name -state disabled $entry_disabledforeground black
          grid  .netsel.bottom.ent_offi -row 0 -column 1 -sticky we -padx 1 -pady 1
          label .netsel.bottom.lab_time -text "Air times:"
-         grid  .netsel.bottom.lab_time -row 1 -column 0 -sticky w
+         grid  .netsel.bottom.lab_time -row 1 -column 0 -sticky w -padx 5
          frame .netsel.bottom.frm_time
          label .netsel.bottom.frm_time.lab_start -text "from"
          entry .netsel.bottom.frm_time.ent_start -textvariable netsel_start -font $font_fixed -width 5
@@ -151,10 +172,19 @@ proc PopupNetwopSelection {} {
          label .netsel.bottom.frm_time.lab_stop  -text "until"
          entry .netsel.bottom.frm_time.ent_stop  -textvariable netsel_stop -font $font_fixed -width 5
          bind  .netsel.bottom.frm_time.ent_stop  <Enter> {SelectTextOnFocus %W}
-         pack  .netsel.bottom.frm_time.lab_start .netsel.bottom.frm_time.ent_start .netsel.bottom.frm_time.lab_stop .netsel.bottom.frm_time.ent_stop -side left -padx 5 -anchor w
-         grid  .netsel.bottom.frm_time -row 1 -column 1 -sticky we
+         pack  .netsel.bottom.frm_time.lab_start .netsel.bottom.frm_time.ent_start \
+                                                 .netsel.bottom.frm_time.lab_stop \
+                                                 .netsel.bottom.frm_time.ent_stop -side left -padx 5 -anchor w
+         grid  .netsel.bottom.frm_time -row 1 -column 1 -sticky we -pady 2
          grid  columnconfigure .netsel.bottom 1 -weight 1
-         pack  .netsel.bottom -side top -padx 10 -pady 10 -fill x
+         pack  .netsel.bottom -side top -padx 10 -pady 5 -fill x
+
+         frame  .netsel.cmd
+         button .netsel.cmd.help -text "Help" -width 7 -command {PopupHelp $helpIndex(Configuration) "Select networks"}
+         button .netsel.cmd.abort -text "Abort" -width 7 -command {destroy .netsel}
+         button .netsel.cmd.ok -text "Ok" -width 7 -command {SaveSelectedNetwopList} -default active
+         pack  .netsel.cmd.help .netsel.cmd.abort .netsel.cmd.ok -side left -padx 10
+         pack  .netsel.cmd -side top -pady 10
 
          bind  .netsel.lb.ai.ailist <<ListboxSelect>> [list + after idle [list NetselUpdateCni orig]]
          bind  .netsel.lb.sel.selist <<ListboxSelect>> [list + after idle [list NetselUpdateCni sel]]
@@ -165,7 +195,10 @@ proc PopupNetwopSelection {} {
 
          bind .netsel <Key-F1> {PopupHelp $helpIndex(Configuration) "Select networks"}
          bind .netsel <Alt-KeyPress> [bind Menubutton <Alt-KeyPress>]
-         bind .netsel.lb.cmd <Destroy> {+ set netsel_popup 0}
+         bind .netsel.cmd <Destroy> {+ set netsel_popup 0}
+         bind .netsel.cmd.ok <Return> {tkButtonInvoke .netsel.cmd.ok}
+         bind .netsel.cmd.ok <Escape> {tkButtonInvoke .netsel.cmd.ok}
+         focus .netsel.cmd.ok
 
          wm resizable .netsel 1 1
          update
@@ -298,8 +331,8 @@ proc SelBoxCreate {lbox arr_ailist arr_selist arr_names} {
    # determine listbox height and check if scrollbar is required
    set lbox_height [llength $ailist]
    set do_scrollbar 0
-   if {$lbox_height > 27} {
-      set lbox_height 25
+   if {$lbox_height > 20} {
+      set lbox_height 15
       set do_scrollbar 1
    }
 
@@ -430,6 +463,9 @@ proc SelBoxShiftDownItem {lbox arr_selist arr_names} {
 
 # called after button press in left or right listbox
 proc SelBoxButtonPress {lbox which} {
+   if {[llength [info commands $lbox]] == 0} {
+      return
+   }
    # clear the selection in the opposite listbox
    if {[string compare $which "orig"] == 0} {
       $lbox.sel.selist selection clear 0 end

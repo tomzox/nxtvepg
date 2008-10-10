@@ -1,6 +1,6 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/HTMLlat1.ent">
 <HTML lang="en">
-<!-- $Id: pre-releases.html,v 1.86 2008/01/06 20:32:58 tom Exp $ -->
+<!-- $Id: pre-releases.html,v 1.89 2008/10/10 20:11:33 tom Exp $ -->
 <HEAD>
 <TITLE>Developers and alpha testers download page</TITLE>
 <META http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
@@ -85,17 +85,18 @@ Please do not redistribute.
 <UL>
 <LI><A HREF="#pre_rel_nxtvepg">nxtvepg development snapshots</A>
 <LI><A HREF="#wdm_if_lib">WDM interface library</A>
-<LI><A HREF="#ttx_grabber">Teletext grabber</A>
+<LI><A HREF="#ttx_grabber">Teletext EPG grabber</A>
 </UL>
 
 <!-- ------------------------------------------------------------------------ -->
 
-<H2><A NAME="pre_rel_nxtvepg">nxtvepg core package</A></H2>
+<H2><A NAME="pre_rel_nxtvepg">nxtvepg 2.8.1 development line</A></H2>
 <P>
 The following packages contain a snapshot of the ongoing development on nxtvepg.
-Please refer to the changelog below or the
+Please refer to the <A HREF="changelog-2.8.0pre.html">changelog</A> or the
 <A HREF="http://sourceforge.net/forum/forum.php?forum_id=217872">discussion forum</A>
 for background information.
+</P>
 <!--
 a release candidate (beta #1) of the upcoming release.
 Please refer to the
@@ -106,25 +107,23 @@ for a history of changes.
 <!--
 For a list of bug fixes (and a few new features) see the
 <A HREF="http://nxtvepg.sourceforge.net/changelog.html">changelog</A>.
-</P><P>
--->
 </P>
+-->
 
-<H3>2.8.0 development line</H3>
-
+<!--
 <P>
 The latest release is 2.8.0,
 available on the regular <A HREF="download.html">download</A> page.
 </P>
+-->
 
 <!--
+<P>
 <B>Warning:</B> There's a change in the format of user-defined columns
 in the rc/ini file.  Once you start 2.4.1 your configuration will automatically
 be converted.  Make a copy of your old rc/ini file before you first start 2.4.1
 to be able to switch back to 2.4.0 in case you find any severe bugs in 2.4.1
--->
-
-<!--
+</P>
 <P>
 Note the format of rc/ini file has changed several times during pre-releases,
 the last time in <B>2.8.0pre17</B>.  The file will be automatically upgraded upon
@@ -133,40 +132,40 @@ Remember to make a backup copy, so that you can still return to older versions.
 Also note that the protocol in-between the nxtvepg client and daemon has
 changed multiple times, hence use the same version of nxtvepg both on client
 and server side.
-
-The acquisition daemon protocol has also changed,
-hence you cannot connect with a 2.7.4pre0 client to 2.7.3 or older daemons, or vice versa.
-</P>
 -->
 
-<!--
 <P>
-<B>nxtvepg release 2.8.0pre18 (September 9th 2007)</B>
+Note the acquisition daemon protocol has changed in 2.8.1 pre1 and pre2.
+Hence you cannot connect with an older client version to the current
+daemon version, or vice versa.
 </P>
+
+<H3>nxtvepg pre-release 2.8.1pre3 (September 21st 2008)</H3>
+<P>
 Details on changes in this and older releases is available in the
-<A HREF="changelog-2.8.0pre.html">2.8.0 pre-release changelog</A>.
--->
+<A HREF="changelog-2.8.0pre.html">2.8.x pre-release changelog</A>.
+</P>
 <UL>
-<LI><I>no pre-releases are currently available</I>
 <!--
-<LI>Sources:
-    <A HREF="http://nxtvepg.sourceforge.net/tmp/nxtvepg-2.8.0pre18.tar.gz">nxtvepg-2.8.0pre18.tar.gz</A> (apx 1.7 MB)
+<LI><I>no pre-releases are currently available</I>
 -->
+<LI>Sources:
+    <A HREF="http://nxtvepg.sourceforge.net/tmp/nxtvepg-2.8.1pre3.tar.gz">nxtvepg-2.8.1pre3.tar.gz</A> (apx 1.7 MB)
 <!--
 <BR>Note: if you want to test nxtvepg with
 <A HREF="http://nxtvepg.sourceforge.net/tmp/README-proxy.txt">VBI proxy</A>
-(allows multiple simultanuous VBI device users) then enable -DUSE_LIBZVBI in the
-nxtvepg Makefile and get libzvbi from CVS at
-<A HREF="http://zapping.sourceforge.net">zapping.sourceforge.net</A>.
-<B>Important</B>: proxy support is no longer on the main branch. You have to
-select branch "proxy" during checkout.
+(allows multiple simultanuous VBI device users) then enable
+<KBD>-DUSE_LIBZVBI</KBD> in the nxtvepg Makefile and get libzvbi from
+<A HREF="http://zapping.sourceforge.net/">zapping.sourceforge.net</A>.
 -->
-<!--
 <LI>Win32 executable:
-    <A HREF="http://nxtvepg.sourceforge.net/tmp/nxtvepg-2.8.0pre18-win.zip">nxtvepg-2.8.0pre18-win.zip</A> (ca. 1.8 MB)
+    <A HREF="http://nxtvepg.sourceforge.net/tmp/nxtvepg-2.8.1pre3-win.zip">nxtvepg-2.8.1pre3-win.zip</A> (ca. 1.0 MB)
+<BR>(Does not contain the Tcl/Tk libraries tcl85.dll and tk85.dll;
+   please copy these from the last official release.)
 
+<!--
 <LI>Win32 executable with UTF-8 support:
-    <A HREF="http://nxtvepg.sourceforge.net/tmp/nxtvepg-2.8.0pre18-win-utf8.zip">nxtvepg-2.8.0pre18-win-utf8.zip</A> (ca. 1.8 MB)
+    <A HREF="http://nxtvepg.sourceforge.net/tmp/nxtvepg-2.8.1pre3-win-utf8.zip">nxtvepg-2.8.1pre3-win-utf8.zip</A> (ca. 1.8 MB)
     <BR>Note this version is for users which want to import XMLTV documents which
     are encoded in UTF-8 (and cannot be converted to Latin-1 without losses.)
     UTF-8 support is not complete yet. Note you can use UTF-8 support on UNIX
@@ -177,30 +176,17 @@ select branch "proxy" during checkout.
     <BR>Tcl/Tk 8.4.9 DLL: <A HREF="http://nxtvepg.sourceforge.net/tmp/nxtvepg-2.8.0pre5-tcltk.zip">nxtvepg-2.8.0pre5-tcltk.zip</A> (apx. 750 kB)
     <BR>Just unpack this zip file in the directory which holds nxtvepg.exe
 -->
-<!--
-<BR>(Does not contain the Tcl/Tk libraries; please copy them from the last official release.)
--->
-<!--
-<LI>K!TV nexTView plugin:
-    <A HREF="http://nxtvepg.sourceforge.net/tmp/NextViewPlugin-2.8.0pre18.zip">NextViewPlugin-2.8.0pre18.zip</A> (apx. 330 kB)
-    <BR>Note an update of the plugin is required starting with nxtvepg 2.8.0pre13.
-    (This is not the final version of the TV app. interface, so please don't forward
-    to the K!TV authors yet.)
-
 <LI>To enable use of vendor supplied WDM drivers you need an additional DLL which
     was developed separately by Gérard Chevalier.  Download from below.
--->
 <!--
 <BR><B>Attention:</B> Please note that Win32 TV card configuration parameters
 and driver version have changed in pre7.
 See the above link to the mailing list archive for details.
 -->
-<!--
 <LI>Win32 TV simulator:
-    <A HREF="http://nxtvepg.sourceforge.net/tmp/nxtvepg-2.8.0pre18-tvsim.zip">nxtvepg-2.8.0pre18-tvsim.zip</A><BR>
+    <A HREF="http://nxtvepg.sourceforge.net/tmp/nxtvepg-2.8.1pre3-tvsim.zip">nxtvepg-2.8.1pre3-tvsim.zip</A><BR>
 Please try to reproduce any problems related to interaction with K!TV with tvsim.exe
 before you report them.
--->
 </UL>
 
 <P>
@@ -310,42 +296,18 @@ If you have questions or want to provide feedback, please use the
 <H2><A NAME="ttx_grabber">Teletext EPG grabber</A></H2>
 <P>
 Currently a new grabber is under development which allows to
-extract programme listings from
-teletext pages.  The intention is firstly to compensate for the
-loss of two German Nextview providers and secondly to add more
-and longer descriptions to the EPG.  In teletext, many networks
-have good descriptions not only for movies, but esp. also for
+extract programme listings from teletext pages.  The intention is
+firstly to compensate for the loss of two German Nextview EPG
+providers (3sat and RTL2) and secondly to add more description
+texts to the EPG.  In teletext, many networks
+have good descriptions not only for movies, but especially also for
 weekly magazines, daily soaps or current events.  The output
 of the teletext grabber can be merged with Nextview EPG data
 with the help of XMLTV import.
 </P>
-<H3>Download latest release: November 13th 2006</H3>
-<UL>
-<LI>Teletext grabber:
-    <A HREF="http://nxtvepg.sourceforge.net/tmp/tv_grab_ttx-0.7.tar.gz">tv_grab_ttx-0.7.tar.gz</A> (apx. 25 kB)
-<LI>Perl module Video::Capture::zvbi
-    <A HREF="http://nxtvepg.sourceforge.net/tmp/Video-Capture-zvbi-0.1.tar.gz">Video-Capture-zvbi-0.1.tar.gz</A> (apx. 25 kB)
-</UL>
+<H3>Download latest release: October 9th 2008</H3>
 <P>
-The following is a usage example: First the channel is switched to network
-ARD using xawtv's tool v4lctl. Then VBI data is captured for 1.5 minutes
-into a temporary file.  After that EPG data is extracted from the captured
-teletext data into an XMLTV file.  Steps 1-3 can be repeated for several
-networks. Finally the XMLTV files are merged into a single file, which
-can be imported into nxtvepg. See also <KBD>capall.pl</KBD>
-</P>
-<PRE>
-  v4lctl -c /dev/vbi0 setstation ARD
-  perl cap.pl -dev /dev/vbi0 -duration 90 &gt; ARD.ttx
-  perl ttxacq.pl -page 301-309 ARD.ttx &gt; ARD.xml
-  perl merge.pl *.xml &gt; ~/all.xml
-</PRE>
-<P>
-For additional options see sub ParseArgv in either script. As you
-can see VBI capturing is currently done via
-<A HREF="http://zapping.sourceforge.net/doc/libzvbi/index.html">libzvbi</A>,
-so <B>only Linux is supported</B>.  MS-Windows is only supported when
-using the grabber via nxtvepg (see configuration dialog "Teletext grabber")
+Please refer to the <A HREF="ttx_grab.html">Teletext EPG grabber</A> page.
 </P>
 
 <!-- ------------------------------------------------------------------------ -->

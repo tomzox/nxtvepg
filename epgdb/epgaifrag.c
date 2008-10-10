@@ -30,7 +30,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgaifrag.c,v 1.2 2006/07/29 15:43:15 tom Exp tom $
+ *  $Id: epgaifrag.c,v 1.3 2008/02/03 15:33:40 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_STREAM
@@ -60,6 +60,7 @@ typedef struct
 {
    uchar        ctrlData[1024*2];       // buffer for control data, Hamming-84 encoded
    uchar        textData[2048];         // buffer for text data, parity encoded
+   uchar        recvData[2048/8];       // bit array to mark received bytes
    bool         haveBlock;              // TRUE if ctrlData contains a (partial) block
    bool         activeBlock;            // TRUE if reception of new AI block is ongoing
    bool         completeBlock;          // TRUE if checksum is OK
@@ -81,7 +82,82 @@ typedef struct
 static EPG_AI_FRAG_STATE aifrag;
 
 // ----------------------------------------------------------------------------
-// Check if a complete AI block has been received
+// Mark range covered by incoming data as received
+//
+static void EpgAiFrag_MarkReceived( uint lineOff, uint pkgLen )
+{
+   uint idx;
+   uint off;
+
+   off = lineOff / 8;
+   if ((lineOff & 7) && (off < sizeof(aifrag.recvData)))
+   {
+      for (idx = (lineOff & 7); (idx < 8) && (pkgLen > 0); idx++)
+      {
+         aifrag.recvData[off] |= 1 << idx;
+         pkgLen -= 1;
+      }
+      off++;
+   }
+
+   for ( ; (pkgLen > 8) && (off < sizeof(aifrag.recvData)); pkgLen -= 8)
+   {
+      aifrag.recvData[off++] = 0xff;
+   }
+
+   if ((pkgLen > 0) && (off < sizeof(aifrag.recvData)))
+   {
+      for (idx = 0; idx < pkgLen; idx++)
+      {
+         aifrag.recvData[off] |= 1 << idx;
+      }
+   }
+}
+
+// ----------------------------------------------------------------------------
+// Check if all packets have been received
+//
+static bool EpgAiFrag_CheckReceived( void )
+{
+   uint off;
+   uint idx;
+   bool result;
+
+   off = 28/8;
+   result = (aifrag.recvData[off++] == 0xF0);
+   if (result == FALSE)
+      dprintf0("AiFrag: reception gap at start\n");
+
+   if (result)
+   {
+      for ( ; off < (aifrag.blockLen / 8); off++)
+      {
+         if (aifrag.recvData[off] != 0xFF)
+         {
+            dprintf2("AiFrag: reception gap around offset %d (block len %d)\n", off*8, aifrag.blockLen);
+            result = FALSE;
+            break;
+         }
+      }
+   }
+
+   if (result)
+   {
+      for (idx = 0; idx < (aifrag.blockLen & 8); off++)
+      {
+         if ((aifrag.recvData[off] & (1 << idx)) == 0)
+         {
+            dprintf1("AiFrag: reception gap at block end (block len %d)\n", aifrag.blockLen);
+            result = FALSE;
+            break;
+         }
+      }
+   }
+   return result;
+}
+
+// ----------------------------------------------------------------------------
+// Check if a complete AI block has been received and control data is correct
 //
 static void EpgAiFrag_CheckBlock( void )
 {
@@ -92,45 +168,50 @@ static void EpgAiFrag_CheckBlock( void )
    schar c1;
    bool  result;
 
-   chkSumBuf[0] = aifrag.ctrlData[4];
-   chkSumBuf[1] = aifrag.ctrlData[5];
-   aifrag.ctrlData[4] = 5;  // checkSum does not include itself
-   aifrag.ctrlData[5] = 5;  // 5 is ham84(0)
-
-   pdat = aifrag.ctrlData;
-   chkSum = 0;
-   result = TRUE;
-
-   // decode hamming-84 and sum up all decoded values
-   for (idx = 0; idx < aifrag.ctrlLen * 2; idx++)
-   {
-      if (UnHam84Nibble(pdat, &c1))
-      {
-         chkSum += c1;
-         pdat += 1;
-      }
-      else
-      {  // Hamming decoding error -> abort
-         result = FALSE;
-         break;
-      }
-   }
+   // first check if all packets were received (esp. text data)
+   result = EpgAiFrag_CheckReceived();
    if (result)
    {
-      chkSum = (0x100 - (chkSum & 0xff)) & 0xff;
+      chkSumBuf[0] = aifrag.ctrlData[4];
+      chkSumBuf[1] = aifrag.ctrlData[5];
+      aifrag.ctrlData[4] = 5;  // checkSum does not include itself
+      aifrag.ctrlData[5] = 5;  // 5 is ham84(0)
 
-      if (chkSum == aifrag.chkSum)
+      pdat = aifrag.ctrlData;
+      chkSum = 0;
+
+      // decode hamming-84 and sum up all decoded values
+      for (idx = 0; idx < aifrag.ctrlLen * 2; idx++)
       {
-         aifrag.ctrlData[4] = chkSumBuf[0];
-         aifrag.ctrlData[5] = chkSumBuf[1];
+         if (UnHam84Nibble(pdat, &c1))
+         {
+            chkSum += c1;
+            pdat += 1;
+         }
+         else
+         {  // Hamming decoding error -> abort
+            result = FALSE;
+            break;
+         }
+      }
+      if (result)
+      {
+         chkSum = (0x100 - (chkSum & 0xff)) & 0xff;
 
-         aifrag.completeBlock = TRUE;
+         if (chkSum == aifrag.chkSum)
+         {
+            aifrag.ctrlData[4] = chkSumBuf[0];
+            aifrag.ctrlData[5] = chkSumBuf[1];
+
+            aifrag.completeBlock = TRUE;
+            dprintf5("AiFrag: block complete blen=%d sum=%d ctlen=%d v1=%d v2=%d\n", aifrag.blockLen, aifrag.chkSum, aifrag.ctrlLen, aifrag.vers_1, aifrag.vers_2);
+         }
+         else
+            dprintf2("AiFrag: checksum error: 0x%02X expect:0x%02X\n", chkSum, aifrag.chkSum);
       }
       else
-         dprintf2("AiFrag: checksum error: 0x%02X expect:0x%02X\n", chkSum, aifrag.chkSum);
+         dprintf0("AiFrag: hamming decoding error (block may be incomplete)\n");
    }
-   else
-      dprintf0("AiFrag: hamming decoding error (block may be incomplete)\n");
 }
 
 // ----------------------------------------------------------------------------
@@ -168,7 +249,8 @@ static void EpgAiFrag_DecodeHeader( void )
                  (vers_1 != aifrag.vers_1) ||
                  (vers_2 != aifrag.vers_2) )
             {
-               dprintf2("AiFrag: AI block version change ver=%d->%d\n", aifrag.vers_1, vers_1);
+               dprintf5("AiFrag: AI block version change: old blen=%d sum=%d ctlen=%d v1=%d v2=%d\n", aifrag.blockLen, aifrag.chkSum, aifrag.ctrlLen, aifrag.vers_1, aifrag.vers_2);
+               dprintf5("AiFrag:                          new blen=%d sum=%d ctlen=%d v1=%d v2=%d\n", blockLen, chkSum, ctrlLen, vers_1, vers_2);
 
                // not identical: discard the old fragment on the buffer
                // XXX note this decision may be wrong in case of undetected decoding errors
@@ -184,6 +266,7 @@ static void EpgAiFrag_DecodeHeader( void )
             // first fragment: initialize the fragment buffer
             memset(aifrag.ctrlData, INVALID_HAMMING_84_CODE, sizeof(aifrag.ctrlData));
             memset(aifrag.textData, INVALID_PARITY_CODE, sizeof(aifrag.textData));
+            memset(aifrag.recvData, 0, sizeof(aifrag.recvData));
 
             memcpy(aifrag.ctrlData, headCopy, sizeof(aifrag.newHead));
             aifrag.blockLen = blockLen;
@@ -221,6 +304,8 @@ static uint EpgAiFrag_AddControlData( const char * pData, uint pkgLen )
 
       if (pkgLen > restLen)
          pkgLen = restLen;
+
+      EpgAiFrag_MarkReceived(aifrag.dataOff, pkgLen);
 
       dprintf2("AiFrag: off=%d add %d bytes to CTRL\n", aifrag.dataOff, pkgLen);
 
@@ -260,6 +345,8 @@ static uint EpgAiFrag_AddTextData( const char * pData, uint pkgLen )
 
       if (pkgLen > restLen)
          pkgLen = restLen;
+
+      EpgAiFrag_MarkReceived(aifrag.dataOff, pkgLen);
 
       dprintf2("AiFrag: off=%d add %d bytes to TEXT\n", aifrag.dataOff, pkgLen);
 
@@ -466,10 +553,10 @@ void EpgAiFragmentsRestart( void )
 // Retrieve a decoded block
 // - the block is assembled from data in the control and text buffers, if the
 //   checksum was successfully verified before; else NULL is returned
-// - a separate buffer is used to avoid overwriting the data during Hammind and
+// - a separate buffer is used to avoid overwriting the data during Hamming and
 //   parity decoding, esp. to allow continuous reception of text data which is
 //   only parity protected
-// - the caller must free the allocated buffer
+// - the caller must release the returned buffer using xfree()
 //
 const uchar * EpgAiFragmentsAssemble( uint * pBlockLen, uint * pParityErrCnt )
 {

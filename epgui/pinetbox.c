@@ -19,7 +19,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: pinetbox.c,v 1.45 2007/12/29 17:00:42 tom Exp tom $
+ *  $Id: pinetbox.c,v 1.46 2008/01/21 22:46:08 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -999,6 +999,7 @@ static void PiNetBox_ShowCursor( void )
          NETBOX_COL     * pCol;
          NETBOX_ELEM    * pElem;
          time_t cur_time;
+         time_t start_time;
          sint   elemIdx;
          uchar  start_str[40];
          uchar  stop_str[40];
@@ -1034,12 +1035,18 @@ static void PiNetBox_ShowCursor( void )
             if ((pPrevPi != NULL) || (pNextPi != NULL))
             {
                if (pPrevPi != NULL)
-                  strftime(start_str, sizeof(start_str), "Prev: %a %H:%M", localtime(&pPrevPi->start_time));
+               {
+                  start_time = pPrevPi->start_time;
+                  strftime(start_str, sizeof(start_str), "Prev: %a %H:%M", localtime(&start_time));
+               }
                else
                   sprintf(start_str, "Prev: none");
 
                if (pNextPi != NULL)
-                  strftime(stop_str, sizeof(stop_str), "Next: %a %H:%M", localtime(&pNextPi->start_time));
+               {
+                  start_time = pNextPi->start_time;
+                  strftime(stop_str, sizeof(stop_str), "Next: %a %H:%M", localtime(&start_time));
+               }
                else
                   sprintf(stop_str, "Next: none");
 

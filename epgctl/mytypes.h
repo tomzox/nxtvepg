@@ -19,7 +19,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: mytypes.h,v 1.22 2005/06/04 20:10:56 tom Exp tom $
+ *  $Id: mytypes.h,v 1.23 2008/01/21 22:50:31 tom Exp tom $
  */
 
 #ifndef __MYTYPES_H
@@ -59,6 +59,13 @@ typedef unsigned int   uint;     // >=32 bit unsigned
 typedef unsigned long  ulong;    // >=32 bit unsigned
 #endif
 typedef   signed long  slong;    // >=32 bit signed
+
+#if defined (USE_32BIT_COMPAT)
+// binary compatibility between 32- and 64-bit systems for database and daemon protocol
+typedef uint32_t       time32_t;
+#else
+typedef time_t         time32_t;
+#endif
 
 // boolean values
 #define FALSE 0

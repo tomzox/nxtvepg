@@ -23,7 +23,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: tvsim_gui.tcl,v 1.16 2007/12/31 17:14:12 tom Exp tom $
+#  $Id: tvsim_gui.tcl,v 1.17 2008/09/14 19:23:22 tom Exp tom $
 #
 #=CONST= ::pit_netwop_name 0
 #=CONST= ::pit_netwop_idx 1
@@ -386,7 +386,7 @@ proc DisplayPiDescription {pi_list} {
             }
             set first_line 0
 
-            set start [clock scan "[lindex $tmpl $::pit_Dstart] [lindex $tmpl $::pit_Hstart]"]
+            set start [C_ClockScanIso [lindex $tmpl $::pit_Dstart] [lindex $tmpl $::pit_Hstart]]
             regexp {\d+:\d+} [lindex $tmpl $::pit_Hstop] stop
             regsub -all { //%// } [lindex $tmpl $::pit_descr] "\n\n" tmps
             regsub -all { // } $tmps "\n" pi_desc
@@ -396,7 +396,7 @@ proc DisplayPiDescription {pi_list} {
                .epgi.pi.desc insert end "[C_GetPdcString [lindex $tmpl $::pit_theme_0]]\n" features
             }
             .epgi.pi.desc insert end "[lindex $tmpl $::pit_netwop_name], " bold
-            .epgi.pi.desc insert end "[clock format $start -format {%a %d.%m., %H:%M}] - " bold
+            .epgi.pi.desc insert end "[C_ClockFormat $start {%a %d.%m., %H:%M}] - " bold
             .epgi.pi.desc insert end "$stop: " bold
             .epgi.pi.desc insert end $pi_desc paragraph
          }

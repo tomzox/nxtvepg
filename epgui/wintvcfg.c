@@ -29,7 +29,7 @@
  *    so their respective copyright applies too. Please see the notes in
  *    functions headers below.
  *
- *  $Id: wintvcfg.c,v 1.28 2007/01/21 14:29:19 tom Exp tom $
+ *  $Id: wintvcfg.c,v 1.29 2008/01/12 18:45:01 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -416,7 +416,13 @@ static void WintvCfg_ChanTabItemClose( TV_CHNTAB_BUF * pChanTab )
          pChanTab->itemCount += 1;
       }
       else
-         dprintf1("WintvCfg-ChanTabItemClose: skip item #%d: no freq or name\n", pChanTab->itemCount);
+      {
+         dprintf3("WintvCfg-ChanTabItemClose: skip item #%d: no freq (%d) or name (%d)\n", pChanTab->itemCount, pChanTab->pData[pChanTab->itemCount].freq, pChanTab->pData[pChanTab->itemCount].strOff);
+         if (pChanTab->pData[pChanTab->itemCount].strOff != CHNTAB_MISSING_NAME)
+         {
+            pChanTab->strBufOff = pChanTab->pData[pChanTab->itemCount].strOff;
+         }
+      }
    }
 }
 

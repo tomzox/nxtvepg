@@ -31,7 +31,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgctxctl.c,v 1.29 2007/12/31 22:14:02 tom Exp tom $
+ *  $Id: epgctxctl.c,v 1.31 2008/10/03 20:20:03 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGCTL
@@ -401,7 +401,9 @@ EPGDB_CONTEXT * EpgContextCtl_Peek( uint cni, int failMsgMode )
          isNew = TRUE;
       }
       else
-         isNew = FALSE;
+      {  // already in cache -> report errors only if never opened yet
+         isNew = (pContext->state == CTX_CACHE_STAT);
+      }
 
       if ( (pContext->state == CTX_CACHE_OPEN) ||
            (pContext->state == CTX_CACHE_PEEK) )
@@ -1191,15 +1193,18 @@ uint EpgContextCtl_GetFreqList( uint ** ppProvList, uint ** ppFreqList )
 //
 uint EpgContextCtl_Remove( uint cni )
 {
+   CTX_CACHE * pPrev;
    CTX_CACHE * pContext;
    uint result = 0;
 
    // search for the context in the cache
    pContext = pContextCache;
+   pPrev = NULL;
    while (pContext != NULL)
    {
       if (pContext->provCni == cni)
          break;
+      pPrev = pContext;
       pContext = pContext->pNext;
    }
 
@@ -1214,8 +1219,13 @@ uint EpgContextCtl_Remove( uint cni )
             pContext->pDbContext = NULL;
          }
 
-         pContext->state     = CTX_CACHE_ERROR;
-         pContext->reloadErr = EPGDB_RELOAD_EXIST;
+         // unlink the context from the cache and free it
+         if (pPrev != NULL)
+            pPrev->pNext = pContext->pNext;
+         else
+            pContextCache = pContext->pNext;
+
+         xfree(pContext);
 
          result = EpgDbRemoveDatabaseFile(cni);
       }
@@ -1246,10 +1256,15 @@ static void EpgContextCtl_DirScanCb( uint cni, const char * pPath, sint mtime )
    if (pContext != NULL)
    {  // this file is already known
       if ( (pContext->state == CTX_CACHE_ERROR) &&
+           (pContext->mtime != mtime) &&
            (IS_XMLTV_CNI(cni) || EpgDbDumpCheckFileHeader(pPath)) )
       {  // previous syntax error may be gone -> upgrade context status
          dprintf1("EpgContextCtl-DirScanCb: prov 0x%04X from ERROR to STAT\n", pContext->provCni);
          pContext->state = CTX_CACHE_STAT;
+      }
+      else
+      {
+         dprintf2("EpgContextCtl-DirScanCb: prov 0x%04X already in state %s\n", pContext->provCni, CtxCacheStateStr(pContext->state));
       }
    }
    else
@@ -1264,7 +1279,7 @@ static void EpgContextCtl_DirScanCb( uint cni, const char * pPath, sint mtime )
 //
 void EpgContextCtl_ScanDbDir( bool nxtvOnly )
 {
-   dprintf0("EpgContextCtl-ScanDbDir\n");
+   dprintf1("EpgContextCtl-ScanDbDir: nxtvOnly=%d\n", nxtvOnly);
    contextScanDone = TRUE;
 
    EpgDbReloadScan(&EpgContextCtl_DirScanCb);

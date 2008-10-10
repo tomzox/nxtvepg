@@ -34,7 +34,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgscan.c,v 1.46 2007/12/30 21:48:09 tom Exp tom $
+ *  $Id: epgscan.c,v 1.47 2008/08/10 18:56:16 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGCTL
@@ -446,7 +446,7 @@ uint EpgScan_EvHandler( void )
             }
             else
             {  // no database for this CNI yet: check if it's a known provider
-               if (scanCtl.doRefresh)
+               if (CniIsKnownProvider(cni) || scanCtl.doRefresh)
                {
                   // known provider -> wait for BI/AI
                   if (scanCtl.state <= SCAN_STATE_WAIT_NI)

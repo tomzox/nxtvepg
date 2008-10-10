@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgacqsrv.h,v 1.10 2006/11/25 22:12:51 tom Exp tom $
+ *  $Id: epgacqsrv.h,v 1.12 2008/08/10 19:38:40 tom Exp tom $
  */
 
 #ifndef __EPGACQSRV_H
@@ -52,12 +52,18 @@ typedef enum
 
 typedef struct MSG_STRUCT_STATS_IND_STRUCT
 {
-   void                * pNext;
+   union
+   {
+      void             * pNext;
+#if defined (USE_32BIT_COMPAT)
+      uint8_t            resv_align0[8];   // 64-bit pointer size
+#endif
+   } p;
 
    EPGDB_STATS_UPD_TYPE  type;
    bool                  aiFollows;
+   uint8_t               resv_align1[3];
    EPGACQ_DESCR          descr;
-   uint32_t              resv_align1;      // 64-bit alignment for Sparc
 
    union
    {
@@ -66,14 +72,15 @@ typedef struct MSG_STRUCT_STATS_IND_STRUCT
          EPGDB_BLOCK_COUNT    count[2];
          uint32_t             nowMaxAcqNetCount;
          EPG_ACQ_VPS_PDC      vpsPdc;
-         time_t               lastAiTime;
-         uint32_t             resv_align2; // 64-bit alignment for Sparc
+         time32_t             lastAiTime;
+         time32_t             resv_align2; // 64-bit alignment
       } minimal;
 
       struct
       {
          EPG_ACQ_STATS        stats;
          EPG_ACQ_VPS_PDC      vpsPdc;
+         time32_t             resv_align3; // 64-bit alignment
       } initial;
 
       struct
@@ -88,7 +95,7 @@ typedef struct MSG_STRUCT_STATS_IND_STRUCT
          uint16_t             histIdx;
          uint32_t             nowMaxAcqRepCount;
          uint32_t             nowMaxAcqNetCount;
-         time_t               lastStatsUpdate;
+         time32_t             lastStatsUpdate;
       } update;
    } u;
 } MSG_STRUCT_STATS_IND;
@@ -111,14 +118,16 @@ typedef struct
    uint32_t  protocolCompatVersion;   // protocol version
    uint32_t  swVersion;               // software version (informative only)
    int32_t   daemon_pid;
-   uint8_t   reserved[60];            // reserved for future additions
+   uint8_t   use_utf8;                // compile switch USE_UTF8
+   uint8_t   use_32_bit_compat;       // compile switch USE_32BIT_COMPAT
+   uint8_t   reserved[60-2];          // reserved for future additions
 } MSG_STRUCT_CONNECT_CNF;
 
 typedef struct
 {
    uint32_t  cniCount;                // number of valid CNIs in list (0 allowed)
    uint32_t  provCnis[MAX_MERGED_DB_COUNT];    // list of requested provider CNIs
-   time_t    dumpStartTimes[MAX_MERGED_DB_COUNT];  // client-side time of last db update
+   time32_t  dumpStartTimes[MAX_MERGED_DB_COUNT];  // client-side time of last db update
    uint32_t  statsReqBits;            // extent of acq stats requested by the GUI
 } MSG_STRUCT_FORWARD_REQ;
 

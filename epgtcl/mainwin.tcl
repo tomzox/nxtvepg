@@ -20,7 +20,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: mainwin.tcl,v 1.257 2007/12/31 22:06:26 tom Exp tom $
+#  $Id: mainwin.tcl,v 1.259 2008/02/03 18:54:36 tom Exp tom $
 #
 # import constants from other modules
 #=INCLUDE= "epgtcl/shortcuts.h"
@@ -3972,7 +3972,9 @@ proc FilterMenuAdd_Networks {widget is_stand_alone} {
    # Add currently selected network as command button (unless it is already filtered)
    set cni [C_PiBox_GetSelectedNetCni]
    set nlidx [lsearch -exact $netsel_selist $cni]
-   if {($nlidx != -1) && (![info exists netselmenu($nlidx)] || ($netselmenu($nlidx) == 0))} {
+   if {($nlidx != -1) &&
+       (![info exists netselmenu($nlidx)] || ($netselmenu($nlidx) == 0)) &&
+       [info exists netsel_names($cni)]} {
       $widget add command -label "Only $netsel_names($cni)" -command "ResetNetwops; set netselmenu($nlidx) 1; SelectNetwopMenu $nlidx"
    }
 
@@ -3980,7 +3982,9 @@ proc FilterMenuAdd_Networks {widget is_stand_alone} {
    $widget add separator
    set nlidx 0
    foreach cni $netsel_selist {
-      $widget add checkbutton -label $netsel_names($cni) -variable netselmenu($nlidx) -command [list SelectNetwopMenu $nlidx]
+      if [info exists netsel_names($cni)] {
+         $widget add checkbutton -label $netsel_names($cni) -variable netselmenu($nlidx) -command [list SelectNetwopMenu $nlidx]
+      }
       incr nlidx
    }
 
@@ -4531,7 +4535,7 @@ proc PiBox_DisplayErrorMessage {text} {
       $wid tag configure yellowBg  -background #ffff50
 
       $wid insert end "nxtvepg\n" bold24Tag
-      $wid insert end "Receiving and Browsing TV Programme Guides on Your PC\n" bold16Tag
+      $wid insert end "Receiving and Browsing TV Programme Guides on your PC\n" bold16Tag
       $wid window create end -window ${wid}.nxtvlogo
       $wid insert end "\n\nCopyright (C) 1999 - 2007 by T. Zoerner\n" bold12Tag
       $wid insert end "$NXTVEPG_MAILTO\n\n" bold12Tag

@@ -1,0 +1,205 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/HTMLlat1.ent">
+<HTML lang="en">
+<!-- $Id: ttx_grab.html,v 1.2 2008/10/11 20:18:46 tom Exp $ -->
+<HEAD>
+<TITLE>Teletext EPG Grabber Software</TITLE>
+<META http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+<META name="language" content="en">
+<META name="keywords" lang="en" content="teletext, EPG grabber, XMLTV, software, freeware, GPL, ZVBI, Perl, Video-ZVBI, VBI, vertical blanking interval, TV tuner card, capture, TTX, tv_grab">
+<META name="description" lang="en" content="This teletext EPG grabber is a Perl script which allows to grab TV programme schedules (EPG) from teletext pages by use of a TV capture card.">
+<META name="author" content="Tom Zoerner">
+<META name="copyright" content="Tom Zoerner">
+<META name="robots" content="index, follow">
+<META name="revisit-after" content="01 month">
+<LINK rel="stylesheet" type="text/css" href="nxtvepg.css">
+<LINK rel="shortcut icon" type="image/x-icon" href="nxtvepg.ico">
+</HEAD>
+<BODY>
+
+<DIV CLASS="navBar">
+<P><SMALL>
+<IMG ALT="" SRC="nxtv_icon.gif">&nbsp;nxtvepg&nbsp;
+<A HREF="index.html">home</A>
+</SMALL></P></DIV>
+
+<DIV class="navBlock">
+<H2 class="navhead">Language</H2>
+<P>
+<IMG ALT="" SRC="en.png" WIDTH="16" HEIGHT="10"> English<BR>
+<IMG ALT="" SRC="de.png" WIDTH="16" HEIGHT="10"> <A HREF="index-de.html">Deutsch</A><BR>
+<IMG ALT="" SRC="fr.png" WIDTH="16" HEIGHT="10"> <SPAN class="navDisabled">Français</SPAN><BR>
+</P>
+
+<H2 class="navhead">Documentation</H2>
+<P>
+<A HREF="man-ttx_grab.html">tv_grab_ttx</A><BR>
+</P>
+<H2 class="navhead">Related Links</H2>
+<P>
+<A HREF="http://nxtvepg.sourceforge.net/">nxtvepg</A><BR>
+<A HREF="http://xmltv.org/">XMLTV</A><BR>
+</P>
+<H2 class="navhead">Hosted by</H2>
+<P>
+<span class="center"><span class="logo"><a href="http://sourceforge.net"><img
+src="http://sourceforge.net/sflogo.php?group_id=64430&amp;type=4"
+width="125" height="37" alt="SourceForge.net Logo"></a></span></span>
+</P>
+</DIV>
+
+<DIV class="mainBlock">
+
+<H1>Teletext EPG grabber</H1>
+<P>
+This EPG grabber allows to extract TV programme listings in
+<A HREF="http://xmltv.org/">XMLTV format</A>
+from teletext pages as broadcast by most European TV networks.
+The grabber works by reading teletext pages via a TV card from all
+individual networks, then extracting programme title and starting times
+from programme tables (e.g. in Germany usually pages 301-304) and
+finally adding description texts from pages which are referenced in
+the overviews.
+</P><P>
+The grabber can be used stand-alone, but is best used as addition to the
+<A HREF="intro.html">Nextview EPG</A> grabber
+<I><A HREF="index.html">nxtvepg</A></I> (version 2.8.0 or later),
+which can also be used to view the programme listings in the generated
+XMLTV files.  The grabber is integrated into the nxtvepg acquisition
+control and can be activated via the configuration menus. The main intent
+of the combination is firstly to compensate for the recent loss of several
+<A HREF="provnets.html">Nextview EPG providers</A>
+(such as German providers 3sat and RTL2) and secondly to add more
+description texts to the Nextview EPG.  In teletext, many networks
+have good descriptions not only for movies, but especially also for
+weekly magazines, daily soaps or current events.
+</P><P>
+Since the grabber has to read each individual network's teletext stream
+and many networks use sub-pages at least for descriptions, the
+process unfortunately takes relatively long. For full EPG grabbing,
+at least 90 seconds per network are required. There's a fast scan mode
+which requires only 10-20 seconds per network in average, however in
+this mode overview and descriptions may be incomplete if sub-pages are
+used by the respective network.
+</P><P>
+For now, only nation-wide German networks are supported. For other
+networks the parser will need to be adapted to different page
+formats. That's because almost every network formats tables, dates,
+times and descriptions slightly differently, so that the parser will
+have trouble locating the EPG data among all the advertisements and
+other content in teletext.
+</P>
+
+<H2>Download</H2>
+<P>
+This download is mainly inteded for users who want to use the
+grabber stand-alone, i.e. without nxtvepg.  In this case you need the
+additional Video-ZVBI package and the libzvbi library, see below.
+</P><P>
+This download can also be used to update the teletext grabber used by
+nxtvepg. To do so, unpack the archive and copy <I>tv_grab_ttx.pl</I>
+into the directory where you start nxtvepg, or on Linux, copy the file
+into directory <KBD>/usr/share/nxtvepg/</KBD>.
+</P>
+<H3>Latest Release: Version 1.1 from October 9th 2008</H3>
+<P>
+This release mostly improves on the packaging and adds
+<A HREF="man-ttx_grab.html">documentation</A>.
+Also the former separate capture script "cap.pl" has been merged
+into the grabber to simplify the usage. Note: To use this grabber
+version with nxtvepg version 2.8.0, you need to rename the script
+file from "tv_grab_ttx.pl" into "ttx_grab.pl".
+</P>
+<DIV CLASS="box">
+<H3><A NAME="download_source">Sources</A></H3>
+<P>
+The grabber is implemented as Perl script and as such architecture
+independent. Hence this package can be used for all platforms.
+</P>
+<UL>
+<LI>Teletext grabber:
+    <A HREF="http://nxtvepg.sourceforge.net/tmp/tv_grab_ttx-1.1.tar.gz">tv_grab_ttx-1.1.tar.gz</A> (apx. 130 kB)
+</UL>
+</DIV>
+
+<DIV CLASS="box">
+<H3><A NAME="download_unix">Binary packages for Linux</A></H3>
+<P>
+These packages can be installed with "dpkg -i PACKAGE" on Debian, Ubuntu
+and all other platforms using the Debian package format.
+<P>
+<UL>
+<LI CLASS="spaced">Teletext grabber:
+    <A HREF="http://nxtvepg.sourceforge.net/tmp/libxmltv-ttx_1.1_all.deb">libxmltv-ttx_1.1_all.deb</A> (architecture independent, apx. 50 kB)
+<LI CLASS="spaced">Video-ZVBI Perl module version 0.2.4:
+    Sources: <A HREF="http://search.cpan.org/~TOMZO/Video-ZVBI">Video::ZVBI</A> (cpan.org)
+    <UL>
+    <LI><A HREF="http://nxtvepg.sourceforge.net/tmp/libzvbi-perl_0.2.4_i386.deb">libzvbi-perl_0.2.4_i386.deb</A> (Intel 32-bit, apx. 180 kB)
+    <LI><A HREF="http://nxtvepg.sourceforge.net/tmp/libzvbi-perl_0.2.4_amd64.deb">libzvbi-perl_0.2.4_amd64.deb</A> (Intel 64-bit, apx. 180 kB)
+    </UL>
+</UL>
+</DIV>
+
+<H3>Dependencies</H3>
+<P>
+The grabber is implemented as Perl scripts. Hence you'll need to have
+a <A HREF="http://cpan.org">Perl interpreter</A>. On UNIX systems this
+is usually part of the core installation. For Windows you can get
+<A HREF="http://www.ActiveState.com/ActivePerl">ActivePerl</A>.
+</P><P>
+Additionally, when not used inside of nxtvepg, you'll need the
+<A HREF="http://search.cpan.org/~TOMZO/Video-ZVBI">Video::ZVBI</A> Perl
+module for capturing teletext. Currently this module only supports
+Linux, and the BSDs.  Note this module in turn requires the
+<A HREF="http://zapping.sourceforge.net/doc/libzvbi/index.html">ZVBI library</A>
+(a VBI capturing library)
+</P>
+
+<H2>Usage</H2>
+<P>
+The following is a usage example: First the channel is switched to network
+ARD using xawtv's tool v4lctl. The following command captures teletext for
+1.5 minutes and then extracts EPG data from the captured pages into an XMLTV file.
+Finally the XMLTV file is loaded into nxtvepg for display.
+</P>
+<PRE>
+  v4lctl -c /dev/vbi0 setstation ARD
+  tv_grab_ttx -duration 90 -page 301-309 &gt; ARD.xml
+  nxtvepg ARD.xml
+</PRE>
+<P>
+Note capturing from DVB devices requires option "<I>-dvbpid</I>".
+For additional options invoke <I>tv_grab_ttx</I> with command line option
+"<I>-help</I>".
+</P>
+
+
+<H2><A NAME="feedback">Questions and feedback</A></H2>
+<P>
+Your feedback is always welcome.  If you have specific questions, suggestions,
+bug reports or any other kind of feedback, please use the
+<A HREF="http://sourceforge.net/forum/forum.php?forum_id=217872">nxtvepg discussion forum</A>
+or mail me directly to tomzo at users.sf.net
+</P>
+
+<H2><A NAME="copyright">Copyright</A></H2>
+<P>
+&copy; Copyright 2006 - 2008 by T. Zoerner.
+</P><P>
+This program is free software; you can redistribute it and/or modify
+it under the terms of the
+<A HREF="http://www.fsf.org/copyleft/gpl.html">GNU General Public License</A>
+as published by the <A HREF="http://www.fsf.org/">Free Software Foundation.</A>
+This program is distributed in the hope that it will be useful,
+but <B>without any warranty</B>; without even the implied warranty of
+merchantability or fitness for a particular purpose.
+</P><P>
+Content copyright: Please note that content providers do hold a
+copyright on the programme data which can be received by means of this
+software.  The data is free for personal use, but you must not publically
+redistribute it (e.g. make it available on the Internet) without prior
+permission.
+</P>
+
+</DIV>
+</BODY>
+</HTML>

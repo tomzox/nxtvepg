@@ -20,7 +20,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: draw_stats.tcl,v 1.7 2007/12/29 21:03:39 tom Exp tom $
+#  $Id: draw_stats.tcl,v 1.8 2008/01/22 22:11:41 tom Exp tom $
 #
 
 #=LOAD=TimeScale_Open
@@ -427,16 +427,16 @@ proc DbStatsWin_Create {wname} {
    canvas $wname.browser.pie -height 128 -width 128
    pack $wname.browser.pie -side left -anchor w
 
-   message $wname.browser.stat -font $font_fixed -aspect 2000 -justify left -anchor nw
-   pack $wname.browser.stat -expand 1 -fill both -side left
+   label $wname.browser.stat -font $font_fixed -justify left -anchor nw
+   pack $wname.browser.stat -expand 1 -fill both -side left -padx 5
    pack $wname.browser -side top -anchor nw -fill both
 
    frame $wname.acq -relief sunken -borderwidth 2
    canvas $wname.acq.hist -bg white -height 128 -width 128
    pack $wname.acq.hist -side left -anchor s -anchor w
 
-   message $wname.acq.stat -font $font_fixed -aspect 2000 -justify left -anchor nw
-   pack $wname.acq.stat -expand 1 -fill both -side left
+   label $wname.acq.stat -font $font_fixed -justify left -anchor nw
+   pack $wname.acq.stat -expand 1 -fill both -side left -padx 5
 
    # this frame is intentionally not packed
    #pack $wname.acq -side top -anchor nw -fill both
@@ -548,16 +548,16 @@ proc StatsWinTtx_Create {wname} {
    wm group $wname .
 
    frame $wname.acq -relief sunken -borderwidth 2
-   message $wname.acq.stat -font $font_fixed -aspect 2000 -justify left -anchor nw
-   pack $wname.acq.stat -expand 1 -fill both -side left
+   label $wname.acq.stat -font $font_fixed -justify left -anchor nw
+   pack $wname.acq.stat -expand 1 -fill both -side left -padx 5
    pack $wname.acq -side top -anchor nw -fill both
 
-   # TODO help index wrong For TTX
+   # TODO help refers to config dialog, which doesn't even mention the stats window
    button $wname.acq.qmark -bitmap bitmap_qmark -cursor top_left_arrow -takefocus 0
    relief_ridge_v84 $wname.acq.qmark
-   bind   $wname.acq.qmark <ButtonRelease-1> {PopupHelp $helpIndex(Statistics) "Database statistics"}
+   bind   $wname.acq.qmark <ButtonRelease-1> {PopupHelp $helpIndex(Configuration) "Teletext grabber"}
    pack   $wname.acq.qmark -side top
-   bind   $wname <Key-F1> {PopupHelp $helpIndex(Statistics) "Database statistics"}
+   bind   $wname <Key-F1> {PopupHelp $helpIndex(Configuration) "Teletext grabber"}
 
    # inform the control code when the window is destroyed
    bind $wname.acq <Destroy> [list + C_StatsWin_ToggleTtxStats 0]

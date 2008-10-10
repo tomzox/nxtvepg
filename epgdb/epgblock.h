@@ -25,7 +25,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgblock.h,v 1.52 2007/12/31 16:11:01 tom Exp tom $
+ *  $Id: epgblock.h,v 1.54 2008/08/10 19:29:39 tom Exp tom $
  */
 
 #ifndef __EPGBLOCK_H
@@ -191,8 +191,11 @@ typedef struct
   uint16_t  block_no;
   uint8_t   netwop_no;
   bool      block_no_in_ai;
-  time_t    start_time;
-  time_t    stop_time;
+#if !defined (USE_32BIT_COMPAT) && (__WORDSIZE == 64)
+  uint32_t  reserved_0;
+#endif
+  time32_t  start_time;
+  time32_t  stop_time;
   uint32_t  pil;
   uint32_t  series_code;
   uint16_t  feature_flags;
@@ -257,6 +260,7 @@ typedef struct
 typedef struct
 {
    uint8_t  kind;
+   uint8_t  reserved_0[3];
    uint32_t data;
 } EV_ATTRIB_DATA;
 
@@ -488,15 +492,27 @@ typedef struct EPGDB_BLOCK_STRUCT
    uint8_t      reserved_1;
    uint16_t     origBlkLen;         // length of 708 encoded block
    uint16_t     parityErrCnt;       // parity error count for string segment
-   time_t       updTimestamp;       // time when the block content changed last
-   time_t       acqTimestamp;       // time when the block was received last
+   time32_t     updTimestamp;       // time when the block content changed last
+   time32_t     acqTimestamp;       // time when the block was received last
    uint16_t     acqRepCount;        // reception count with same version and size
+   uint16_t     reserved_2;
    BLOCK_TYPE   type;
 
    const EPGDB_BLOCK_UNION   blk;   // the actual data
 } EPGDB_BLOCK;
 
 #define BLK_UNION_OFF    ((uint)(sizeof(EPGDB_BLOCK) - sizeof(EPGDB_BLOCK_UNION)))
+
+#define BLK_HEAD_PTR_OFF_MEM    ((uint)(4*sizeof(void*)))
+#if defined (USE_32BIT_COMPAT)  // by default keep 64-bit incompatible so that old 64-bit DBs remain compatible
+#define BLK_HEAD_PTR_OFF_FILE   ((uint)(4*sizeof(uint32_t)))
+#else
+#define BLK_HEAD_PTR_OFF_FILE   BLK_HEAD_PTR_OFF_MEM
+#endif
+#define BLK_HEAD_SIZE_DATA      (BLK_UNION_OFF - BLK_HEAD_PTR_OFF_MEM)
+#define BLK_HEAD_SIZE_FILE      (BLK_UNION_OFF + BLK_HEAD_PTR_OFF_FILE - BLK_HEAD_PTR_OFF_MEM)
+#define BLK_HEAD_SIZE_MEM       BLK_UNION_OFF
+#define BLK_HEAD_PTR_FILE(P)    ((EPGDB_BLOCK*)((char*)(P) + BLK_HEAD_PTR_OFF_FILE - BLK_HEAD_PTR_OFF_MEM))
 
 // ----------------------------------------------------------------------------
 // Event callback for handling incoming PI in the GUI
@@ -563,7 +579,7 @@ typedef struct
 } EPGDB_BLOCK_COUNT;
 
 // max number of databases that can be merged into one
-#define MAX_MERGED_DB_COUNT  31
+#define MAX_MERGED_DB_COUNT  63
 
 // pseudo CNIs
 #define MERGED_PROV_CNI        0x00FF

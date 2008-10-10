@@ -18,7 +18,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: menucmd.c,v 1.131 2007/12/29 20:15:11 tom Exp tom $
+ *  $Id: menucmd.c,v 1.132 2008/02/03 18:45:38 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -72,6 +72,7 @@
 
 static void MenuCmd_EpgScanHandler( ClientData clientData );
 
+#define TRANSCODE_NON_NULL(S) TranscodeToUtf8(EPG_ENC_SYSTEM, NULL, (((S)!=NULL)?(S):""), NULL)
 
 // ----------------------------------------------------------------------------
 // Set the states of the entries in Control menu
@@ -1149,6 +1150,12 @@ static void MenuCmd_AppendNetwopList( Tcl_Interp *interp, Tcl_Obj * pList,
                }
                pNetwopObj = TranscodeToUtf8(EPG_ENC_NETNAME(isFromAi), NULL, pCfNetname, NULL);
                Tcl_SetVar2Ex(interp, pArrName, strbuf, pNetwopObj, 0);
+
+               if (unify && IS_NXTV_CNI(cni))
+               {
+                  sprintf(strbuf, "0x%04X", CniConvertUnknownToPdc(cni));
+                  Tcl_SetVar2Ex(interp, pArrName, strbuf, pNetwopObj, 0);
+               }
             }
          }
       }
@@ -1219,7 +1226,7 @@ static int MenuCmd_GetAiNetwopList( ClientData ttp, Tcl_Interp *interp, int objc
                debug1("MenuCmd-GetAiNetwopList: requested db %04X not available", cni);
          }
          else
-         {  // non-native database (e.g. merged)
+         {  // merged database
 
             if (allmerged == FALSE)
             {  // merged db -> use the merged AI with the user-configured netwop list
@@ -1278,10 +1285,15 @@ static int MenuCmd_GetNetwopNames( ClientData ttp, Tcl_Interp *interp, int objc,
 
       for (idx = 0; idx < pRc->net_names_count; idx++)
       {
-         sprintf(cni_buf, "0x%04X", pRc->net_names[idx].net_cni);
-         Tcl_ListObjAppendElement(interp, pResultList, Tcl_NewStringObj(cni_buf, -1));
+         if (pRc->net_names[idx].name != NULL)
+         {
+            sprintf(cni_buf, "0x%04X", pRc->net_names[idx].net_cni);
+            Tcl_ListObjAppendElement(interp, pResultList, Tcl_NewStringObj(cni_buf, -1));
 
-         Tcl_ListObjAppendElement(interp, pResultList, TranscodeToUtf8(EPG_ENC_SYSTEM, NULL, pRc->net_names[idx].name, NULL));
+            Tcl_ListObjAppendElement(interp, pResultList, TranscodeToUtf8(EPG_ENC_SYSTEM, NULL, pRc->net_names[idx].name, NULL));
+         }
+         else
+            debug1("MenuCmd-GetNetwopNames: skipping empty name for net 0x%04X", pRc->net_names[idx].net_cni);
       }
 
       Tcl_SetObjResult(interp, pResultList);
@@ -1292,8 +1304,9 @@ static int MenuCmd_GetNetwopNames( ClientData ttp, Tcl_Interp *interp, int objc,
 
 // ----------------------------------------------------------------------------
 // Update list of network name definitions
-// - parameter is a flat list of pairs of CNI and names - i.e. as deligered by "Get"
-// - called when the network name configuration dialog is closed
+// - parameter is a flat list of CNIs and names, alternating
+//   (i.e. same format as delivered by _GetNetwopNames)
+// - called when the network name configuration dialog is closed with "OK"
 //
 static int MenuCmd_UpdateNetwopNames( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
 {
@@ -1302,6 +1315,7 @@ static int MenuCmd_UpdateNetwopNames( ClientData ttp, Tcl_Interp *interp, int ob
    uint objCount;
    uint * pCniList;
    const char ** pNameList;
+   Tcl_DString * pDstrList;
    uint idx;
    int result;
 
@@ -1315,16 +1329,20 @@ static int MenuCmd_UpdateNetwopNames( ClientData ttp, Tcl_Interp *interp, int ob
       result = Tcl_ListObjGetElements(interp, objv[1], &objCount, &pObjArgv);
       if (result == TCL_OK)
       {
-         pCniList = xmalloc(sizeof(uint) * objCount/2);
-         pNameList = xmalloc(sizeof(char*) * objCount/2);
+         pCniList = xmalloc(sizeof(*pCniList) * objCount/2);
+         pNameList = xmalloc(sizeof(*pNameList) * objCount/2);
+         pDstrList = xmalloc(sizeof(*pDstrList) * objCount/2);
+         for (idx = 0; idx < objCount/2; idx++)
+            Tcl_DStringInit(&pDstrList[idx]);
+
          for (idx = 0; idx < objCount/2; idx++)
          {
-            pNameList[idx] = Tcl_GetString(pObjArgv[idx*2 + 1]);
-            if ( (Tcl_GetIntFromObj(interp, pObjArgv[idx*2], &pCniList[idx]) != TCL_OK) ||
-                 (pNameList[idx] == NULL) )
+            Tcl_UtfToExternalDString(NULL, Tcl_GetString(pObjArgv[idx*2 + 1]), -1, &pDstrList[idx]);
+            pNameList[idx] = Tcl_DStringValue(&pDstrList[idx]);
+
+            if (Tcl_GetIntFromObj(interp, pObjArgv[idx*2], &pCniList[idx]) != TCL_OK)
             {
                result = TCL_ERROR;
-               break;
             }
          }
          if (result == TCL_OK)
@@ -1332,9 +1350,48 @@ static int MenuCmd_UpdateNetwopNames( ClientData ttp, Tcl_Interp *interp, int ob
             RcFile_UpdateNetworkNames(objCount/2, pCniList, pNameList);
          }
          UpdateRcFile(TRUE);
+
          xfree(pCniList);
          xfree(pNameList);
+         for (idx = 0; idx < objCount/2; idx++)
+            Tcl_DStringFree(&pDstrList[idx]);
+         xfree(pDstrList);
       }
+   }
+   return result;
+}
+
+// ----------------------------------------------------------------------------
+// Normalize and return the given CNI
+//
+static int MenuCmd_NormalizeCni( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
+{
+   const char * const pUsage = "Usage: C_NormalizeCni <cni>";
+   uint cni;
+   char cni_buf[16+2+1];
+   int result;
+
+   if (objc != 1+1)
+   {  // wrong # of parameters for this TCL cmd -> display error msg
+      Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
+      result = TCL_ERROR; 
+   }  
+   else if (Tcl_GetIntFromObj(interp, objv[1], &cni) != TCL_OK)
+   {
+      result = TCL_ERROR; 
+   }
+   else
+   {
+      if (IS_NXTV_CNI(cni))
+      {
+         sprintf(cni_buf, "0x%04X", CniConvertUnknownToPdc(cni));
+         Tcl_SetObjResult(interp, Tcl_NewStringObj(cni_buf, -1));
+      }
+      else
+      {  // return CNI unchanged
+         Tcl_SetObjResult(interp, objv[1]);
+      }
+      result = TCL_OK; 
    }
    return result;
 }
@@ -2768,13 +2825,13 @@ static int MenuCmd_GetNetAcqConfig( ClientData ttp, Tcl_Interp *interp, int objc
 
          Tcl_SetVar2Ex(interp, pArrName, "remctl", Tcl_NewIntObj(pRc->netacq.remctl), 0);
          Tcl_SetVar2Ex(interp, pArrName, "do_tcp_ip", Tcl_NewIntObj(pRc->netacq.do_tcp_ip), 0);
-         Tcl_SetVar2Ex(interp, pArrName, "host", Tcl_NewStringObj(pRc->netacq.pHostName, -1), 0);
-         Tcl_SetVar2Ex(interp, pArrName, "ip", Tcl_NewStringObj(pRc->netacq.pIpStr, -1), 0);
-         Tcl_SetVar2Ex(interp, pArrName, "port", Tcl_NewStringObj(pRc->netacq.pPort, -1), 0);
+         Tcl_SetVar2Ex(interp, pArrName, "host", TRANSCODE_NON_NULL(pRc->netacq.pHostName), 0);
+         Tcl_SetVar2Ex(interp, pArrName, "ip", TRANSCODE_NON_NULL(pRc->netacq.pIpStr), 0);
+         Tcl_SetVar2Ex(interp, pArrName, "port", TRANSCODE_NON_NULL(pRc->netacq.pPort), 0);
          Tcl_SetVar2Ex(interp, pArrName, "max_conn", Tcl_NewIntObj(pRc->netacq.max_conn), 0);
          Tcl_SetVar2Ex(interp, pArrName, "sysloglev", Tcl_NewIntObj(pRc->netacq.sysloglev), 0);
          Tcl_SetVar2Ex(interp, pArrName, "fileloglev", Tcl_NewIntObj(pRc->netacq.fileloglev), 0);
-         Tcl_SetVar2Ex(interp, pArrName, "logname", Tcl_NewStringObj(pRc->netacq.pLogfileName, -1), 0);
+         Tcl_SetVar2Ex(interp, pArrName, "logname", TRANSCODE_NON_NULL(pRc->netacq.pLogfileName), 0);
       }
       result = TCL_OK;
    }
@@ -2947,7 +3004,7 @@ static int MenuCmd_GetTtxConfig( ClientData ttp, Tcl_Interp *interp, int objc, T
 #ifndef WIN32
          Tcl_SetVar2Ex(interp, pArrName, "perl_path", Tcl_NewStringObj("", 0), 0);
 #else
-         Tcl_SetVar2Ex(interp, pArrName, "perl_path", Tcl_NewStringObj(pRc->ttx.perl_path_win, -1), 0);
+         Tcl_SetVar2Ex(interp, pArrName, "perl_path", TRANSCODE_NON_NULL(pRc->ttx.perl_path_win), 0);
 #endif
       }
       result = TCL_OK;
@@ -3169,6 +3226,7 @@ void MenuCmd_Init( bool isDemoMode )
       Tcl_CreateObjCommand(interp, "C_GetAiNetwopList", MenuCmd_GetAiNetwopList, (ClientData) NULL, NULL);
       Tcl_CreateObjCommand(interp, "C_GetNetwopNames", MenuCmd_GetNetwopNames, (ClientData) NULL, NULL);
       Tcl_CreateObjCommand(interp, "C_UpdateNetwopNames", MenuCmd_UpdateNetwopNames, (ClientData) NULL, NULL);
+      Tcl_CreateObjCommand(interp, "C_NormalizeCni", MenuCmd_NormalizeCni, (ClientData) NULL, NULL);
 
       Tcl_CreateObjCommand(interp, "C_GetMergeProviderList", MenuCmd_GetMergeProviderList, (ClientData) NULL, NULL);
       Tcl_CreateObjCommand(interp, "C_GetMergeOptions", MenuCmd_GetMergeOptions, (ClientData) NULL, NULL);

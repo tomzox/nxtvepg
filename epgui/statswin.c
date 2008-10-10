@@ -33,7 +33,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: statswin.c,v 1.75 2007/12/31 00:10:05 tom Exp tom $
+ *  $Id: statswin.c,v 1.76 2008/01/21 22:41:59 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -143,8 +143,10 @@ static void StatsWin_UpdateHist( int target )
 // Build text line which describes the current acquisition mode
 // - used in acq. stats window both for Nextview and TTX grabber
 //
-static void StatsWin_PrintAcqMode( EPGACQ_DESCR * pAcqState, char * pBuf )
+static void StatsWin_PrintAcqMode( EPGACQ_DESCR * pAcqState, char * pBuf, bool forTtx )
 {
+   uint dbCnt;
+
    if (pAcqState->passiveReason == ACQPASSIVE_NONE)
    {
       switch (pAcqState->mode)
@@ -157,10 +159,14 @@ static void StatsWin_PrintAcqMode( EPGACQ_DESCR * pAcqState, char * pBuf )
             break;
          case ACQMODE_FOLLOW_UI:
          case ACQMODE_FOLLOW_MERGED:
-            if (pAcqState->cniCount <= 1)
+            if (forTtx == FALSE)
+               dbCnt = pAcqState->cniCount - ((pAcqState->ttxSrcCount > 0) ? 1 : 0);
+            else
+               dbCnt = pAcqState->ttxSrcCount;
+            if (dbCnt <= 1)
                strcpy(pBuf, "Acq mode:         follow browser database\n");
             else
-               sprintf(pBuf, "Acq mode:         follow browser (%d databases)\n", pAcqState->cniCount);
+               sprintf(pBuf, "Acq mode:         follow browser (%d databases)\n", dbCnt);
             break;
          case ACQMODE_CYCLIC_2:
             if (pAcqState->cniCount <= 1)
@@ -464,7 +470,7 @@ static void StatsWin_PrintNxtvAcqStats( EPGDB_CONTEXT * dbc, EPGACQ_DESCR * pAcq
                  ((sv->nxtv.stream.epgStrSum > 0) ? (sv->nxtv.stream.epgParErr * 100 / sv->nxtv.stream.epgStrSum) : 0)
           );
 
-   StatsWin_PrintAcqMode(pAcqState, comm + strlen(comm));
+   StatsWin_PrintAcqMode(pAcqState, comm + strlen(comm), FALSE);
 
    if (ACQMODE_IS_CYCLIC(pAcqState->mode))
    {
@@ -665,7 +671,7 @@ static void StatsWin_UpdateTtxStats( ClientData clientData )
                     ((sv.ttx_grab.pkgStats.ttxPkgStrSum > 0) ? (sv.ttx_grab.pkgStats.ttxPkgParErr * 100 / sv.ttx_grab.pkgStats.ttxPkgStrSum) : 0)
              );
 
-      StatsWin_PrintAcqMode(&acqState, comm + strlen(comm));
+      StatsWin_PrintAcqMode(&acqState, comm + strlen(comm), TRUE);
 
       {
          Tcl_DStringInit(&cmd_dstr);

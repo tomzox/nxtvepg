@@ -5,6 +5,68 @@ features).  For patchlevel releases also internal changes might be listed in
 case they may fix bugs (or cause new ones)
 
 
+from 2.8.0 to 2.8.1 (2008-Oct-10)
+
+- Two independent bugs in the Linux driver interface were fixed which
+  made acquisition fail to start on certain Linux installations.
+  Thanks to "devport" and Uwe Bugla for reporting these bugs.
+- A bug in the Nextview EPG data stream decoder was fixed which
+  sometimes allowed half-received blocks to be used (under weak signal
+  conditions and heavy packet loss), which then caused all network
+  names to be blank.
+- A bug in TV application channel table import was fixed which
+  sometimes caused wrong names to be associated with channels.
+  (Thanks to "dj1985" for reporting this bug.)
+- Various display bugs were fixed which were introduced by the upgrade
+  to Tcl/Tk version 8.5 in nxtvepg release 2.8.0. In particular:
+  + The position of reminder markers and other images in the programme
+    list behind titles with special characters was fixed (thanks to
+    Kurt Lettmaier for reporting this bug.)
+  + Bugs in handling of special characters were fixed in several more
+    configuration dialogs (Network name and Client/Server configuration,
+    as well as HTML export from UTF-8 executables.)
+  + Windows only: A work-around was applied which fixes title search via
+    context menu for titles containing special characters.
+  + UNIX: A bug was fixed which caused a crash immediately after start-up
+    with Tcl/Tk 8.5.0 when the libraries were compiled with multi-thread
+    support. (Thanks to Enrico for reporting this bug.)
+- A bug in reminder message display was fixed which caused empty
+  programme descriptions after the message was displayed. This only
+  occured for databases which were imported from XMLTV files.
+  Thanks to "m-unter" for reporting this bug.
+- A new entry was added to the context menu which allows to disable
+  reminder popups for selected reminder groups (to use the new feature
+  you must add the new menu entry in the context menu config dialog.)
+- The HTML export was fixed to be fully compliant with HTML 4.0
+- Database export via option -dump was changed to apply the expire
+  threshold configured by the user via GUI (before, all expired
+  programmes were included in the export.)
+- Changed XMLTV import to allow overriding of network identification
+  codes via xmltv-etsi.map even for files written by the teletext EPG
+  grabber with a valid VPS/PDC code. Also the network identification map
+  (xmltv-etsi.map) was extended for the teletext grabber for networks
+  with inconsistent VPS/PDC identification.
+- A bug was fixed in the INI file upgrade from nxtvepg versions 2.7.7
+  or earlier, which caused loss of the network name configuration.
+  (Thanks to Kurt for reporting this bug.)  Additionally compatibility
+  between UNIX and Windows INI/rc files was restored.
+- Bug fixes in endian conversion in the acquisition daemon protocol have
+  restored compatibility between big- and little-endian architectures.
+- Prepared binary compatibility between 32-bit and 64-bit systems for
+  database files and the daemon protocol (enabling compatibility
+  requires to define compile switch USE_32BIT_COMPAT in the Makefile;
+  not enabled by default to maintain backwards compatibility for
+  existing 64-bit databases)
+- The network name and network selection configuration dialogs were
+  improved, especially for use with databases imported from XMLTV.
+- A bug in the separate "tvsim" debugging tool was fixed which made
+  that tool near unusable on Windows systems since release 2.8.0.
+  Thanks to Kurt for reporting this bug.
+- The <A HREF="http://nxtvepg.sourceforge.net/tv_grab_ttx">teletext grabber</A>
+  script was adapted to recent changes in formats of German teletext
+  broadcasts.
+
+
 from 2.7.7 to 2.8.0 (2007-Dec-31)
 
 - possibility to compile separate daemon "nxtvepgd" without GUI (mainly

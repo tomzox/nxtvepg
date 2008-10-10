@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: cni_tables.h,v 1.7 2007/12/29 21:31:07 tom Exp tom $
+ *  $Id: cni_tables.h,v 1.8 2008/08/10 18:56:05 tom Exp tom $
  */
 
 #ifndef __CNI_TABLES_H
@@ -27,5 +27,6 @@ bool CniGetProviderLto( uint cni, sint * pLto );
 uint CniConvertP8301ToVps( uint cni );
 uint CniConvertPdcToVps( uint cni );
 uint CniConvertUnknownToPdc( uint cni );
+bool CniIsKnownProvider( uint cni );
 
 #endif  //__CNI_TABLES_H

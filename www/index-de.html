@@ -1,6 +1,6 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/HTMLlat1.ent">
 <HTML lang="de">
-<!-- $Id: index-de.html,v 1.95 2008/01/06 20:32:58 tom Exp $ -->
+<!-- $Id: index-de.html,v 1.100 2008/10/11 20:16:25 tom Exp $ -->
 <HEAD>
 <TITLE>nxtvepg - nexTView EPG Dekoder Software</TITLE>
 <META http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
@@ -28,10 +28,7 @@
 
 <H2 class="navhead">News</H2>
 <P>
-10.7.2006: Added German translations of
-<A HREF="provnets-de.html">Providerliste</A>,
-<A HREF="links-de.html">Links</A>,
-<A HREF="faq-de.html">FAQ</A> done by Kurt.
+10.10.2008: <A HREF="index-de.html#new_2_8_1">Release 2.8.1</A>
 </P>
 
 <H2 class="navhead">Dokumentation</H2>
@@ -43,6 +40,7 @@
 <A HREF="faq-de.html">FAQ</A><BR>
 <BR>
 <A HREF="man-de.html">nxtvepg manual</A><BR>
+<A HREF="ttx_grab.html">teletext grabber</A><BR>
 </P>
 
 <H2 class="navhead">Download</H2>
@@ -100,41 +98,33 @@ Sender in diesen Ländern ab. <A HREF="intro-de.html">Weiter...</A>
 </UL>
 
 
-<H2><A NAME="releases">Current releases 2.7.7 and 2.8.0 (Dec/31/2007)</A></H2>
+<H2><A NAME="releases">Aktueller Release 2.8.1 (10. Oktober 2008)</A></H2>
 <P>
-Nach 3 Jahren Entwicklungszeit gibt es nun endlich einen offiziellen
-Release 2.8.0 mit einer Reihe größerer neuer Features. Der vorhergehende
-Release 2.7.7 enthält aber auch (fast) alle wichtigen bug-fixes und
-bleibt somit als Alternative falls mit dem neuen Release Probleme
-auftreten.
-</P>
-<P>
-Die größten Neuerungen im Release 2.8.0 sind:
+Der neueste Release 2.8.1 behebt eine Reihe kleiner und größerer
+Fehler. Der upgrade wird insbesondere allen Benutzern der
+Vorgängerversion 2.8.0 empfohlen. Die wichtigsten Korrekturen sind:
 </P>
 <UL>
-<LI>Abspaltung eines reinen EPG Akquisitions-Hintergrundprozesses ohne GUI ("nxtvepgd")<BR>
-  (Auf vielfachen Wunsch der Anwender mit Linux-basierten HTPCs ohne X11 Libraries.)
-<LI>Abgreifen von EPG Daten aus regulären Teletext-Seiten deutscher Sender
-  (<A HREF="man-de.html#teletext_grabber">Mehr Info...</A>)<BR>
-  (Dies erfordert die Installation eines
-  <A HREF="http://www.cpan.org/">Perl</A> Interpreters.<BR>
-  Das Feature ist für UNIX auch als separates
-  <A HREF="pre-releases.html#ttx_grabber">Perl Skript</A> verfügbar.)
-<LI>Import und Zusammenführung von EPG Daten aus externen Dateien im
-  <A HREF="http://xmltv.org/">XMLTV</A> Format.
-<LI>Erweitertes Kommunikationsprotokoll für OSD in TV-Applicationen (für
-  <A HREF="xiccc-proto.html#iccc">UNIX</A> und Windows)<BR>
-  (Wichtig: Aufgrund dieser Änderung müssen alle Anwender von
-  <A HREF="http://www.kastortv.org/">K!TV</A> ihr Nextview EPG Plugin austauschen.)
-<LI>Verbesserte Unterstützung für "exotische" TV-Karten unter MS Windows.<BR>
-  (Dies erfordert allerdings eine separate
-  <A HREF="pre-releases.html#wdm_if_lib">WDM-Treiber-"Schnittstellenbibliothek"</A>)<BR>
-  Vielen Dank an Gérard Chevalier für die Implementierung der Bibliothek.
+<LI>Mehrere Fehler die das Linux Treiberinterface betrafen wurden behoben.
+  Diese Fehler hatten den Start der Akquisition bei bestimmten Systemen
+  verhindert.
+<LI>Ein Fehler beim Zusammensetzen von Datenblöcken aus Teilfragmenten
+  bei stark gestörten Empfangsverhältnissen wurde behoben. Durch diese
+  Fehler erschienen manchmal leere oder korrupte Sendernamen.
+<LI>Ein Fehler beim Einlesen der Kanaltabelle aus der Konfiguration
+  verschiedener TV-Applikationwn wurde behoben. Durch den Fehler
+  war die Zuordnung von Senderfrequenzen zu Namen inkorrekt, was sich
+  insbesondere beim Teletext-Grabber bemerkbar gemacht hat.
+<LI>Eine ganze Reihe von Fehlern in der Darstellung im Hauptfenster
+  als auch den Konfigurationsmenüs wurden behoben. Diese Fehler traten
+  insbesondere bei der Darstellung von Umlauten und anderen Sonderzeichen
+  auf. Bei Linux kam es bei bestimmten Versionen der Tcl/Tk Bibliothek
+  sogar zum Programmabsturz gleich beim Start.
 </UL>
 <P>
 Zum Herunterladen in der <A HREF="download-de.html">Download Sektion</A>.
-<BR>Siehe auch die detaillierte Liste aller Änderungen im
-<A HREF="changelog.html">Change Log</A>.
+<BR>Siehe auch die komplette, detaillierte Liste aller Änderungen im
+<A HREF="changelog.html">Änderungsprotokoll</A>.
 </P>
 
 <H2><A NAME="feedback">Feedback</A></H2>
@@ -169,8 +159,7 @@ nach ob dieselbe Frage eventuell bereits kürzlich beantwortet wurde.
 
 <H2><A NAME="copyright">Copyright</A></H2>
 <P>
-&copy; Copyright 1999 - 2007 T. Z&ouml;rner (und andere).
-Alle Rechte vorbehalten.
+&copy; Copyright 1999 - 2008 T. Z&ouml;rner (und andere).
 </P><P>
 Der Autor dieser Software ist kein Mitglied der
 <A HREF="http://www.etsi.org">ETSI</A> - hofft aber trotzdem dass seine
@@ -178,7 +167,9 @@ Anstrengungen Nextview bekannt zu machen toleriert werden.
 </P><P>
 Diese Software ist kostenlos; Weiterverbreitung und/oder Modifikation
 ist erlaubt, solange Sie die Richtlinien der
-<A HREF="http://www.fsf.org/copyleft/gpl.html">GNU General Public License Version 2</A>,
+<A HREF="http://www.fsf.org/copyleft/gpl.html">GNU General Public License Version 2</A>
+(siehe auch
+<A HREF="http://www.gnu.de/documents/gpl-2.0.de.html">inoffizielle deutsche Übersetzung der GPLv2</A>)
 veröffentlicht von der <A HREF="http://www.fsf.org/">Free Software Foundation.</A>
 beachten. Die Software wurde mit bestem Wissen und Gewissen erstellt. Es
 wird jedoch <B>keinerlei Garantie</B> für deren Funktionstauglichkeit oder

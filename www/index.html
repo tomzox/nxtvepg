@@ -1,6 +1,6 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/HTMLlat1.ent">
 <HTML lang="en">
-<!-- $Id: index.html,v 1.105 2008/01/06 20:32:58 tom Exp $ -->
+<!-- $Id: index.html,v 1.109 2008/10/11 20:16:25 tom Exp $ -->
 <HEAD>
 <TITLE>nxtvepg - nexTView EPG Decoder Software</TITLE>
 <META http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
@@ -28,6 +28,7 @@
 
 <H2 class="navhead">News</H2>
 <P>
+Oct/10/2008: <A HREF="index.html#new_2_8_1">Release 2.8.1</A>
 </P>
 
 <H2 class="navhead">Documentation</H2>
@@ -39,6 +40,7 @@
 <A HREF="faq.html">FAQ</A><BR>
 <BR>
 <A HREF="man.html">nxtvepg manual</A><BR>
+<A HREF="ttx_grab.html">teletext grabber</A><BR>
 </P>
 
 <H2 class="navhead">Download</H2>
@@ -96,41 +98,30 @@ cover the daily TV schedules of all major networks in these countries.
 </UL>
 
 
-<H2><A NAME="releases">Current releases 2.7.7 and 2.8.0 (Dec/31/2007)</A></H2>
+<H2><A NAME="releases">New release 2.8.1 (Oct/10/2008)</A></H2>
 <P>
-After 3 years of (sporadic) development, there's finally an official
-release 2.8.0 which includes several major new features.  The older
-release 2.7.7 which has still been maintained until recently remains
-as stable fall-back in case you encounter any problems with the newer
-release.
-</P>
-<P>
-Major changes in release 2.8.0 compared to 2.7.7 are:
+The latest release 2.8.1 fixes many bugs large and small.
+All users of 2.8.0 should upgrade.
+Some of the most important fixes are:
 </P>
 <UL>
-<LI>Split of a separate EPG acquisition daemon without GUI ("nxtvepgd")<BR>
-  (Mainly intended for Linux-based HTPCs without X11 libraries.)
-<LI>Grabbing EPG data from regular teletext pages (German networks only;
-  <A HREF="man.html#teletext_grabber">Read more...</A>)<BR>
-  (Note this optional feature requires installation of a
-  <A HREF="http://www.cpan.org/">Perl</A> interpreter.<BR>
-  Note this feature is also available as a separate
-  <A HREF="pre-releases.html#ttx_grabber">Perl script</A>.)
-<LI>Import and merge of EPG data from external sources via files in
-  <A HREF="http://xmltv.org/">XMLTV</A> format.
-<LI>Extended EPG info for on-screen-display in TV applications (for
-  <A HREF="xiccc-proto.html#iccc">UNIX</A> and Windows)<BR>
-  (Note due to this change all <A HREF="http://www.kastortv.org/">K!TV</A>
-  users must replace their Nextview EPG plugin.)
-<LI>Support for exotic and non-PCI TV cards on Windows<BR>
-  (Note this requires download of a separate
-  <A HREF="pre-releases.html#wdm_if_lib">WDM interface library</A>.<BR>
-  Many thanks to Gérard Chevalier for developing the library.)
+<LI>Several bugs in the Linux driver interface were fixed which
+  made acquisition fail to start on certain Linux installations.
+<LI>A bug in the Nextview EPG data stream decoder was fixed which
+  sometimes lead to display of corrupt or entirely blank network names.
+<LI>A bug in TV application channel table import was fixed which
+  sometimes caused wrong names to be associated with channels.
+<LI>Various display bugs were fixed which were introduced by the upgrade
+  to Tcl/Tk version 8.5 in nxtvepg release 2.8.0 (such as incorrectly
+  displayed special characters in the main window and configuration
+  dialogs; problems when searching for such characters; on Linux
+  even a crash upon program start with certain versions of the
+  Tcl/Tk library.)
 </UL>
 <P>
-You can fetch these releases via the <A HREF="download.html">download section</A>.
+You can get this release via the <A HREF="download.html">download section</A>.
 <BR>Please refer to the <A HREF="changelog.html">changelog</A> for a detailed
-list of changes of this an previous releases.
+list of changes of this and previous releases.
 </P>
 
 
@@ -163,8 +154,7 @@ if the same question hasn't been asked recently.
 
 <H2><A NAME="copyright">Copyright</A></H2>
 <P>
-&copy; Copyright 1999 - 2007 by T. Zoerner (and others).
-All rights reserved.
+&copy; Copyright 1999 - 2008 by T. Zoerner (and others).
 </P><P>
 The author of this site's software is not a member of the
 <A HREF="http://www.etsi.org">ETSI</A> - but he still hopes his efforts to

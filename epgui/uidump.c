@@ -21,7 +21,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: uidump.c,v 1.5 2007/12/29 17:31:20 tom Exp tom $
+ *  $Id: uidump.c,v 1.6 2008/01/21 22:42:35 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -366,6 +366,8 @@ static int EpgDump_GetRawPi( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_O
    const uchar * pGeneralStr;
    uchar *p;
    uchar start_str[50], stop_str[50];
+   time_t start_time;
+   time_t stop_time;
    bool isFromAi;
    int index;
    int len;
@@ -406,8 +408,10 @@ static int EpgDump_GetRawPi( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_O
          len = sprintf(comm, "BlockNo:\t0x%04X in %04X-%04X-%04X\n", pPiBlock->block_no, pNetwop->startNo, pNetwop->stopNo, pNetwop->stopNoSwo);
          APPEND_ASCII(comm, len);
 
-         strftime(start_str, sizeof(start_str), "%a %d.%m %H:%M", localtime(&pPiBlock->start_time));
-         strftime(stop_str, sizeof(stop_str), "%a %d.%m %H:%M", localtime(&pPiBlock->stop_time));
+         start_time = pPiBlock->start_time;
+         strftime(start_str, sizeof(start_str), "%a %d.%m %H:%M", localtime(&start_time));
+         stop_time = pPiBlock->stop_time;
+         strftime(stop_str, sizeof(stop_str), "%a %d.%m %H:%M", localtime(&stop_time));
          len = sprintf(comm, "Start:\t%s\nStop:\t%s\n", start_str, stop_str);
          APPEND_ENC(EPG_ENC_SYSTEM, NULL, comm, NULL);
 

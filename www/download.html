@@ -1,6 +1,6 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/HTMLlat1.ent">
 <HTML lang="en">
-<!-- $Id: download.html,v 1.26 2008/01/06 20:32:58 tom Exp $ -->
+<!-- $Id: download.html,v 1.29 2008/10/11 20:15:56 tom Exp $ -->
 <HEAD>
 <TITLE>Download nxtvepg</TITLE>
 <META http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
@@ -46,6 +46,7 @@
 <A HREF="faq.html">FAQ</A><BR>
 <BR>
 <A HREF="man.html">nxtvepg manual</A><BR>
+<A HREF="ttx_grab.html">teletext grabber</A><BR>
 </P>
 
 <H2 class="navhead">Download</H2>
@@ -73,21 +74,14 @@ width="125" height="37" alt="SourceForge.net Logo"></a></span></span>
 
 <H1>Download nxtvepg</H1>
 <P>
-The latest official nxtvepg release is version <B>2.8.0</B>, the latest
-stable release is <B>2.7.7</B>.  The difference between these two is a
-number of <A HREF="index.html#releases">new features</A>
-(see also a list of <A HREF="changelog.html#release_2_8_0">all details</A>)
-which have been introduced in 2.8.0.  If you already
-have a working installation of nxtvepg 2.7.7, you need only upgrade
-if you're interested in any of the new features.  For new users
-it's recommended to start with 2.8.0 and only fall back to 2.7.7
-if you encounter serious bugs (and if you do, please remember to
-report them in the 
-<A HREF="http://sourceforge.net/forum/forum.php?forum_id=217872">discussion forum</A>.)
+The latest official nxtvepg release is version <B>2.8.1</B>.
+This release fixes several major and many smaller bugs, hence
+all users of 2.8.0 should upgrade.  (See also a list of
+<A HREF="changelog.html#release_2_8_1">all details</A>.)
 </P>
 <P>
-When upgrading from older releases you should keep a copy of your old
-<KBD>nxtvepg.ini</KBD> file so that you can go back to the old software
+When upgrading from older releases on Windows, you should keep a copy of your
+old <KBD>nxtvepg.ini</KBD> file so that you can go back to the old software
 in case of problems (i.e. the older software will not be able to read
 an nxtvepg.ini file which was modified by newer releases.)  Also note
 if you're using the nxtvepg acquisition daemon together with the
@@ -99,23 +93,40 @@ For older releases see the
 </P>
 
 <DIV CLASS="box">
-<H2><A NAME="download_unix">Source distribution</A></H2>
+<H3><A NAME="download_source">Source distribution</A></H3>
 <UL>
-<LI><A HREF="http://prdownloads.sourceforge.net/nxtvepg/nxtvepg-2.8.0.tar.gz?download">nxtvepg-2.8.0.tar.gz</A>
-<LI><A HREF="http://prdownloads.sourceforge.net/nxtvepg/nxtvepg-2.7.7.tar.gz?download">nxtvepg-2.7.7.tar.gz</A>
+<LI><A HREF="http://prdownloads.sourceforge.net/nxtvepg/nxtvepg-2.8.1.tar.gz?download">nxtvepg-2.8.1.tar.gz</A>
 </UL>
 <P>
-This is the source distribution for Linux, NetBSD and FreeBSD: unpack
-the archive, then change into the source directory and compile
-with "make", install with "make install".  If you encounter problems
-see the README file for more detailed instructions.  Of course it's
-also possible to compile the Windows port from these sources; this is
-also explained in the README file.
+These are the sources from which all binary packages can be generated.
+To compile for Linux, NetBSD and FreeBSD: Unpack the archive, then
+change into the source directory, optionally edit paths and settings
+in the Makefile or Makefile.bsd, then compile with "make", install
+with "make install".  If you encounter problems see the README file
+for more detailed instructions.  Of course it's also possible to
+compile the Windows port from these sources; this is also explained
+in the README file.
 </P><P>
 You can build a RPM package from the source tarball simply by running
-<KBD>rpm -ta nxtvepg-2.8.0.tar.gz</KBD> and install it as usual with
+<KBD>rpm -ta nxtvepg-2.8.1.tar.gz</KBD> and install it as usual with
 <KBD>rpm -i</KBD>.
+</P>
+</DIV>
+
+<DIV CLASS="box">
+<H3><A NAME="download_unix">Binary distributions for Linux and BSD</A></H3>
+<P>
+Many distributions already include nxtvepg. So you can simply install it by
+selecting it in the package manager, usually in the multimedia section where
+the TV applications live.
 </P><P>
+The following is a binary package of the latest release for Debian (and
+Debian compatibles such as Ubuntu):
+</P>
+<UL>
+<LI><A HREF="http://prdownloads.sourceforge.net/nxtvepg/nxtvepg_2.8.1-2_i386.deb?download">nxtvepg_2.8.1-2_i386.deb</A>
+</UL>
+<P>
 Alternatively, pre-compiled packages are provided at the following sites
 (not necessarily the latest version):
 </P>
@@ -131,35 +142,25 @@ Alternatively, pre-compiled packages are provided at the following sites
 <LI>For FreeBSD at
     <A HREF="http://www.freebsd.org/cgi/cvsweb.cgi/ports/multimedia/nxtvepg/">freebsd.org</A>
 </UL>
+<P><SPAN CLASS="anno">Thanks to Uwe Bugla for the Debian package.</SPAN></P>
 </DIV>
 
 
 <DIV CLASS="box">
-<H2><A NAME="download_windows">Binary distribution for M$ Windows</A></H2>
+<H3><A NAME="download_windows">Binary distribution for M$ Windows</A></H3>
 <UL>
-<LI><A HREF="http://prdownloads.sourceforge.net/nxtvepg/nxtvepg-2.8.0-win.zip?download">nxtvepg-2.8.0-win.zip</A><BR>
-<LI><A HREF="http://prdownloads.sourceforge.net/nxtvepg/nxtvepg-2.7.7-win.exe?download">nxtvepg-2.7.7-win.exe</A>
+<LI CLASS="spaced"><A HREF="http://prdownloads.sourceforge.net/nxtvepg/setup-nxtvepg-2.8.1.exe?download">setup-nxtvepg-2.8.1.exe</A><BR>
+<LI CLASS="spaced">If your TV card is not supported by the included <I>dsdrv4</I> driver,
+  you may download the <A HREF="pre-releases.html#wdm_if_lib">WDM interface library</A>
+  from the nxtvepg pre-release page (this feature is still experimental.)
+<LI CLASS="spaced"> Alternative version for release 2.8.1:
+  <A HREF="http://prdownloads.sourceforge.net/nxtvepg/nxtvepg-2.8.1-win-utf8.zip?download">nxtvepg-2.8.1-win-utf8.zip</A>.
+  This variant uses UTF-8 encoding internally so that XMLTV files from
+  outside of Western Europe can be imported and merged.
+  See below for hints on installing the ZIP file.
 </UL>
 <P>
-If your TV card is not supported by the included <I>dsdrv4</I> driver,
-you may download the <A HREF="pre-releases.html#wdm_if_lib">WDM interface library</A>
-(this feature is still experimental.)
-</P>
-<P>
-<B>Important</B> notice for <A HREF="http://www.kastortv.org/">K!TV</A> users:
-To use nxtvepg 2.8.0 with K!TV, you must copy a new version of library
-<KBD>NextViewPlugin.dll</KBD> which is included in the above package
-into the <KBD>Plugin</KBD> sub-directory in your K!TV installation.
-</P>
-<P>
-Last but not least: alternative version for release 2.8.0:
-<A HREF="http://prdownloads.sourceforge.net/nxtvepg/nxtvepg-2.8.0-win-utf8.zip?download">nxtvepg-2.8.0-win-utf8.zip</A>.
-This variant uses UTF-8 encoding internally so that XMLTV files from
-outside of Western Europe can be imported and merged.
-</P>
-<P>
-An installer for version 2.8.0 will be available within a few days. For now
-please install nxtvepg from the ZIP file: Simply unpack the nxtvepg ZIP file
+When installing nxtvepg from a ZIP archive: Simply unpack the nxtvepg archive
 into a new, empty directory and then double-click the nxtvepg.exe file to
 start the program.
 </P>
@@ -171,18 +172,19 @@ directory.  Please refer to the Help menu or HTML manual page, section
 </P><P>
 For developers: A demo application for TV application interaction is available
 (see also <A HREF="tvsim-faq.html">FAQ</A>):
-<A HREF="http://prdownloads.sourceforge.net/nxtvepg/nxtvepg-2.8.0-tvsim.zip?download">nxtvepg-2.8.0-tvsim.zip</A>
+<A HREF="http://prdownloads.sourceforge.net/nxtvepg/nxtvepg-2.8.1-tvsim.zip?download">nxtvepg-2.8.1-tvsim.zip</A>
 (see <A HREF="tvsim.html">tvsim</A>,
 <A HREF="vbirec.html">vbirec</A> or
 <A HREF="vbiplay.html">vbiplay</A> manuals, or
 <A HREF="screenshot-tvsim.gif">tvsim &amp; nxtvepg</A> and
 <A HREF="screenshot-vbirec.gif">tvsim &amp; vbirec screenshot</A>)
 </P>
+<P><SPAN class="anno">Thanks to Néo for providing the installer for Windows.</SPAN></P>
 </DIV>
 
 
 <DIV CLASS="box">
-<H2><A NAME="download_demodb">Demo Database</A></H2>
+<H3><A NAME="download_demodb">Demo Database</A></H3>
 <P>
 <A HREF="http://prdownloads.sourceforge.net/nxtvepg/nxdemodb.epg.gz">nxdemodb.epg.gz</A>
 </P><P>
@@ -228,14 +230,14 @@ The NetBSD and FreeBSD versions support all cards which are supported by the
 </P>
 
 <DIV CLASS="box">
-<H2>Linux software requirements</H2>
+<H3>Linux software requirements</H3>
 <UL>
 <LI><I>video4linux</I> drivers with <I>VBI</I> support for your TV card.
   Since kernel version 2.6.x, the vanilla kernels include working drivers
   for the most used analog TV cards, so you'll probably need no extra drivers.
   Restrictions: bttv drivers in kernel versions 2.6.16 or newer are supported
   by nxtvepg 2.7.7 or newer only. bttv drivers in kernel versions 2.6.21 or
-  newer require nxtvepg version 2.8.0.<BR>
+  newer require nxtvepg version 2.8.0 or later.<BR>
   Older kernel versions:
   <UL>
   <LI>TV cards with Brooktree Bt848 or Bt878 capture chip: Kernel 2.0.35 or newer and
@@ -258,7 +260,7 @@ The NetBSD and FreeBSD versions support all cards which are supported by the
 </DIV>
 
 <DIV CLASS="box">
-<H2>NetBSD software requirements</H2>
+<H3>NetBSD software requirements</H3>
 <UL>
 <LI>kernel &gt;= 1.5 including the
 <A HREF="http://vulture.dmem.strath.ac.uk/bt848/">bktr driver</A> 2.17 or later,
@@ -269,7 +271,7 @@ The NetBSD and FreeBSD versions support all cards which are supported by the
 </DIV>
 
 <DIV CLASS="box">
-<H2>FreeBSD software requirements</H2>
+<H3>FreeBSD software requirements</H3>
 <UL>
 <LI><A href="http://www.FreeBSD.org/">FreeBSD</A> 4-STABLE as of November 1st 2000 (or more
   recent) or FreeBSD 5, i.e. a system that contains the bktr(4)-driver 2.18 or
@@ -290,7 +292,7 @@ have a look at the
 </DIV>
 
 <DIV CLASS="box">
-<H2>Windows software requirements</H2>
+<H3>Windows software requirements</H3>
 <UL>
 <LI>No additional software is required: nxtvepg is shipped with all the required components.
 <LI>Exception for Windows 95: the winsock2 DLL is required (ws2_32.dll, for the daemon

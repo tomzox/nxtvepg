@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgdbsav.h,v 1.42 2007/12/30 23:49:56 tom Exp tom $
+ *  $Id: epgdbsav.h,v 1.43 2008/02/03 15:34:58 tom Exp tom $
  */
 
 #ifndef __EPGDBSAV_H
@@ -91,9 +91,9 @@ typedef struct
    uint32_t  compatVersion;       // version of oldest compatible software
    uint32_t  swVersion;           // version of this software
 
-   time_t    lastPiDate;          // stop time of last PI in db
-   time_t    firstPiDate;         // start time of first PI in db
-   time_t    lastAiUpdate;        // time when the last AI block was received
+   time32_t  lastPiDate;          // stop time of last PI in db
+   time32_t  firstPiDate;         // start time of first PI in db
+   time32_t  lastAiUpdate;        // time when the last AI block was received
    uint32_t  cni;                 // CNI of EPG provider
    uint32_t  pageNo;              // last used ttx page
    uint32_t  tunerFreq;           // tuner frequency of provider's channel

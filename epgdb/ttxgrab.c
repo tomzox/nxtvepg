@@ -19,7 +19,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: ttxgrab.c,v 1.6 2007/03/10 19:31:32 tom Exp tom $
+ *  $Id: ttxgrab.c,v 1.9 2008/10/05 16:33:01 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB
@@ -50,7 +50,17 @@
 
 #ifdef USE_TTX_GRABBER
 
-#define GRAB_SCRIPT_NAME   "ttx_grab.pl"
+#if !defined (TTX_GRAB_SCRIPT_PATH)
+#error "Name of external grabber script missing"  // should be defined in makefile
+#endif
+
+// three possible locations for the grabber script: current dir, nxtvepg cfg dir, $PATH
+#define TTX_GRAB_SCRIPT_LOCAL   "tv_grab_ttx.pl"
+#ifndef WIN32
+#define TTX_GRAB_SCRIPT_NXTVEPG  TTX_GRAB_SCRIPT_PATH "/tv_grab_ttx.pl"
+#define TTX_GRAB_SCRIPT_GLOBAL  "tv_grab_ttx"
+#endif
+
 #define XML_OUT_FILE_PAT   "ttx-%s.xml.tmp"
 #define TTX_CAP_FILE_PAT   "ttx-%s.dat"
 #define TTX_CAP_FILE_TMP   "ttx.tmp"
@@ -546,7 +556,9 @@ static bool TtxGrab_KillParser( void )
 {
    bool result = FALSE;
 #ifndef WIN32
-   if (ttxGrabState.child_pid != -1)
+   assert((ttxGrabState.child_pid == -1) || (ttxGrabState.child_pid > 0));
+
+   if (ttxGrabState.child_pid > 0)  // fail-safe: do not check for -1 only
    {
       int status;
       if (kill(ttxGrabState.child_pid, SIGTERM) == 0)
@@ -559,11 +571,13 @@ static bool TtxGrab_KillParser( void )
    if (ttxGrabState.child_active)
    {
       dprintf0("TtxGrab-Stop: killing grabber process\n");
+      assert(ttxGrabState.child_handle != INVALID_HANDLE_VALUE);
       TerminateProcess(ttxGrabState.child_handle, 1);
       WaitForSingleObject(ttxGrabState.child_handle, 200);  // max. 200 ms
       CloseHandle(ttxGrabState.child_handle);
       CloseHandle(ttxGrabState.child_stderr);
       ttxGrabState.child_active = FALSE;
+      ttxGrabState.child_handle = INVALID_HANDLE_VALUE;
       result = TRUE;
    }
 #endif
@@ -580,8 +594,9 @@ static bool TtxGrab_SpawnParser( FILE * fpGrabInTmp, const char * pOutFile, cons
    int pipe_fd[2];
    pid_t pid;
    char exp_str[20];
+   char * argv[16];
+   uint arg_idx;
 
-   dprintf1("EXEC perl " GRAB_SCRIPT_NAME " -outfile %s -\n", pOutFile);
    pipe(pipe_fd);
    pid = fork();
    if (pid == 0)
@@ -596,12 +611,43 @@ static bool TtxGrab_SpawnParser( FILE * fpGrabInTmp, const char * pOutFile, cons
 
       sprintf(exp_str, "%d", ttxGrabState.expireMin);
       //unlink(pOutFile); // FIXME
+
+      arg_idx = 0;
+      argv[arg_idx++] = TTX_GRAB_SCRIPT_LOCAL;
+      argv[arg_idx++] = TTX_GRAB_SCRIPT_LOCAL;
+      argv[arg_idx++] = "-expire";
+      argv[arg_idx++] = exp_str;
       if (pMergeFile != NULL)
-         execlp("perl", GRAB_SCRIPT_NAME, GRAB_SCRIPT_NAME, "-expire", exp_str, "-merge", pMergeFile, "-outfile", pOutFile, "-", NULL);
+      {
+         argv[arg_idx++] = "-merge";
+         argv[arg_idx++] = (char *) pMergeFile;
+      }
+      argv[arg_idx++] = "-outfile";
+      argv[arg_idx++] = (char *) pOutFile;
+      argv[arg_idx++] = "-";
+      argv[arg_idx] = NULL;
+
+      if (access(TTX_GRAB_SCRIPT_LOCAL, R_OK) == 0)
+      {
+         dprintf9("EXEC perl %s %s %s %s %s %s %s %s %s\n", argv[0], argv[1], argv[2], argv[3], ((arg_idx > 4) ? argv[4] : ""), ((arg_idx > 5) ? argv[5] : ""), ((arg_idx > 6) ? argv[6] : ""), ((arg_idx > 7) ? argv[7] : ""), ((arg_idx > 8) ? argv[8] : ""));
+         execvp("perl", argv);
+      }
+      else if (access(TTX_GRAB_SCRIPT_NXTVEPG, R_OK) == 0)
+      {
+         argv[0] = TTX_GRAB_SCRIPT_NXTVEPG;
+         argv[1] = TTX_GRAB_SCRIPT_NXTVEPG;
+         dprintf9("EXEC perl %s %s %s %s %s %s %s %s %s\n", argv[0], argv[1], argv[2], argv[3], ((arg_idx > 4) ? argv[4] : ""), ((arg_idx > 5) ? argv[5] : ""), ((arg_idx > 6) ? argv[6] : ""), ((arg_idx > 7) ? argv[7] : ""), ((arg_idx > 8) ? argv[8] : ""));
+         execvp("perl", argv);
+      }
       else
-         execlp("perl", GRAB_SCRIPT_NAME, GRAB_SCRIPT_NAME, "-expire", exp_str, "-outfile", pOutFile, "-", NULL);
+      {
+         argv[1] = TTX_GRAB_SCRIPT_GLOBAL;
+         dprintf8("EXEC %s %s %s %s %s %s %s %s\n", argv[1], argv[2], argv[3], ((arg_idx > 4) ? argv[4] : ""), ((arg_idx > 5) ? argv[5] : ""), ((arg_idx > 6) ? argv[6] : ""), ((arg_idx > 7) ? argv[7] : ""), ((arg_idx > 8) ? argv[8] : ""));
+         execvp(TTX_GRAB_SCRIPT_GLOBAL, argv + 1);
+      }
+
       // only reached in error cases
-      fprintf(stderr, "Failed to start perl interpreter: %s\n", strerror(errno));
+      fprintf(stderr, "Failed to start grabber script or perl interpreter: %s\n", strerror(errno));
       exit(-1);
    } 
    else if (pid > 0)
@@ -656,12 +702,12 @@ static bool TtxGrab_SpawnParser( FILE * fpGrabInTmp, const char * pOutFile, cons
    if (pMergeFile != NULL)
    {
       pCmd = xmalloc(strlen(pPerlExe) + strlen(pOutFile) + strlen(pMergeFile) + 100);
-      sprintf(pCmd, "\"%s\" \"%s\" -expire %d -merge \"%s\" -outfile \"%s\" -", pPerlExe, GRAB_SCRIPT_NAME, ttxGrabState.expireMin, pMergeFile, pOutFile);
+      sprintf(pCmd, "\"%s\" \"%s\" -expire %d -merge \"%s\" -outfile \"%s\" -", pPerlExe, TTX_GRAB_SCRIPT_LOCAL, ttxGrabState.expireMin, pMergeFile, pOutFile);
    }
    else
    {
       pCmd = xmalloc(strlen(pPerlExe) + strlen(pOutFile) + 100);
-      sprintf(pCmd, "\"%s\" \"%s\" -expire %d -outfile \"%s\" -", pPerlExe, GRAB_SCRIPT_NAME, ttxGrabState.expireMin, pOutFile);
+      sprintf(pCmd, "\"%s\" \"%s\" -expire %d -outfile \"%s\" -", pPerlExe, TTX_GRAB_SCRIPT_LOCAL, ttxGrabState.expireMin, pOutFile);
    }
 
    if (CreateProcess(NULL, pCmd, NULL, NULL, TRUE,
@@ -794,6 +840,7 @@ static bool TtxGrab_CheckChildStatus( uint * pExitCode )
             CloseHandle(ttxGrabState.child_handle);
             CloseHandle(ttxGrabState.child_stderr);
             ttxGrabState.child_active = FALSE;
+            ttxGrabState.child_handle = INVALID_HANDLE_VALUE;
 
             ifdebug1(exitCode != 0, "TtxGrab-CheckChildStatus: non-zero exit code from perl script: %ld", exitCode);
             *pExitCode = (uint) exitCode;
@@ -986,8 +1033,15 @@ bool TtxGrab_Start( uint startPage, uint stopPage, bool enableOutput )
       ttxGrabState.fpTtxTmp = NULL;
    }
 
+#ifdef WIN32
    // check if grabber script exists and is readable (need not be executable)
-   if (access(GRAB_SCRIPT_NAME, R_OK) == 0)
+   if (access(TTX_GRAB_SCRIPT_LOCAL, R_OK) != 0)
+   {
+      debug3("TtxGrab-Start: grabber script '%s' not available: %s (%d)", TTX_GRAB_SCRIPT_LOCAL, strerror(errno), (int)errno);
+      result = FALSE;
+   }
+   else
+#endif
    {
       if (enableOutput)
       {
@@ -999,11 +1053,6 @@ bool TtxGrab_Start( uint startPage, uint stopPage, bool enableOutput )
          ifdebug1(ttxGrabState.fpTtxTmp == NULL, "TtxGrab-Start: failed to create tmpfile: %d", errno);
          result = (ttxGrabState.fpTtxTmp != NULL);
       }
-   }
-   else
-   {
-      debug3("TtxGrab-Start: grabber script '%s' not available: %s (%d)", GRAB_SCRIPT_NAME, strerror(errno), (int)errno);
-      result = FALSE;
    }
 
    return result;
@@ -1086,6 +1135,8 @@ void TtxGrab_Init( void )
 #ifndef WIN32
    ttxGrabState.child_pipe = -1;
    ttxGrabState.child_pid = -1;
+#else
+   ttxGrabState.child_handle = INVALID_HANDLE_VALUE;  // fail-safe only
 #endif
 }
 

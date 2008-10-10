@@ -18,7 +18,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: dlg_hwcfg.tcl,v 1.21 2007/12/29 21:03:39 tom Exp tom $
+#  $Id: dlg_hwcfg.tcl,v 1.22 2008/08/10 19:14:36 tom Exp tom $
 #
 set hwcfg_popup 0
 set tvcard_popup 0
@@ -435,7 +435,7 @@ proc HardwareConfigQuit {is_ok} {
                  ($hwcfg_drvsrc_sel == $::tvcf_drvsrc_dsdrv) } {
 
                # Win32: initial TV card configuration
-               set answer [tk_messageBox -type okcancel -default ok -icon warning -parent .hwcfg \
+               set answer [tk_messageBox -type okcancel -default ok -icon warning -title "Caution" -parent .hwcfg \
                               -message "Nextview acquisition will be enabled now. In the unlikely case your system should crash, remove the 'nxtvepg.ini' file and try again with the 'WDM stop' option enabled, or use a WDM source."]
                if {[string compare $answer "ok"] != 0} {
                   return
@@ -447,7 +447,7 @@ proc HardwareConfigQuit {is_ok} {
                   C_ToggleAcq 0 0
                   set hwcf_acq_reenable $::tvcf_acq_disa_tmp
                }
-               set answer [tk_messageBox -type okcancel -default ok -icon warning -parent .hwcfg \
+               set answer [tk_messageBox -type okcancel -default ok -icon warning -title "nxtvepg warning" -parent .hwcfg \
                               -message "WARNING: switching from a WDM driver to dsdrv is risky because the WDM driver may still be active. It's recommended to press 'Cancel' now and reboot before re-starting Nextview acquisition with dsdrv4."]
                if {[string compare $answer "ok"] != 0} {
                   # new config is still saved, but acq not re-enabled

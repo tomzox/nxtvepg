@@ -31,7 +31,7 @@
  *     Those parts have been adapted for xawtv-remote.c by Gerd Knorr
  *     (kraxel@bytesex.org)  Some functions have been derived from xawtv.
  *
- *  $Id: xawtv.c,v 1.55 2007/12/31 00:20:33 tom Exp tom $
+ *  $Id: xawtv.c,v 1.56 2008/01/21 22:42:35 tom Exp tom $
  */
 
 #ifdef WIN32
@@ -1314,12 +1314,17 @@ static void Xawtv_NowNext( const PI_BLOCK *pPiBlock )
    float percentage;
    uint  cmdLen;
    time_t now;
+   time_t start_time;
+   time_t stop_time;
    Tcl_Obj * pCmdObj;
 
    if (pPiBlock != NULL)
    {
-      strftime(start_str, 10, "%H:%M", localtime(&pPiBlock->start_time));
-      strftime(stop_str, 10, "%H:%M", localtime(&pPiBlock->stop_time));
+      start_time = pPiBlock->start_time;
+      strftime(start_str, 10, "%H:%M", localtime(&start_time));
+
+      stop_time = pPiBlock->stop_time;
+      strftime(stop_str, 10, "%H:%M", localtime(&stop_time));
 
       now = time(NULL);
       if ( (now < pPiBlock->start_time) ||

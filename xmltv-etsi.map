@@ -13,7 +13,7 @@
 #  sections apply only to XMLTV documents with a matching source-info or
 #  source-data text (inside the <tv> tag or in <source-info><link>)
 #
-#  $Id: xmltv-etsi.map,v 1.5 2008/01/01 02:31:47 tom Exp tom $
+#  $Id: xmltv-etsi.map,v 1.6 2008/09/20 20:34:17 tom Exp tom $
 #
 [GLOBAL]
 1DCA 1.br-online.de
@@ -146,4 +146,20 @@
 1D88 y24.katso.fi
 # ZDF
 1DC2 zdf.katso.fi
+
+# channel IDs returned by the teletext grabber
+[teletext]
+# use the following to allow merge with Kabel1 Nextview EPG
+# (which uses an incorrect CNI for MTV)
+FFEF MTV
+# correct mapping for MTV
+# (which doesn't transmit VPS/PDC so it's identified by its teletext header)
+#1D73 MTV
+#
+# SWR: map sub-networks (RP/BW/SR) to the umbrella network code
+1DE0 CNI0DE1
+1DE0 CNI0DE2
+1DE0 CNI0DE4
+# Eurosport transmits an unofficial code in VPS: map to official code
+1D91 CNI0FE2
 

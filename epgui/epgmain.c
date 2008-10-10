@@ -20,7 +20,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgmain.c,v 1.156 2007/12/31 16:34:36 tom Exp tom $
+ *  $Id: epgmain.c,v 1.160 2008/10/03 21:14:06 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -379,6 +379,8 @@ static void Main_PopupTvCardSetup( ClientData clientData )
 static void MainStartDump( void )
 {
    uint provCni;
+
+   EpgContextCtl_SetPiExpireDelay(RcFile_Query()->db.piexpire_cutoff * 60);
 
    provCni = CmdLine_GetStartProviderCni();
    if (provCni == MERGED_PROV_CNI)
@@ -1862,12 +1864,18 @@ static bool RaiseNxtvepgGuiWindow( void )
 // - prefix and postfix must be encoded in ASCII and are appended unchanged
 //
 Tcl_Obj * TranscodeToUtf8( T_EPG_ENCODING enc,
-                           const char * pPrefix, const char * pStr, const char * pPostfix )
+                           const char * pPrefix, const char * pStr, const char * pPostfix
+                           /*, const char * pCallerFile, int callerLine*/ )
 {
    Tcl_Obj * pObj;
    Tcl_DString dstr;
 
-   assert(pStr != NULL);
+   if (pStr == NULL)
+   {
+      //debug2("TranscodeToUtf8: invalid NULL ptr param in %s, line %d", pCallerFile, callerLine);
+      fatal0("TranscodeToUtf8: invalid NULL ptr param");
+      return Tcl_NewStringObj("0", -1);
+   }
 
    switch (enc)
    {
@@ -2163,14 +2171,14 @@ int main( int argc, char *argv[] )
 
    if ( IS_GUI_MODE(mainOpts) || IS_DUMP_MODE(mainOpts) )
    {
+      // initialize Tcl interpreter and compile all scripts
+      // Tk is only initialized if a GUI will be opened
+      ui_init(argc, argv, IS_GUI_MODE(mainOpts));
+
       #ifndef WIN32
       exitAsyncHandler = Tcl_AsyncCreate(AsyncHandler_AppTerminate, NULL);
       signalAsyncHandler = Tcl_AsyncCreate(AsyncHandler_Signalled, NULL);
       #endif
-
-      // initialize Tcl interpreter and compile all scripts
-      // Tk is only initialized if a GUI will be opened
-      ui_init(argc, argv, IS_GUI_MODE(mainOpts));
 
       encIso88591 = Tcl_GetEncoding(interp, "iso8859-1");
 
@@ -2395,7 +2403,7 @@ int main( int argc, char *argv[] )
    }
    #endif
 
-   if ( !IS_DUMP_MODE(mainOpts) )
+   if ( !IS_DUMP_MODE(mainOpts) && !IS_REMCTL_MODE(mainOpts) )
    {
       #ifdef WIN32
       WintvSharedMem_Exit();
