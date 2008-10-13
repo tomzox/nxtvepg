@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: cmdline.h,v 1.7 2007/03/03 19:49:53 tom Exp tom $
+ *  $Id: cmdline.h,v 1.8 2008/10/12 19:56:24 tom Exp tom $
  */
 
 #ifndef __CMDLINE_H
@@ -65,6 +65,8 @@ typedef enum
 #define IS_REMCTL_MODE(X)     ((X).optRemCtrl != REM_CTRL_NONE)
 #define IS_DEMO_MODE(X)       ((X).pDemoDatabase != NULL)
 
+#define OPT_DUMP_FILTER_MAX   20
+
 
 // command line options
 typedef struct
@@ -84,6 +86,7 @@ typedef struct
    EPG_DAEMON_MODE optDaemonMode;
    EPG_DUMP_MODE optDumpMode;
    uint          optDumpSubMode;
+   const char * optDumpFilter[OPT_DUMP_FILTER_MAX];
    EPG_REMCTRL_CMD optRemCtrl;
    const char * pStdOutFileName;
 #ifdef USE_DAEMON

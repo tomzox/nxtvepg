@@ -71,6 +71,7 @@
 #include <sys/shm.h>
 #include <sys/resource.h>
 #include <sys/wait.h>
+#include <dirent.h>
 
 #ifdef USE_THREADS
 # include <pthread.h>
@@ -277,6 +278,69 @@ static char * BtDriver_GetDevicePath( BTDRV_DEV_TYPE devType, uint cardIdx )
    }
 #endif
    return devName;
+}
+
+// ---------------------------------------------------------------------------
+// Search for a VBI device file with the given or higher index
+// - returns index of next device file, or -1 if none found
+//
+static sint BtDriver_SearchDeviceFile( BTDRV_DEV_TYPE devType, uint cardIdx )
+{
+   DIR    *dir;
+   struct dirent *entry;
+   uint   try;
+   int    scanLen;
+   uint   devIdx;
+   sint   result = -1;
+
+   if ((devType == DEV_TYPE_VBI) || (devType == DEV_TYPE_VIDEO))
+   {
+      for (try = 0; (try <= 1) && (result == -1); try++)
+      {
+         if (try == 0)
+            dir = opendir("/dev");
+         else
+            dir = opendir("/dev/v4l");
+
+         if (dir != NULL)
+         {
+            while ((entry = readdir(dir)) != NULL)
+            {
+               if ( ( (devType == DEV_TYPE_VIDEO) ?
+                      (sscanf(entry->d_name, "video%u%n", &devIdx, &scanLen) >= 1) :
+                      (sscanf(entry->d_name, "vbi%u%n", &devIdx, &scanLen) >= 1) ) &&
+                    (entry->d_name[scanLen] == 0) &&
+                    (devIdx > cardIdx) )
+               {
+                  result = devIdx;
+                  break;
+               }
+            }
+            closedir(dir);
+         }
+      }
+   }
+   else if (devType == DEV_TYPE_DVB)
+   {
+      dir = opendir("/dev/dvb");
+
+      if (dir != NULL)
+      {
+         while ((entry = readdir(dir)) != NULL)
+         {
+            if ( (sscanf(entry->d_name, "adapter%u%n", &devIdx, &scanLen) >= 1) &&
+                 (entry->d_name[scanLen] == 0) &&
+                 (devIdx > cardIdx) )
+            {
+               result = devIdx;
+               break;
+            }
+         }
+         closedir(dir);
+      }
+   }
+
+   return result;
 }
 
 #if defined(__NetBSD__) || defined(__FreeBSD__)
@@ -1524,7 +1588,8 @@ bool BtDriver_SetDvbPid( int pid )
 }
 
 // ---------------------------------------------------------------------------
-// Return name for given TV card
+// Query TV card name from a device with the given index
+// - returns NULL if query fails and no devices with higher indices exist
 //
 const char * BtDriver_GetCardName( uint cardIndex )
 {
@@ -1573,8 +1638,18 @@ const char * BtDriver_GetCardName( uint cardIndex )
    }
    else if (errno == EBUSY)
    {  // device exists, but is busy -> must not return NULL
-      sprintf(name, "#%s (device busy)", pDevName);
+      snprintf(name, MAX_CARD_NAME_LEN, "%s (device busy)", pDevName);
       pName = (const char *) name;
+   }
+
+   if (pName == NULL)
+   {  // device file missing -> scan for devices with subsequent indices
+      if (BtDriver_SearchDeviceFile(DEV_TYPE_VBI, cardIndex) != -1)
+      {
+         // more device files with higher indices follow -> return dummy for "gap"
+         snprintf(name, MAX_CARD_NAME_LEN, "%s (no such device)", pDevName);
+         pName = (const char *) name;
+      }
    }
    return pName;
 

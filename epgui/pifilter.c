@@ -20,7 +20,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: pifilter.c,v 1.93 2008/09/20 19:17:03 tom Exp tom $
+ *  $Id: pifilter.c,v 1.94 2008/10/12 19:22:07 tom Exp tom $
  */
 
 #define __PIFILTER_C
@@ -1772,7 +1772,7 @@ static int SelectNi( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONS
 // ----------------------------------------------------------------------------
 // Update network prefilter for restricted air times
 //
-static void PiFilter_UpdateAirTime( void )
+void PiFilter_UpdateAirTime( void )
 {
    const AI_BLOCK  * pAiBlock;
    const AI_NETWOP * pNetwop;
@@ -1833,45 +1833,6 @@ static int PiFilter_SelectAirTimes( ClientData ttp, Tcl_Interp *interp, int objc
       result = TCL_OK; 
    }
    return result;
-}
-
-// ----------------------------------------------------------------------------
-// Enable network prefilter to permanently exclude a subset of networks
-// - called after provider selection and during acquisition after AI update
-//
-void PiFilter_SetNetwopPrefilter( uint cniCount, const uint * pExCniList )
-{
-   const AI_BLOCK * pAiBlock;
-   uint netwop;
-   uint cniIdx;
-   uint cni;
-
-   if (pPiFilterContext != NULL)
-   {
-      EpgDbLockDatabase(dbc, TRUE);
-      pAiBlock = EpgDbGetAi(dbc);
-      if (pAiBlock != NULL)
-      {
-         EpgDbFilterInitNetwopPreFilter(pPiFilterContext);
-         EpgDbPreFilterEnable(pPiFilterContext, FILTER_NETWOP_PRE);
-
-         for (netwop = 0; netwop < pAiBlock->netwopCount; netwop++) 
-         {
-            cni = AI_GET_NET_CNI_N(pAiBlock, netwop);
-            for (cniIdx = 0; cniIdx < cniCount; cniIdx++) 
-               if (pExCniList[cniIdx] == cni)
-                  break;
-            // if this network's CNI is in the exclude list: add it to the pre-filter
-            if (cniIdx < cniCount)
-            {
-               EpgDbFilterSetNetwopPreFilter(pPiFilterContext, netwop);
-            }
-         }
-      }
-      EpgDbLockDatabase(dbc, FALSE);
-
-      PiFilter_UpdateAirTime();
-   }
 }
 
 // ----------------------------------------------------------------------------

@@ -18,7 +18,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: dumphtml.c,v 1.10 2008/09/20 19:07:05 tom Exp tom $
+ *  $Id: dumphtml.c,v 1.11 2008/10/12 19:55:39 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -566,7 +566,8 @@ static void EpgDumpHtml_Title( FILE * fpDst, const PI_BLOCK * pPiBlock,
 // ----------------------------------------------------------------------------
 // Dump programme titles and/or descriptions into file in HTML format
 //
-static void EpgDumpHtml_StartDump( FILE *fpSrc, FILE *fpDst, const AI_BLOCK *pAiBlock,
+static void EpgDumpHtml_StartDump( FILE *fpSrc, FILE *fpDst,
+                                   FILTER_CONTEXT * fc, const AI_BLOCK *pAiBlock,
                                    Tcl_Obj ** pColObjv,
                                    int doTitles, int doDesc, int optAppend, int optSelOnly,
                                    int optMaxCount, int hyperlinkColIdx, int optTextFmt, int colCount )
@@ -584,7 +585,7 @@ static void EpgDumpHtml_StartDump( FILE *fpSrc, FILE *fpDst, const AI_BLOCK *pAi
       pColTab = PiOutput_CfgColumnsCache(colCount, pColObjv);
 
       if (optSelOnly == FALSE)
-         pPiBlock = EpgDbSearchFirstPi(pUiDbContext, pPiFilterContext);
+         pPiBlock = EpgDbSearchFirstPi(pUiDbContext, fc);
       else
          pPiBlock = PiBox_GetSelectedPi();
 
@@ -592,7 +593,7 @@ static void EpgDumpHtml_StartDump( FILE *fpSrc, FILE *fpDst, const AI_BLOCK *pAi
       {
          EpgDumpHtml_Title(fpDst, pPiBlock, pColTab, colCount, hyperlinkColIdx, optTextFmt);
 
-         pPiBlock = EpgDbSearchNextPi(pUiDbContext, pPiFilterContext, pPiBlock);
+         pPiBlock = EpgDbSearchNextPi(pUiDbContext, fc, pPiBlock);
       }
       // free column config cache
       PiOutput_CfgColumnsClear(pColTab, colCount);
@@ -603,7 +604,7 @@ static void EpgDumpHtml_StartDump( FILE *fpSrc, FILE *fpDst, const AI_BLOCK *pAi
    if (doDesc)
    {
       if (optSelOnly == FALSE)
-         pPiBlock = EpgDbSearchFirstPi(pUiDbContext, pPiFilterContext);
+         pPiBlock = EpgDbSearchFirstPi(pUiDbContext, fc);
       else
          pPiBlock = PiBox_GetSelectedPi();
 
@@ -612,7 +613,7 @@ static void EpgDumpHtml_StartDump( FILE *fpSrc, FILE *fpDst, const AI_BLOCK *pAi
       {
          EpgDumpHtml_WritePi(fpDst, pPiBlock, pAiBlock);
 
-         pPiBlock = EpgDbSearchNextPi(pUiDbContext, pPiFilterContext, pPiBlock);
+         pPiBlock = EpgDbSearchNextPi(pUiDbContext, fc, pPiBlock);
       }
    }
    EpgDumpHtml_Skip(fpSrc, fpDst, HTML_DUMP_DESC, HTML_DUMP_END);
@@ -667,7 +668,7 @@ static int EpgDumpHtml_DumpDatabase( ClientData ttp, Tcl_Interp *interp, int obj
          if (fpDst != NULL)
          {
             EpgDumpHtml_Header(fpSrc, fpDst, pAiBlock);
-            EpgDumpHtml_StartDump(fpSrc, fpDst, pAiBlock, pColObjv,
+            EpgDumpHtml_StartDump(fpSrc, fpDst, pPiFilterContext, pAiBlock, pColObjv,
                                   doTitles, doDesc, optAppend,
                                   optSelOnly, optMaxCount, hyperlinkColIdx,
                                   optTextFmt, colCount);
@@ -714,7 +715,8 @@ static int EpgDumpHtml_ReadTclInt( Tcl_Interp *interp,
 // ----------------------------------------------------------------------------
 // Dump programme titles and/or descriptions via command-line
 //
-void EpgDumpHtml_Standalone( EPGDB_CONTEXT * pDbContext, FILE * fp, uint subMode )
+void EpgDumpHtml_Standalone( EPGDB_CONTEXT * pDbContext, FILTER_CONTEXT * fc,
+                             FILE * fp, uint subMode )
 {
    const AI_BLOCK *pAiBlock;
    Tcl_Obj  * pVarObj;
@@ -769,7 +771,7 @@ void EpgDumpHtml_Standalone( EPGDB_CONTEXT * pDbContext, FILE * fp, uint subMode
          EpgDbPreFilterEnable(pPiFilterContext, FILTER_EXPIRE_TIME);
 
          EpgDumpHtml_Header(NULL, fp, pAiBlock);
-         EpgDumpHtml_StartDump(NULL, fp, pAiBlock,
+         EpgDumpHtml_StartDump(NULL, fp, fc, pAiBlock,
                                pColObjv,
                                ((optHtmlType & 1) != 0),
                                ((optHtmlType & 2) != 0),

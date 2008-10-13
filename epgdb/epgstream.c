@@ -20,7 +20,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgstream.c,v 1.32 2006/12/28 16:14:33 tom Exp tom $
+ *  $Id: epgstream.c,v 1.33 2008/10/12 16:00:37 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_STREAM
@@ -106,7 +106,8 @@ static void EpgStreamConvertBlock( const uchar *pBuffer, uint blockLen, uchar st
          break;
       case EPGDBACQ_TYPE_AI:
          pBlock = EpgBlockConvertAi(pBuffer, ctrlLen, strLen);
-         enableAllTypes = TRUE;
+         if (pBlock != NULL)
+            enableAllTypes = TRUE;
          break;
       case EPGDBACQ_TYPE_PI:
          pBlock = EpgBlockConvertPi(pBuffer, ctrlLen, strLen);

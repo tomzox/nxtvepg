@@ -21,7 +21,7 @@
  *  Author:
  *          Tom Zoerner
  *
- *  $Id: epgacqclnt.c,v 1.20 2008/08/10 19:38:27 tom Exp tom $
+ *  $Id: epgacqclnt.c,v 1.22 2008/10/12 16:11:03 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGCTL
@@ -98,6 +98,7 @@ typedef struct
    uint                     acqVpsPdcInd;
    EPGACQ_DESCR             acqDescr;
    EPGDBSRV_MSG_BODY        *pStatsMsg;
+   uint                     fwdProvCni;
    uint                     statsReqBits;
    bool                     statsReqUpdate;
    bool                     acqContextIsPeek;
@@ -637,12 +638,14 @@ static bool EpgAcqClient_TakeMessage( EPGACQ_EVHAND * pAcqEv, EPGDBSRV_MSG_BODY 
          {  // dumps for all requested databases are finished
             // -> next time "process blocks" function is invoked insert all cached EPG blocks
             dprintf1("EpgDbClient-TakeMessage: FORWARD_IND: initial dump finished CNI:0x%04X\n", pMsg->fwd_ind.cni);
+            clientState.fwdProvCni = pMsg->fwd_ind.cni;
             clientState.state = CLNT_STATE_WAIT_BLOCKS;
             result = TRUE;
          }
          else if (clientState.state == CLNT_STATE_WAIT_BLOCKS)
          {  // unused message
             dprintf1("EpgDbClient-TakeMessage: FORWARD_IND: acq prov switch dump finished CNI:0x%04X\n", pMsg->fwd_ind.cni);
+            clientState.fwdProvCni = pMsg->fwd_ind.cni;
             result = TRUE;
          }
          else if (clientState.state == CLNT_STATE_WAIT_FWD_CNF)
@@ -684,6 +687,8 @@ static bool EpgAcqClient_TakeMessage( EPGACQ_EVHAND * pAcqEv, EPGDBSRV_MSG_BODY 
             EpgDumpRaw_IncomingBlock(&pNewBlock->blk, pNewBlock->type, pNewBlock->stream);
             // append the block to the end of the input queue
             EpgDbQueue_Add(&clientState.acqDbQueue, pNewBlock);
+
+            clientState.fwdProvCni = AI_GET_THIS_NET_CNI(&pNewBlock->blk.ai);
             result = TRUE;
          }
          else if (clientState.state == CLNT_STATE_WAIT_FWD_CNF)
@@ -798,11 +803,8 @@ static void EpgAcqClient_Close( bool removeHandler )
    clientState.io.lastIoTime = time(NULL);
 
    // free all EPG blocks in the input queue
-   if (&clientState.acqDbQueue != NULL)
-   {
-      EpgDbQueue_Clear(&clientState.acqDbQueue);
-      EpgTscQueue_Clear(&clientState.acqTscQueue);
-   }
+   EpgDbQueue_Clear(&clientState.acqDbQueue);
+   EpgTscQueue_Clear(&clientState.acqTscQueue);
 
    EpgAcqClient_FreeStats();
 
@@ -1948,6 +1950,19 @@ void EpgAcqClient_ProcessBlocks( void )
       {  // PI timescale info has been received -> unlock new buffers and trigger GUI
          EpgTscQueue_UnlockBuffers(&clientState.acqTscQueue);
          UiControlMsg_AcqEvent(ACQ_EVENT_PI_ADDED);
+      }
+
+      if ( (clientState.fwdProvCni == 0) &&
+           (EpgDbContextGetCni(clientState.pAcqDbContext) != 0) )
+      {
+         // nextview acq switched to passive mode with dummy database
+         dprintf0("EpgAcqClient-ProcessBlocks: closing acq db\n");
+         EpgDbQueue_Clear(&clientState.acqDbQueue);
+         EpgTscQueue_Clear(&clientState.acqTscQueue);
+         EpgAcqClient_CloseDb();
+         clientState.acqContextIsPeek = FALSE;
+         clientState.pAcqDbContext = EpgContextCtl_OpenDummy();
+         clientState.waitAi = TRUE;
       }
 
       if (EpgAcqClient_ProcessStats(&aiFollows))

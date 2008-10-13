@@ -22,7 +22,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: Makefile.win32,v 1.73 2008/10/05 16:37:59 tom Exp tom $
+#  $Id: Makefile.win32,v 1.74 2008/10/12 20:03:45 tom Exp tom $
 #
 
 ifeq ($(OS),Windows_NT)
@@ -118,10 +118,11 @@ GUISRC  = epgui/uictrl epgui/pibox epgui/pilistbox epgui/pinetbox \
           epgui/epgmain epgui/loadtcl epgui/wintv epgui/wintvcfg \
           epgui/wintvui epgui/epgsetup epgui/cmdline epgui/rcfile \
           epgui/dumptext epgui/dumpraw epgui/dumphtml epgui/dumpxml \
-          epgui/uidump epgui/shellcmd epgui/wmhooks epgui/daemon
+          epgui/uidump epgui/epgquery epgui/shellcmd epgui/wmhooks \
+          epgui/daemon
 CLDSRC  = epgui/daemon_main epgui/daemon epgui/epgsetup epgui/cmdline \
           epgui/rcfile epgui/wintvcfg epgui/dumptext epgui/dumpxml \
-          epgui/dumpraw epgui/pidescr epgui/pdc_themes
+          epgui/dumpraw epgui/pidescr epgui/pdc_themes epgui/epgquery
 TCLSRC  = epgtcl/mainwin epgtcl/dlg_hwcfg epgtcl/dlg_xawtvcf \
           epgtcl/dlg_ctxmencf epgtcl/dlg_acqmode epgtcl/dlg_netsel \
           epgtcl/dlg_dump epgtcl/dlg_netname epgtcl/dlg_udefcols \

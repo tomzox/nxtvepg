@@ -18,7 +18,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: daemon.c,v 1.12 2008/01/22 21:47:52 tom Exp tom $
+ *  $Id: daemon.c,v 1.13 2008/10/12 19:56:36 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -59,6 +59,7 @@
 #include "epgctl/epgscan.h"
 #include "epgui/uictrl.h"
 #include "epgui/epgsetup.h"
+#include "epgui/epgquery.h"
 #include "epgui/rcfile.h"
 #include "epgui/pdc_themes.h"
 #include "epgui/pidescr.h"
@@ -219,6 +220,7 @@ void Daemon_SystemClockCmd( EPG_CLOCK_CTRL_MODE clockMode, uint cni )
 //
 void Daemon_StartDump( void )
 {
+   FILTER_CONTEXT * fc;
    uint provCni;
 
    EpgContextCtl_SetPiExpireDelay(RcFile_Query()->db.piexpire_cutoff * 60);
@@ -242,24 +244,35 @@ void Daemon_StartDump( void )
       // determine language for theme categories from AI block (copied from SetUserLanguage)
       PdcThemeSetLanguage( EpgSetup_GetDefaultLang(pUiDbContext) );
 
+      if (mainOpts.optDumpFilter != NULL)
+      {
+         fc = EpgQuery_Parse(pUiDbContext, mainOpts.optDumpFilter);
+      }
+      else
+         fc = NULL;
+
       switch (mainOpts.optDumpMode)
       {
          case EPG_DUMP_XMLTV:
             if (mainOpts.optDumpSubMode != DUMP_XMLTV_ANY)
-               EpgDumpXml_Standalone(pUiDbContext, stdout, mainOpts.optDumpSubMode);
+               EpgDumpXml_Standalone(pUiDbContext, fc, stdout, mainOpts.optDumpSubMode);
             else
                printf("<!-- XML DTD version must be specified -->\n");
             break;
          case EPG_DUMP_TEXT:
-            EpgDumpText_Standalone(pUiDbContext, stdout, mainOpts.optDumpSubMode);
+            EpgDumpText_Standalone(pUiDbContext, fc, stdout, mainOpts.optDumpSubMode);
             break;
          case EPG_DUMP_RAW:
-            EpgDumpRaw_Standalone(pUiDbContext, stdout);
+            EpgDumpRaw_Standalone(pUiDbContext, fc, stdout);
             break;
          default:
             break;
       }
 
+      if (fc != NULL)
+      {
+         EpgDbFilterDestroyContext(fc);
+      }
       EpgContextCtl_Close(pUiDbContext);
    }
 }

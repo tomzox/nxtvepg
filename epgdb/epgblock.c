@@ -20,7 +20,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgblock.c,v 1.62 2008/08/10 19:29:59 tom Exp tom $
+ *  $Id: epgblock.c,v 1.63 2008/10/12 16:00:47 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB
@@ -1224,7 +1224,7 @@ EPGDB_BLOCK * EpgBlockConvertAi(const uchar *pCtrl, uint ctrlLen, uint strLen)
 
    pNetwops = xmalloc(ai.netwopCount * sizeof(AI_NETWOP));
    netNameLenSum = 0;
-   for (i=0; i<ai.netwopCount; i++)
+   for (i=0; (i < ai.netwopCount) && (psd < pst); i++)
    {
       if ((i & 1) == 0)
       {
@@ -1260,44 +1260,52 @@ EPGDB_BLOCK * EpgBlockConvertAi(const uchar *pCtrl, uint ctrlLen, uint strLen)
       }
       // initialize unused space in struct to allow comparison by memcmp()
       pNetwops[i].reserved_1 = 0;
-      netNameLenSum += netNameLen[i] + 1;
+      netNameLenSum += netNameLen[i];
    }
 
-   // concatenate the various parts of the block to a compound structure
-   pst = pCtrl + ctrlLen + 2;
-   blockLen = sizeof(AI_BLOCK) +
-              (ai.netwopCount * sizeof(AI_NETWOP)) +
-              (serviceNameLen + 1) +
-              netNameLenSum;
-   pBlk = EpgBlockCreate(BLOCK_TYPE_AI, blockLen);
-   pAi = (AI_BLOCK *) &pBlk->blk.ai;  // remove const from pointer
-   memcpy(pAi, &ai, sizeof(AI_BLOCK));
-   blockLen = sizeof(AI_BLOCK);
-
-   pAi->off_netwops = blockLen;
-   memcpy((void *) AI_GET_NETWOPS(pAi), pNetwops, ai.netwopCount * sizeof(AI_NETWOP));
-   blockLen += ai.netwopCount * sizeof(AI_NETWOP);
-   xfree(pNetwops);
-
-   pAi->off_serviceNameStr = blockLen;
-   memcpy((void *) AI_GET_SERVICENAME(pAi), pst, serviceNameLen);
-   *((uchar *)pAi + blockLen + serviceNameLen) = 0;
-   blockLen += serviceNameLen + 1;
-   pst += serviceNameLen;
-
-   pNetwops = (AI_NETWOP *) AI_GET_NETWOPS(pAi);  // cast to remove const
-   for (i=0; i < ai.netwopCount; i++, pNetwops++)
+   if ( (psd <= pst) &&
+        (serviceNameLen + netNameLenSum <= strLen) )
    {
-      pNetwops->off_name = blockLen;
-      memcpy((char *) pAi + blockLen, pst, netNameLen[i]);
-      *((uchar *)pAi + blockLen + netNameLen[i]) = 0;
-      blockLen += netNameLen[i] + 1;
-      pst += netNameLen[i];
-   }
-   assert(blockLen == pBlk->size);
+      // concatenate the various parts of the block to a compound structure
+      blockLen = sizeof(AI_BLOCK) +
+                 (ai.netwopCount * sizeof(AI_NETWOP)) +
+                 (serviceNameLen + 1) +
+                 (netNameLenSum + ai.netwopCount);
+      pBlk = EpgBlockCreate(BLOCK_TYPE_AI, blockLen);
+      pAi = (AI_BLOCK *) &pBlk->blk.ai;  // remove const from pointer
+      memcpy(pAi, &ai, sizeof(AI_BLOCK));
+      blockLen = sizeof(AI_BLOCK);
 
-   // update the alphabet list for string decoding
-   EpgBlockSetAlphabets(&pBlk->blk.ai);
+      pAi->off_netwops = blockLen;
+      memcpy((void *) AI_GET_NETWOPS(pAi), pNetwops, ai.netwopCount * sizeof(AI_NETWOP));
+      blockLen += ai.netwopCount * sizeof(AI_NETWOP);
+      xfree(pNetwops);
+
+      pAi->off_serviceNameStr = blockLen;
+      memcpy((void *) AI_GET_SERVICENAME(pAi), pst, serviceNameLen);
+      *((uchar *)pAi + blockLen + serviceNameLen) = 0;
+      blockLen += serviceNameLen + 1;
+      pst += serviceNameLen;
+
+      pNetwops = (AI_NETWOP *) AI_GET_NETWOPS(pAi);  // cast to remove const
+      for (i=0; i < ai.netwopCount; i++, pNetwops++)
+      {
+         pNetwops->off_name = blockLen;
+         memcpy((char *) pAi + blockLen, pst, netNameLen[i]);
+         *((uchar *)pAi + blockLen + netNameLen[i]) = 0;
+         blockLen += netNameLen[i] + 1;
+         pst += netNameLen[i];
+      }
+      assert(blockLen == pBlk->size);
+
+      // update the alphabet list for string decoding
+      EpgBlockSetAlphabets(&pBlk->blk.ai);
+   }
+   else
+   {
+      debug4("EpgBlock-ConvertAi: reject corrupt AI for invalid netwop count %d or ctrl/str block lens (have %d,%d, need x,%d)", ai.netwopCount, ctrlLen + 2, strLen, serviceNameLen + netNameLenSum);
+      pBlk = NULL;
+   }
 
    return pBlk;
 }

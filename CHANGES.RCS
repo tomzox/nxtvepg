@@ -21965,8 +21965,6 @@ Makefile [rev:1.101, 2008-09-20T20:51:38]:
 - Added module epgvbi/cni_tables for tvsim: indirectly required by rcfile.c
 epgctl/epgversion.h [rev:1.90, 2008-09-20T21:00:50]:
 - set version to 2.8.1pre3
-TODO [rev:1.38, 2008-09-21T21:25:00]:
-- Updated for release 2.9.0preX [late checkin]
 www/download-de.html [rev:1.30, 2008-09-22T14:52:22]:
 - added reference to debian package by Uwe Bugla
 - removed reference to predecessor version 2.7.7
@@ -22088,3 +22086,147 @@ www/nxtvepg.css [rev:1.17, 2008-10-11T20:17:40]:
 www/ttx_grab.html [rev:1.2, 2008-10-11T20:18:46]:
 - framed download sections in DIV "box", same as on nxtvepg download page
 #>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> RELEASE_2_8_1 <<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+TODO [rev:1.38, 2008-09-21T21:25:00]:
+- Updated for release 2.9.0pre0(?) [late checkin]
+epgui/epgquery.c [rev:1.1, 2008-09-23T13:35:00]:
+- Initial revision
+epgui/epgquery.h [rev:1.1, 2008-09-23T13:35:00]:
+- Initial revision
+epgctl/epgacqclnt.c [rev:1.21, 2008-09-24T13:56:57]:
+- Added handling of FORWARD_IND for CNI 0: close acq db after processing queue
+- required when daemon switches into passive mode (e.g. for TTX acq)
+epgctl/epgacqnxt.c [rev:1.5, 2008-09-24T13:57:01]:
+- Fix in EpgAcqNxtv_ChannelChange() for daemon mode:
+- added call to EpgAcqServer_SetProvider() to trigger client to close acq db
+Makefile [rev:1.104, 2008-10-12T15:31:09]:
+- fixed rule for nxtvepgd.1: missing semicolon
+- changed install permissions for tv_grab_ttx.pl into 0755
+CHANGES [rev:1.55, 2008-10-12T15:32:40]:
+- Removed HTML hyperlink to ttx grabber; just quote the URL
+epgdb/epgdbmgmt.c [rev:1.53, 2008-10-12T15:54:21]:
+- replaced SHOULD_NOT_BE_REACHED with fatal() to improve diagnostic output
+- removed duplicate ";"
+epgdb/epgdbsav.c [rev:1.66, 2008-10-12T15:57:41]:
+- Minor improvement of EpgDbRemoveDatabaseFile()
+- only try to remove db is a file exists to prevent meaningless debug warnings
+epgdb/epgstream.c [rev:1.33, 2008-10-12T16:00:37]:
+- Added consistency checks for AI stream decoder
+- adapted EpgStreamConvertBlock() to handle NULL result by AI decoder
+epgdb/epgblock.c [rev:1.63, 2008-10-12T16:00:47]:
+- Added consistency checks for AI stream decoder
+- reject block & return NULL if check fails
+- prevent creation of phantom providers with invalid CNI
+    bug reported by Kurt in forum and email 09/24/2008 07:52
+epgdb/epgnetio.c [rev:1.41, 2008-10-12T16:01:36]:
+- Added debug output if daemon logging fails in EpgNetIo_Logger
+epgctl/epgacqclnt.c [rev:1.22, 2008-10-12T16:11:03]:
+- Fixed handling of passive mode on client side
+- close acq database when server indicates CNI 0
+- to prevent "unexpected provider" debug messages
+epgctl/epgacqnxt.c [rev:1.6, 2008-10-12T16:12:16]:
+- Fixed EpgAcqCtl_TuneProvider() params: pass CNI value, not just boolean
+epgctl/epgacqttx.c [rev:1.3, 2008-10-12T16:12:16]:
+- Fixed EpgAcqCtl_TuneProvider() params: pass CNI value, not just boolean
+epgctl/epgctxctl.c [rev:1.32, 2008-10-12T16:20:19]:
+- Improved EPG scan "database refresh" mode
+- EpgContextCtl_GetFreqList(): include CNIs with zero freq. value (excpt. XML)
+epgctl/epgscan.c [rev:1.48, 2008-10-12T16:37:01]:
+- Improved EPG scan "database refresh" mode
+- before starting the scan insert "remove" button for providers with zero freq
+- in AI callback check if found CNI matches expected CNI: if not, do not mark
+    this provider as "refreshed" and offer removal
+epgctl/epgctxctl.h [rev:1.20, 2008-10-12T16:37:20]:
+- Improved EPG scan "database refresh" mode
+- EpgContextCtl_GetFreqList(): include CNIs with zero freq. value (excpt. XML)
+epgtcl/dlg_acqmode.tcl [rev:1.11, 2008-10-12T16:59:47]:
+- Client/Server config: warn if log file directory doesn't exist
+- prettyfied tk_messageBox calls
+epgui/menucmd.c [rev:1.133, 2008-10-12T19:18:36]:
+- Improved EPG scan "database refresh" mode
+- C_LoadProvFreqsFromDbs: also count providers with zero freq
+- GetProvFreqTab: adapted to epgctxctl interface change: skip zero freqs
+- C_StartEpgScan: moved message window clear and button delete one level up
+    + allow message output before returning to Tcl level
+- moved Tcl code for message display into new procs in dlg_prov.tcl
+epgtcl/dlg_prov.tcl [rev:1.24, 2008-10-12T19:18:48]:
+- Improved EPG scan "database refresh" mode
+- moved removal of "provider remove" buttons to before start of scan
+    + allow message output before returning to Tcl level
+- added new procs with message display code, moved from menucmd.c
+epgui/pifilter.c [rev:1.94, 2008-10-12T19:22:07]:
+- Moved PiFilter_SetNetwopPrefilter() into epgsetup.c
+- called only by uictrl.c
+epgui/pifilter.h [rev:1.13, 2008-10-12T19:22:17]:
+- Moved PiFilter_SetNetwopPrefilter() into epgsetup.c
+- called only by uictrl.c
+epgui/epgsetup.c [rev:1.10, 2008-10-12T19:23:18]:
+- Moved EpgSetup_SetNetwopPrefilter() here from pifilter.c, called by uictrl.c
+epgui/epgsetup.h [rev:1.5, 2008-10-12T19:23:18]:
+- Moved EpgSetup_SetNetwopPrefilter() here from pifilter.c, called by uictrl.c
+epgui/uictrl.c [rev:1.57, 2008-10-12T19:53:50]:
+- Moved PiFilter_SetNetwopPrefilter() from pifilter.c into epgsetup.c
+epgui/dumphtml.c [rev:1.11, 2008-10-12T19:55:39]:
+- Added "-epgquery" option for database export
+- added filter context param to dump start function; apply filter to PI search
+epgui/dumphtml.h [rev:1.5, 2008-10-12T19:55:39]:
+- Added "-epgquery" option for database export
+- added filter context param to dump start function; apply filter to PI search
+epgui/dumpraw.c [rev:1.34, 2008-10-12T19:55:39]:
+- Added "-epgquery" option for database export
+- added filter context param to dump start function; apply filter to PI search
+epgui/dumpraw.h [rev:1.14, 2008-10-12T19:55:39]:
+- Added "-epgquery" option for database export
+- added filter context param to dump start function; apply filter to PI search
+epgui/dumptext.c [rev:1.19, 2008-10-12T19:55:39]:
+- Added "-epgquery" option for database export
+- added filter context param to dump start function; apply filter to PI search
+epgui/dumptext.h [rev:1.12, 2008-10-12T19:55:39]:
+- Added "-epgquery" option for database export
+- added filter context param to dump start function; apply filter to PI search
+epgui/dumpxml.c [rev:1.21, 2008-10-12T19:56:11]:
+- Added "-epgquery" option for database export
+- added arg "fc" to dump start function; apply filter to PI search
+- omit channel table entries for filtered networks
+epgui/dumpxml.h [rev:1.6, 2008-10-12T19:56:11]:
+- Added "-epgquery" option for database export
+- added arg "fc" to dump start function; apply filter to PI search
+- omit channel table entries for filtered networks
+epgui/cmdline.c [rev:1.14, 2008-10-12T19:56:24]:
+- Added "-epgquery" option for database export
+epgui/cmdline.h [rev:1.8, 2008-10-12T19:56:24]:
+- Added "-epgquery" option for database export
+epgui/daemon.c [rev:1.13, 2008-10-12T19:56:36]:
+- Added "-epgquery" option for database export
+- process new mainOpts.optDumpFilter in dump start
+epgui/epgmain.c [rev:1.161, 2008-10-12T19:56:36]:
+- Added "-epgquery" option for database export
+- process new mainOpts.optDumpFilter in dump start
+epgui/uidump.c [rev:1.7, 2008-10-12T19:57:42]:
+- Added "-epgquery" option for database export
+- pass filter context pointer through to dump modules
+epgui/uidump.h [rev:1.3, 2008-10-12T19:57:48]:
+- Added "-epgquery" option for database export
+- pass filter context pointer through to dump modules
+epgui/shellcmd.c [rev:1.16, 2008-10-12T19:57:55]:
+- Adapted for interface change in cmdline.h: added include epgdbfil.h
+epgui/epgquery.c [rev:1.2, 2008-10-12T20:00:29]:
+- Scrapped most or previous implementation
+- reduced interface to addition of filters
+- currently designed to handle command line parameter "-epgquery"
+- added EpgQuery_CheckSyntax() interface
+epgui/epgquery.h [rev:1.2, 2008-10-12T20:00:29]:
+- Scrapped most or previous implementation
+- reduced interface to addition of filters
+- currently designed to handle command line parameter "-epgquery"
+- added EpgQuery_CheckSyntax() interface
+Makefile [rev:1.105, 2008-10-12T20:03:06]:
+- Added new module epgui/epgquery.c both for GUI and daemon
+Makefile.win32 [rev:1.74, 2008-10-12T20:03:45]:
+- Added new module epgui/epgquery.c both for GUI and daemon
+epgctl/epgversion.h [rev:1.92, 2008-10-12T20:09:37]:
+- set version to 2.9.0pre0
+www/pre-releases.html [rev:1.90, 2008-10-19T16:11:02]:
+- Updated for pre-release 2.9.0pre0
+CHANGES [rev:1.56, 2008-10-13T20:21:51 - LATE ADDITION - NOT IN RELEASE PACKAGE]:
+- added change log for 2.9.0pre0
+#>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> RELEASE_2_9_0_PRE0 <<<<<<<<<<<<<<<<<<<<<<<<<<<<<

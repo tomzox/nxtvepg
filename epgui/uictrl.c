@@ -21,7 +21,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: uictrl.c,v 1.56 2007/12/31 00:19:08 tom Exp tom $
+ *  $Id: uictrl.c,v 1.57 2008/10/12 19:53:50 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -477,14 +477,9 @@ void UiControl_AiStateChange( ClientData clientData )
                        EpgDbContextGetCni(pUiDbContext));
          eval_check(interp, comm);
 
-         {
-            const uint * pSupCnis;
-            uint supCniCount;
-            RcFile_GetNetworkSelection(EpgDbContextGetCni(pUiDbContext), NULL, NULL, &supCniCount, &pSupCnis);
-
-            // update network prefilters (restrict to user-selected networks)
-            PiFilter_SetNetwopPrefilter(supCniCount, pSupCnis);
-         }
+         // update network prefilters (restrict to user-selected networks)
+         EpgSetup_SetNetwopPrefilter(pUiDbContext, pPiFilterContext);
+         PiFilter_UpdateAirTime();
 
          // adapt reminder list to database (network index cache)
          PiRemind_CheckDb();

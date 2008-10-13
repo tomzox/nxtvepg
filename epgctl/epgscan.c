@@ -34,7 +34,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgscan.c,v 1.47 2008/08/10 18:56:16 tom Exp tom $
+ *  $Id: epgscan.c,v 1.48 2008/10/12 16:37:01 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGCTL
@@ -81,6 +81,7 @@ typedef struct
    uint             signalFound;      // number of channels with signal detected
    uint             newProvCount;     // number of providers found
    uint             badProvCount;     // number of defective providers found (refresh mode)
+   uint             zeroFreqCount;    // number of providers with unknown freq. (refresh mode)
    time_t           startTime;        // start of acq for the current channel
    time_t           extraWait;        // extra seconds to wait until timeout
    bool             doSlow;           // user option: do not skip channels w/o reception
@@ -140,9 +141,9 @@ static bool EpgScan_NextChannel( uint * pFreq )
 static bool EpgScan_AiCallback( const AI_BLOCK *pNewAi )
 {
    const AI_BLOCK *pOldAi;
-   uint oldTunerFreq;
-   uint oldPageNo;
-   uint oldAppId;
+   uint curTunerFreq;
+   uint curPageNo;
+   uint curAppId;
    uchar msgbuf[80];
    bool isNew;
    bool accept = FALSE;
@@ -158,10 +159,11 @@ static bool EpgScan_AiCallback( const AI_BLOCK *pNewAi )
       if (pOldAi == NULL)
       {
          // save the parameters found during the scan
-         oldTunerFreq = scanCtl.pDbContext->tunerFreq;
-         oldPageNo = scanCtl.pDbContext->pageNo;
-         oldAppId = scanCtl.pDbContext->appId;
+         curTunerFreq = scanCtl.pDbContext->tunerFreq;
+         curPageNo = scanCtl.pDbContext->pageNo;
+         curAppId = scanCtl.pDbContext->appId;
 
+         // open provider's database or create new, empty one (replacing dummy db)
          EpgDbLockDatabase(scanCtl.pDbContext, FALSE);
          EpgContextCtl_Close(scanCtl.pDbContext);
          scanCtl.pDbContext = EpgContextCtl_Open(AI_GET_THIS_NET_CNI(pNewAi), FALSE, CTX_FAIL_RET_CREATE, CTX_RELOAD_ERR_NONE);
@@ -177,25 +179,38 @@ static bool EpgScan_AiCallback( const AI_BLOCK *pNewAi )
          }
          else
          {
-            sprintf(msgbuf, "Provider '%s' is %s.",
-                            AI_GET_NETWOP_NAME(pNewAi, pNewAi->thisNetwop),
-                            scanCtl.doRefresh ? "ok" : "already known - skipping");
+            if ( scanCtl.doRefresh &&
+                 (scanCtl.provCniTab[scanCtl.channel - 1] != AI_GET_THIS_NET_CNI(pNewAi)))
+            {
+               sprintf(msgbuf, "Found unexpected provider: %s (CNI %04X)",
+                               AI_GET_NETWOP_NAME(pNewAi, pNewAi->thisNetwop),
+                               AI_GET_THIS_NET_CNI(pNewAi));
+            }
+            else
+            {
+               sprintf(msgbuf, "Provider '%s' is %s",
+                               AI_GET_NETWOP_NAME(pNewAi, pNewAi->thisNetwop),
+                               scanCtl.doRefresh ? "ok.\n" : "already known.");
+               // in refresh mode count this provider as done (used in the summary)
+               if (scanCtl.doRefresh)
+                  scanCtl.newProvCount += 1;
+            }
             scanCtl.MsgCallback(msgbuf, TRUE);
             isNew = FALSE;
-
-            // in refresh mode count this provider as done (used in the summary)
-            if (scanCtl.doRefresh)
-               scanCtl.newProvCount += 1;
          }
 
          // update parameters with the new ones, if neccessary
-         scanCtl.pDbContext->appId = oldAppId;
-
-         if (scanCtl.pDbContext->tunerFreq != oldTunerFreq)
+         if (scanCtl.pDbContext->appId != curAppId)
          {
-            debug3("EpgScan-AiCallback: CNI 0x%04X: updating tuner freq: 0x%x -> 0x%x", AI_GET_THIS_NET_CNI(pNewAi), scanCtl.pDbContext->tunerFreq, oldTunerFreq);
             scanCtl.pDbContext->modified = TRUE;
-            scanCtl.pDbContext->tunerFreq = oldTunerFreq;
+            scanCtl.pDbContext->appId = curAppId;
+         }
+
+         if (scanCtl.pDbContext->tunerFreq != curTunerFreq)
+         {
+            debug3("EpgScan-AiCallback: CNI 0x%04X: updating tuner freq: 0x%x -> 0x%x", AI_GET_THIS_NET_CNI(pNewAi), scanCtl.pDbContext->tunerFreq, curTunerFreq);
+            scanCtl.pDbContext->modified = TRUE;
+            scanCtl.pDbContext->tunerFreq = curTunerFreq;
 
             if (isNew == FALSE)
             {
@@ -208,17 +223,17 @@ static bool EpgScan_AiCallback( const AI_BLOCK *pNewAi )
          }
          // update teletext page number in the database if changed
          // note: store is delayed until AI reception to be sure the db matches the current stream
-         if (scanCtl.pDbContext->pageNo != oldPageNo)
+         if (scanCtl.pDbContext->pageNo != curPageNo)
          {
-            debug3("EpgScan-AiCallback: CNI 0x%04X: updating EPG page no: 0x%03x -> 0x%03x", AI_GET_THIS_NET_CNI(pNewAi), scanCtl.pDbContext->pageNo, oldPageNo);
+            debug3("EpgScan-AiCallback: CNI 0x%04X: updating EPG page no: 0x%03x -> 0x%03x", AI_GET_THIS_NET_CNI(pNewAi), scanCtl.pDbContext->pageNo, curPageNo);
             // don't report the initial page update to the user
             if ( VALID_EPG_PAGENO(scanCtl.pDbContext->pageNo) &&
                  (scanCtl.pDbContext->pageNo != EPG_DEFAULT_PAGENO) )
             {
-               sprintf(msgbuf, "storing provider's EPG teletext page number %03X", oldPageNo);
+               sprintf(msgbuf, "storing provider's EPG teletext page number %03X", curPageNo);
                scanCtl.MsgCallback(msgbuf, TRUE);
             }
-            scanCtl.pDbContext->pageNo = oldPageNo;
+            scanCtl.pDbContext->pageNo = curPageNo;
          }
 
          accept = TRUE;
@@ -541,7 +556,9 @@ uint EpgScan_EvHandler( void )
             scanCtl.MsgCallback(msgbuf, FALSE);
          }
 
-         if (scanCtl.doRefresh && (scanCtl.state != SCAN_STATE_DONE))
+         if (scanCtl.doRefresh &&
+              ((scanCtl.state != SCAN_STATE_DONE) ||
+               (EpgDbContextGetCni(scanCtl.pDbContext) != scanCtl.provCniTab[scanCtl.channel - 1]) ))
          {  // refresh failed on one provider (aborted by timeout)
             // load the database to check if it's defective
             bool isDefective = TRUE;
@@ -552,7 +569,9 @@ uint EpgScan_EvHandler( void )
                pAi = EpgDbGetAi(pDbContext);
                if (pAi != NULL)
                {
-                  sprintf(msgbuf, "Provider '%s' not refreshed, but database OK.", AI_GET_NETWOP_NAME(pAi, pAi->thisNetwop));
+                  sprintf(msgbuf, "Provider '%s' (CNI %04X) not refreshed, but database OK.",
+                                  AI_GET_NETWOP_NAME(pAi, pAi->thisNetwop),
+                                  scanCtl.provCniTab[scanCtl.channel - 1]);
                   isDefective = FALSE;
                }
                EpgDbLockDatabase(pDbContext, FALSE);
@@ -643,8 +662,10 @@ uint EpgScan_EvHandler( void )
                                "%d provider database%s confirmed\n"
                                "%d database%s not refreshed\n"
                                "%d of these %s defective or missing",
-                               scanCtl.newProvCount, ((scanCtl.newProvCount == 1) ? "" : "s"),
-                               scanCtl.provFreqCount - scanCtl.newProvCount, ((scanCtl.provFreqCount - scanCtl.newProvCount == 1) ? "" : "s"),
+                               scanCtl.newProvCount,
+                                  ((scanCtl.newProvCount == 1) ? "" : "s"),
+                               scanCtl.provFreqCount + scanCtl.zeroFreqCount - scanCtl.newProvCount,
+                                  ((scanCtl.provFreqCount + scanCtl.zeroFreqCount - scanCtl.newProvCount == 1) ? "" : "s"),
                                scanCtl.badProvCount, ((scanCtl.badProvCount == 1) ? "is" : "are"));
                scanCtl.MsgCallback(msgbuf, FALSE);
                if (scanCtl.badProvCount > 0)
@@ -665,6 +686,60 @@ uint EpgScan_EvHandler( void )
       debug0("EventHandler-EpgScan: scan not running");
 
    return rescheduleMs;
+}
+
+// ----------------------------------------------------------------------------
+// Report defective databases and those without frequency
+// - used in refresh mode to generate "remove provider" buttons for these
+//
+static void MenuCmd_ScanMissingFreq( void )
+{
+   EPGDB_CONTEXT  * pDbContext;
+   const AI_BLOCK * pAi;
+   uchar msgbuf[300];
+   bool  isDefective = TRUE;
+   uint  *freqTab;
+   uint  *cniTab;
+   uint  freqCount;
+   uint  idx;
+
+   freqCount = EpgContextCtl_GetFreqList(&cniTab, &freqTab, TRUE);
+   for (idx = 0; idx < freqCount; idx++)
+   {
+      if (freqTab[idx] == 0)
+      {
+         pDbContext = EpgContextCtl_Open(cniTab[idx], FALSE, CTX_FAIL_RET_NULL, CTX_RELOAD_ERR_NONE);
+         if (pDbContext != NULL)
+         {
+            EpgDbLockDatabase(pDbContext, TRUE);
+            pAi = EpgDbGetAi(pDbContext);
+            if (pAi != NULL)
+            {
+               sprintf(msgbuf, "Provider '%s' (CNI %04X) cannot be refreshed because\n"
+                               "TV channel/frequency is unknown, but database is OK.",
+                               AI_GET_NETWOP_NAME(pAi, pAi->thisNetwop), cniTab[idx]);
+               isDefective = FALSE;
+            }
+            EpgDbLockDatabase(pDbContext, FALSE);
+            EpgContextCtl_Close(pDbContext);
+         }
+         if (isDefective)
+         {
+            sprintf(msgbuf, "Defective database with CNI %04X cannot be refreshed because\n"
+                            "TV channel/frequency is unknown.", cniTab[idx]);
+            scanCtl.badProvCount += 1;
+         }
+         scanCtl.zeroFreqCount += 1;
+
+         scanCtl.MsgCallback(msgbuf, FALSE);
+         scanCtl.DelCallback(cniTab[idx]);
+      }
+   }
+
+   if (cniTab != NULL)
+      xfree(cniTab);
+   if (freqTab != NULL)
+      xfree(freqTab);
 }
 
 // ----------------------------------------------------------------------------
@@ -764,14 +839,23 @@ EPGSCAN_START_RESULT EpgScan_Start( int inputSource, bool doSlow, bool useXawtv,
                scanCtl.signalFound = 0;
                scanCtl.newProvCount = 0;
                scanCtl.badProvCount = 0;
+               scanCtl.zeroFreqCount = 0;
 
                if (scanCtl.provFreqCount == 0)
                {
                   TvChannels_GetName(scanCtl.channel, chanName, sizeof(chanName));
                   sprintf(msgbuf, "Starting scan on channel %s", chanName);
                }
+               else if (scanCtl.doRefresh)
+               {
+                  MenuCmd_ScanMissingFreq();
+
+                  sprintf(msgbuf, "Starting scan on %d provider frequencies", scanCtl.provFreqCount);
+               }
                else
-                  sprintf(msgbuf, "Starting scan on %d known channels", scanCtl.provFreqCount);
+               {
+                  sprintf(msgbuf, "Starting scan on %d known TV channels", scanCtl.provFreqCount);
+               }
                scanCtl.MsgCallback(msgbuf, FALSE);
             }
             else

@@ -23,7 +23,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgacqnxt.c,v 1.4 2007/01/21 11:24:09 tom Exp tom $
+ *  $Id: epgacqnxt.c,v 1.6 2008/10/12 16:12:16 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGCTL
@@ -591,7 +591,7 @@ static bool EpgAcqNxtv_TuneProvider( uint freq, uint cni, bool * pInputChanged )
    // remember time of channel change
    acqCtl.chanChangeTime = time(NULL);
 
-   result = EpgAcqCtl_TuneProvider(FALSE, freq, (cni != 0), &acqCtl.passiveReason);
+   result = EpgAcqCtl_TuneProvider(FALSE, freq, cni, &acqCtl.passiveReason);
 
    *pInputChanged = ( (acqCtl.passiveReason == ACQPASSIVE_NONE) ||
                       (acqCtl.passiveReason != ACQPASSIVE_ACCESS_DEVICE) );
@@ -967,6 +967,11 @@ void EpgAcqNxtv_ChannelChange( bool changeDb )
 
          // notify GUI about state change
          UiControlMsg_AcqEvent(ACQ_EVENT_PROV_CHANGE);
+
+#ifdef USE_DAEMON
+         // inform server module about the current provider
+         EpgAcqServer_SetProvider(0);
+#endif
       }
 
       EpgAcqNxtv_TtxReset(acqCtl.pAcqDbContext, &acqCtl.acqDbQueue, EPG_ILLEGAL_PAGENO, EPG_ILLEGAL_APPID);

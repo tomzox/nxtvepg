@@ -21,7 +21,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: dumptext.c,v 1.18 2008/01/21 22:42:35 tom Exp tom $
+ *  $Id: dumptext.c,v 1.19 2008/10/12 19:55:39 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -292,7 +292,8 @@ bool EpgDumpText_Single( EPGDB_CONTEXT * pDbContext, const PI_BLOCK * pPi, PI_DE
 // ---------------------------------------------------------------------------
 // Export the complete database in "tab-seprarated" format for SQL import
 //
-void EpgDumpText_Standalone( EPGDB_CONTEXT * pDbContext, FILE * fp, DUMP_TEXT_MODE mode )
+void EpgDumpText_Standalone( EPGDB_CONTEXT * pDbContext, FILTER_CONTEXT * fc,
+                             FILE * fp, DUMP_TEXT_MODE mode )
 {
    const AI_BLOCK * pAi;
    const PI_BLOCK * pPi;
@@ -320,12 +321,12 @@ void EpgDumpText_Standalone( EPGDB_CONTEXT * pDbContext, FILE * fp, DUMP_TEXT_MO
       }
       else
       {  // Dump programme information blocks
-         pPi = EpgDbSearchFirstPi(pDbContext, NULL);
+         pPi = EpgDbSearchFirstPi(pDbContext, fc);
          while (pPi != NULL)
          {
             DumpText_Pi(&pbuf, pPi, pDbContext);
 
-            pPi = EpgDbSearchNextPi(pDbContext, NULL, pPi);
+            pPi = EpgDbSearchNextPi(pDbContext, fc, pPi);
          }
       }
    }

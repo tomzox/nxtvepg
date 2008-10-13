@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: dumpxml.h,v 1.5 2007/01/21 14:11:24 tom Exp tom $
+ *  $Id: dumpxml.h,v 1.6 2008/10/12 19:56:11 tom Exp tom $
  */
 
 #ifndef __DUMPXML_H
@@ -38,6 +38,7 @@ typedef enum
 void EpgDumpXml_HtmlWriteString( FILE *fp, const char * pText, sint strlen );
 void EpgDumpXml_HtmlRemoveQuotes( const uchar * pStr, uchar * pBuf, uint maxOutLen );
 
-void EpgDumpXml_Standalone( EPGDB_CONTEXT * pDbContext, FILE * fp, DUMP_XML_MODE dumpMode );
+void EpgDumpXml_Standalone( EPGDB_CONTEXT * pDbContext, FILTER_CONTEXT * fc,
+                            FILE * fp, DUMP_XML_MODE dumpMode );
 
 #endif  // __DUMPXML_H

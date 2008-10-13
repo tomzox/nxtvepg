@@ -19,7 +19,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: dlg_prov.tcl,v 1.23 2008/02/03 18:55:33 tom Exp tom $
+#  $Id: dlg_prov.tcl,v 1.24 2008/10/12 19:18:48 tom Exp tom $
 #
 set provwin_popup 0
 set provmerge_popup 0
@@ -563,6 +563,12 @@ proc EpgScan_Start {} {
       return
    }
 
+   # clear the message window, including "provider remove" buttons
+   .epgscan.all.fmsg.msg delete 1.0 end
+   foreach w [info commands .epgscan.all.fmsg.msg.del_prov_*] {
+      destroy $w
+   }
+
    C_StartEpgScan $epgscan_opt_slow $epgscan_opt_refresh $epgscan_opt_ftable
 }
 
@@ -596,10 +602,6 @@ proc EpgScanButtonControl {is_start} {
          .epgscan.all.opt.cfgtvcard configure -state disabled
          .epgscan.all.opt.cfgtvpp configure -state disabled
       }
-      # destroy all "Remove provider" buttons
-      foreach w [info commands .epgscan.all.fmsg.msg.del_prov_*] {
-         destroy $w
-      }
    } else {
       # check if the popup window still exists
       if {[string length [info commands .epgscan.cmd]] > 0} {
@@ -629,6 +631,22 @@ proc EpgScanButtonControl {is_start} {
          }
       }
    }
+}
+
+# called by EPG scan control to add a line to the message window
+proc EpgScanAddMessage {msg fmt} {
+   .epgscan.all.fmsg.msg insert end $msg $fmt "\n" {}
+   .epgscan.all.fmsg.msg see {end linestart - 2 lines}
+}
+
+# called by EPG scan control to add a "Remove provider" button
+proc EpgScanAddProvDelButton {cni} {
+   button .epgscan.all.fmsg.msg.del_prov_$cni \
+                      -text "Remove this provider" -command [list EpgScanDeleteProvider $cni] \
+                      -state disabled -cursor left_ptr
+   .epgscan.all.fmsg.msg window create end -window .epgscan.all.fmsg.msg.del_prov_$cni
+   .epgscan.all.fmsg.msg insert end "\n\n"
+   .epgscan.all.fmsg.msg see {end linestart - 2 lines}
 }
 
 # callback for "Remove provider" button in the scan message window

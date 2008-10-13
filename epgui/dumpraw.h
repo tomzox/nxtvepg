@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: dumpraw.h,v 1.13 2005/04/07 18:41:50 tom Exp tom $
+ *  $Id: dumpraw.h,v 1.14 2008/10/12 19:55:39 tom Exp tom $
  */
 
 #ifndef __DUMPRAW_H
@@ -26,16 +26,17 @@
 // ---------------------------------------------------------------------------
 // declaration of service interface functions
 //
+#include "epgdb/epgdbfil.h"
 
 // interface to stream decoder
 void EpgDumpRaw_IncomingBlock( const EPGDB_BLOCK_UNION * pUnion, BLOCK_TYPE type, uchar stream );
 void EpgDumpRaw_IncomingUnknown( BLOCK_TYPE type, uint size, uchar stream );
 
 // interface to main module (command line)
-void EpgDumpRaw_Standalone( EPGDB_CONTEXT * pDbContext, FILE * fp );
+void EpgDumpRaw_Standalone( EPGDB_CONTEXT * pDbContext, FILTER_CONTEXT * fc, FILE * fp );
 void EpgDumpRaw_Toggle( void );
 
-void EpgDumpRaw_Database( EPGDB_CONTEXT *pDbContext, FILE *fp,
+void EpgDumpRaw_Database( EPGDB_CONTEXT *pDbContext, FILTER_CONTEXT * fc, FILE *fp,
                           bool do_pi, bool do_xi, bool do_ai, bool do_ni,
                           bool do_oi, bool do_mi, bool do_li, bool do_ti );
 

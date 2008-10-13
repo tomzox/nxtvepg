@@ -21,7 +21,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: dumpraw.c,v 1.33 2008/01/21 22:42:35 tom Exp tom $
+ *  $Id: dumpraw.c,v 1.34 2008/10/12 19:55:39 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -466,7 +466,7 @@ void EpgDumpRaw_Toggle( void )
 // ---------------------------------------------------------------------------
 // Dump the complete database
 //
-void EpgDumpRaw_Database( EPGDB_CONTEXT *pDbContext, FILE *fp,
+void EpgDumpRaw_Database( EPGDB_CONTEXT *pDbContext, FILTER_CONTEXT * fc, FILE *fp,
                           bool do_pi, bool do_xi, bool do_ai, bool do_ni,
                           bool do_oi, bool do_mi, bool do_li, bool do_ti )
 {
@@ -562,11 +562,11 @@ void EpgDumpRaw_Database( EPGDB_CONTEXT *pDbContext, FILE *fp,
       // Dump programme information blocks
       if (do_pi)
       {
-         pPi = EpgDbSearchFirstPi(pDbContext, NULL);
+         pPi = EpgDbSearchFirstPi(pDbContext, fc);
          while (pPi != NULL)
          {
             EpgDumpRaw_Pi(fp, pPi, EpgDbGetStream(pPi), EpgDbGetVersion(pPi), pAi);
-            pPi = EpgDbSearchNextPi(pDbContext, NULL, pPi);
+            pPi = EpgDbSearchNextPi(pDbContext, fc, pPi);
          }
       }
 
@@ -587,8 +587,9 @@ void EpgDumpRaw_Database( EPGDB_CONTEXT *pDbContext, FILE *fp,
 // ----------------------------------------------------------------------------
 // Dump the complete database (invoked via command line)
 //
-void EpgDumpRaw_Standalone( EPGDB_CONTEXT * pDbContext, FILE * fp )
+void EpgDumpRaw_Standalone( EPGDB_CONTEXT * pDbContext, FILTER_CONTEXT * fc, FILE * fp )
 {
-   EpgDumpRaw_Database(pDbContext, fp, TRUE, TRUE, TRUE, TRUE, TRUE, TRUE, TRUE, TRUE);
+   EpgDumpRaw_Database(pDbContext, fc, fp,
+                       TRUE, TRUE, TRUE, TRUE, TRUE, TRUE, TRUE, TRUE);
 }
 

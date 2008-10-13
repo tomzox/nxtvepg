@@ -1,6 +1,6 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/HTMLlat1.ent">
 <HTML lang="en">
-<!-- $Id: pre-releases.html,v 1.89 2008/10/10 20:11:33 tom Exp $ -->
+<!-- $Id: pre-releases.html,v 1.90 2008/10/19 16:11:02 tom Exp $ -->
 <HEAD>
 <TITLE>Developers and alpha testers download page</TITLE>
 <META http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
@@ -26,7 +26,8 @@
 <H2 class="navhead">Language</H2>
 <P>
 <IMG ALT="" SRC="en.png" WIDTH="16" HEIGHT="10"> English<BR>
-<IMG ALT="" SRC="de.png" WIDTH="16" HEIGHT="10"> <A HREF="pre-releases-de.html">Deutsch</A><BR>
+<!-- <IMG ALT="" SRC="de.png" WIDTH="16" HEIGHT="10"> <A HREF="pre-releases-de.html">Deutsch</A><BR> -->
+<IMG ALT="" SRC="de.png" WIDTH="16" HEIGHT="10"> <SPAN class="navDisabled">German</SPAN><BR>
 <IMG ALT="" SRC="fr.png" WIDTH="16" HEIGHT="10"> <SPAN class="navDisabled">Français</SPAN><BR>
 </P>
 
@@ -90,10 +91,10 @@ Please do not redistribute.
 
 <!-- ------------------------------------------------------------------------ -->
 
-<H2><A NAME="pre_rel_nxtvepg">nxtvepg 2.8.1 development line</A></H2>
+<H2><A NAME="pre_rel_nxtvepg">nxtvepg 2.9.0 development line</A></H2>
 <P>
 The following packages contain a snapshot of the ongoing development on nxtvepg.
-Please refer to the <A HREF="changelog-2.8.0pre.html">changelog</A> or the
+Please refer to the <A HREF="#changelog">changelog</A> at the bottom of this page, or the
 <A HREF="http://sourceforge.net/forum/forum.php?forum_id=217872">discussion forum</A>
 for background information.
 </P>
@@ -132,25 +133,25 @@ Remember to make a backup copy, so that you can still return to older versions.
 Also note that the protocol in-between the nxtvepg client and daemon has
 changed multiple times, hence use the same version of nxtvepg both on client
 and server side.
--->
 
 <P>
 Note the acquisition daemon protocol has changed in 2.8.1 pre1 and pre2.
 Hence you cannot connect with an older client version to the current
 daemon version, or vice versa.
 </P>
+-->
 
-<H3>nxtvepg pre-release 2.8.1pre3 (September 21st 2008)</H3>
+<H3>nxtvepg pre-release 2.9.0pre0 (October 12th 2008)</H3>
 <P>
 Details on changes in this and older releases is available in the
-<A HREF="changelog-2.8.0pre.html">2.8.x pre-release changelog</A>.
+<A HREF="#changelog">changelog</A>.
 </P>
 <UL>
 <!--
 <LI><I>no pre-releases are currently available</I>
 -->
-<LI>Sources:
-    <A HREF="http://nxtvepg.sourceforge.net/tmp/nxtvepg-2.8.1pre3.tar.gz">nxtvepg-2.8.1pre3.tar.gz</A> (apx 1.7 MB)
+<LI CLASS="spaced">Sources:
+    <A HREF="http://nxtvepg.sourceforge.net/tmp/nxtvepg-2.9.0pre0.tar.gz">nxtvepg-2.9.0pre0.tar.gz</A> (apx 1.7 MB)
 <!--
 <BR>Note: if you want to test nxtvepg with
 <A HREF="http://nxtvepg.sourceforge.net/tmp/README-proxy.txt">VBI proxy</A>
@@ -158,10 +159,11 @@ Details on changes in this and older releases is available in the
 <KBD>-DUSE_LIBZVBI</KBD> in the nxtvepg Makefile and get libzvbi from
 <A HREF="http://zapping.sourceforge.net/">zapping.sourceforge.net</A>.
 -->
-<LI>Win32 executable:
-    <A HREF="http://nxtvepg.sourceforge.net/tmp/nxtvepg-2.8.1pre3-win.zip">nxtvepg-2.8.1pre3-win.zip</A> (ca. 1.0 MB)
-<BR>(Does not contain the Tcl/Tk libraries tcl85.dll and tk85.dll;
-   please copy these from the last official release.)
+<LI CLASS="spaced">Win32 executable:
+    <A HREF="http://nxtvepg.sourceforge.net/tmp/nxtvepg-2.9.0pre0-win.zip">nxtvepg-2.9.0pre0-win.zip</A> (ca. 1.0 MB)
+<BR><SPAN CLASS="anno">Does not contain libraries tcl85.dll and tk85.dll and other unchanged files.
+   Please unzip the last official release 2.8.1 into the target directory and then
+   unzip the pre-release on top of these, into the same directory.</SPAN>
 
 <!--
 <LI>Win32 executable with UTF-8 support:
@@ -176,21 +178,21 @@ Details on changes in this and older releases is available in the
     <BR>Tcl/Tk 8.4.9 DLL: <A HREF="http://nxtvepg.sourceforge.net/tmp/nxtvepg-2.8.0pre5-tcltk.zip">nxtvepg-2.8.0pre5-tcltk.zip</A> (apx. 750 kB)
     <BR>Just unpack this zip file in the directory which holds nxtvepg.exe
 -->
-<LI>To enable use of vendor supplied WDM drivers you need an additional DLL which
+<LI CLASS="spaced">To enable use of vendor supplied WDM drivers you need an additional DLL which
     was developed separately by Gérard Chevalier.  Download from below.
 <!--
 <BR><B>Attention:</B> Please note that Win32 TV card configuration parameters
 and driver version have changed in pre7.
 See the above link to the mailing list archive for details.
--->
 <LI>Win32 TV simulator:
     <A HREF="http://nxtvepg.sourceforge.net/tmp/nxtvepg-2.8.1pre3-tvsim.zip">nxtvepg-2.8.1pre3-tvsim.zip</A><BR>
 Please try to reproduce any problems related to interaction with K!TV with tvsim.exe
 before you report them.
+-->
 </UL>
 
 <P>
-Older releases and associated files are still available in the
+Older releases and associated files may still be available in the
 <A HREF="http://nxtvepg.sourceforge.net/tmp/">pre-release data directory</A>
 </P>
 
@@ -309,6 +311,28 @@ with the help of XMLTV import.
 <P>
 Please refer to the <A HREF="ttx_grab.html">Teletext EPG grabber</A> page.
 </P>
+
+<!-- ------------------------------------------------------------------------ -->
+
+<P><BR><P>
+<HR WIDTH="75%">
+
+<H2><A NAME="changelog">Change history</A></H2>
+
+<H3>Changes between 2.8.1 and 2.9.0pre0 (2008-Oct-12)</H3>
+<UL>
+<LI>Implemented a new command line option "-epgquery FILTER" which allows
+  to restrict programmes during export via "-dump" (see manual.html)
+<LI>Consistency checks were added for incoming "inventory" data blocks to
+  increase probability to catch transmission errors and prevent "ghost
+  providers" or corrupted network lists
+<LI>Extended the EPG scan to include defective database files and providers
+  with unknown TV channel frequency, so that a "remove provider" button
+  is included for these too, although not actually scanned.
+<LI>Fixed the "refresh mode" scan to include a match between found and expected
+  providers so that a "remove provider" button is added for "ghost" providers
+  which don't match the ID of the actually transmitted EPG.
+</UL>
 
 <!-- ------------------------------------------------------------------------ -->
 

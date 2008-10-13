@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgsetup.h,v 1.4 2007/12/29 16:26:40 tom Exp tom $
+ *  $Id: epgsetup.h,v 1.5 2008/10/12 19:23:18 tom Exp tom $
  */
 
 #ifndef __EPGSETUP_H
@@ -39,6 +39,7 @@ typedef enum
 const char * EpgSetup_GetNetName( const AI_BLOCK * pAiBlock, uint netIdx, bool * pIsFromAi );
 uint EpgSetup_GetDefaultLang( EPGDB_CONTEXT * pDbContext );
 void EpgSetup_UpdateProvCniTable( void );
+void EpgSetup_SetNetwopPrefilter( EPGDB_CONTEXT * pDbContext, FILTER_CONTEXT * fc );
 void EpgSetup_OpenUiDb( uint startUiCni );
 void EpgSetup_DbExpireDelay( void );
 void EpgSetup_AcquisitionMode( NETACQ_SET_MODE netAcqSetMode );

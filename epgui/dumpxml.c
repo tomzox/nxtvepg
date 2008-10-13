@@ -18,7 +18,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: dumpxml.c,v 1.20 2007/12/29 15:20:15 tom Exp tom $
+ *  $Id: dumpxml.c,v 1.21 2008/10/12 19:56:11 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -546,13 +546,17 @@ static void EpgDumpXml_WriteProgramme( EPGDB_CONTEXT * pDbContext, const AI_BLOC
 
 // ----------------------------------------------------------------------------
 // Dump programme titles and/or descriptions into file in XMLTV format
+// - filter context may be used to restrict output; NULL to dump complete db
+// - output is written to the given file handle (may be stdout)
 //
-void EpgDumpXml_Standalone( EPGDB_CONTEXT * pDbContext, FILE * fp, DUMP_XML_MODE dumpMode )
+void EpgDumpXml_Standalone( EPGDB_CONTEXT * pDbContext, FILTER_CONTEXT * fc,
+                            FILE * fp, DUMP_XML_MODE dumpMode )
 {
    const AI_BLOCK  * pAiBlock;
    const OI_BLOCK  * pOiBlock;
    const PI_BLOCK  * pPiBlock;
    char * pChnIds[MAX_NETWOP_COUNT];
+   uchar netFilter[MAX_NETWOP_COUNT];
    uint  netwopIdx;
 
    if (fp != NULL)
@@ -567,19 +571,29 @@ void EpgDumpXml_Standalone( EPGDB_CONTEXT * pDbContext, FILE * fp, DUMP_XML_MODE
          // header with source info
          EpgDumpXml_WriteHeader(pDbContext, pAiBlock, pOiBlock, fp, dumpMode);
 
+         if (fc != NULL)
+         {
+            EpgDbFilterGetNetwopFilter(fc, netFilter, pAiBlock->netwopCount);
+         }
+
          // channel table
          for (netwopIdx = 0; netwopIdx < pAiBlock->netwopCount; netwopIdx++)
          {
-            EpgDumpXml_WriteChannel(pDbContext, pAiBlock, pChnIds, netwopIdx, fp, dumpMode);
+            pChnIds[netwopIdx] = NULL;
+
+            if ((fc == NULL) || netFilter[netwopIdx])
+            {
+               EpgDumpXml_WriteChannel(pDbContext, pAiBlock, pChnIds, netwopIdx, fp, dumpMode);
+            }
          }
 
          // loop across all PI and dump their info
-         pPiBlock = EpgDbSearchFirstPi(pDbContext, NULL);
+         pPiBlock = EpgDbSearchFirstPi(pDbContext, fc);
          while (pPiBlock != NULL)
          {
             EpgDumpXml_WriteProgramme(pDbContext, pAiBlock, pPiBlock, pChnIds, fp, dumpMode);
 
-            pPiBlock = EpgDbSearchNextPi(pDbContext, NULL, pPiBlock);
+            pPiBlock = EpgDbSearchNextPi(pDbContext, fc, pPiBlock);
          }
 
          // free channel IDs (allocated when writing channel table

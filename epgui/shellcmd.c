@@ -21,7 +21,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: shellcmd.c,v 1.15 2008/09/20 20:24:52 tom Exp tom $
+ *  $Id: shellcmd.c,v 1.16 2008/10/12 19:57:55 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -47,6 +47,7 @@
 #include "epgvbi/syserrmsg.h"
 #include "epgdb/epgblock.h"
 #include "epgdb/epgdbif.h"
+#include "epgdb/epgdbfil.h"
 #include "epgui/epgmain.h"
 #include "epgui/epgsetup.h"
 #include "epgui/pdc_themes.h"

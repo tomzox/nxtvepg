@@ -21,7 +21,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgsetup.c,v 1.9 2008/02/03 16:51:22 tom Exp tom $
+ *  $Id: epgsetup.c,v 1.10 2008/10/12 19:23:18 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -249,6 +249,49 @@ void EpgSetup_UpdateProvCniTable( void )
       xfree(pAiCni);
    }
    EpgDbLockDatabase(pUiDbContext, FALSE);
+}
+
+// ----------------------------------------------------------------------------
+// Enable network prefilter to permanently exclude a subset of networks
+// - called after provider selection and during acquisition after AI update
+//
+void EpgSetup_SetNetwopPrefilter( EPGDB_CONTEXT * dbc, FILTER_CONTEXT * fc )
+{
+   const AI_BLOCK * pAiBlock;
+   const uint * pSupCnis;
+   uint cniCount;
+   uint netwop;
+   uint cniIdx;
+   uint cni;
+
+   if ((dbc != NULL) && (fc != NULL))
+   {
+      RcFile_GetNetworkSelection(EpgDbContextGetCni(dbc), NULL, NULL, &cniCount, &pSupCnis);
+
+      EpgDbLockDatabase(dbc, TRUE);
+      pAiBlock = EpgDbGetAi(dbc);
+      if (pAiBlock != NULL)
+      {
+         EpgDbFilterInitNetwopPreFilter(fc);
+         EpgDbPreFilterEnable(fc, FILTER_NETWOP_PRE);
+
+         for (netwop = 0; netwop < pAiBlock->netwopCount; netwop++) 
+         {
+            cni = AI_GET_NET_CNI_N(pAiBlock, netwop);
+            for (cniIdx = 0; cniIdx < cniCount; cniIdx++) 
+               if (pSupCnis[cniIdx] == cni)
+                  break;
+            // if this network's CNI is in the exclude list: add it to the pre-filter
+            if (cniIdx < cniCount)
+            {
+               EpgDbFilterSetNetwopPreFilter(fc, netwop);
+            }
+         }
+      }
+      EpgDbLockDatabase(dbc, FALSE);
+   }
+   else
+      fatal0("EpgSetup-SetNetwopPrefilter: illegal NULL pointer param");
 }
 
 // ---------------------------------------------------------------------------

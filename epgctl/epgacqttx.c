@@ -21,7 +21,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgacqttx.c,v 1.2 2007/03/10 19:32:23 tom Exp tom $
+ *  $Id: epgacqttx.c,v 1.3 2008/10/12 16:12:16 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGCTL
@@ -319,14 +319,14 @@ static bool EpgAcqTtx_UpdateProvider( void )
          {
             acqCtl.chanChangeTime = now;
 
-            result = EpgAcqCtl_TuneProvider(TRUE, freq, TRUE, &acqCtl.passiveReason);
+            result = EpgAcqCtl_TuneProvider(TRUE, freq, XMLTV_TTX_PROV_CNI, &acqCtl.passiveReason);
          }
       }
       else
       {  // no channel to be tuned onto -> set at least the input source
          acqCtl.chanChangeTime = now;
 
-         result = EpgAcqCtl_TuneProvider(TRUE, 0, FALSE, &acqCtl.passiveReason);
+         result = EpgAcqCtl_TuneProvider(TRUE, 0, 0, &acqCtl.passiveReason);
       }
    }
    else

@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: dumptext.h,v 1.11 2007/01/21 14:11:24 tom Exp tom $
+ *  $Id: dumptext.h,v 1.12 2008/10/12 19:55:39 tom Exp tom $
  */
 
 #ifndef __DUMPTEXT_H
@@ -34,7 +34,8 @@ typedef enum
 // declaration of service interface functions
 //
 
-void EpgDumpText_Standalone( EPGDB_CONTEXT * pDbContext, FILE * fp, DUMP_TEXT_MODE mode );
+void EpgDumpText_Standalone( EPGDB_CONTEXT * pDbContext, FILTER_CONTEXT * fc,
+                             FILE * fp, DUMP_TEXT_MODE mode );
 bool EpgDumpText_Single( EPGDB_CONTEXT * pDbContext, const PI_BLOCK * pPi, PI_DESCR_BUF * pb );
 
 #endif  // __DUMPTEXT_H

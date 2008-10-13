@@ -4,6 +4,13 @@ Your feedback is always welcome, so feel free to mail me if you want to
 boost any item's priority, find more points that need to be fixed or if
 you have ideas for additional features.
 
+release ceveats:
+- now/next acq mode recommended (follow-ui not adapted for TTX yet)
+  note: speed of NOW for TTX will be improved later
+- doc: wait one cycle, then merge ttx XML file with Nextview
+- ttx starts at first chan again after stop
+- config params not used (with exception if chan count, perl path)
+
 Missing documentation:
 - TV Tune config in context menu dialog
 - acq auto-start option in acq mode config dialog
@@ -11,7 +18,6 @@ Missing documentation:
 
 Teletext grabber:
 - improve TTX parser (-> failing parsertest pages)
-- UNIX cannot load nxtvepg.ini
 - ttx doesn't cope well false channel change detection due to dec. errors
   - same effect on DSF: toggling between different text headers
   - endlessly restarting acq. from scratch

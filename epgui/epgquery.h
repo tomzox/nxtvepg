@@ -1,5 +1,5 @@
 /*
- *  Nextview GUI: Export of programme data
+ *  Process query message for remote EPG client
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License Version 2 as
@@ -16,20 +16,18 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: uidump.h,v 1.3 2008/10/12 19:57:48 tom Exp tom $
+ *  $Id: epgquery.h,v 1.2 2008/10/12 20:00:29 tom Exp tom $
  */
 
-#ifndef __UIDUMP_H
-#define __UIDUMP_H
+#ifndef _EPGQUERY_H
+#define _EPGQUERY_H
+
+/* interface to command line parser */
+bool EpgQuery_CheckSyntax( const char * pArg, char ** pErrStr );
+
+/* interface to dump control */
+FILTER_CONTEXT * EpgQuery_Parse( EPGDB_CONTEXT * pDbContext, const char ** pQuery );
 
 
-// ----------------------------------------------------------------------------
-// Interface functions declaration
-
-void EpgDump_Standalone( EPGDB_CONTEXT * pDbContext, FILE * fp,
-                         int dumpMode, int dumpSubMode, const char ** pFilterStr );
-void EpgDump_Destroy( void );
-void EpgDump_Init( void );
-
-#endif  // __UIDUMP_H
+#endif  // _EPGQUERY_H
 

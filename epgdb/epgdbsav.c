@@ -29,7 +29,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgdbsav.c,v 1.65 2008/09/26 15:37:48 tom Exp tom $
+ *  $Id: epgdbsav.c,v 1.66 2008/10/12 15:57:41 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB
@@ -1599,14 +1599,14 @@ uint EpgDbRemoveDatabaseFile( uint cni )
    pFilename = xmalloc(strlen(epgDbDirPath) + 1 + DUMP_NAME_MAX_LEN);
 
    sprintf(pFilename, "%s%c" DUMP_NAME_FMT_UNIX, epgDbDirPath, PATH_SEPARATOR, cni);
-   if ( (unlink(pFilename) != 0) && (access(pFilename, F_OK) != 0) )
+   if ( (access(pFilename, F_OK) == 0) && (unlink(pFilename) != 0) )
    {
       debug2("EpgDb-RemoveDatabaseFile: failed to remove db file '%s': %s", pFilename, strerror(errno));
       result = errno;
    }
 
    sprintf(pFilename, "%s%c" DUMP_NAME_FMT_DOS, epgDbDirPath, PATH_SEPARATOR, cni);
-   if ( (unlink(pFilename) != 0) && (access(pFilename, F_OK) != 0) )
+   if ( (access(pFilename, F_OK) == 0) && (unlink(pFilename) != 0) )
    {
       debug2("EpgDb-RemoveDatabaseFile: failed to remove db file '%s': %s", pFilename, strerror(errno));
       result = errno;

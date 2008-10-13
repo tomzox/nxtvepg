@@ -288,9 +288,12 @@ with I<-provider> to specify which database shall be exported.
 
 To export the database in XML format, use keyword I<xml> as mode.
 In this case the last mode (i.e. XMLTV DTD version) which was used
-via the main menu is used.  To export the database in another mode,
-use I<xml5>, I<xml5ltz> or I<xml6>.
-For more details see L<"CONTROL: Export as XMLTV">.
+via the XMLTV export dialog is used.  To export the database in another
+mode, use I<xml5>, I<xml5ltz> or I<xml6>.  For more details see
+L<"CONTROL: Export as XMLTV">.  Note by default this mode exports
+the complete database, including already expired programmes and
+networks which are suppressed in the GUI. To filter the output,
+use option B<-epgquery>.
 
 To export programme data into a HTML document, use keyword I<html>
 as mode.  The same options as configured in the HTML export dialog
@@ -343,6 +346,37 @@ following:
 to write the network table of provider I<Kabel1> (CNI I<0xd92>) into
 a file named I<networks.txt>, or pipe it to the paging program "more"
 respectively.
+
+=item B<-epgquery> I<FILTER=option>
+
+This option can be used in combination with B<-dump> to limit the
+amount of programmes which is exported. The option can be used
+multiple times to combine different filters. The available filter
+types are a subset of those which are available in the graphical
+interface:
+
+I<EXPIRE=NOW> or I<EXPIRE=time>;
+I<NETWOP_PRE>
+I<AIR_TIMES>
+I<NETIDX>
+I<NETNAME>
+I<NETCNI>
+I<THEME>
+I<SORTCRIT>
+I<SERIES>
+I<TITLE>
+I<TITLE_WHOLE>
+I<TEXT>
+I<PROGIDX>
+I<START>
+I<DURATION>
+I<PAR_RAT>
+I<EDIT_RAT>
+I<FEATURES>
+I<LANGUAGES>
+I<SUBTITLES>
+I<VPS_PDC>
+I<INVERT>
 
 =item B<-remctrl> I<command>
 
@@ -3293,7 +3327,7 @@ always enclosed in single quotes, because the command line is passed
 to a system shell for execution (/bin/sh, i.e. the I<Bourne Shell> by means
 of the I<system> function; see also system man pages B<sh> or B<bash>)
 and there are many characters with special meaning.  Single quotes inside
-he substituted string are correctly escaped.
+of the substituted string are correctly escaped.
 
 Example: The command line
 
@@ -3301,12 +3335,12 @@ Example: The command line
 
 could for example on UNIX systems result in
 
-  plan '22.08.2001 13:05' 'Käpt'\''n Blaubärs Seemannsgarn'
+  plan '22.08.2001 13:05' 'Fish '\''n'\'' Fun'
 
-On Windows only single- and double quotes and spaces characters are
+On Windows only single- and double quotes and space characters are
 escaped with a backslash. Hence the above example would result in:
 
-  plan 22.08.2001\ 13:05 Käpt\'n\ Blaubärs\ Seemannsgarn
+  plan 22.08.2001\ 13:05 Fish\ \'n\'\ Fun
 
 Note if you want to prevent the backslash inbetween date and time (if
 the called program doesn't understand it), you can simply use two
@@ -3669,9 +3703,10 @@ The best way to provide feedback is via the discussion forum at the
 nxtvepg homepage.
 
 Many thanks
-to Néo for providing the installer for MS-Windows releases
-and for the French translation of several web pages;
-to Kurt Lettmaier and Olaf Nöhring for the German translation of the manual;
+to Néo for providing the MS windows installer, the K!TV instruction
+manual and for the French translation of several web pages;
+to Kurt Lettmaier for his valuable feed-back and suggestions;
+to Kurt Lettmaier and Olaf Noehring for the German translation of the manual;
 to Thierry Ménétrier and Peter Rolf for their valuable feedback and suggestions;
 to Simon Barner for the FreeBSD port;
 to Matthieu for the French translation of PDC theme descriptors;

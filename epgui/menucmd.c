@@ -18,7 +18,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: menucmd.c,v 1.132 2008/02/03 18:45:38 tom Exp tom $
+ *  $Id: menucmd.c,v 1.133 2008/10/12 19:18:36 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -1908,14 +1908,17 @@ static int MenuCmd_LoadProvFreqsFromDbs( ClientData ttp, Tcl_Interp *interp, int
       pDbCniTab  = NULL;
       pDbFreqTab = NULL;
 
-      // extract frequencies from databases, even if incompatible version
-      dbCount = EpgContextCtl_GetFreqList(&pDbCniTab, &pDbFreqTab);
+      // extract frequencies from database files (even if incompatible version)
+      dbCount = EpgContextCtl_GetFreqList(&pDbCniTab, &pDbFreqTab, FALSE);
       newFreq = FALSE;
 
-      // update add the frequencies to the rc file
+      // update or add the frequencies to the rc file (in case db file gets deleted)
       for (idx = 0; idx < dbCount; idx++)
       {
-         newFreq |= RcFile_UpdateProvFrequency(pDbCniTab[idx], pDbFreqTab[idx]);
+         if (pDbFreqTab[idx] != 0)
+         {
+            newFreq |= RcFile_UpdateProvFrequency(pDbCniTab[idx], pDbFreqTab[idx]);
+         }
       }
 
       // free the intermediate arrays
@@ -1927,7 +1930,8 @@ static int MenuCmd_LoadProvFreqsFromDbs( ClientData ttp, Tcl_Interp *interp, int
       if (newFreq)
          UpdateRcFile(TRUE);
 
-      Tcl_SetObjResult(interp, Tcl_NewIntObj( RcFile_Query()->acq.prov_freq_count ));
+      // return number of frequencies (including zero freq!)
+      Tcl_SetObjResult(interp, Tcl_NewIntObj(dbCount));
       result = TCL_OK;
    }
 
@@ -1945,34 +1949,37 @@ static uint GetProvFreqTab( uint ** ppFreqTab, uint ** ppCniTab )
    const RCFILE * pRc;
    uint  *freqTab;
    uint  *cniTab;
-   uint  freqIdx;
+   uint  freqCount;
    int   idx;
 
    pRc = RcFile_Query();
-   if ((pRc != NULL) && (pRc->acq.prov_freq_count > 0+1))
+   if ((pRc != NULL) && (pRc->acq.prov_freq_count > 0+1))  // fail-safe (odd values should never occur)
    {
       freqTab = xmalloc((pRc->acq.prov_freq_count / 2) * sizeof(uint));
       cniTab  = xmalloc((pRc->acq.prov_freq_count / 2) * sizeof(uint));
-      freqIdx = 0;
+      freqCount = 0;
 
       for (idx = 0; idx + 1 < pRc->acq.prov_freq_count; idx += 2)
       {
-         cniTab[freqIdx] = pRc->acq.prov_freqs[idx];
-         freqTab[freqIdx] = pRc->acq.prov_freqs[idx + 1];
-         freqIdx += 1;
+         if (pRc->acq.prov_freqs[idx + 1] != 0)
+         {
+            cniTab[freqCount] = pRc->acq.prov_freqs[idx];
+            freqTab[freqCount] = pRc->acq.prov_freqs[idx + 1];
+            freqCount += 1;
+         }
       }
    }
    else
    {
       freqTab = NULL;
       cniTab  = NULL;
-      freqIdx = 0;
+      freqCount = 0;
    }
 
    *ppFreqTab = freqTab;
    *ppCniTab  = cniTab;
 
-   return freqIdx;
+   return freqCount;
 }
 
 // ----------------------------------------------------------------------------
@@ -1980,18 +1987,10 @@ static uint GetProvFreqTab( uint ** ppFreqTab, uint ** ppCniTab )
 //
 static void MenuCmd_AddProvDelButton( uint cni )
 {
-   uchar strbuf[16+2+1];
+   uchar strbuf[50 + 16+2+1];
 
-   sprintf(strbuf, "0x%04X", cni);
-   if (Tcl_VarEval(interp, "button .epgscan.all.fmsg.msg.del_prov_", strbuf,
-                           " -text {Remove this provider} -command {EpgScanDeleteProvider ", strbuf,
-                           "} -state disabled -cursor left_ptr\n",
-                           ".epgscan.all.fmsg.msg window create end -window .epgscan.all.fmsg.msg.del_prov_", strbuf, "\n",
-                           ".epgscan.all.fmsg.msg insert end {\n\n}\n",
-                           ".epgscan.all.fmsg.msg see {end linestart - 2 lines}\n",
-                           NULL
-                  ) != TCL_OK)
-      debugTclErr(interp, "MenuCmd-AddProvDelButton");
+   sprintf(strbuf, "EpgScanAddProvDelButton 0x%04X", cni);
+   eval_check(interp, comm);
 }
 
 // ----------------------------------------------------------------------------
@@ -2011,7 +2010,7 @@ static void MenuCmd_AddEpgScanMsg( const char * pMsg, bool bold )
 #endif
       {
          Tcl_DStringInit(&cmd_dstr);
-         Tcl_DStringAppend(&cmd_dstr, ".epgscan.all.fmsg.msg insert end ", -1);
+         Tcl_DStringAppend(&cmd_dstr, "EpgScanAddMessage ", -1);
          // append message (plus a newline) as list element, so that '{' etc. is escaped properly
 #ifdef USE_UTF8
          Tcl_DStringAppendElement(&cmd_dstr, pMsg);
@@ -2019,10 +2018,8 @@ static void MenuCmd_AddEpgScanMsg( const char * pMsg, bool bold )
          Tcl_DStringAppendElement(&cmd_dstr, Tcl_DStringValue(&msg_dstr));
 #endif
          Tcl_DStringAppend(&cmd_dstr, (bold ? " bold" : " {}"), -1);
-         Tcl_DStringAppend(&cmd_dstr, " {\n} {}", -1);
 
          eval_check(interp, Tcl_DStringValue(&cmd_dstr));
-         eval_check(interp, "\n.epgscan.all.fmsg.msg see {end linestart - 2 lines}\n");
 
 #ifndef USE_UTF8
          Tcl_DStringFree(&msg_dstr);
@@ -2070,7 +2067,8 @@ static int MenuCmd_StartEpgScan( ClientData ttp, Tcl_Interp *interp, int objc, T
          cniTab  = NULL;
          if (isOptionRefresh)
          {  // in this mode only previously stored provider frequencies are visited
-            // the returned lists are freed by the EPG scan module
+            // retrieve provider frequency list from RC file (DB files may be missing)
+            // (note the lists are freed by the EPG scan module)
             freqCount = GetProvFreqTab(&freqTab, &cniTab);
             if ( (freqCount == 0) || (freqTab == NULL) || (cniTab == NULL) )
             {  // it's an error if the provider frequency list is empty
@@ -2078,6 +2076,8 @@ static int MenuCmd_StartEpgScan( ClientData ttp, Tcl_Interp *interp, int objc, T
                eval_check(interp, ".epgscan.all.fmsg.msg insert end {Frequency list is empty or invalid - abort\n}");
                return TCL_OK;
             }
+            // note: the scan module additionally retrieves a freq. list from the DB cache
+            // to check for dbs with zero freqs and offer provider removal
          }
          else if (ftableIdx == 0)
          {  // in this mode only channels which are defined in the .xawtv file are visited
@@ -2114,10 +2114,6 @@ static int MenuCmd_StartEpgScan( ClientData ttp, Tcl_Interp *interp, int objc, T
 
          RcFile_SetAcqScanOpt(ftableIdx);
          UpdateRcFile(FALSE);
-
-         // clear message window
-         sprintf(comm, ".epgscan.all.fmsg.msg delete 1.0 end\n");
-         eval_check(interp, comm);
 
          scanResult = EpgScan_Start(RcFile_Query()->tvcard.input,
                                     isOptionSlow, (ftableIdx == 0), isOptionRefresh,

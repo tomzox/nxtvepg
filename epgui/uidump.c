@@ -21,7 +21,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: uidump.c,v 1.6 2008/01/21 22:42:35 tom Exp tom $
+ *  $Id: uidump.c,v 1.7 2008/10/12 19:57:42 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -51,6 +51,7 @@
 #include "epgui/cmdline.h"
 #include "epgui/epgmain.h"
 #include "epgui/epgsetup.h"
+#include "epgui/epgquery.h"
 #include "epgui/uictrl.h"
 #include "epgui/menucmd.h"
 #include "epgui/uidump.h"
@@ -127,7 +128,7 @@ static int EpgDump_Xml( ClientData ttp, Tcl_Interp *interp,int objc, Tcl_Obj *CO
       fpDst = fopen(pFileName, "w");
       if (fpDst != NULL)
       {
-         EpgDumpXml_Standalone(pUiDbContext, fpDst, dumpMode);
+         EpgDumpXml_Standalone(pUiDbContext, NULL, fpDst, dumpMode);
          fclose(fpDst);
       }
       else
@@ -201,7 +202,7 @@ static int EpgDump_Text( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *
             fp = fopen(pFileName, "w");
             if (fp != NULL)
             {  // file created successfully -> start dump
-               EpgDumpText_Standalone(pUiDbContext, fp, mode);
+               EpgDumpText_Standalone(pUiDbContext, NULL, fp, mode);
 
                fclose(fp);
             }
@@ -216,7 +217,7 @@ static int EpgDump_Text( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *
          }
          else
          {  // no file name given -> dump to stdout
-            EpgDumpText_Standalone(pUiDbContext, stdout, mode);
+            EpgDumpText_Standalone(pUiDbContext, NULL, stdout, mode);
          }
 
          result = TCL_OK;
@@ -310,7 +311,7 @@ static int EpgDump_RawDatabase( ClientData ttp, Tcl_Interp *interp, int objc, Tc
          do_li = EpgDump_ReadTclBool(interp, "dumpdb_li", 1);
          do_ti = EpgDump_ReadTclBool(interp, "dumpdb_ti", 1);
 
-         EpgDumpRaw_Database(pUiDbContext, fp,
+         EpgDumpRaw_Database(pUiDbContext, NULL, fp,
                              do_pi, do_xi, do_ai, do_ni,
                              do_oi, do_mi, do_li, do_ti);
 
@@ -507,8 +508,16 @@ static int EpgDump_GetRawPi( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_O
 // ---------------------------------------------------------------------------
 // Database export via command line: route call to sub-modules
 //
-void EpgDump_Standalone( EPGDB_CONTEXT * pDbContext, FILE * fp, int dumpMode, int dumpSubMode )
+void EpgDump_Standalone( EPGDB_CONTEXT * pDbContext, FILE * fp,
+                         int dumpMode, int dumpSubMode, const char ** pFilterStr )
 {
+   FILTER_CONTEXT * fc = NULL;
+
+   if (*pFilterStr != NULL)
+   {
+      fc = EpgQuery_Parse(pDbContext, pFilterStr);
+   }
+
    switch (dumpMode)
    {
       case EPG_DUMP_XMLTV:
@@ -516,24 +525,29 @@ void EpgDump_Standalone( EPGDB_CONTEXT * pDbContext, FILE * fp, int dumpMode, in
          {
             dumpSubMode = EpgDump_QueryXmlDtdVersion(interp);
          }
-         EpgDumpXml_Standalone(pUiDbContext, stdout, dumpSubMode);
+         EpgDumpXml_Standalone(pUiDbContext, fc, stdout, dumpSubMode);
          break;
 
       case EPG_DUMP_TEXT:
-         EpgDumpText_Standalone(pUiDbContext, stdout, dumpSubMode);
+         EpgDumpText_Standalone(pUiDbContext, fc, stdout, dumpSubMode);
          break;
 
       case EPG_DUMP_HTML:
-         EpgDumpHtml_Standalone(pUiDbContext, stdout, dumpSubMode);
+         EpgDumpHtml_Standalone(pUiDbContext, fc, stdout, dumpSubMode);
          break;
 
       case EPG_DUMP_RAW:
-         EpgDumpRaw_Standalone(pUiDbContext, stdout);
+         EpgDumpRaw_Standalone(pUiDbContext, fc, stdout);
          break;
 
       default:
          fatal1("EpgDump-Standalone: unsupported dump mode %d\n", dumpMode);
          break;
+   }
+
+   if (fc != NULL)
+   {
+      EpgDbFilterDestroyContext(fc);
    }
 }
 

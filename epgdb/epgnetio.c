@@ -22,7 +22,7 @@
  *  Author:
  *          Tom Zoerner
  *
- *  $Id: epgnetio.c,v 1.40 2008/08/10 19:51:15 tom Exp tom $
+ *  $Id: epgnetio.c,v 1.41 2008/10/12 16:01:36 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB
@@ -191,6 +191,8 @@ void EpgNetIo_Logger( int level, int clnt_fd, int errCode, const char * pText, .
             strftime(timestamp, sizeof(timestamp) - 1, "[%d/%b/%Y:%H:%M:%S +0000] ", gmtime(&now));
             write(fd, timestamp, strlen(timestamp));
          }
+         else
+            debug2("EpgNetIo-Logger: failed to open '%s': %s", epgNetIoLogCf.pLogfileName, strerror(errno));
       }
       else
          fd = -1;

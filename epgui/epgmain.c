@@ -20,7 +20,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgmain.c,v 1.160 2008/10/03 21:14:06 tom Exp tom $
+ *  $Id: epgmain.c,v 1.161 2008/10/12 19:56:36 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -405,7 +405,8 @@ static void MainStartDump( void )
    {
       SetUserLanguage(interp);
 
-      EpgDump_Standalone(pUiDbContext, stdout, mainOpts.optDumpMode, mainOpts.optDumpSubMode);
+      EpgDump_Standalone(pUiDbContext, stdout,
+                         mainOpts.optDumpMode, mainOpts.optDumpSubMode, mainOpts.optDumpFilter);
 
       EpgContextCtl_Close(pUiDbContext);
    }

@@ -31,7 +31,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgctxctl.c,v 1.31 2008/10/03 20:20:03 tom Exp tom $
+ *  $Id: epgctxctl.c,v 1.32 2008/10/12 16:20:19 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGCTL
@@ -1119,8 +1119,9 @@ const uint * EpgContextCtl_GetProvList( uint * pCount )
 // - the list is dynamically allocated and must be freed by the caller
 // - for databases which are not cached because they are defective or have and
 //   incompatible version, the tuner frequency is read from the header
+// - imported databases are NOT included here (XMLTV databases never have a freq.)
 //
-uint EpgContextCtl_GetFreqList( uint ** ppProvList, uint ** ppFreqList )
+uint EpgContextCtl_GetFreqList( uint ** ppProvList, uint ** ppFreqList, bool withInvalid )
 {
    CTX_CACHE * pContext;
    uint maxCount, idx;
@@ -1131,7 +1132,10 @@ uint EpgContextCtl_GetFreqList( uint ** ppProvList, uint ** ppFreqList )
    pContext = pContextCache;
    while (pContext != NULL)
    {
-      maxCount += 1;
+      if (IS_XMLTV_CNI(pContext->provCni) == FALSE)
+      {
+         maxCount += 1;
+      }
       pContext = pContext->pNext;
    }
 
@@ -1146,22 +1150,24 @@ uint EpgContextCtl_GetFreqList( uint ** ppProvList, uint ** ppFreqList )
       pContext = pContextCache;
       while ((pContext != NULL) && (idx < maxCount))
       {
-         if (pContext->pDbContext != NULL)
-         {  // database header is in the cache -> take frequency from there
-            freq = pContext->pDbContext->tunerFreq;
-         }
-         else
-         {  // database not loaded/not loadable -> read frequency from file header
-            freq = EpgDbReadFreqFromDefective(pContext->provCni);
-         }
+         if (IS_XMLTV_CNI(pContext->provCni) == FALSE)
+         {
+            if (pContext->pDbContext != NULL)
+            {  // database header is in the cache -> take frequency from there
+               freq = pContext->pDbContext->tunerFreq;
+            }
+            else
+            {  // database not loaded/not loadable -> read frequency from file header
+               freq = EpgDbReadFreqFromDefective(pContext->provCni);
+            }
 
-         if (freq != 0)
-         {  // valid frequency available -> append it to the list
-            (*ppProvList)[idx] = pContext->provCni;
-            (*ppFreqList)[idx] = freq;
-            idx += 1;
+            if ((freq != 0) || withInvalid)
+            {  // valid frequency available -> append it to the list
+               (*ppProvList)[idx] = pContext->provCni;
+               (*ppFreqList)[idx] = freq;
+               idx += 1;
+            }
          }
-
          pContext = pContext->pNext;
       }
 

@@ -18,7 +18,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: dlg_acqmode.tcl,v 1.10 2008/01/22 22:07:49 tom Exp tom $
+#  $Id: dlg_acqmode.tcl,v 1.11 2008/10/12 16:59:47 tom Exp tom $
 #
 set acqmode_popup 0
 set netacqcf_popup 0
@@ -310,25 +310,36 @@ proc NetAcqConfigQuit {do_save} {
       # check config for consistancy
       if {[string length $netacqcf_tmpcf(host)] == 0} {
          # hostname must always be given (used only by client though)
-         tk_messageBox -type ok -default ok -icon error -parent .netacqcf -message "You must enter a hostname, at least 'localhost'."
+         tk_messageBox -type ok -default ok -icon error -parent .netacqcf \
+                       -message "You must enter a hostname, at least 'localhost'."
          return
       }
       if {[string compare $netacqcf_tmpcf(host) "localhost"] != 0} {
          # non-local host -> TCP/IP must be enabled
          if {$netacqcf_tmpcf(do_tcp_ip) == 0} {
-            tk_messageBox -type ok -default ok -icon error -parent .netacqcf -message "Cannot use any host but 'localhost' as server when TCP/IP is not enabled."
+            tk_messageBox -type ok -default ok -icon error -parent .netacqcf \
+                          -message "Cannot use any host but 'localhost' as server when TCP/IP is not enabled."
             return
          }
       }
       if {$netacqcf_tmpcf(do_tcp_ip) && ([string length $netacqcf_tmpcf(port)] == 0)} {
          # TCP/IP enabled -> must give a port name (even if unused by this client b/c server is localhost)
-         tk_messageBox -type ok -default ok -icon error -parent .netacqcf -message "You must enter either a TCP port number or a service name."
+         tk_messageBox -type ok -default ok -icon error -parent .netacqcf \
+                       -message "You must enter either a TCP port number or a service name."
          return
       }
-      if {($netacqcf_tmpcf(fileloglev) > 0) && ([string length $netacqcf_tmpcf(logname)] == 0)} {
+      if {$netacqcf_tmpcf(fileloglev) > 0} {
          # when logging to a file is enabled we obviously require a file name
-         tk_messageBox -type ok -default ok -icon error -parent .netacqcf -message "If you enable logging into a file, you must enter a file name."
-         return
+         if {[string length $netacqcf_tmpcf(logname)] == 0} {
+            tk_messageBox -type ok -default ok -icon error -parent .netacqcf \
+                          -message "If you enable logging into a file, you must enter a file name."
+            return
+         }
+         if {![file isdirectory [file dirname $netacqcf_tmpcf(logname)]]} {
+            tk_messageBox -type ok -default ok -icon error -parent .netacqcf \
+                          -message "The path given for the log file isn't a directory or doesn't exist."
+            return
+         }
       }
 
       # copy temporary variables back into config parameter list

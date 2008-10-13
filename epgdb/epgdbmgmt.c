@@ -21,7 +21,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgdbmgmt.c,v 1.52 2007/03/03 20:36:40 tom Exp tom $
+ *  $Id: epgdbmgmt.c,v 1.53 2008/10/12 15:54:21 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB
@@ -709,14 +709,14 @@ static bool EpgDbGenericBlockNoValid( PDBC dbc, EPGDB_BLOCK * pBlock, BLOCK_TYPE
             break;
 
          default:
-            accept = FALSE;;
+            accept = FALSE;
             break;
       }
       ifdebug3(!accept, "REFUSE generic type=%d blockno=%d (netwop=%d)", type, block_no, pBlock->blk.all.netwop_no);
    }
    else
    {
-      SHOULD_NOT_BE_REACHED;
+      fatal1("EpgDb-GenericBlockNoValid: no AI in db to check block type:%d", type);
       accept = FALSE;
    }
 
@@ -1017,7 +1017,7 @@ bool EpgDbPiBlockNoValid( CPDBC dbc, uint block_no, uchar netwop )
    }
    else
    {
-      SHOULD_NOT_BE_REACHED;
+      fatal2("EpgDb-PiBlockNoValid: no AI in db to check block no:%d net:%d", block_no, netwop);
       result = FALSE;
    }
 

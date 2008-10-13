@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: dumphtml.h,v 1.4 2005/12/29 16:51:22 tom Exp tom $
+ *  $Id: dumphtml.h,v 1.5 2008/10/12 19:55:39 tom Exp tom $
  */
 
 #ifndef __DUMPHTML_H
@@ -30,6 +30,7 @@
 void EpgDumpHtml_Init( void );
 void EpgDumpHtml_Destroy( void );
 
-void EpgDumpHtml_Standalone( EPGDB_CONTEXT * pDbContext, FILE * fp, uint subMode );
+void EpgDumpHtml_Standalone( EPGDB_CONTEXT * pDbContext, FILTER_CONTEXT * fc,
+                             FILE * fp, uint subMode );
 
 #endif  // __DUMPHTML_H

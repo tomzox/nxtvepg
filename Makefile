@@ -30,7 +30,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: Makefile,v 1.103 2008/10/05 16:37:15 tom Exp $
+#  $Id: Makefile,v 1.105 2008/10/12 20:03:06 tom Exp tom $
 #
 
 ifeq ($(OS),Windows_NT)
@@ -60,6 +60,7 @@ YACC    = /usr/bin/yacc
 
 # select Tcl/Tk version (8.5 recommended due to modernized widget appearence)
 TCL_VER := $(shell echo 'puts [package require Tcl]' | tclsh)
+#TCL_VER := $(shell echo 'puts [info tclversion]' | tclsh)
 #TCL_VER = 8.5
 
 ifeq ($(shell test -d /usr/include/tcl$(TCL_VER) && echo YES),YES)
@@ -77,6 +78,8 @@ DEFS   += -DX11_APP_DEFAULTS=\"$(resdir)/app-defaults/Nxtvepg\"
 #INCS   += -I/usr/local/tcl/tcl8.0/generic -I/usr/local/tcl/tk8.0/generic
 
 # path to Tcl/Tk script library (note Tk is sometimes in X11/lib/tk#.#)
+#TCL_LIBRARY_PATH = /usr/share/tcltk/tcl$(TCL_VER)
+#TK_LIBRARY_PATH = /usr/share/tcltk/tk$(TCL_VER)
 TK_LIBRARY_PATH  = /usr/lib/tk$(TCL_VER)
 TCL_LIBRARY_PATH = /usr/lib/tcl$(TCL_VER)
 DEFS   += -DTK_LIBRARY_PATH=\"$(TK_LIBRARY_PATH)\"
@@ -166,11 +169,11 @@ GUISRC  = epgui/pibox epgui/pilistbox epgui/pinetbox epgui/piremind \
           epgui/epgmain epgui/loadtcl epgui/xawtv epgui/wintvcfg \
           epgui/wintvui epgui/epgsetup epgui/cmdline epgui/rcfile \
           epgui/dumptext epgui/dumpraw epgui/dumphtml epgui/dumpxml \
-          epgui/uidump epgui/shellcmd epgui/wmhooks epgui/xiccc \
-          epgui/daemon
+          epgui/uidump epgui/epgquery epgui/shellcmd epgui/wmhooks \
+          epgui/xiccc epgui/daemon
 CLDSRC  = epgui/daemon_main epgui/daemon epgui/epgsetup epgui/cmdline \
           epgui/rcfile epgui/wintvcfg epgui/dumptext epgui/dumpxml \
-          epgui/dumpraw epgui/pidescr epgui/pdc_themes
+          epgui/dumpraw epgui/pidescr epgui/pdc_themes epgui/epgquery
 TCLSRC  = epgtcl/mainwin epgtcl/dlg_hwcfg epgtcl/dlg_xawtvcf \
           epgtcl/dlg_ctxmencf epgtcl/dlg_acqmode epgtcl/dlg_netsel \
           epgtcl/dlg_dump epgtcl/dlg_netname epgtcl/dlg_udefcols \
@@ -237,7 +240,7 @@ endif
 	install -c -m 0644 nxtvepgd.1  $(mandir)
 	install -c -m 0644 Nxtvepg.ad  $(resdir)/app-defaults/Nxtvepg
 	install -c -m 0644 xmltv-etsi.map $(cfgdir)/xmltv-etsi.map
-	install -c -m 0644 tv_grab_ttx.pl $(cfgdir)/tv_grab_ttx.pl
+	install -c -m 0755 tv_grab_ttx.pl $(cfgdir)/tv_grab_ttx.pl
 
 .SUFFIXES: .c .o .tcl
 
@@ -380,7 +383,7 @@ nxtvepg.1 nxtvepgd.1 manual.html: nxtvepg.pod epgctl/epgversion.h
 	  pod2man -date " " -center "Nextview EPG Decoder" -section "1" \
 	          -release "nxtvepg "$$EPG_VERSION_STR" (C) 1999-2008 Tom Zoerner" \
 	     nxtvepg.pod > nxtvepg.1; \
-          echo ".so man1/nxtvepg.1" > nxtvepgd.1 \
+          echo ".so man1/nxtvepg.1" > nxtvepgd.1; \
 	  echo "pod2html nxtvepg.pod > manual.html"; \
 	  pod2html nxtvepg.pod | $(PERL) -p -e 's/(HREF=\"#)([^:"]+: |[^_"]+(_[^_"]+)?__)+/$$1/gi;' > manual.html; \
 	  rm -f pod2htm?.* pod2html-{dircache,itemcache}; \

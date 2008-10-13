@@ -22,7 +22,7 @@
  *  Author: Tom Zoerner
  *          Win32 SetArgv() function taken from the Tcl/Tk library
  *
- *  $Id: cmdline.c,v 1.13 2007/12/30 23:59:43 tom Exp tom $
+ *  $Id: cmdline.c,v 1.14 2008/10/12 19:56:24 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -57,6 +57,7 @@
 #include "epgui/pidescr.h"
 #include "epgui/dumptext.h"
 #include "epgui/dumpxml.h"
+#include "epgui/epgquery.h"
 #include "epgui/daemon.h"
 #include "xmltv/xmltv_cni.h"
 #include "xmltv/xmltv_main.h"
@@ -168,6 +169,7 @@ static void Usage( const char *argv0, const char *argvn, const char * reason )
                    #endif
                    "       -outfile <path>     \t: target file for export and other output\n"
                    "       -dump xml|html|pi|...\t: export database in various formats\n"
+                   "       -epgquery <string>  \t: apply given filter command to export\n"
                    "       -provider <cni>     \t: network id of EPG provider (hex)\n"
                    "       -card <digit>       \t: index of TV card for acq (starting at 0)\n"
                    #ifndef WIN32
@@ -540,6 +542,39 @@ static void CmdLine_Parse( int argc, char * argv[] )
             else
                MainOptionError(argv[0], argv[argIdx], "missing mode keyword after");
          }
+         else if (!strcmp(argv[argIdx], "-epgquery"))
+         {  // set query filter for dump
+            if (argIdx + 1 < argc)
+            {
+               char * pErrStr = NULL;
+               uint queryIdx = 0;
+
+               while ((queryIdx < OPT_DUMP_FILTER_MAX) && (mainOpts.optDumpFilter[queryIdx] != NULL))
+                  queryIdx++;
+               if (queryIdx < OPT_DUMP_FILTER_MAX)
+               {
+                  if ( EpgQuery_CheckSyntax(argv[argIdx + 1], &pErrStr) )
+                  {
+                     mainOpts.optDumpFilter[queryIdx] = argv[argIdx + 1];
+                     argIdx += 2;
+                  }
+                  else
+                  {
+                     if (pErrStr != NULL)
+                     {
+                        MainOptionError(argv[0], pErrStr, "invalid -epqquery option");
+                        xfree(pErrStr);
+                     }
+                     else
+                        MainOptionError(argv[0], argv[argIdx + 1], "invalid -epqquery option");
+                  }
+               }
+               else
+                  MainOptionError(argv[0], argv[argIdx], "too many instances of");
+            }
+            else
+               MainOptionError(argv[0], argv[argIdx], "missing filter keyword and option after");
+         }
          else if (!strcmp(argv[argIdx], "-rcfile"))
          {
             if (argIdx + 1 < argc)
@@ -743,7 +778,7 @@ static void CmdLine_Parse( int argc, char * argv[] )
             }
          }
          else
-            MainOptionError(argv[0], argv[argIdx], "missing file descriptor number after");
+            MainOptionError(argv[0], argv[argIdx], "unknown command line option");
       }
       else if (argIdx + 1 == argc)
       {  // database file argument -> determine dbdir and provider from path
@@ -810,6 +845,8 @@ static void CmdLine_Parse( int argc, char * argv[] )
    if ( IS_DUMP_MODE(mainOpts) &&
         (mainOpts.startUiCni == 0) && (mainOpts.pXmlDatabase == NULL) )
       MainOptionError(argv[0], "-dump", "Must also specify -provider");
+   if ( !IS_DUMP_MODE(mainOpts) && (*mainOpts.optDumpFilter != NULL) )
+      MainOptionError(argv[0], "-epgquery", "only useful together with -dump");
    if ( !IS_GUI_MODE(mainOpts) && (mainOpts.pDemoDatabase != NULL))
       MainOptionError(argv[0], "-demo", "Cannot be combined with special modes");
 #ifdef USE_XMLTV_IMPORT
