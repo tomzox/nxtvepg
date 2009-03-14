@@ -21,7 +21,7 @@
  *  Author:
  *          Tom Zoerner
  *
- *  $Id: epgacqclnt.c,v 1.22 2008/10/12 16:11:03 tom Exp tom $
+ *  $Id: epgacqclnt.c,v 1.23 2008/10/19 12:58:17 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGCTL
@@ -675,7 +675,10 @@ static bool EpgAcqClient_TakeMessage( EPGACQ_EVHAND * pAcqEv, EPGDBSRV_MSG_BODY 
 #endif
 
             if (pNewBlock->type == BLOCK_TYPE_AI)
+            {
                dprintf1("EpgDbClient-TakeMessage: BLOCK_IND: AI block CNI 0x%04x\n", AI_GET_THIS_NET_CNI(&pNewBlock->blk.ai));
+               clientState.fwdProvCni = AI_GET_THIS_NET_CNI(&pNewBlock->blk.ai);
+            }
 
             // received new EPG block
             pNewBlock->pNextBlock = NULL;
@@ -688,7 +691,6 @@ static bool EpgAcqClient_TakeMessage( EPGACQ_EVHAND * pAcqEv, EPGDBSRV_MSG_BODY 
             // append the block to the end of the input queue
             EpgDbQueue_Add(&clientState.acqDbQueue, pNewBlock);
 
-            clientState.fwdProvCni = AI_GET_THIS_NET_CNI(&pNewBlock->blk.ai);
             result = TRUE;
          }
          else if (clientState.state == CLNT_STATE_WAIT_FWD_CNF)

@@ -18,7 +18,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: daemon.c,v 1.13 2008/10/12 19:56:36 tom Exp tom $
+ *  $Id: daemon.c,v 1.14 2008/10/19 17:52:30 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -223,7 +223,7 @@ void Daemon_StartDump( void )
    FILTER_CONTEXT * fc;
    uint provCni;
 
-   EpgContextCtl_SetPiExpireDelay(RcFile_Query()->db.piexpire_cutoff * 60);
+   EpgSetup_DbExpireDelay();
 
    provCni = CmdLine_GetStartProviderCni();
    if (provCni == MERGED_PROV_CNI)

@@ -20,7 +20,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: daemon_main.c,v 1.9 2007/12/31 16:34:36 tom Exp tom $
+ *  $Id: daemon_main.c,v 1.10 2008/10/19 14:25:55 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -186,8 +186,8 @@ int main( int argc, char *argv[] )
    }
    #endif
 
-   // set up the directory for the databases (unless in demo mode)
-   if (EpgDbSavSetupDir(mainOpts.dbdir, IS_DEMO_MODE(mainOpts)) == FALSE)
+   // set up the directory for the databases
+   if (EpgDbSavSetupDir(mainOpts.dbdir) == FALSE)
    {  // failed to create dir: message was already issued, so just exit
       exit(-1);
    }

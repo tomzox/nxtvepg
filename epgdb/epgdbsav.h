@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgdbsav.h,v 1.43 2008/02/03 15:34:58 tom Exp tom $
+ *  $Id: epgdbsav.h,v 1.45 2008/10/19 17:47:38 tom Exp tom $
  */
 
 #ifndef __EPGDBSAV_H
@@ -110,10 +110,6 @@ typedef struct
 // but should be small enough so it can safely be malloc'ed during reload
 #define EPGDBSAV_MAX_BLOCK_SIZE  30000
 
-// default time after which PI which are no longer part of the stream are discarded
-// (note: PI which still have a valid block no are not discarded until acq is started)
-#define EPGDBSAV_DEFAULT_EXPIRE_TIME  (4*60*60)
-
 // result codes for reload and peek (ordered by increasing user relevance)
 typedef enum
 {
@@ -205,15 +201,14 @@ typedef struct
 // declaration of service interface functions
 
 bool EpgDbDump( EPGDB_CONTEXT * pDbContext );
-EPGDB_CONTEXT * EpgDbReload( uint cni, EPGDB_RELOAD_RESULT * pResult, time_t * pMtime );
-EPGDB_CONTEXT * EpgDbLoadDemo( const char * pDemoDatabase, EPGDB_RELOAD_RESULT * pResult, time_t * pMtime );
+EPGDB_CONTEXT * EpgDbReload( uint cni, uint expireDelayPi, EPGDB_RELOAD_RESULT * pResult, time_t * pMtime );
 void EpgDbReloadScan( void (*pCb)(uint cni, const char * pPath, sint mtime) );
 void EpgDbSavSetPiExpireDelay( time_t expireDelayPi );
-bool EpgDbSavSetupDir( const char * pDirPath, bool isDemoMode );
+bool EpgDbSavSetupDir( const char * pDirPath );
 bool EpgDbDumpCheckFileHeader( const char * pFilename );
 bool EpgDbDumpGetDirAndCniFromArg( char * pArg, const char ** ppDirPath, uint * pCni );
 
-EPGDB_CONTEXT * EpgDbPeek( uint cni, EPGDB_RELOAD_RESULT * pResult, time_t * pMtime );
+EPGDB_CONTEXT * EpgDbPeek( uint cni, uint expireDelayPi, EPGDB_RELOAD_RESULT * pResult, time_t * pMtime );
 bool EpgDbDumpUpdateHeader( uint cni, uint freq );
 uint EpgDbReadFreqFromDefective( uint cni );
 time_t EpgReadAiUpdateTime( uint cni );

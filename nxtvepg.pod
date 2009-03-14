@@ -86,8 +86,7 @@ In Turkey: TRT family (coverage: apx. 17 networks)
 
 For up-to-date information check the nxtvepg homepage in the Internet
 (see the About popup in the Help menu). If you don't receive any of the
-channels listed above, you can only use the demo mode as described
-with the B<-demo> command line option.
+channels listed above, you can still use nxtvepg to browse XMLTV files.
 
 Since version 2.8.0 nxtvepg also allows to extract EPG data from teletext
 or import from external XMLTV sources. Note when importing data you need
@@ -169,8 +168,9 @@ compile time (i.e. in the Makefile) to use the I<ZVBI library>
 
 This option enables data acquisition from a DVB device.  The channel
 must be tuned with an external application. The PID is the identifier
-of the data stream which contains Nextview EPG data.  The PID also
-must be determined by external means.  DVB support is still
+of the data stream which contains Nextview EPG data (i.e. the teletext
+PID aka I<TTPID>.) The PID value must be determined by external means,
+as the EPG scan does not support DVB devices. DVB support is still
 B<experimental> and not officially supported.  In particular, the
 EPG scan and acquisition modes which would require channel changing
 are not supported.
@@ -203,8 +203,8 @@ If no other
 options are given the same provider and acquisition mode as configured with
 the GUI will be used. If the -provider option is given acquisition will work
 for this provider only (note the difference to non-daemon mode, where that
-option selects the browser database). The -daemon option cannot be combined
-with the -noacq or -demo options.
+option selects the browser database). The I<-daemon> option cannot be combined
+with the I<-noacq>, I<-remctrl> or other display related options.
 
 The daemon always creates a named socket in the I</tmp> directory (UNIX only)
 plus optionally a TCP/IP socket to allow connects by browser processes. While
@@ -448,14 +448,6 @@ redirect it into a file or pipe it into another program.
 See option I<-outfile> for details.
 
 
-=item B<-demo> I<path>
-
-Load database given by I<path>
-and enter demo mode. In this mode all entries of the database are shifted
-into the presence, i.e. just far enough so that none are expired. Hence the
-entries' dates and times are not for real and acquisition or database
-reselection is not possible.
-
 =item B<-help>
 
 List all available command line options.
@@ -465,10 +457,8 @@ List all available command line options.
 After the options you can add a database filename.  If it's a regular
 nxtvepg database, this is equivalent to specifying options B<-dbdir>
 and B<-provider> (if such options are provided, they are silently
-overridden in this case.) If it's a nxtvepg database, but the file name
-does not have the format as defined in L<"FILES">, it's assumed to be a
-demo database and loaded just as with the B<-demo> option.  Last but
-not least, it's also possible to name an XML file with XMLTV data.
+overridden in this case.) 
+It's also possible to name an XML file with XMLTV data.
 
 This is particularily useful for users of graphical file managers
 (like the Windows Explorer) who can just drag and drop a database file

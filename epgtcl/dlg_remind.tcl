@@ -51,7 +51,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: dlg_remind.tcl,v 1.24 2008/09/20 20:25:30 tom Exp tom $
+#  $Id: dlg_remind.tcl,v 1.25 2009/03/13 22:24:15 tom Exp tom $
 #
 # import constants from other modules
 #=INCLUDE= "epgtcl/dlg_udefcols.h"
@@ -323,7 +323,7 @@ proc Reminder_DisplayMessage {topwid msg_list} {
          pack   ${topwid}.f2.f22.suppress -side left -padx 10
          frame  ${topwid}.f2.f22.x_pad
          pack   ${topwid}.f2.f22.x_pad -side left -padx 20
-         if {$::is_unix || ([string length [grid info .all.shortcuts.tune]] != 0)} {
+         if {[grid info .all.shortcuts.tune] ne ""} {
             button ${topwid}.f2.f22.tunetv -text "Tune TV" -width 6 -command [list RemAlarm_TuneTvByHref $topwid]
             pack   ${topwid}.f2.f22.tunetv -side left -padx 15
          }
@@ -477,7 +477,8 @@ proc RemAlarm_TuneTvByHref {topwid} {
       set ev_desc [lindex $remalarm_list $tline]
       set netname [RemAlarm_GetNetname [lindex $ev_desc $::rev_netwop_idx]]
 
-      C_Tvapp_SendCmd "setstation" $netname
+      # execute user-configured tune command
+      ExecuteTuneTvCommand [lindex $ev_desc $::rev_netwop_idx] [lindex $ev_desc $::rev_start_idx]
    }
 }
 

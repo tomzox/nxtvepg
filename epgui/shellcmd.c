@@ -21,7 +21,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: shellcmd.c,v 1.16 2008/10/12 19:57:55 tom Exp tom $
+ *  $Id: shellcmd.c,v 1.17 2009/03/13 20:46:42 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -46,8 +46,8 @@
 
 #include "epgvbi/syserrmsg.h"
 #include "epgdb/epgblock.h"
-#include "epgdb/epgdbif.h"
 #include "epgdb/epgdbfil.h"
+#include "epgdb/epgdbif.h"
 #include "epgui/epgmain.h"
 #include "epgui/epgsetup.h"
 #include "epgui/pdc_themes.h"
@@ -541,27 +541,35 @@ static void PiOutput_Win32SystemExec( Tcl_Interp *interp, const char * pCmdStr )
 #endif  // WIN32
 
 // ----------------------------------------------------------------------------
-// Execute a user-defined command on the currently selected PI
-// - invoked from the context menu
+// Execute a user-defined command on the given or the currently selected PI
+// - invoked by context menu commands and the "Tune TV" command
 //
 static int PiOutput_ExecUserCmd( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
 {
-   const char * const pUsage = "Usage: C_ExecUserCmd <type> <cmd>";
+   const char * const pUsage = "Usage: C_ExecUserCmd <type> <cmd> [<netwop> <start>]";
    const AI_BLOCK * pAiBlock;
    const PI_BLOCK * pPiBlock;
    const char * pUserCmd;
    Tcl_DString  ds;
    DYN_CHAR_BUF cmdbuf;
    int   type;
+   int   netwop_no;
+   int   start_time;
    int   result;
 
-   if (objc != 3) 
+   if ((objc != 3)  && (objc != 5))
    {  // parameter count is invalid
       Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
       result = TCL_ERROR; 
    }  
    else if (Tcl_GetIndexFromObj(interp, objv[1], pCtxMenuTypeKeywords,
                                 "menu entry type", TCL_EXACT, &type) != TCL_OK)
+   {
+      result = TCL_ERROR; 
+   }
+   else if ( (objc == 5) &&
+             ((Tcl_GetIntFromObj(interp, objv[3], &netwop_no) != TCL_OK) ||
+              (Tcl_GetIntFromObj(interp, objv[4], &start_time) != TCL_OK) ))
    {
       result = TCL_ERROR; 
    }
@@ -576,8 +584,13 @@ static int PiOutput_ExecUserCmd( ClientData ttp, Tcl_Interp *interp, int objc, T
 
       EpgDbLockDatabase(pUiDbContext, TRUE);
       pAiBlock = EpgDbGetAi(pUiDbContext);
+
       // query listbox for user-selected PI, if any
-      pPiBlock = PiBox_GetSelectedPi();
+      if (objc == 5)
+         pPiBlock = EpgDbSearchPi(pUiDbContext, start_time, netwop_no);
+      else
+         pPiBlock = PiBox_GetSelectedPi();
+
       if ((pAiBlock != NULL) && (pPiBlock != NULL))
       {
          pUserCmd = Tcl_UtfToExternalDString(NULL, Tcl_GetString(objv[2]), -1, &ds);

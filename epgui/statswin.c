@@ -33,7 +33,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: statswin.c,v 1.76 2008/01/21 22:41:59 tom Exp tom $
+ *  $Id: statswin.c,v 1.77 2008/10/19 14:25:55 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -744,11 +744,6 @@ static void StatsWin_UpdateDbStatusLine( ClientData clientData )
 
    comm[0] = 0;
 
-   if (IsDemoMode())
-   {  // Demo database -> do not display statistics
-      strcat(comm, "Demo database: start times are not real. ");
-   }
-   else
    if ((EpgDbContextIsMerged(pUiDbContext) == FALSE) &&
        (EpgDbContextIsXmltv(pUiDbContext) == FALSE) &&
        (EpgDbContextGetCni(pUiDbContext) != 0))

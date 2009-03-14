@@ -5,6 +5,28 @@ features).  For patchlevel releases also internal changes might be listed in
 case they may fix bugs (or cause new ones)
 
 
+from 2.9.0pre0 to 2.9.0pre1 (2009-Mar-14)
+
+- The "time scales" dialog was redesigned to allow scrolling vertically
+  and horizontally (i.e. network list and the scales respectively.)
+- Windows: The TV card configuration database was updated (imported from
+  DScaler) and a fix for cards with TDA9875/TDA8290 tuner was merged.
+- Two bugs affecting expire threshold handling were fixed, which prevented
+  old programmes to be deleted from XMLTV files and kept expire time at
+  zero for all merged databases.
+- The handling of all-expired EPG databases was slightly improved by
+  alloweing to make the expired programmes visible via the expire time
+  filter setting.
+- The "Tune TV" button in reminder message popup was enhanced to use the
+  command specified by the user in "Configure -> Context Menu / Tune-TV"
+- A bug in the protocol between nxtvepg daemon and GUI was fixed which
+  sometimes led to dropped data on client side.
+- The obsolete "-demo" command line option was removed. (XMLTV import can
+  be used instead where no Nextview EPG is available.)
+- Windows: The integrated Tcl/Tk library was upgraded to version 8.5.6 to
+  benefit from bug-fixes and performance improvements since 8.5.0
+
+
 from 2.8.1 to 2.9.0pre0 (2008-Oct-12)
 
 - Implemented a new command line option "-epgquery FILTER" which allows

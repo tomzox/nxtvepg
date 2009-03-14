@@ -25,7 +25,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: rcfile.c,v 1.12 2008/02/03 18:19:27 tom Exp tom $
+ *  $Id: rcfile.c,v 1.13 2008/10/19 17:54:50 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -1898,6 +1898,6 @@ void RcFile_Init( void )
    mainRc.tvcard.wdm_stop = TRUE;
 #endif
 
-   mainRc.db.piexpire_cutoff = EPGDBSAV_DEFAULT_EXPIRE_TIME / 60;
+   mainRc.db.piexpire_cutoff = EPGDB_DFLT_EXPIRE_TIME;
 }
 

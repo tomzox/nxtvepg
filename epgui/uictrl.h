@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: uictrl.h,v 1.17 2007/01/28 17:47:02 tom Exp tom $
+ *  $Id: uictrl.h,v 1.18 2008/10/19 14:25:55 tom Exp tom $
  */
 
 #ifndef __UICTRL_H
@@ -30,7 +30,6 @@ typedef enum
    CTX_RELOAD_ERR_ANY,         // caller does not care about CNI of db
    CTX_RELOAD_ERR_ACQ,         // db requested by acq control
    CTX_RELOAD_ERR_REQ,         // db was requested by the user interaction
-   CTX_RELOAD_ERR_DEMO         // demo database
 } CONTEXT_RELOAD_ERR_HAND;
 
 enum

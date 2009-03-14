@@ -1,6 +1,6 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/HTMLlat1.ent">
 <HTML lang="en">
-<!-- $Id: download.html,v 1.29 2008/10/11 20:15:56 tom Exp $ -->
+<!-- $Id: download.html,v 1.30 2008/10/19 16:08:53 tom Exp $ -->
 <HEAD>
 <TITLE>Download nxtvepg</TITLE>
 <META http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
@@ -124,7 +124,8 @@ The following is a binary package of the latest release for Debian (and
 Debian compatibles such as Ubuntu):
 </P>
 <UL>
-<LI><A HREF="http://prdownloads.sourceforge.net/nxtvepg/nxtvepg_2.8.1-2_i386.deb?download">nxtvepg_2.8.1-2_i386.deb</A>
+<LI><A HREF="http://prdownloads.sourceforge.net/nxtvepg/nxtvepg_2.8.1-3_i386.deb?download">nxtvepg_2.8.1-3_i386.deb</A>
+  (i386, requires Tcl/Tk version 8.5)
 </UL>
 <P>
 Alternatively, pre-compiled packages are provided at the following sites
@@ -182,28 +183,8 @@ For developers: A demo application for TV application interaction is available
 <P><SPAN class="anno">Thanks to Néo for providing the installer for Windows.</SPAN></P>
 </DIV>
 
-
-<DIV CLASS="box">
-<H3><A NAME="download_demodb">Demo Database</A></H3>
-<P>
-<A HREF="http://prdownloads.sourceforge.net/nxtvepg/nxdemodb.epg.gz">nxdemodb.epg.gz</A>
-</P><P>
-If you do not receive any of the nexTView
-<A HREF="provnets.html">provider channels</A>,
-download and browse the demo database to check out what you're missing.
-</P><P>
-To use the demo database, download it into your nxtvepg directory, decompress it
-and load it with the command line arguments <CODE>-demo nxdemodb.epg</CODE> (Unix)
-into nxtvepg, or simply drag and drop it onto the executable (Windows Explorer).
-</P><P>
-The copyright of the content of this database is by <I>Swiss Tele text</I> -
-please do not redistribute.
-</P>
-</DIV>
-</DIV>
 <P><BR></P>
 
-<DIV class="mainBlock">
 <H1><A NAME="requirements">System Requirements</A></H1>
 <P>
 Hardware minimum requirements are a PC or workstation with performance
@@ -299,7 +280,9 @@ have a look at the
 feature) which - in contrary to newer Windows versions - was not included with this OS.
 <LI>All Windows versions starting with Windows 95 are supported.
 <LI>Note: On Windows NT and Windows 2000 you need to run nxtvepg under an
-account with special privileges (you must be allowed to install &amp; start a service)
+account with special privileges (you must be allowed to install &amp; start a service).
+This is not neccessary when using the
+<A HREF="pre-releases.html#wdm_if_lib">WDM interface library</A>
 </UL>
 </DIV>
 </DIV>

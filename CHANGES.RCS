@@ -22230,3 +22230,162 @@ www/pre-releases.html [rev:1.90, 2008-10-19T16:11:02]:
 CHANGES [rev:1.56, 2008-10-13T20:21:51 - LATE ADDITION - NOT IN RELEASE PACKAGE]:
 - added change log for 2.9.0pre0
 #>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> RELEASE_2_9_0_PRE0 <<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+epgctl/epgacqclnt.c [rev:1.23, 2008-10-19T12:58:17]:
+- Major bugfix: tried to extract fwdProvCni from non-AI blocks
+epgui/dumpxml.c [rev:1.22, 2008-10-19T12:59:35]:
+- Fixed crash in last check-in: Initialize unused network name pointers to NULL
+epgtcl/dlg_netname.tcl [rev:1.15, 2008-10-19T13:11:44]:
+- Minor improvement in handling <Return> in name entry field
+epgtcl/draw_stats.tcl [rev:1.9, 2008-10-19T13:27:18]:
+- Redesign of timescale window
+- use one canvas for all networks so that list becomes scrollable
+    requested by TychoBarfy (Kurt) in forum 2008-09-23 09:35
+- use constants for canvas layout
+- also: raise tail after PI additions (else tail may become invisible)
+epgui/timescale.c [rev:1.17, 2008-10-19T13:27:32]:
+- Redesign of timescale window
+- use one canvas for all networks so that list becomes scrollable
+- also: bugfix GetMaxDayCount for merged db: expire delay was counted twice
+- also: raise tail after PI additions (else tail may become invisible)
+- also: minor fail-safe: ignore updates while acq CNI 0
+epgui/cmdline.c [rev:1.15, 2008-10-19T14:25:55]:
+- Removed "demo database" support and "-demo" command line option
+epgui/cmdline.h [rev:1.9, 2008-10-19T14:25:55]:
+- Removed "demo database" support and "-demo" command line option
+epgui/daemon_main.c [rev:1.10, 2008-10-19T14:25:55]:
+- Removed "demo database" support and "-demo" command line option
+epgui/epgmain.c [rev:1.162, 2008-10-19T14:25:55]:
+- Removed "demo database" support and "-demo" command line option
+epgui/menucmd.c [rev:1.134, 2008-10-19T14:25:55]:
+- Removed "demo database" support and "-demo" command line option
+epgui/menucmd.h [rev:1.27, 2008-10-19T14:25:55]:
+- Removed "demo database" support and "-demo" command line option
+epgui/statswin.c [rev:1.77, 2008-10-19T14:25:55]:
+- Removed "demo database" support and "-demo" command line option
+epgui/uictrl.c [rev:1.58, 2008-10-19T14:25:55]:
+- Removed "demo database" support and "-demo" command line option
+epgui/uictrl.h [rev:1.18, 2008-10-19T14:25:55]:
+- Removed "demo database" support and "-demo" command line option
+epgtcl/mainwin.tcl [rev:1.260, 2008-10-19T14:26:22]:
+- Removed "demo database" support and "-demo" command line option
+epgctl/epgctxctl.c [rev:1.33, 2008-10-19T14:26:53]:
+- Removed "demo database" support and "-demo" command line option
+epgctl/epgctxctl.h [rev:1.21, 2008-10-19T14:26:57]:
+- Removed "demo database" support and "-demo" command line option
+epgdb/epgdbsav.c [rev:1.67, 2008-10-19T14:29:19]:
+- Removed "demo database" support and "-demo" command line option
+epgdb/epgdbsav.h [rev:1.44, 2008-10-19T14:29:19]:
+- Removed "demo database" support and "-demo" command line option
+dsdrv/CX2388xCards.ini [rev:1.2, 2008-10-19T14:42:05]:
+- Imported DScaler CVS rev 1.13
+-r1.13 Added new Cards from v4l2 - not tested
+-r1.12 Updated card list
+dsdrv/SAA713xCards.ini [rev:1.2, 2008-10-19T14:42:11]:
+- Imported DScaler CVS rev 1.19
+-r1.19 added MSI TV@nywhere Plus
+dsdrv/wintuner.c [rev:1.1.6.2, 2008-10-19T15:14:20]:
+- DScaler CVS import: TDA8290.cpp
+- r1.7 Preinit: Set the recommended default value in the CLEAR register
+dsdrv/wintuner.c [rev:1.27, 2008-10-19T15:30:15]:
+- Merged fix from DScaler TDA8290.cpp rev. 1.7: TDA8290 pre-init
+www/download-de.html [rev:1.32, 2008-10-19T16:08:53]:
+- removed mention of "demo database" (also removed from file releases)
+- exchanged 2.8.1 debian package; version suffix incremented to -3
+www/download.html [rev:1.30, 2008-10-19T16:08:53]:
+- removed mention of "demo database" (also removed from file releases)
+- exchanged 2.8.1 debian package; version suffix incremented to -3
+www/index-fr.html [rev:1.34, 2008-10-19T16:08:58]:
+- fixed typo (pointed out by Neo via email)
+www/intro-de.html [rev:1.24, 2008-10-19T16:10:36]:
+- Replaced mention of "demo database" with XMLTV
+www/intro.html [rev:1.21, 2008-10-19T16:10:36]:
+- Replaced mention of "demo database" with XMLTV
+epgvbi/btdrv4linux.c [rev:1.74, 2008-10-19T17:40:09]:
+- Changed BtDriver_GetCardName() to allow for gaps in device indices
+- added new func _SearchDeviceFile() to check for cards with higher indices
+- return "(no such device)" in gaps if devices with higher indices exist
+epgdb/epgdbsav.c [rev:1.68, 2008-10-19T17:47:38]:
+- Moved expire time threshold management one level up
+- moved global epgDbReloadExpireDelayPi up into epgctxctl.c;
+    added expireDelayPi parameter to reload functions
+- moved define EPGDBSAV_DEFAULT_EXPIRE_TIME into rcfile.h
+- also: merged EpgDbReloadInt() with EpgDbReload() (cleanup demo-db removal)
+epgdb/epgdbsav.h [rev:1.45, 2008-10-19T17:47:38]:
+- Moved expire time threshold management one level up
+- moved global epgDbReloadExpireDelayPi up into epgctxctl.c;
+    added expireDelayPi parameter to reload functions
+- moved define EPGDBSAV_DEFAULT_EXPIRE_TIME into rcfile.h
+- also: merged EpgDbReloadInt() with EpgDbReload() (cleanup demo-db removal)
+epgctl/epgctxctl.c [rev:1.34, 2008-10-19T17:51:35]:
+- Moved expire time threshold management from eogdbsav into here
+- added global expireDelayPi; passed as parameter to reload/peek functions
+epgctl/epgctxmerge.c [rev:1.16, 2008-10-19T17:51:48]:
+- Fixed expire time handling for merging XMLTV-only DBs:
+- pass threshold as param to EpgContextMerge()
+    instead of using value in the first merged DB context
+epgctl/epgctxmerge.h [rev:1.7, 2008-10-19T17:51:48]:
+- Fixed expire time handling for merging XMLTV-only DBs:
+- pass threshold as param to EpgContextMerge()
+    instead of using value in the first merged DB context
+epgui/daemon.c [rev:1.14, 2008-10-19T17:52:30]:
+- Minor clean-up: use EpgSetup_DbExpireDelay() in dump start functions, too
+epgui/epgmain.c [rev:1.163, 2008-10-19T17:52:30]:
+- Minor clean-up: use EpgSetup_DbExpireDelay() in dump start functions, too
+epgui/epgsetup.c [rev:1.11, 2008-10-19T17:54:21]:
+- Fixed expire time handling for merging XMLTV-only DBs:
+- pass threshold from RC as param to EpgContextMerge()
+epgui/rcfile.c [rev:1.13, 2008-10-19T17:54:50]:
+- Moved expire time threshold default from epgdbsav.h into rcfile.h
+epgui/rcfile.h [rev:1.9, 2008-10-19T17:54:50]:
+- Moved expire time threshold default from epgdbsav.h into rcfile.h
+epgtcl/mainwin.tcl [rev:1.261, 2008-10-19T18:56:27]:
+- Adapted PiBox_DisplayErrorMessage:
+- removed GPL version number
+- replaced "TV Guide" with "TV listings"
+epgtcl/draw_stats.tcl [rev:1.10, 2008-10-19T18:58:13]:
+- Fixed position of "now->" when outside of scale
+epgui/pifilter.c [rev:1.95, 2008-10-25T20:12:36]:
+- Improved SelectExpiredPiDisplay() for handling all-expired DB
+- show PI list (instead of error screen) when PI become visible
+epgtcl/mainwin.tcl [rev:1.262, 2009-01-06T13:47:07]:
+- Work-around for interface change in Tk8.5.6:
+- "font actual TkTextFont -size" now returns negative value -> invert it
+tk8.5.6/aatk.tcl [rev:1.1, 2009-03-12T22:05:30]:
+- Initial revision
+tcl8.5.6/aainit.tcl [rev:1.1, 2009-03-12T22:08:30]:
+- Initial revision
+ttk8.5.6/aattk.tcl [rev:1.1, 2009-03-12T22:15:51]:
+- Initial revision
+tk8.5.6/aatk.tcl [rev:1.2, 2009-03-12T23:06:30]:
+ttk8.5.6/aattk.tcl [rev:1.2, 2009-03-12T23:16:51]:
+[LATE CHECKIN 2009-03-12: included in 2.9.0pre1 but never checked in]
+- commented out unused code(?)
+tcl8.5.6/aainit.tcl [rev:1.2, 2009-03-12T23:10:30]:
+- removed unused code
+epgvbi/btdrv4linux.c [rev:1.75, 2009-03-13T19:46:21]:
+- BtDriver_OpenVbi: for ZVBI and DVB: (Oct/2008)
+- use "_dvb_new2" instead of depreciated "_dvb_new" (except for old ZVBI libs)
+- also added error message when ZVBI open fails
+epgui/wintv.c [rev:1.28, 2009-03-13T20:44:55]:
+- Made call of ContextMenuAddWintvVcr independent of wintvcf.tunetv (Oct/2008)
+epgui/shellcmd.c [rev:1.17, 2009-03-13T20:46:42]:
+- C_ExecUserCmd: Added optional netwop and start_t params (Oct/2008)
+- used for "TuneTV" button in reminder popup message
+epgtcl/dlg_remind.tcl [rev:1.25, 2009-03-13T22:24:15]:
+- Fix: TuneTV button didn't use user-configured command
+- use C_ExecUserCmd instead of C_Tvapp_SendCmd
+epgtcl/dlg_ctxmencf.tcl [rev:1.15, 2009-03-13T22:24:22]:
+- ExecuteTuneTvCommand: Added optional netwop and start_t params (Oct/2008)
+- used for "TuneTV" button in reminder popup message
+Makefile.win32 [rev:1.75, 2009-03-13T22:28:46]:
+- Upgraded Tcl/Tk from 8.5.0 to 8.5.6
+README.tcltk [rev:1.6, 2009-03-13T22:29:39]:
+- Minor updates for Tcl/Tk 8.5.6
+epgctl/epgversion.h [rev:1.93, 2009-03-14T18:33:19]:
+- set version to 2.9.0pre1
+CHANGES [rev:1.57, 2009-03-14T20:53:45]:
+- added change log for 2.9.0pre1
+nxtvepg-de.pod [rev:NONE - INTERMEDIATE VERSION RELEASED]
+nxtvepg.pod [rev:NONE - INTERMEDIATE VERSION RELEASED]
+www/pre-releases.html [MISSING CHECK-IN - OVERWRITTEN by PRE2]
+#>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> RELEASE_2_9_0_PRE1 <<<<<<<<<<<<<<<<<<<<<<<<<<<<<

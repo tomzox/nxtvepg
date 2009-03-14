@@ -18,7 +18,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: dumpxml.c,v 1.21 2008/10/12 19:56:11 tom Exp tom $
+ *  $Id: dumpxml.c,v 1.22 2008/10/19 12:59:35 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI

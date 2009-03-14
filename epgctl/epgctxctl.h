@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgctxctl.h,v 1.20 2008/10/12 16:37:20 tom Exp tom $
+ *  $Id: epgctxctl.h,v 1.21 2008/10/19 14:26:57 tom Exp tom $
  */
 
 #ifndef __EPGCTXCTL_H
@@ -41,7 +41,6 @@ EPGDB_CONTEXT * EpgContextCtl_Open( uint cni, bool forceOpen,
                                     CTX_FAIL_RET_MODE failRetMode, int failMsgMode );
 EPGDB_CONTEXT * EpgContextCtl_OpenAny( int failMsgMode );
 EPGDB_CONTEXT * EpgContextCtl_OpenDummy( void );
-EPGDB_CONTEXT * EpgContextCtl_OpenDemo( const char * pDemoDatabase );
 void EpgContextCtl_Close( EPGDB_CONTEXT * pContext );
 void EpgContextCtl_ClosePeek( EPGDB_CONTEXT * pDbContext );
 

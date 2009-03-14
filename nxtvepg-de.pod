@@ -63,7 +63,7 @@ In der Türkei: TRT (Abdeckung: ca. 17 Sender)
 
 =back
 
-Aktuelle Informationen zu den Anbietern finden Sie auf der nxtvepg-Homepage im Internet (siehe "About" im Help-Menü). Falls Sie keine der oben genannten Sender empfangen, können Sie nur den Demo-Modus verwenden - wie bei der Befehlszeilen-Option B<-demo> beschrieben.
+Aktuelle Informationen zu den Anbietern finden Sie auf der nxtvepg-Homepage im Internet (siehe "About" im Help-Menü). Falls Sie keine der oben genannten Sender empfangen, können Sie nxtvepg benutzen um EPG Dateien im XMLTV Format zu lesen.
 
 Seit Version 2.8.0 erlaubt nxtvepg auch EPG Daten aus dem Teletext auszulesen oder von externen Quellen wie z.B. DVB-EPG zu importieren und diese mit dem Nextview EPG zu vereinigen. Bitte beachten Sie beim Import (genauso wie beim Datenexport) stets die geltenden Copyright-Bestimmungen. Insbesondere ist es in Deutschland nach der aktuellen Gesetzeslage selbst zu privaten Zwecken nicht erlaubt, ohne ausdrückliche Genehmigung Programmdaten von Internet (Web-) Seiten von Online-Programmzeitschriften maschinell auszulesen und weiterzuverarbeiten.
 
@@ -121,7 +121,7 @@ Starte mit abgeschalteter Akquisition. Die Akquisition kann später immer noch üb
 
 =item B<-daemon>
 
-Starte ohne grafische Oberfläche. Der Prozess wird von der Oberfläche getrennt (d.h. ohne sichtbares Fenster auf dem Desktop) und führt die Akquisition im Hintergrund aus. Wenn keine anderen Optionen angegeben sind, wird der gleiche Provider und Akquisitionsmodus wie in der GUI konfiguriert benutzt. Wenn die Option -provider angegeben ist, wird die Akquisition nur für diesen Provider gestartet (Achtung: im Unterschied zum Normalmodus, in welchem diese Option die Browser-Datenbank wählt) Die Option -daemon kann nicht mit -noacq oder -demo kombiniert werden.
+Starte ohne grafische Oberfläche. Der Prozess wird von der Oberfläche getrennt (d.h. ohne sichtbares Fenster auf dem Desktop) und führt die Akquisition im Hintergrund aus. Wenn keine anderen Optionen angegeben sind, wird der gleiche Provider und Akquisitionsmodus wie in der GUI konfiguriert benutzt. Wenn die Option -provider angegeben ist, wird die Akquisition nur für diesen Provider gestartet (Achtung: im Unterschied zum Normalmodus, in welchem diese Option die Browser-Datenbank wählt) Die Option I<-daemon> kann nicht mit I<-noacq>, I<remctrl> oder anderen GUI-bezogenen Optionen kombiniert werden.
 
 Der Daemon erzeugt immer einen Socket im Verzeichnis I</tmp> (nur UNIX) und optional einen TCP/IP-Socket, um Browserprozessen Verbindungen zu erlauben. Wenn verbunden, empfängt der Browser Updates für die geöffneten NexTView-Datenbanken und berichtet über den Akquisitionsprozess; besteht keine Verbindung, kann es sein, dass die Programmdaten des Browsers unvollständig oder veraltet sind.
 
@@ -132,7 +132,7 @@ UNIX Warnung: Aus Sicherheitsgründen ist davon abzuraten, den Daemon-Prozess mit
    su nobody -c "/usr/local/bin/nxtvepg -daemon \
                  -rcfile /usr/local/etc/nxtvepgrc"
 
-Zum Beenden des Daemon-Prozesses siehe unten stehende Option -daemonstop.
+Zum Beenden des Daemon-Prozesses siehe unten stehende Option I<-daemonstop>.
 
 =item B<-daemonstop>
 
@@ -199,17 +199,13 @@ Mit dem Modus I<set> wird die ermittelte Zeit als aktuelle Systemzeit eingestell
 
 Wenn Sie UNIX verwenden, sollten Sie außerdem bedenken, dass das Kommando I<date> nicht die batteriegestützte Echtzeituhr einstellt (auch genannt Real Time Clock, B<RTC>). Deshalb kann es passieren, dass die Korrektur mit dem nächsten reboot vergessen wird.  Um die RTC zu korrigieren, können Sie abschließend I<hwclock --systohc> oder ein entsprechendes Kommando aufrufen. Manche Linux-Distributionen rufen dieses Kommando beim Herunterfahren des Rechners auch automatisch auf.
 
-=item B<-demo> I<path>
-
-Lädt die durch I<path> bezeichnete Datenbank und aktiviert den Demo-Modus. In diesem Modus werden alle Programminformationen zeitlich in die Gegenwart verschoben. Daher sind Datum und Uhrzeit der Einträge nicht reell. Ebenso sind einige andere Funktionen nicht aufrufbar, wie z.B. Akquisition oder Auswahl eines anderen Anbieters.
-
 =item B<-help>
 
 Gibt eine kurze Übersicht aller verfügbaren Befehlszeilen-Optionen aus.
 
 =back
 
-Am Ende der Optionen können Sie einen Dateinamen hinzufügen. Im Fall von Nextview EPG Datenbankdateien entspricht das Angabe von B<-dbdir> und B<-provider>: Die Provider-Kennung (CNI) wird dann aus dem Dateinamen ermittelt. (Wenn der Dateiname nicht das in L<"FILES"> definierte Format besitzt, wird er als Name einer Demo-Datenbank angenommen und wie die Option B<-demo> geladen. Das Argument Datenbank-Dateiname überschreibt jede zuvor gesetzte Option.) Alternativ können Sie hier den Namen einer Datei mit XMLTV Daten angeben.
+Am Ende der Optionen können Sie einen Dateinamen hinzufügen. Im Fall von Nextview EPG Datenbankdateien entspricht das Angabe von B<-dbdir> und B<-provider>: Die Provider-Kennung (CNI) wird dann aus dem Dateinamen ermittelt. Alternativ können Sie hier den Namen einer Datei mit EPG Daten im XMLTV Format angeben.
 
 Dies ist besonders nützlich für Nutzer grafischer Dateimanager (wie dem Windows Explorer), da man so eine Datenbankdatei einfach auf eine ausführbare Datei ziehen und fallenlassen kann (Drag & Drop). Auf Windows-Systemen wird das Arbeitsverzeichnis auf den Ordner gesetzt, der die ausführbare Datei enthält. (Da der Explorer sonst offenbar den Desktop-Ordner verwendet, so dass keine der DLLs und Treiber gefunden werden). Dies bedeutet, dass die Datei nxtvepg.ini im selben Verzeichnis erwartet wird.
 

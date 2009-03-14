@@ -18,7 +18,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: menucmd.c,v 1.133 2008/10/12 19:18:36 tom Exp tom $
+ *  $Id: menucmd.c,v 1.134 2008/10/19 14:25:55 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -92,7 +92,7 @@ static int MenuCmd_SetControlMenuStates( ClientData ttp, Tcl_Interp *interp, int
       Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
       result = TCL_ERROR;
    }
-   else if (IsDemoMode() == FALSE)
+   else
    {
       EpgAcqCtl_DescribeAcqState(&acqState);
       uiCni = EpgDbContextGetCni(pUiDbContext);
@@ -166,8 +166,6 @@ static int MenuCmd_SetControlMenuStates( ClientData ttp, Tcl_Interp *interp, int
 
       result = TCL_OK;
    }
-   else
-      result = TCL_OK;
 
    return result;
 }
@@ -3197,7 +3195,7 @@ static int MenuCmd_ClockFormat( ClientData ttp, Tcl_Interp *interp, int objc, Tc
 // ----------------------------------------------------------------------------
 // Initialize the module
 //
-void MenuCmd_Init( bool isDemoMode )
+void MenuCmd_Init( void )
 {
    Tcl_CmdInfo cmdInfo;
 
@@ -3260,14 +3258,9 @@ void MenuCmd_Init( bool isDemoMode )
       Tcl_CreateObjCommand(interp, "C_ClockFormat", MenuCmd_ClockFormat, (ClientData) NULL, NULL);
       Tcl_CreateObjCommand(interp, "C_UpdateRcFile", MenuCmd_UpdateRcFile, (ClientData) NULL, NULL);
 
-      if (isDemoMode)
-      {  // create menu with warning labels and disable some menu commands
-         sprintf(comm, "CreateDemoModePseudoMenu\n");
-         eval_check(interp, comm);
-      }
-      #ifndef USE_DAEMON
+#ifndef USE_DAEMON
       eval_check(interp, ".menubar.config entryconfigure \"Client/Server...\" -state disabled");
-      #endif
+#endif
    }
    else
       debug0("MenuCmd-Init: commands were already created");

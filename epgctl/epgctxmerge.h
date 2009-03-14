@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgctxmerge.h,v 1.6 2006/12/28 20:48:29 tom Exp tom $
+ *  $Id: epgctxmerge.h,v 1.7 2008/10/19 17:51:48 tom Exp tom $
  */
 
 #ifndef __EPGCTXMERGE_H
@@ -28,7 +28,7 @@
 //
 #ifdef __EPGDBMERGE_H
 EPGDB_CONTEXT * EpgContextMerge( uint dbCount, const uint * pCni, MERGE_ATTRIB_VECTOR_PTR pMax,
-                                 uint netwopCount, uint * pNetwopList );
+                                 uint expireTime, uint netwopCount, uint * pNetwopList );
 #endif  // __EPGDBMERGE_H
 void EpgContextMergeInsertPi( const EPGDB_CONTEXT * pAcqContext, EPGDB_BLOCK * pNewBlock );
 bool EpgContextMergeUpdateDb( const EPGDB_CONTEXT * pAcqContext );

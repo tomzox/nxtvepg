@@ -24,7 +24,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: timescale.c,v 1.16 2007/03/03 20:39:34 tom Exp tom $
+ *  $Id: timescale.c,v 1.17 2008/10/19 13:27:32 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -68,8 +68,8 @@ static Tcl_TimerToken scaleUpdateHandler = NULL;  // for "now" arrow in date sca
 
 const char * const tscn[2] =
 {
-   ".tscale_ui",
-   ".tscale_acq"
+   ".tsc_ui",
+   ".tsc_acq"
 };
 
 typedef enum
@@ -96,10 +96,6 @@ const char * const streamColors[STREAM_COLOR_COUNT] =
    "yellow",        // defect block -> yellow
    "#888888"        // missing block -> gray
 };
-
-// colors to mark the name of the network which currently receives PI in the timescales popup
-#define HIGHILIGHT_BG_COL_1     "#ffc0c0"      // light red
-#define HIGHILIGHT_BG_COL_2     "#c0c0ff"      // light blue
 
 // timescale popup configuration (must match Tcl source)
 #define NOW_NEXT_BLOCK_COUNT    5
@@ -189,7 +185,7 @@ static void TimeScale_UpdateStatusLine( ClientData dummy )
                {
                   Tcl_DStringInit(&cmd_dstr);
                   Tcl_DStringAppend(&cmd_dstr, tscn[target], -1);
-                  Tcl_DStringAppend(&cmd_dstr, ".bottom.l configure -text", -1);
+                  Tcl_DStringAppend(&cmd_dstr, ".top.title configure -text", -1);
                   // append message as list element, so that '{' etc. is escaped properly
                   Tcl_DStringAppendElement(&cmd_dstr, Tcl_DStringValue(&msg_dstr));
 
@@ -203,12 +199,12 @@ static void TimeScale_UpdateStatusLine( ClientData dummy )
          }
          else if (EpgDbContextIsMerged(dbc))
          {
-            sprintf(comm, "%s.bottom.l configure -text {Merged database.}\n", tscn[target]);
+            sprintf(comm, "%s.top.title configure -text {Merged database.}\n", tscn[target]);
             eval_check(interp, comm);
          }
          else
          {
-            sprintf(comm, "%s.bottom.l configure -text {Imported database.}\n", tscn[target]);
+            sprintf(comm, "%s.top.title configure -text {Imported database.}\n", tscn[target]);
             eval_check(interp, comm);
          }
       }
@@ -430,7 +426,8 @@ static void TimeScale_HighlightNetwop( int target, uchar netwop, uchar stream )
       // remove the highlighting from the previous netwop
       if (tscaleState[target].highlighted != 0xff)
       {
-         sprintf(comm, "%s.top.n%d_name config -bg $default_bg\n", tscn[target], tscaleState[target].highlighted);
+         sprintf(comm, "TimeScale_MarkNet %s %d $::text_fg",
+                       tscn[target], tscaleState[target].highlighted);
          eval_global(interp, comm);
 
          tscaleState[target].highlighted = 0xff;
@@ -440,8 +437,9 @@ static void TimeScale_HighlightNetwop( int target, uchar netwop, uchar stream )
       // highlight the new netwop
       if (stream < 2)
       {
-         sprintf(comm, "%s.top.n%d_name config -bg %s\n",
-                       tscn[target], netwop, (stream == 0) ? HIGHILIGHT_BG_COL_1 : HIGHILIGHT_BG_COL_2);
+         sprintf(comm, "TimeScale_MarkNet %s %d %s",
+                       tscn[target], netwop,
+                       (stream == 0) ? streamColors[STREAM_COLOR_CURRENT_V1] : streamColors[STREAM_COLOR_CURRENT_V2]);
          eval_check(interp, comm);
 
          tscaleState[target].highlighted = netwop;
@@ -592,13 +590,15 @@ static void TimeScale_AddPi( int target, EPGDB_PI_TSC * ptsc )
                      (blockIdx < (uint)pPt->blockIdx + pPt->concatCount);
                         blockIdx++ )
             {
-               sprintf(comm, "TimeScale_MarkNow %s.top.n%d %d %s\n",
+               sprintf(comm, "TimeScale_MarkNow %s %d %d %s\n",
                              tscn[idx], pPt->netwop, blockIdx, streamColors[col]);
                eval_check(interp, comm);
             }
          }
       }
    }
+   sprintf(comm, "TimeScale_RaiseTail %s\n", tscn[target]);
+   eval_check(interp, comm);
 }
 
 // ----------------------------------------------------------------------------
@@ -658,7 +658,7 @@ static void TimeScale_ProcessAcqQueue( ClientData dummy )
 
    // get queue handle from the acq module
    ptsc = EpgAcqCtl_GetTimescaleQueue();
-   if (ptsc != NULL)
+   if ((ptsc != NULL) && (EpgAcqCtl_GetProvCni() != 0))
    {
       acqCni = EpgAcqCtl_GetProvCni();
       isUiDb = ((EpgDbContextGetCni(pUiDbContext) == acqCni) && (acqCni != 0));
@@ -782,13 +782,14 @@ static void TimeScale_ProcessAcqQueue( ClientData dummy )
 // ----------------------------------------------------------------------------
 // Helper function: determine width of the timescale window
 //
-static uint TimeScale_GetMaxDayCount( EPGDB_CONTEXT * dbc )
+static uint TimeScale_GetScaleWidth( EPGDB_CONTEXT * dbc )
 {
    const AI_BLOCK * pAi;
    const PI_BLOCK * pFirstPi;
    const PI_BLOCK * pLastPi;
    uint  days, maxDays;
    uint  idx;
+   uint  result;
 
    maxDays = TSC_SCALE_MIN_DAY_COUNT;
 
@@ -806,6 +807,7 @@ static uint TimeScale_GetMaxDayCount( EPGDB_CONTEXT * dbc )
                maxDays = days;
          }
       }
+      result = (maxDays + 1) * 24*60*60 + dbc->expireDelayPi;
    }
    else
    {  // merged or imported db: determine width by covered time
@@ -813,14 +815,18 @@ static uint TimeScale_GetMaxDayCount( EPGDB_CONTEXT * dbc )
       pLastPi = EpgDbSearchLastPi(dbc, NULL);
       // note we get either first and last or none, so we need to handle just these 2 cases
       if ((pFirstPi != NULL) && (pLastPi != NULL))
-         maxDays = (pLastPi->stop_time - pFirstPi->start_time + 24*60*60-1) / (24*60*60);
+      {
+         result = pLastPi->stop_time - pFirstPi->start_time + 24*60*60;
+      }
       else
-         maxDays = 1;
+      {
+         result = 24*60*60;
+      }
    }
    EpgDbLockDatabase(dbc, FALSE);
 
-   dprintf1("TimeScale-GetMaxDayCount: %d days\n", maxDays);
-   return maxDays;
+   dprintf1("TimeScale-GetScaleWidth: %d days\n", result / (24*60*60));
+   return result;
 }
 
 // ----------------------------------------------------------------------------
@@ -855,8 +861,7 @@ static void TimeScale_CreateOrRebuild( ClientData dummy )
             tscaleState[target].lastStream  = 0xff;
             tscaleState[target].filled      = FALSE;
             tscaleState[target].isForAcq    = (target == DB_TARGET_ACQ);
-            tscaleState[target].widthSecs   = (TimeScale_GetMaxDayCount(dbc) + 1) * 24*60*60
-                                                 + dbc->expireDelayPi;
+            tscaleState[target].widthSecs   = TimeScale_GetScaleWidth(dbc);
             tscaleState[target].widthPixels = tscaleState[target].widthSecs / tscaleState[target].secsPerPixel;
 
             // create (or update) network table: each row has a label and scale

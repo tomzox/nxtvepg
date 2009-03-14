@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: menucmd.h,v 1.26 2007/02/25 20:33:42 tom Exp tom $
+ *  $Id: menucmd.h,v 1.27 2008/10/19 14:25:55 tom Exp tom $
  */
 
 #ifndef __MENUCMD_H
@@ -26,7 +26,7 @@
 // ---------------------------------------------------------------------------
 // Interface to main control module und UI control module
 //
-void MenuCmd_Init( bool isDemoMode );
+void MenuCmd_Init( void );
 
 void AutoStartAcq( void );
 void MenuCmd_AcqStatsUpdate( void );

@@ -15,13 +15,17 @@ as follows:
 - set environment variable CC so that the mingw32 gcc compiler is
   used instead of gcc (e.g. setenv CC i586-mingw32msvc-gcc)
 - run the configure script with parameter --host=linux
+  and optionally --prefix=/tmp/tcl-win32
 - in the generated makefiles, edit the rule for ".rc.$(RES):" to
   add the path to the mingw32 include directory (else compilation
   of the "rc" files will fail)
 - finally, to get the nxtvepg logo in the Windows task bar, all ico
   files must be overwritten with the content of nxtvepg.ico (nxtvepg
   tries to override the logo at run-time, but that doesn't work)
-- make && make install
+- make
+- make install may fail due to trying to run ./tclsh.exe: edit the
+  makefile and modify the two install rules to use the host "tclsh"
+  instead
 
 
 Building TCL 8.4.x

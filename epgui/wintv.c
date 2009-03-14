@@ -21,7 +21,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: wintv.c,v 1.27 2007/12/31 16:34:49 tom Exp tom $
+ *  $Id: wintv.c,v 1.28 2009/03/13 20:44:55 tom Exp tom $
  */
 
 #ifndef WIN32
@@ -820,16 +820,17 @@ static void Wintv_CbAttachTv( bool enable, bool acqEnabled, bool slaveStateChang
    if ( (wintvcf.shmEnable) && (wintvcf.tunetv) && (enable) )
    {
       eval_check(interp, "CreateTuneTvButton\n");
-
-      // add "record" button to context menu if supported by TV app
-      if ( (WintvSharedMem_IsConnected(NULL, 0, &tvFeatures)) &&
-           ((tvFeatures & TVAPP_FEAT_VCR) != 0) )
-      {
-         eval_check(interp, "ContextMenuAddWintvVcr\n");
-      }
    }
    else
       eval_check(interp, "RemoveTuneTvButton\n");
+
+   // add "record" button to context menu if supported by TV app
+   if ( (wintvcf.shmEnable) && (enable) &&
+        (WintvSharedMem_IsConnected(NULL, 0, &tvFeatures)) &&
+        ((tvFeatures & TVAPP_FEAT_VCR) != 0) )
+   {
+      eval_check(interp, "ContextMenuAddWintvVcr\n");
+   }
 
    // update TV app name in TV interaction config dialog (if currently open)
    sprintf(comm, "XawtvConfigShmAttach %d\n", enable);

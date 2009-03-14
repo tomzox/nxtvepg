@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: cmdline.h,v 1.8 2008/10/12 19:56:24 tom Exp tom $
+ *  $Id: cmdline.h,v 1.9 2008/10/19 14:25:55 tom Exp tom $
  */
 
 #ifndef __CMDLINE_H
@@ -63,7 +63,6 @@ typedef enum
                               ((X).optDumpMode == EPG_DUMP_NONE) && \
                               ((X).optRemCtrl == REM_CTRL_NONE))
 #define IS_REMCTL_MODE(X)     ((X).optRemCtrl != REM_CTRL_NONE)
-#define IS_DEMO_MODE(X)       ((X).pDemoDatabase != NULL)
 
 #define OPT_DUMP_FILTER_MAX   20
 
@@ -97,7 +96,6 @@ typedef struct
    bool         startIconified;
    uint         startUiCni;
    const char * pXmlDatabase;
-   const char * pDemoDatabase;
    const char * pOptArgv0;
    int          optGuiPipe;
    bool         daemonOnly;
@@ -122,7 +120,6 @@ uint CmdLine_GetStartProviderCni( void );
 void CmdLine_Destroy( void );
 
 void CmdLine_AddRcFilePostfix( const char * pPostfix );
-bool IsDemoMode( void );
 
 #ifdef WIN32
 void CmdLine_WinApiSetArgv( int * argcPtr, char *** argvPtr );

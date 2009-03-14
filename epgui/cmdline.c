@@ -22,7 +22,7 @@
  *  Author: Tom Zoerner
  *          Win32 SetArgv() function taken from the Tcl/Tk library
  *
- *  $Id: cmdline.c,v 1.14 2008/10/12 19:56:24 tom Exp tom $
+ *  $Id: cmdline.c,v 1.15 2008/10/19 14:25:55 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -102,14 +102,6 @@ void CmdLine_AddRcFilePostfix( const char * pPostfix )
 }
 
 // ---------------------------------------------------------------------------
-// Query if the program was started in demo mode
-//
-bool IsDemoMode( void )
-{
-   return (mainOpts.pDemoDatabase != NULL);
-}
-
-// ---------------------------------------------------------------------------
 // Print error message and exit
 // - same to "usage" function, but without printing all the options
 //
@@ -180,7 +172,6 @@ static void Usage( const char *argv0, const char *argvn, const char * reason )
 
    const char * const pGuiUsage =
                    "       -remctrl <cmd>      \t: remote control nxtvepg\n"
-                   "       -demo <db-file>     \t: load database in demo mode\n"
                    "       -noacq              \t: don't start acquisition automatically\n"
                    "       -daemon             \t: don't open any windows; acquisition only\n";
 
@@ -703,21 +694,6 @@ static void CmdLine_Parse( int argc, char * argv[] )
             else
                MainOptionError(argv[0], argv[argIdx], "missing mode keyword after");
          }
-         else if (!strcmp(argv[argIdx], "-demo"))
-         {
-            if (argIdx + 1 < argc)
-            {  // save file name of demo database
-               mainOpts.pDemoDatabase = argv[argIdx + 1];
-               // check if file exists and check the file header
-               if (EpgDbDumpCheckFileHeader(mainOpts.pDemoDatabase) == FALSE)
-               {
-                  MainOptionError(argv[0], strerror(errno), "cannot open demo database");
-               }
-               argIdx += 2;
-            }
-            else
-               MainOptionError(argv[0], argv[argIdx], "missing database file name after");
-         }
          else if ( !strcmp(argv[argIdx], "-iconic") )
          {  // start with iconified main window
             mainOpts.startIconified = TRUE;
@@ -782,15 +758,13 @@ static void CmdLine_Parse( int argc, char * argv[] )
       }
       else if (argIdx + 1 == argc)
       {  // database file argument -> determine dbdir and provider from path
-         if (mainOpts.pDemoDatabase != NULL)
-            MainOptionError(argv[0], argv[argIdx], "already specified a database with -demo");
-
          if ( EpgDbDumpCheckFileHeader(argv[argIdx]) )
          {
-            // automatically assume demo mode if content is OK, but name does not match the expected pattern
             if (EpgDbDumpGetDirAndCniFromArg(argv[argIdx], &mainOpts.dbdir, &mainOpts.startUiCni) == FALSE)
             {
-               mainOpts.pDemoDatabase = argv[argIdx];
+               MainOptionError(argv[0], argv[argIdx],
+                                        "argument refers to file with nxtvepg database, "
+                                        "but its filename doesn't have the expecteg format");
             }
          }
 #ifdef USE_XMLTV_IMPORT
@@ -847,8 +821,6 @@ static void CmdLine_Parse( int argc, char * argv[] )
       MainOptionError(argv[0], "-dump", "Must also specify -provider");
    if ( !IS_DUMP_MODE(mainOpts) && (*mainOpts.optDumpFilter != NULL) )
       MainOptionError(argv[0], "-epgquery", "only useful together with -dump");
-   if ( !IS_GUI_MODE(mainOpts) && (mainOpts.pDemoDatabase != NULL))
-      MainOptionError(argv[0], "-demo", "Cannot be combined with special modes");
 #ifdef USE_XMLTV_IMPORT
    if ((mainOpts.pXmlDatabase != NULL) && (mainOpts.startUiCni != 0))
       MainOptionError(argv[0], "-prov", "Cannot be used together with XMLTV database");
@@ -900,7 +872,6 @@ static void CmdLine_SetDefaults( bool daemonOnly )
    mainOpts.optAcqPassive = FALSE;
    mainOpts.startIconified = FALSE;
    mainOpts.startUiCni = 0;
-   mainOpts.pDemoDatabase = NULL;
    mainOpts.pOptArgv0 = NULL;
    mainOpts.optGuiPipe = -1;
 

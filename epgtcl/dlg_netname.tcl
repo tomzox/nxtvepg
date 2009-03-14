@@ -18,7 +18,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: dlg_netname.tcl,v 1.14 2008/02/03 19:19:59 tom Exp tom $
+#  $Id: dlg_netname.tcl,v 1.15 2008/10/19 13:11:44 tom Exp tom $
 #
 set netname_popup 0
 
@@ -465,6 +465,7 @@ proc NetworkName_KeyReturn {} {
 
       .netname.list.ailist selection clear 0 end
       .netname.list.ailist selection set $sel
+      .netname.list.ailist see $sel
       NetworkNameSelection
    }
 }

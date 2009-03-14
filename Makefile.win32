@@ -22,7 +22,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: Makefile.win32,v 1.74 2008/10/12 20:03:45 tom Exp tom $
+#  $Id: Makefile.win32,v 1.75 2009/03/13 22:28:46 tom Exp tom $
 #
 
 ifeq ($(OS),Windows_NT)
@@ -58,7 +58,7 @@ FLEX    = /usr/bin/flex
 # path to the non-Cygwin Tcl/Tk package
 TCLDIR  = $(ROOT)/gnu/tcl85
 INCS   += -I$(TCLDIR)/include
-TCL_V   = 8.5.0
+TCL_V   = 8.5.6
 TCL_L   = 85
 
 GUILIBS += -L$(BUILD_DIR) -ltk$(TCL_L) -ltcl$(TCL_L)

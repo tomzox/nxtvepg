@@ -27,7 +27,7 @@
  *      also Ralph Metzler, Gunther Mayer and others; see also btdrv4win.c
  *      DScaler parts are copyleft 2001-2003 itt@myself.com
  *
- *  DScaler #Id: GenericTuner.cpp,v 1.13 2003/10/27 10:39:51 adcockj Exp #
+ *  DScaler #Id: GenericTuner.cpp,v 1.21 2005/07/17 15:58:28 to_see Exp #
  *  DScaler #Id: TunerID.cpp,v 1.10 2005/07/17 15:58:28 to_see Exp #
  *  DScaler #Id: TunerID.h,v 1.12 2005/08/11 17:21:55 to_see Exp #
  *  DScaler #Id: MT2032.cpp,v 1.13 2004/01/14 17:06:44 robmuller Exp #
@@ -35,12 +35,12 @@
  *  DScaler #Id: TDA9887.cpp,v 1.20 2005/03/09 13:19:15 atnak Exp #
  *  DScaler #Id: SAA7134Card_Tuner.cpp,v 1.21 2005/03/09 15:20:04 atnak Exp #
  *  DScaler #Id: TEA5767.cpp,v 1.2 2005/08/07 09:43:27 to_see Exp #
- *  DScaler #Id: TDA8290.cpp,v 1.6 2005/03/19 11:15:43 atnak Exp #
+ *  DScaler #Id: TDA8290.cpp,v 1.7 2007/08/12 17:42:25 dosx86 Exp #
  *  DScaler #Id: TDA8290.h,v 1.4 2005/03/09 13:19:51 atnak Exp #
  *  DScaler #Id: TDA8275.cpp,v 1.10 2005/10/04 19:59:48 to_see Exp #
  *  DScaler #Id: TDA8275.h,v 1.6 2005/10/04 19:59:09 to_see Exp #
  *
- *  $Id: wintuner.c,v 1.26 2007/12/30 21:40:27 tom Exp tom $
+ *  $Id: wintuner.c,v 1.27 2008/10/19 15:30:15 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_VBI
@@ -814,7 +814,16 @@ static void Tda8290_Init(bool bPreInit, uint norm /*eVideoFormat videoFormat*/ )
 {
     if (bPreInit)
     {
-        // Set TDA8290 gate for TDA8275 communication
+        /* Write the default value into the CLEAR register. Sets soft reset and
+           standby to the "normal operation" setting. There's no video or audio
+           without this. */
+        Tda8290_WriteToSubAddress(TDA8290_CLEAR, 0x1);
+
+        /* DEBUG:
+            Sets
+            GP2_CF (Bits 0-3) (GPIO2 Pin Configuration) to 1
+            IICSW_ON to 1 (I2C Switch Command)
+            IICSW_EN to 1 (Enable GPIO_1,2 as I2C switch) */
         Tda8290_WriteToSubAddress(TDA8290_GPIO2, 0xC1);
     }
     else

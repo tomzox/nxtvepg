@@ -21,7 +21,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgsetup.c,v 1.10 2008/10/12 19:23:18 tom Exp tom $
+ *  $Id: epgsetup.c,v 1.11 2008/10/19 17:54:21 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -476,6 +476,7 @@ EPGDB_CONTEXT * EpgSetup_MergeDatabases( void )
 {
    EPGDB_CONTEXT * pDbContext;
    MERGE_ATTRIB_MATRIX max;
+   uint  expireTime;
    uint  pProvCniTab[MAX_MERGED_DB_COUNT];
    uint  provCount;
    uint  netwopCniTab[MAX_NETWOP_COUNT];
@@ -487,7 +488,10 @@ EPGDB_CONTEXT * EpgSetup_MergeDatabases( void )
         (EpgSetup_GetMergeDbNetwops(&netwopCount, netwopCniTab) ||
          EpgSetup_InitMergeDbNetwops(provCount, pProvCniTab, &netwopCount, netwopCniTab)) )
    {
-      pDbContext = EpgContextMerge(provCount, pProvCniTab, max, netwopCount, netwopCniTab);
+      expireTime = RcFile_Query()->db.piexpire_cutoff * 60;
+
+      pDbContext = EpgContextMerge(provCount, pProvCniTab, max, expireTime,
+                                   netwopCount, netwopCniTab);
 
       if (pDbContext != NULL)
       {

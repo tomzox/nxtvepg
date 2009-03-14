@@ -20,7 +20,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: pifilter.c,v 1.94 2008/10/12 19:22:07 tom Exp tom $
+ *  $Id: pifilter.c,v 1.95 2008/10/25 20:12:36 tom Exp tom $
  */
 
 #define __PIFILTER_C
@@ -536,8 +536,37 @@ static int SelectMinMaxDuration( ClientData ttp, Tcl_Interp *interp, int objc, T
 //
 static int SelectExpiredPiDisplay( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
 {  
+   const PI_BLOCK * pPiBlock;
+   time_t lastStop;
+   time_t newThresh;
+   time_t oldThresh;
+
+   oldThresh = EpgDbFilterGetExpireTime(pPiFilterContext);
+
+   // apply the new filter setting
    PiFilter_Expire();
-   //UiControl_CheckDbState();  // XXX TODO if all PI are expired: show some
+
+   newThresh = EpgDbFilterGetExpireTime(pPiFilterContext);
+
+   // determine the max. stop time of all PI in the database
+   EpgDbLockDatabase(dbc, TRUE);
+   lastStop = 0;
+   pPiBlock = EpgDbSearchLastPi(pUiDbContext, NULL);
+   while (pPiBlock != NULL)
+   {
+      if (pPiBlock->stop_time > lastStop)
+         lastStop = pPiBlock->stop_time;
+
+      pPiBlock = EpgDbSearchPrevPi(pUiDbContext, NULL, pPiBlock);
+   }
+   EpgDbLockDatabase(dbc, FALSE);
+
+   // check if threshold was moved across the max stop time
+   if ( (lastStop != 0) &&
+        ((lastStop <= oldThresh) != (lastStop <= newThresh)) )
+   {
+      UiControl_CheckDbState();
+   }
    return TCL_OK; 
 }
 
@@ -1440,6 +1469,7 @@ static int GetLastPiTime( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj 
    else
    {
       EpgDbLockDatabase(dbc, TRUE);
+      // warning: this may not be the maximum stop time since PI are sorted by start time!
       pPiBlock = EpgDbSearchLastPi(pUiDbContext, pPiFilterContext);
       if (pPiBlock != NULL)
          lastTime = pPiBlock->stop_time;

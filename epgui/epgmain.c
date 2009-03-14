@@ -20,7 +20,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgmain.c,v 1.161 2008/10/12 19:56:36 tom Exp tom $
+ *  $Id: epgmain.c,v 1.163 2008/10/19 17:52:30 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -379,8 +379,6 @@ static void Main_PopupTvCardSetup( ClientData clientData )
 static void MainStartDump( void )
 {
    uint provCni;
-
-   EpgContextCtl_SetPiExpireDelay(RcFile_Query()->db.piexpire_cutoff * 60);
 
    provCni = CmdLine_GetStartProviderCni();
    if (provCni == MERGED_PROV_CNI)
@@ -2151,8 +2149,8 @@ int main( int argc, char *argv[] )
    }
    #endif
 
-   // set up the directory for the databases (unless in demo mode)
-   if (EpgDbSavSetupDir(mainOpts.dbdir, IS_DEMO_MODE(mainOpts)) == FALSE)
+   // set up the directory for the databases
+   if (EpgDbSavSetupDir(mainOpts.dbdir) == FALSE)
    {  // failed to create dir: message was already issued, so just exit
       exit(-1);
    }
@@ -2189,6 +2187,7 @@ int main( int argc, char *argv[] )
 
    if ( IS_DUMP_MODE(mainOpts) )
    {
+      EpgSetup_DbExpireDelay();
       MainStartDump();
    }
    else if ( IS_REMCTL_MODE(mainOpts) )
@@ -2232,23 +2231,9 @@ int main( int argc, char *argv[] )
       // setup cut-off time for expired PI blocks during database reload
       EpgSetup_DbExpireDelay();
 
-      if ( IS_DEMO_MODE(mainOpts) )
-      {  // demo mode -> open the db given on the command line
-         pUiDbContext = EpgContextCtl_OpenDemo(mainOpts.pDemoDatabase);
-         if (pUiDbContext == NULL)
-         {  // failed to load the demo database
-            sprintf(comm, "tk_messageBox -type ok -icon error -parent . "
-                           "-message {Failed to load file \"%s\" as demo database.}\n",
-                           mainOpts.pDemoDatabase);
-            eval_check(interp, comm);
-            exit(-1);
-         }
-         mainOpts.disableAcq = TRUE;
-      }
-      else
-      {  // open the database given by -prov or the last one used
-         EpgSetup_OpenUiDb( CmdLine_GetStartProviderCni() );
-      }
+      // open the database given by -prov or the last one used
+      EpgSetup_OpenUiDb( CmdLine_GetStartProviderCni() );
+
       #ifdef USE_DAEMON
       EpgAcqClient_Init(&EventHandler_NetworkUpdate);
       EpgSetup_NetAcq(FALSE);
@@ -2265,7 +2250,7 @@ int main( int argc, char *argv[] )
       // initialize the GUI control modules
       StatsWin_Create();
       TimeScale_Create();
-      MenuCmd_Init( IS_DEMO_MODE(mainOpts) );
+      MenuCmd_Init();
       PiRemind_Create();
       PiFilter_Create();
       PiBox_Create();

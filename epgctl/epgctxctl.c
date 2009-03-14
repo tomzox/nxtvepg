@@ -31,7 +31,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgctxctl.c,v 1.32 2008/10/12 16:20:19 tom Exp tom $
+ *  $Id: epgctxctl.c,v 1.34 2008/10/19 17:51:35 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGCTL
@@ -93,6 +93,7 @@ static CTX_CACHE * pContextCache;       // anchor of the list of all db contexts
 static CTX_CACHE * pContextDummy;       // empty context, used when no provider is available
 static bool contextScanDone;            // at least one dbdir scan done
 static bool contextLockDump;            // block automatic Nextview db updates
+static time_t expireDelayPi;            // PI expire time threshold for new databases
 
 
 #if DEBUG_SWITCH == ON
@@ -305,7 +306,7 @@ static EPGDB_RELOAD_RESULT EpgContextCtl_Load( CTX_CACHE * pContext )
    else
 #endif
    {
-      pDbContext = EpgDbReload(pContext->provCni, &dberr, &mtime);
+      pDbContext = EpgDbReload(pContext->provCni, expireDelayPi, &dberr, &mtime);
    }
 
    if (pDbContext != NULL)
@@ -430,7 +431,7 @@ EPGDB_CONTEXT * EpgContextCtl_Peek( uint cni, int failMsgMode )
          else
 #endif
          {
-            pDbContext = EpgDbPeek(cni, &dberr, &mtime);
+            pDbContext = EpgDbPeek(cni, expireDelayPi, &dberr, &mtime);
          }
 
          if (pDbContext != NULL)
@@ -726,44 +727,6 @@ EPGDB_CONTEXT * EpgContextCtl_Open( uint cni, bool forceOpen,
 }
 
 // ---------------------------------------------------------------------------
-// Opens a database in demo mode
-//
-EPGDB_CONTEXT * EpgContextCtl_OpenDemo( const char * pDemoDatabase )
-{
-   EPGDB_RELOAD_RESULT dberr;
-   EPGDB_CONTEXT * pDbContext;
-   CTX_CACHE     * pContext;
-   time_t  mtime;
-
-   pDbContext = EpgDbLoadDemo(pDemoDatabase, &dberr, &mtime);
-   if (pDbContext != NULL)
-   {
-      pContext = EpgContextCtl_SearchCni(EpgDbContextGetCni(pDbContext));
-      if (pContext == NULL)
-      {
-         pContext = xmalloc(sizeof(CTX_CACHE));
-         memset(pContext, 0, sizeof(*pContext));
-
-         // add the new context to the cache
-         pContext->pNext = pContextCache;
-         pContextCache = pContext;
-      }
-      else
-         assert(pContext->state < CTX_CACHE_PEEK);
-
-      pContext->pDbContext    = pDbContext;
-      pContext->provCni       = pDbContext->provCni;
-      pContext->state         = CTX_CACHE_OPEN;
-      pContext->mtime         = mtime;
-      pContext->openRefCount  = 1;
-
-      assert(EpgContextCtl_CheckConsistancy());
-   }
-
-   return pDbContext;
-}
-
-// ---------------------------------------------------------------------------
 // Returns a dummy database context
 // - used by epg scan
 //
@@ -984,20 +947,20 @@ time_t EpgContextCtl_GetAiUpdateTime( uint cni, bool reload )
 // ---------------------------------------------------------------------------
 // Set PI "cut-off" time, i.e. time offset after which expired PI are removed from db
 // - assigned to all open databases (already removed PI are not recoverable though)
-// - also passed to reload module (where it's stored internally for future loads)
+// - also stored internally for future loads
 //
 void EpgContextCtl_SetPiExpireDelay( time_t expireDelay )
 {
    CTX_CACHE  * pWalk;
 
-   EpgDbSavSetPiExpireDelay(expireDelay);
+   expireDelayPi = expireDelay;
 
    pWalk = pContextCache;
    while (pWalk != NULL)
    {
       if (pWalk->pDbContext != NULL)
       {
-         pWalk->pDbContext->expireDelayPi = expireDelay;
+         pWalk->pDbContext->expireDelayPi = expireDelayPi;
 
          EpgDbExpire(pWalk->pDbContext);
       }

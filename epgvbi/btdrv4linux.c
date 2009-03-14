@@ -44,7 +44,7 @@
  *    NetBSD:  Mario Kemper <magick@bundy.zhadum.de>
  *    FreeBSD: Simon Barner <barner@gmx.de>
  *
- *  $Id: btdrv4linux.c,v 1.73 2008/09/27 20:07:45 tom Exp tom $
+ *  $Id: btdrv4linux.c,v 1.75 2009/03/13 19:46:21 tom Exp tom $
  */
 
 #if !defined(linux) && !defined(__NetBSD__) && !defined(__FreeBSD__) 
@@ -608,7 +608,11 @@ static void BtDriver_OpenVbi( void )
       pErrStr = NULL;
       if (vbiDvbPid != -1)
       {
-#if (VBI_VERSION_MAJOR>0) || (VBI_VERSION_MINOR>2) || (VBI_VERSION_MICRO >= 6)
+#if (VBI_VERSION_MAJOR>0) || (VBI_VERSION_MINOR>2) || (VBI_VERSION_MICRO >= 13)
+         pDevName = BtDriver_GetDevicePath(DEV_TYPE_DVB, vbiCardIndex);
+         services = VBI_SLICED_TELETEXT_B;
+         pZvbiCapt = vbi_capture_dvb_new2(pDevName, vbiDvbPid, &pErrStr, ZVBI_TRACE);
+#elif (VBI_VERSION_MAJOR>0) || (VBI_VERSION_MINOR>2) || (VBI_VERSION_MICRO >= 6)
          pDevName = BtDriver_GetDevicePath(DEV_TYPE_DVB, vbiCardIndex);
          services = VBI_SLICED_TELETEXT_B;
          pZvbiCapt = vbi_capture_dvb_new(pDevName, 0, &services, 0, &pErrStr, ZVBI_TRACE);
@@ -668,7 +672,13 @@ static void BtDriver_OpenVbi( void )
             vbi_fdin = vbi_capture_fd(pZvbiCapt);
          }
          else
+         {
             vbi_capture_delete(pZvbiCapt);
+            pZvbiCapt = NULL;
+            pZvbiRawDec = NULL;  // no delete/free required
+            pErrStr = strdup("The ZVBI library failed initialize the teletext decoder.");
+            errno = EINVAL;
+         }
       }
 
       if (pErrStr != NULL)

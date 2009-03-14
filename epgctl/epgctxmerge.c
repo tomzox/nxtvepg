@@ -36,7 +36,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgctxmerge.c,v 1.15 2007/01/21 11:39:48 tom Exp tom $
+ *  $Id: epgctxmerge.c,v 1.16 2008/10/19 17:51:48 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGCTL
@@ -452,7 +452,7 @@ void EpgContextMergeAiUpdate( CPDBC pAcqContext )
 // Start complete merge
 //
 EPGDB_CONTEXT * EpgContextMerge( uint dbCount, const uint * pCni, MERGE_ATTRIB_VECTOR_PTR pMax,
-                                 uint netwopCount, uint * pNetwopList )
+                                 uint expireTime, uint netwopCount, uint * pNetwopList )
 {
    EPGDB_CONTEXT * pDbContext;
    EPGDB_MERGE_CONTEXT * pMergeContext;
@@ -488,7 +488,7 @@ EPGDB_CONTEXT * EpgContextMerge( uint dbCount, const uint * pCni, MERGE_ATTRIB_V
       pDbContext->provCni = MERGED_PROV_CNI;
       pDbContext->merged = TRUE;
       pDbContext->pMergeContext = pMergeContext;
-      pDbContext->expireDelayPi = pMergeContext->prov[0].pDbContext->expireDelayPi;
+      pDbContext->expireDelayPi = expireTime;
 
       EpgContextMergeNormalizeCnis(pMergeContext, &netwopCount, pNetwopList);
 

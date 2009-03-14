@@ -20,7 +20,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: mainwin.tcl,v 1.259 2008/02/03 18:54:36 tom Exp tom $
+#  $Id: mainwin.tcl,v 1.262 2009/01/06 13:47:07 tom Exp tom $
 #
 # import constants from other modules
 #=INCLUDE= "epgtcl/shortcuts.h"
@@ -75,6 +75,10 @@ proc LoadWidgetOptions {} {
       set pi_cursor_bg_now  #d8d8ff
       set pi_cursor_fg_past black
       set pi_cursor_bg_past #e0e0c9
+   }
+   # Tcl 8.5.6 returns a negative point size, while 8.5.0 returned it positive
+   if {$font_pt_size < 0} {
+      set font_pt_size [expr 0 - $font_pt_size]
    }
 
    # background color for all text and list in- and output fields
@@ -1199,39 +1203,6 @@ proc Create_XawtvPopup {dpyname mode xcoo ycoo width height rperc rtime ptitle} 
    wm geometry .xawtv_epg "+$wxcoo+$wycoo"
    wm deiconify .xawtv_epg
    raise .xawtv_epg
-}
-
-##  ---------------------------------------------------------------------------
-##  Create "Demo-Mode" menu with warning labels and disable some menu commands
-##
-proc CreateDemoModePseudoMenu {} {
-
-   # create menu with warning labels
-   .menubar insert last cascade -label "   ** Demo-Mode **" -menu .menubar.demodb -foreground red -activeforeground red
-   menu .menubar.demodb -tearoff 0
-   .menubar.demodb add command -label "Please note:"
-   .menubar.demodb add command -label "- entries' start times are not real!"
-   .menubar.demodb add command -label "- no acquisition possible!"
-   .menubar.demodb add command -label "- no provider selection possible!"
-
-   # acq not possible since start time of all PI in the db were modified during reload
-   .menubar.ctrl entryconfigure "Enable acquisition" -state disabled
-   .menubar.ctrl entryconfigure "Connect to acq. daemon" -state disabled
-   # since acq is not possible, dump stream not possible either
-   .menubar.ctrl entryconfigure "Dump stream" -state disabled
-
-   # provider change not possible, since -demo db is always reloaded
-   .menubar.config entryconfigure "Select provider*" -state disabled
-   # providers can not be merged because there is only one db given with -demo
-   .menubar.config entryconfigure "Merge providers*" -state disabled
-   # acq not possible, hence no scan also
-   .menubar.config entryconfigure "Provider scan*" -state disabled
-   # TV hardware/TV input config not required, since acq disabled
-   .menubar.config entryconfigure "TV card input*" -state disabled
-   # acq not possible, hence no mode change
-   .menubar.config entryconfigure "Acquisition mode*" -state disabled
-   # acq not possible, hence no client/server config
-   .menubar.config entryconfigure "Client/Server*" -state disabled
 }
 
 ##  ---------------------------------------------------------------------------
@@ -4535,12 +4506,12 @@ proc PiBox_DisplayErrorMessage {text} {
       $wid tag configure yellowBg  -background #ffff50
 
       $wid insert end "nxtvepg\n" bold24Tag
-      $wid insert end "Receiving and Browsing TV Programme Guides on your PC\n" bold16Tag
+      $wid insert end "Receiving and Browsing TV Programme Listings on your PC\n" bold16Tag
       $wid window create end -window ${wid}.nxtvlogo
       $wid insert end "\n\nCopyright (C) 1999 - 2007 by T. Zoerner\n" bold12Tag
       $wid insert end "$NXTVEPG_MAILTO\n\n" bold12Tag
       $wid tag add centerTag 1.0 {end - 1 lines}
-      $wid insert end "This program is free software; you can redistribute it and/or modify it under the terms of the GNU General Public License Version 2 as published by the Free Software Foundation. This program is distributed in the hope that it will be useful, but without any warranty. See the GPL2 for more details.\n\n" wrapTag
+      $wid insert end "This program is free software; you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation. This program is distributed in the hope that it will be useful, but without any warranty. See the GPL for more details.\n\n" wrapTag
 
       $wid insert end $text {wrapTag yellowBg}
 

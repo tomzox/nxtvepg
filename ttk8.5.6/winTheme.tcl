@@ -4,7 +4,6 @@
 # Settings for 'winnative' theme.
 #
 
-if {$tcl_platform(platform) ne "unix"} {
 namespace eval ttk::theme::winnative {
     ttk::style theme settings winnative {
 
@@ -75,5 +74,4 @@ namespace eval ttk::theme::winnative {
         ttk::style configure TProgressbar \
 	    -background SystemHighlight -borderwidth 0 ;
     }
-}
 }

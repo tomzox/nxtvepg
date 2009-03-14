@@ -21,7 +21,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: uictrl.c,v 1.57 2008/10/12 19:53:50 tom Exp tom $
+ *  $Id: uictrl.c,v 1.58 2008/10/19 14:25:55 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -788,14 +788,6 @@ void UiControl_ReloadError( ClientData clientData )
                                 "Failed to load the database of provider %X because %s. "
                                 "%s"
                                 "}\n", pMsg->cni, pReason, pHint);
-            eval_check(interp, comm2);
-            break;
-
-         case CTX_RELOAD_ERR_DEMO:
-            sprintf(comm2, "tk_messageBox -type ok -icon error -message {"
-                             "Failed to load the demo database because %s. "
-                             "Cannot enter demo mode."
-                             "}\n", pReason);
             eval_check(interp, comm2);
             break;
 

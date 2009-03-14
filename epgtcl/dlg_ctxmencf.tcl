@@ -19,7 +19,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: dlg_ctxmencf.tcl,v 1.14 2008/09/20 20:25:30 tom Exp tom $
+#  $Id: dlg_ctxmencf.tcl,v 1.15 2009/03/13 22:24:22 tom Exp tom $
 #
 set ctxmencf_popup 0
 set ctxmencf [list {pi_context.addfilt {} {}} \
@@ -113,9 +113,11 @@ proc PopupDynamicContextMenu {w unused} {
 }
 
 ## ---------------------------------------------------------------------------
-## Execute the action for "Tune TV" in the main button
+## Execute the action for "Tune TV" button in the main window and reminders
+## - optional netwop and start time params may be used to identify a
+##   specific PI; else the currently selected PI is used
 ##
-proc ExecuteTuneTvCommand {} {
+proc ExecuteTuneTvCommand {{netidx -1} {start_time -1}} {
    global is_unix tunetv_cmd_unix tunetv_cmd_win
 
    if $is_unix {
@@ -123,7 +125,14 @@ proc ExecuteTuneTvCommand {} {
    } else {
       set cmd $tunetv_cmd_win
    }
-   C_ExecUserCmd [lindex $cmd $::ctxcf_type_idx] [lindex $cmd $::ctxcf_cmd_idx]
+   set type [lindex $cmd $::ctxcf_type_idx]
+   set cmd  [lindex $cmd $::ctxcf_cmd_idx]
+
+   if {$netidx != -1} {
+      C_ExecUserCmd $type $cmd $netidx $start_time
+   } else {
+      C_ExecUserCmd $type $cmd
+   }
 }
 
 ## ---------------------------------------------------------------------------

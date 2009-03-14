@@ -20,8 +20,21 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: draw_stats.tcl,v 1.8 2008/01/22 22:11:41 tom Exp tom $
+#  $Id: draw_stats.tcl,v 1.10 2008/10/19 18:58:13 tom Exp tom $
 #
+
+#=CONST= ::tsc_cv_label_x0        2
+#=CONST= ::tsc_cv_label_w        96
+#=CONST= ::tsc_cv_now_x0        100
+#=CONST= ::tsc_cv_stream_x0     140
+
+#=CONST= ::tsc_cv_scale_y0        0
+#=CONST= ::tsc_cv_scale_h        18
+#=CONST= ::tsc_cv_label_yoff     -2
+#=CONST= ::tsc_cv_stream_y0      20
+#=CONST= ::tsc_cv_stream_h        8
+#=CONST= ::tsc_cv_tail_y0        22
+#=CONST= ::tsc_cv_tail_h          4
 
 #=LOAD=TimeScale_Open
 #=LOAD=DbStatsWin_Create
@@ -32,18 +45,24 @@
 ## Open or update a timescale popup window
 ##
 proc TimeScale_Open {w cni key isMerged scaleWidth} {
-   global default_bg
-   global tsc_tail
-
-   # add space for Now & Next boxes to scale width
-   incr scaleWidth 40
-   set canvasWidth [expr [winfo screenwidth "."] - 150]
-   if {$canvasWidth > $scaleWidth} {
-      set canvasWidth $scaleWidth
-   }
+   global default_bg pi_font
+   global tsc_tail tsc_id
 
    # fetch network list from AI block in database
    set netsel_ailist [C_GetAiNetwopList $cni netnames]
+
+   # add space for Now & Next boxes to scale width
+   incr scaleWidth $::tsc_cv_stream_x0
+   set canvasWidth [expr [winfo screenwidth .] - 150]
+   if {$canvasWidth > $scaleWidth} {
+      set canvasWidth $scaleWidth
+   }
+   set lh [expr [font metrics $pi_font -linespace] + 2]
+   set scaleHeight [expr $::tsc_cv_stream_y0 + $lh * [llength $netsel_ailist]]
+   set canvasHeight [expr [winfo screenheight .] - 150]
+   if {$canvasHeight > $scaleHeight} {
+      set canvasHeight $scaleHeight
+   }
 
    if {[string length [info commands $w]] == 0} {
       if {[string compare $key ui] == 0} {
@@ -54,95 +73,82 @@ proc TimeScale_Open {w cni key isMerged scaleWidth} {
 
       toplevel $w
       wm title $w $wtitle
-      wm resizable $w 0 0
+      wm resizable $w 1 1
       wm group $w .
 
       frame $w.top
       # create a frame in the top left which holds command buttons: help, zoom +/-
-      frame  $w.top.cmd
-      button $w.top.cmd.qmark -bitmap bitmap_qmark -cursor top_left_arrow -takefocus 0 \
+      button $w.top.qmark -bitmap bitmap_qmark -cursor top_left_arrow -takefocus 0 \
                               -command {PopupHelp $helpIndex(Statistics) "Timescale popup windows"}
-      relief_ridge_v84 $w.top.cmd.qmark
-      pack   $w.top.cmd.qmark -side left -fill y
+      relief_ridge_v84 $w.top.qmark
+      pack   $w.top.qmark -side left -fill y
       bind   $w <Key-F1> {PopupHelp $helpIndex(Statistics) "Timescale popup windows"}
-      button $w.top.cmd.zoom_in -bitmap bitmap_zoom_in -cursor top_left_arrow -takefocus 0 \
+      button $w.top.zoom_in -bitmap bitmap_zoom_in -cursor top_left_arrow -takefocus 0 \
                                 -command [list C_TimeScale_Zoom $key 1]
-      relief_ridge_v84 $w.top.cmd.zoom_in
-      pack   $w.top.cmd.zoom_in -side left
-      button $w.top.cmd.zoom_out -bitmap bitmap_zoom_out -cursor top_left_arrow -takefocus 0 \
+      relief_ridge_v84 $w.top.zoom_in
+      pack   $w.top.zoom_in -side left
+      button $w.top.zoom_out -bitmap bitmap_zoom_out -cursor top_left_arrow -takefocus 0 \
                                  -command [list C_TimeScale_Zoom $key -1]
-      relief_ridge_v84 $w.top.cmd.zoom_out
-      pack   $w.top.cmd.zoom_out -side left
-      grid   $w.top.cmd -sticky we -column 0 -row 0
-
-      # create a canvas at the top which holds markers for current time and date breaks
-      canvas $w.top.now -bg $default_bg -height 12 -width $canvasWidth -scrollregion [list 0 0 12 $scaleWidth]
-      grid $w.top.now -sticky we -column 1 -row 0
-      grid columnconfigure $w.top 1 -weight 1
-
-      # create a time scale for each network;  note: use numerical indices
-      # instead of CNIs to be able to reuse the scales for another provider
-      set idx 0
-      foreach cni $netsel_ailist {
-         TimeScale_CreateCanvas $w $idx $netnames($cni) $isMerged $scaleWidth
-         incr idx
-      }
-      pack $w.top -padx 5 -pady 5 -side top -fill x
+      relief_ridge_v84 $w.top.zoom_out
+      pack   $w.top.zoom_out -side left
 
       # create frame with label for status line
-      frame $w.bottom -borderwidth 2 -relief sunken
-      label $w.bottom.l -text {}
-      pack $w.bottom.l -side left -anchor w
-      pack $w.bottom -side top -fill x
+      label $w.top.title -text {} -anchor w -borderwidth 1 -relief flat
+      pack  $w.top.title -side left -padx 10 -expand 1 -fill both
+      pack $w.top -padx 2 -side top -fill x
+
+      # create canvas for the content area (size set via toplevel dimensions)
+      frame $w.middle -borderwidth 1 -relief sunken
+      canvas $w.middle.cv -bg $default_bg -width 0 -height 0 \
+                                       -scrollregion [list 0 0 $scaleWidth $scaleHeight] \
+                                       -yscrollcommand [list $w.middle.sbv set] \
+                                       -xscrollcommand [list $w.middle_sbh set] \
+                                       -cursor top_left_arrow
+      bind $w.middle.cv <Button-1>     [list TimeScale_GotoTime $w %x %y]
+      bind $w.middle.cv <Button-4>     {%W yview scroll -1 units}
+      bind $w.middle.cv <Button-5>     {%W yview scroll 1 units}
+      bind $w.middle.cv <MouseWheel>   {%W yview scroll [expr {- (%D / 40)}] units}
+
+      pack $w.middle.cv -side left -fill both -expand 1
+      scrollbar $w.middle.sbv -orient vertical -command [list $w.middle.cv yview]
+      pack $w.middle.sbv -side left -fill y
+      pack $w.middle -padx 2 -side top -fill both -expand 1
+
+      scrollbar $w.middle_sbh -orient horizontal -command [list $w.middle.cv xview]
+      pack $w.middle_sbh -padx 2 -side top -fill x
 
       # create notification callback in case the window is closed
-      bind $w.bottom <Destroy> [list + C_TimeScale_Toggle $key 0]
-
-      # clear information about existing acq tail shades
-      array unset tsc_tail "${w}*"
+      bind $w.top <Destroy> [list + C_TimeScale_Toggle $key 0]
 
    } else {
-
-      # popup already open -> just update the scales
-
-      set idx 0
-      foreach cni $netsel_ailist {
-         TimeScale_CreateCanvas $w $idx $netnames($cni) $isMerged $scaleWidth
-         incr idx
-      }
-
-      # clear information about existing acq tail shades
-      array unset tsc_tail "${w}*"
-
-      # remove obsolete timescales at the bottom
-      # e.g. after an AI update in case the new AI has less networks
-      set tmp {}
-      while {[string length [info commands $w.top.n${idx}_name]] != 0} {
-         lappend tmp $w.top.n${idx}_name $w.top.n${idx}_stream
-         incr idx
-      }
-      if {[llength $tmp] > 0} {
-         eval [concat grid forget $tmp]
-         eval [concat destroy $tmp]
-      }
-      # optionally display the resized window immediately because
-      # filling the timescales takes a long time
-      #update
+      # canvas already exists - clear all content
+      $w.middle.cv delete all
+      $w.middle.cv configure -scrollregion [list 0 0 $scaleWidth $scaleHeight]
    }
+   # clear information about existing acq tail shades
+   array unset tsc_tail "${w}*"
+   array unset tsc_id "${w}*"
+
+   # create a time scale for each network;  note: use numerical indices
+   # instead of CNIs to be able to reuse the scales for another provider
+   set idx 0
+   foreach cni $netsel_ailist {
+      TimeScale_CreateCanvas $w $idx $netnames($cni) $isMerged $scaleWidth $canvasWidth
+      incr idx
+   }
+
+   #set whoff [expr [winfo reqheight $w.top] + [winfo reqheight $w.middle_sbh]]
+   wm geometry $w "=[expr $canvasWidth + 20]x[expr $canvasHeight + 35]"
+   wm sizefrom $w user
 }
 
 ## ---------------------------------------------------------------------------
 ## Create or update the n'th timescale
 ##
-proc TimeScale_CreateCanvas {w netwop netwopName isMerged scaleWidth} {
-   global tscnowid default_bg
+proc TimeScale_CreateCanvas {w netwop netwopName isMerged scaleWidth canvasWidth} {
+   global tsc_id default_bg pi_font
 
-   set w $w.top.n$netwop
-
-   set canvasWidth [expr [winfo screenwidth "."] - 150]
-   if {$canvasWidth > $scaleWidth} {
-      set canvasWidth $scaleWidth
-   }
+   set wc $w.middle.cv
 
    # for merged databases make Now & Next boxes invisible
    if $isMerged {
@@ -150,71 +156,59 @@ proc TimeScale_CreateCanvas {w netwop netwopName isMerged scaleWidth} {
    } else {
       set now_bg black
    }
+   set lh [expr [font metrics $pi_font -linespace] + 2]
+   set y0 [expr $::tsc_cv_stream_y0 + $lh * $netwop]
+   set y1 [expr $y0 + $::tsc_cv_stream_h]
 
-   if {[string length [info commands ${w}_name]] == 0} {
-
-      label ${w}_name -text $netwopName -anchor w
-      grid ${w}_name -sticky we -column 0 -row [expr $netwop + 1]
-
-      canvas ${w}_stream -bg $default_bg -height 13 -width $canvasWidth -cursor top_left_arrow -scrollregion [list 0 0 12 $scaleWidth]
-      grid ${w}_stream -sticky we -column 1 -row [expr $netwop + 1]
-      bind ${w}_stream <Button-1> [list TimeScale_GotoTime $netwop ${w}_stream %x]
-
-      # TODO should use different variables for each canvas, because the IDs might differ
-      set tscnowid(0) [${w}_stream create rect  1 4  5 12 -outline "" -fill $now_bg]
-      set tscnowid(1) [${w}_stream create rect  8 4 12 12 -outline "" -fill $now_bg]
-      set tscnowid(2) [${w}_stream create rect 15 4 19 12 -outline "" -fill $now_bg]
-      set tscnowid(3) [${w}_stream create rect 22 4 26 12 -outline "" -fill $now_bg]
-      set tscnowid(4) [${w}_stream create rect 29 4 33 12 -outline "" -fill $now_bg]
-
-      set tscnowid(bg) [${w}_stream create rect 40 4 $scaleWidth 12 -outline "" -fill black]
-
-   } else {
-      # timescale already exists -> just update it
-
-      # update the network name and undo highlighting
-      ${w}_name configure -text $netwopName -bg $default_bg
-
-      # update the canvas width
-      ${w}_stream configure -width $canvasWidth -scrollregion [list 0 0 12 $scaleWidth]
-      ${w}_stream coords $tscnowid(bg) 40 4 $scaleWidth 12
-
-      # reset the Now & Next boxes
-      for {set idx 0} {$idx < 5} {incr idx} {
-         ${w}_stream itemconfigure $tscnowid($idx) -fill $now_bg
-      }
-
-      # clear all PI range info in the scale
-      set id_bg $tscnowid(bg)
-      foreach id [${w}_stream find overlapping 39 0 9999 12] {
-         if {$id != $id_bg} {
-            ${w}_stream delete $id
-         }
-      }
+   # make sure network label fits into the name column
+   while {([font measure $pi_font $netwopName] + 4 >= $::tsc_cv_now_x0) &&
+          ([string length $netwopName] > 0)} {
+      set netwopName [string replace $netwopName end end]
    }
+
+   set tsc_id("$w.label.$netwop") [$wc create text $::tsc_cv_label_x0 [expr $y0 + 2] \
+                                               -text $netwopName -font $pi_font \
+                                               -anchor w -width [expr $::tsc_cv_now_x0 - 4]]
+
+   # hard-coded $::tsc_cv_now_x0
+   set tsc_id("$w.now.0.$netwop") [$wc create rect 101 $y0 105 $y1 -outline "" -fill $now_bg]
+   set tsc_id("$w.now.1.$netwop") [$wc create rect 108 $y0 112 $y1 -outline "" -fill $now_bg]
+   set tsc_id("$w.now.2.$netwop") [$wc create rect 115 $y0 119 $y1 -outline "" -fill $now_bg]
+   set tsc_id("$w.now.3.$netwop") [$wc create rect 122 $y0 126 $y1 -outline "" -fill $now_bg]
+   set tsc_id("$w.now.4.$netwop") [$wc create rect 129 $y0 133 $y1 -outline "" -fill $now_bg]
+
+   set tsc_id("$w.bg.$netwop") [$wc create rect $::tsc_cv_stream_x0 $y0 $scaleWidth $y1 \
+                                            -outline "" -fill black]
 }
 
 ## ---------------------------------------------------------------------------
 ## Display the timespan covered by a PI in its network timescale
 ##
 proc TimeScale_AddRange {w netwop pos1 pos2 color hasShort hasLong isLast} {
-   global tscnowid
+   global tsc_id pi_font
 
-   set wc ${w}.top.n${netwop}_stream
+   set wc ${w}.middle.cv
 
-   set y0 4
-   set y1 12
-   if {$hasShort} {set y0 [expr $y0 - 2]}
-   if {$hasLong}  {set y1 [expr $y1 + 2]}
-   $wc create rect [expr 40 + $pos1] $y0 [expr 40 + $pos2] $y1 -fill $color -outline ""
+   set lh [expr [font metrics $pi_font -linespace] + 2]
+   set y0 [expr $::tsc_cv_stream_y0 + $lh * $netwop]
+   set y1 [expr $y0 + $::tsc_cv_stream_h]
+
+   if {$hasShort} {incr y0 -2}
+   if {$hasLong}  {incr y1  2}
+   $wc create rect [expr $::tsc_cv_stream_x0 + $pos1] $y0 [expr $::tsc_cv_stream_x0 + $pos2] $y1 \
+                   -fill $color -outline ""
 
    if $isLast {
       # this was the last block as defined in the AI block
       # -> remove any remaining blocks to the right, esp. the "PI missing" range
-      set id_bg $tscnowid(bg)
-      foreach id [$wc find overlapping [expr 41 + $pos2] 0 9999 12] {
+      set id_bg $tsc_id("$w.bg.$netwop")
+      foreach id [$wc find overlapping [expr $::tsc_cv_stream_x0 + $pos2] $y0 9999 $y1] {
          if {$id != $id_bg} {
-            $wc delete $id
+            if {![info exists tsc_tail([list $w $id 0])] &&
+                ![info exists tsc_tail([list $w $id 1])]} {
+
+               $wc delete $id
+            }
          }
       }
    }
@@ -228,16 +222,15 @@ proc TimeScale_AddRange {w netwop pos1 pos2 color hasShort hasLong isLast} {
 ##   stream color, i.e. red or blue
 ##
 proc TimeScale_AddTail {w netwop pos1 pos2 stream} {
-   global tsc_tail
+   global tsc_tail pi_font
 
    foreach {tel col} [array get tsc_tail "${w}*"] {
-      set wo [lindex $tel 0]
       set id [lindex $tel 1]
       set si [lindex $tel 2]
       # skip tail elements of the other stream
       if {$si == $stream} {
-         # fade the color (25 is 10% of the maximum 255)
-         set col [expr $col - 25]
+         # fade the color (20 is ~8% of the maximum 255)
+         incr col -20
          if {$col >= 40} {
             # update the tail element's color in the array
             set tsc_tail($tel) $col
@@ -248,18 +241,36 @@ proc TimeScale_AddTail {w netwop pos1 pos2 stream} {
                set colstr [format "#%02x%02xff" $col $col]
             }
             # repaint the element in the canvas
-            $wo itemconfigure $id -fill $colstr
+            ${w}.middle.cv itemconfigure $id -fill $colstr
          } else {
             # remove this tail element from the tail array and the canvas
             unset tsc_tail($tel)
-            $wo delete $id
+            ${w}.middle.cv delete $id
          }
       }
    }
 
-   set wc ${w}.top.n${netwop}_stream
-   set id [$wc create rect [expr 40 + $pos1] 6 [expr 40 + $pos2] 10 -fill "#ffffff" -outline ""]
-   set tsc_tail([list $wc $id $stream]) 255
+   set lh [expr [font metrics $pi_font -linespace] + 2]
+   set y0 [expr $::tsc_cv_tail_y0 + $lh * $netwop]
+   set y1 [expr $y0 + $::tsc_cv_tail_h]
+
+   set id [${w}.middle.cv create rect [expr $::tsc_cv_stream_x0 + $pos1] $y0 \
+                                      [expr $::tsc_cv_stream_x0 + $pos2] $y1 \
+                                      -fill "#ffffff" -outline ""]
+   set tsc_tail([list $w $id $stream]) 255
+}
+
+## ---------------------------------------------------------------------------
+## Raise all tail chunks
+## - called after a display refresh to keep tail visible
+##
+proc TimeScale_RaiseTail {w} {
+   global tsc_tail
+
+   foreach tel [array names tsc_tail "${w}*"] {
+      set id [lindex $tel 1]
+      ${w}.middle.cv raise $id
+   }
 }
 
 ## ---------------------------------------------------------------------------
@@ -270,9 +281,8 @@ proc TimeScale_ClearTail {w} {
    global tsc_tail
 
    foreach tel [array names tsc_tail "${w}*"] {
-      set wo [lindex $tel 0]
       set id [lindex $tel 1]
-      $wo delete $id
+      ${w}.middle.cv delete $id
    }
 }
 
@@ -280,37 +290,47 @@ proc TimeScale_ClearTail {w} {
 ## Shift all content to the right
 ##
 proc TimeScale_ShiftRight {w dist} {
-   global tscnowid
+   global tsc_id
 
-   set idx 0
-   while {[string length [info commands $w.top.n$idx]] != 0} {
+   set wc $w.middle.cv
 
-      set wc $w.top.n$idx_stream
-      set id_bg $tscnowid(bg)
+   # make a temporary list of stream backgrounds, which shall not be shifted
+   foreach {key id} [array names tsc_id "$w.bg.*"] {
+      set exclude($id) 0
+   }
 
-      foreach id [$wc find overlapping 40 0 9999 12] {
-         if {$id != $id_bg} {
-            $wc move $id $dist 0
-         }
+   foreach id [$wc find overlapping $::tsc_cv_stream_x0 $::tsc_cv_stream_y0 9999999 9999999] {
+      if {![info exists exclude($id)]} {
+         $wc move $id $dist 0
       }
-      incr idx
    }
 }
 
 ## ---------------------------------------------------------------------------
 ## Callback for right-click in a timescale
 ##
-proc TimeScale_GotoTime {netwop w xcoo} {
+proc TimeScale_GotoTime {w xcoo ycoo} {
+   global pi_font
 
    # translate screen coordinates to canvas coordinates
-   set xcoo [expr int([$w canvasx $xcoo])]
+   set xcoo [expr int([$w.middle.cv canvasx $xcoo])]
+   set ycoo [expr int([$w.middle.cv canvasy $ycoo])]
 
-   if {$xcoo >= 40} {
-      set xcoo [expr $xcoo - 40]
+   if {$xcoo >= $::tsc_cv_stream_x0} {
+      set xcoo [expr $xcoo - $::tsc_cv_stream_x0]
    } else {
       # click onto the Now&Next rectangles -> jump to Now
       set xcoo 0
    }
+   if {$ycoo >= $::tsc_cv_stream_y0} {
+      set ycoo [expr $ycoo - $::tsc_cv_stream_y0]
+   } else {
+      set ycoo 0
+   }
+
+   set lh [expr [font metrics $pi_font -linespace] + 2]
+   set netwop [expr int($ycoo / $lh)]
+
    set pi_time [C_TimeScale_GetTime $w $xcoo]
    if {$pi_time != 0} {
       # set filter: show the selected network only
@@ -328,8 +348,9 @@ proc TimeScale_GotoTime {netwop w xcoo} {
 proc TimeScale_DrawDateScale {frame scaleWidth nowoff daybrklist} {
    global font_normal
 
+   incr scaleWidth $::tsc_cv_stream_x0
+
    TimeScale_ClearDateScale $frame $scaleWidth
-   incr scaleWidth 40
 
    set font_small [DeriveFont $font_normal -2]
    set font_bold  [DeriveFont $font_normal 0 bold]
@@ -359,57 +380,63 @@ proc TimeScale_DrawDateScale {frame scaleWidth nowoff daybrklist} {
       }
 
       # finally draw the elements
-      incr xcoo 40
-      $frame.top.now create line $xcoo 1 $xcoo 12 -arrow none
-      $frame.top.now create text [expr $xcoo + ($labspace / 2)] 6 -anchor c -text $lab -font $font_small
+      incr xcoo $::tsc_cv_stream_x0
+      $frame.middle.cv create line $xcoo 1 $xcoo 12 -arrow none
+      $frame.middle.cv create text [expr $xcoo + ($labspace / 2)] 6 -anchor c -text $lab -font $font_small
    }
 
    # draw "now" label and arrow
    if {[string compare "off" $nowoff] != 0} {
       # now lies somewhere in the displayed time range -> draw vertical arrow
-      set x1 [expr 40 + $nowoff - 5]
-      set x2 [expr 40 + $nowoff]
-      set id_lab [$frame.top.now create text $x1 1 -anchor ne -text "now" -font $font_bold]
-      set id_arr [$frame.top.now create line $x2 1 $x2 12 -arrow last]
+      set x1 [expr $::tsc_cv_stream_x0 + $nowoff - 5]
+      set x2 [expr $::tsc_cv_stream_x0 + $nowoff]
+      set id_lab [$frame.middle.cv create text $x1 1 -anchor ne -text "now" -font $font_bold]
+      set id_arr [$frame.middle.cv create line $x2 1 $x2 12 -arrow last]
 
    } else {
       # "now" lies beyond the end of the scale
       # -> draw horizontal arrow, pointing outside of the window
       set x1 [expr $scaleWidth - 18]
       set x2 [expr $scaleWidth - 2]
-      set id_arr [$frame.top.now create line $x1 6 $x2 6 -arrow last]
+      set id_arr [$frame.middle.cv create line $x1 6 $x2 6 -arrow last]
 
       set x1 [expr $scaleWidth - 25]
-      set id_lab [$frame.top.now create text $x1 0 -anchor ne -text "now" -font $font_bold]
+      set id_lab [$frame.middle.cv create text $x1 0 -anchor ne -text "now" -font $font_bold]
    }
 
    # remove daybreak markers which are overlapped by "now" text or the arrow
-   set bbox [$frame.top.now bbox $id_arr $id_lab]
-   foreach id [$frame.top.now find overlapping [lindex $bbox 0] 0 [lindex $bbox 2] 12] {
+   set bbox [$frame.middle.cv bbox $id_arr $id_lab]
+   foreach id [$frame.middle.cv find overlapping [lindex $bbox 0] 0 [lindex $bbox 2] 12] {
       if {($id != $id_arr) && ($id != $id_lab)} {
-         $frame.top.now delete $id
+         $frame.middle.cv delete $id
       }
    }
 }
 
 proc TimeScale_ClearDateScale {frame scaleWidth} {
-   catch [ $frame.top.now delete all ]
-
-   incr scaleWidth 40
-   set canvasWidth [expr [winfo screenwidth "."] - 150]
-   if {$canvasWidth > $scaleWidth} {
-      set canvasWidth $scaleWidth
+   foreach id [$frame.middle.cv find overlapping $::tsc_cv_now_x0 0 9999999 $::tsc_cv_scale_h] {
+      $frame.middle.cv delete $id
    }
 
-   $frame.top.now configure -width $canvasWidth -scrollregion [list 0 0 12 $scaleWidth]
+   #$frame.middle.cv configure -width $canvasWidth -scrollregion [list 0 0 $scaleWidth $scaleHeight]
 }
 
 ## ---------------------------------------------------------------------------
 ## Mark a network label for which a PI was received
 ##
-proc TimeScale_MarkNow {w num color} {
-   global tscnowid
-   ${w}_stream itemconfigure $tscnowid($num) -fill $color
+proc TimeScale_MarkNet {w netwop color} {
+   global tsc_id
+
+   ${w}.middle.cv itemconfigure $tsc_id("$w.label.$netwop") -fill $color
+}
+
+## ---------------------------------------------------------------------------
+## Fill one of a given network's NOW boxes with the given color
+##
+proc TimeScale_MarkNow {w netwop num color} {
+   global tsc_id
+
+   ${w}.middle.cv itemconfigure $tsc_id("$w.now.$num.$netwop") -fill $color
 }
 
 ## ---------------------------------------------------------------------------

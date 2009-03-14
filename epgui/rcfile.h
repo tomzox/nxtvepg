@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: rcfile.h,v 1.8 2007/01/28 17:19:42 tom Exp tom $
+ *  $Id: rcfile.h,v 1.9 2008/10/19 17:54:50 tom Exp tom $
  */
 
 #ifndef __RCFILE_H
@@ -28,6 +28,10 @@
 
 // ---------------------------------------------------------------------------
 // Definitions
+
+// default time after which PI which are no longer part of the stream are discarded
+// (note: PI which still have a valid block no are not discarded until acq is started)
+#define EPGDB_DFLT_EXPIRE_TIME  (4*60)  // in minutes
 
 #define NETACQ_DFLT_ENABLE 0
 
