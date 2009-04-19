@@ -1,6 +1,6 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/HTMLlat1.ent">
 <HTML lang="en">
-<!-- $Id: pre-releases.html,v 1.90 2008/10/19 16:11:02 tom Exp $ -->
+<!-- $Id: pre-releases.html,v 1.91 2009/03/29 20:17:59 tom Exp $ -->
 <HEAD>
 <TITLE>Developers and alpha testers download page</TITLE>
 <META http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
@@ -141,7 +141,7 @@ daemon version, or vice versa.
 </P>
 -->
 
-<H3>nxtvepg pre-release 2.9.0pre0 (October 12th 2008)</H3>
+<H3>nxtvepg pre-release 2.9.0pre2 (March 29th 2009)</H3>
 <P>
 Details on changes in this and older releases is available in the
 <A HREF="#changelog">changelog</A>.
@@ -151,7 +151,7 @@ Details on changes in this and older releases is available in the
 <LI><I>no pre-releases are currently available</I>
 -->
 <LI CLASS="spaced">Sources:
-    <A HREF="http://nxtvepg.sourceforge.net/tmp/nxtvepg-2.9.0pre0.tar.gz">nxtvepg-2.9.0pre0.tar.gz</A> (apx 1.7 MB)
+    <A HREF="http://nxtvepg.sourceforge.net/tmp/nxtvepg-2.9.0pre2.tar.gz">nxtvepg-2.9.0pre2.tar.gz</A> (apx 1.7 MB)
 <!--
 <BR>Note: if you want to test nxtvepg with
 <A HREF="http://nxtvepg.sourceforge.net/tmp/README-proxy.txt">VBI proxy</A>
@@ -160,14 +160,16 @@ Details on changes in this and older releases is available in the
 <A HREF="http://zapping.sourceforge.net/">zapping.sourceforge.net</A>.
 -->
 <LI CLASS="spaced">Win32 executable:
-    <A HREF="http://nxtvepg.sourceforge.net/tmp/nxtvepg-2.9.0pre0-win.zip">nxtvepg-2.9.0pre0-win.zip</A> (ca. 1.0 MB)
+    <A HREF="http://nxtvepg.sourceforge.net/tmp/nxtvepg-2.9.0pre2-win.zip">nxtvepg-2.9.0pre2-win.zip</A> (apx. 2.5 MB)
+<!--
 <BR><SPAN CLASS="anno">Does not contain libraries tcl85.dll and tk85.dll and other unchanged files.
    Please unzip the last official release 2.8.1 into the target directory and then
    unzip the pre-release on top of these, into the same directory.</SPAN>
+-->
 
 <!--
 <LI>Win32 executable with UTF-8 support:
-    <A HREF="http://nxtvepg.sourceforge.net/tmp/nxtvepg-2.8.1pre3-win-utf8.zip">nxtvepg-2.8.1pre3-win-utf8.zip</A> (ca. 1.8 MB)
+    <A HREF="http://nxtvepg.sourceforge.net/tmp/nxtvepg-2.8.1pre3-win-utf8.zip">nxtvepg-2.8.1pre3-win-utf8.zip</A> (apx.. 1.8 MB)
     <BR>Note this version is for users which want to import XMLTV documents which
     are encoded in UTF-8 (and cannot be converted to Latin-1 without losses.)
     UTF-8 support is not complete yet. Note you can use UTF-8 support on UNIX
@@ -318,6 +320,50 @@ Please refer to the <A HREF="ttx_grab.html">Teletext EPG grabber</A> page.
 <HR WIDTH="75%">
 
 <H2><A NAME="changelog">Change history</A></H2>
+
+<H3>Changes between 2.9.0pre1 and 2.9.0pre2 (2009-Mar-29)</H3>
+<UL>
+<LI>The XMLTV export was changed to output channel identifiers which
+  match those of other XMLTV grabbers as far as possible. Instead of
+  part-numerical IDs such as "CNI1DC1" the export will now contain DNS-like
+  names such as "ard.de" (the mapping is defined in file "xmltv-etsi.map")
+<LI>The daemon was extended to allow simple remote queries for its EPG
+  acquisition status.  A new command line option "-daemonquery" was
+  added to perform such a query; a demo script was added to the manual
+  to document the protocol and allow direct queries by other applications.
+<LI>An acquisition timeout was added upon stalled reception, even when
+  working on a single provider. This will stop acquisition when working
+  with command line option "-acqonce".
+<LI>A configuration option was added to the "Show/Hide" sub-menu which
+  allows to hide the "Tune TV" button in the main window. (The automatic
+  addition/hiding of this button upon attach of a TV application has been
+  removed to allow for manual control.)
+<LI>MS Windows only: The warning "Tuner not found on I2C bus" will now be
+  suppressed if the tuner is configured as "unknown" as this used to
+  annoy users with partly unsupported TV cards.
+</UL>
+
+<H3>Changes between 2.9.0pre0 and 2.9.0pre1 (2009-Mar-14)</H3>
+<UL>
+<LI>The "time scales" dialog was redesigned to allow scrolling vertically
+  and horizontally (i.e. network list and the scales respectively.)
+<LI>Windows: The TV card configuration database was updated (imported from
+  DScaler) and a fix for cards with TDA9875/TDA8290 tuner was merged.
+<LI>Two bugs affecting expire threshold handling were fixed, which prevented
+  old programmes to be deleted from XMLTV files and kept expire time at
+  zero for all merged databases.
+<LI>The handling of all-expired EPG databases was slightly improved by
+  alloweing to make the expired programmes visible via the expire time
+  filter setting.
+<LI>The "Tune TV" button in reminder message popup was enhanced to use the
+  command specified by the user in "Configure -&gt; Context Menu / Tune-TV"
+<LI>A bug in the protocol between nxtvepg daemon and GUI was fixed which
+  sometimes led to dropped data on client side.
+<LI>The obsolete "-demo" command line option was removed. (XMLTV import can
+  be used instead where no Nextview EPG is available.)
+<LI>Windows: The integrated Tcl/Tk library was upgraded to version 8.5.6 to
+  benefit from bug-fixes and performance improvements since 8.5.0
+</UL>
 
 <H3>Changes between 2.8.1 and 2.9.0pre0 (2008-Oct-12)</H3>
 <UL>

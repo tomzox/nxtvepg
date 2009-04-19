@@ -34,7 +34,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgscan.c,v 1.48 2008/10/12 16:37:01 tom Exp tom $
+ *  $Id: epgscan.c,v 1.50 2009/03/29 19:17:29 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGCTL
@@ -301,6 +301,7 @@ uint EpgScan_EvHandler( void )
    uchar chanName[10], msgbuf[300], dispText[PDC_TEXT_LEN + 1];
    uint  freq;
    TTX_DEC_STATS ttxStats;
+   time_t ttxStart;
    uint cni, dataPageCnt;
    uint pageNo;
    time_t delay;
@@ -343,7 +344,7 @@ uint EpgScan_EvHandler( void )
       }
       else if (scanCtl.state == SCAN_STATE_WAIT_SIGNAL)
       {  // skip this channel if there's no stable signal
-         TtxDecode_GetStatistics(&ttxStats);
+         TtxDecode_GetStatistics(&ttxStats, &ttxStart);
          if ( scanCtl.doSlow || scanCtl.useXawtv || scanCtl.doRefresh ||
               BtDriver_IsVideoPresent() || (ttxStats.ttxPkgCount > 0) )
          {
@@ -867,8 +868,10 @@ EPGSCAN_START_RESULT EpgScan_Start( int inputSource, bool doSlow, bool useXawtv,
             const char * pErrStr = BtDriver_GetLastError();
             sprintf(msgbuf, "\nFailed to open video input channel:\n%.200s.\n",
                             ((pErrStr != NULL) ? pErrStr : "(unknown - internal error, please report)"));
-            scanCtl.MsgCallback(msgbuf, FALSE);
+            #else
+            sprintf(msgbuf, "\nFailed to switch TV channels.\nPlease check your tuner setting in the TV card setup.\n");
             #endif
+            scanCtl.MsgCallback(msgbuf, FALSE);
             result = EPGSCAN_ACCESS_DEV_VIDEO;
          }
       }

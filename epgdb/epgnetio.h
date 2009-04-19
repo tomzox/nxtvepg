@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgnetio.h,v 1.29 2008/08/10 19:49:05 tom Exp tom $
+ *  $Id: epgnetio.h,v 1.30 2009/03/28 21:20:49 tom Exp $
  */
 
 #ifndef __EPGNETIO_H
@@ -25,7 +25,7 @@
 #include "epgdb/epgtscqueue.h"
 #include "epgdb/epgdbmerge.h"
 
-#define PROTOCOL_COMPAT          EPG_VERSION_TO_INT(2,8,0x82)
+#define PROTOCOL_COMPAT          EPG_VERSION_TO_INT(2,8,0xA1)
 #define PROTOCOL_ENDIAN_MAGIC    0xAA55
 #define PROTOCOL_WRONG_ENDIAN    (((PROTOCOL_ENDIAN_MAGIC>>8)&0xFF)|((PROTOCOL_ENDIAN_MAGIC&0xFF)<<8))
 
@@ -43,6 +43,10 @@ enum
 #include <sys/syslog.h>
 #endif
 
+#ifdef WIN32
+struct timeval;         // requires winsock.h
+#endif
+
 // ----------------------------------------------------------------------------
 // Declaration of message IDs and the common header struct
 // - the actual message structs are declared in the upper layers
@@ -51,6 +55,7 @@ typedef enum
 {
    MSG_TYPE_CONNECT_REQ,
    MSG_TYPE_CONNECT_CNF,
+   MSG_TYPE_CONQUERY_CNF,
    MSG_TYPE_FORWARD_REQ,
    MSG_TYPE_FORWARD_CNF,
    MSG_TYPE_FORWARD_IND,
@@ -133,9 +138,8 @@ bool EpgNetIo_IsLocalHost( char * pHostname );
 bool EpgNetIo_CheckConnect( void );
 int  EpgNetIo_ConnectToServer( bool use_tcp_ip, const char * pSrvHost, const char * pSrvPort, char ** ppErrorText );
 bool EpgNetIo_FinishConnect( int sock_fd, char ** ppErrorText );
-#ifndef WIN32
+void EpgNetIo_GetTimeOfDay( struct timeval * pStartTime );
 void EpgNetIo_UpdateTimeout( struct timeval * pStartTime, struct timeval * pTimeout );
-#endif
 bool EpgNetIo_Init( char ** ppErrorText );
 void EpgNetIo_Destroy( void );
 

@@ -22,7 +22,7 @@
  *  Author: Tom Zoerner
  *          Win32 SetArgv() function taken from the Tcl/Tk library
  *
- *  $Id: cmdline.c,v 1.15 2008/10/19 14:25:55 tom Exp tom $
+ *  $Id: cmdline.c,v 1.16 2009/03/28 21:26:44 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -178,6 +178,7 @@ static void Usage( const char *argv0, const char *argvn, const char * reason )
    const char * const pDaemonUsage =
                    #ifdef USE_DAEMON
                    "       -daemonstop         \t: terminate background acquisition process\n"
+                   "       -daemonquery        \t: print daemon acquisition status\n"
                    "       -acqpassive         \t: force daemon to passive acquisition mode\n"
                    "       -acqonce <phase>    \t: stop acquisition after the given stage\n"
                    "       -nodetach           \t: daemon remains connected to tty\n"
@@ -482,6 +483,11 @@ static void CmdLine_Parse( int argc, char * argv[] )
          else if (!strcmp(argv[argIdx], "-daemonstop"))
          {  // kill daemon process, then exit
             mainOpts.optDaemonMode = DAEMON_STOP;
+            argIdx += 1;
+         }
+         else if (!strcmp(argv[argIdx], "-daemonquery"))
+         {  // kill daemon process, then exit
+            mainOpts.optDaemonMode = DAEMON_QUERY;
             argIdx += 1;
          }
          else if (!strcmp(argv[argIdx], "-nodetach"))

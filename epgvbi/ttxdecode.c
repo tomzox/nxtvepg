@@ -32,7 +32,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: ttxdecode.c,v 1.61 2006/12/05 21:06:23 tom Exp tom $
+ *  $Id: ttxdecode.c,v 1.62 2009/03/29 19:03:45 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_VBI
@@ -40,6 +40,7 @@
 
 #include <string.h>
 #include <stdio.h>
+#include <time.h>
 
 #include "epgctl/mytypes.h"
 #include "epgctl/debug.h"
@@ -84,6 +85,7 @@ typedef struct
 
 static PAGE_SCAN_STATE scanState[NXTV_VALID_PAGE_COUNT];
 static int             lastMagIdx[8];
+static time32_t        ttxStatsStart;
 
 // ----------------------------------------------------------------------------
 // Start EPG acquisition
@@ -734,16 +736,18 @@ static void TtxDecode_GetP830Cni( const uchar * data )
 // ---------------------------------------------------------------------------
 // Return reception statistics collected by slave process/thread
 //
-void TtxDecode_GetStatistics( TTX_DEC_STATS * pStats )
+void TtxDecode_GetStatistics( TTX_DEC_STATS * pStats, time_t * pStatsStart )
 {
    // check if initialization for the current channel is complete
    if (pVbiBuf->chanChangeReq == pVbiBuf->chanChangeCnf)
    {
       *pStats = pVbiBuf->ttxStats;
+      *pStatsStart = ttxStatsStart;
    }
    else
    {
       memset(pStats, 0, sizeof(*pStats));
+      *pStatsStart = time(NULL);
    }
 }
 
@@ -1167,6 +1171,7 @@ bool TtxDecode_NewVbiFrame( uint frameSeqNo )
          // reset all result values in shared memory
          memset((void *)&pVbiBuf->cnis, 0, sizeof(pVbiBuf->cnis));
          memset((void *)&pVbiBuf->ttxStats, 0, sizeof(pVbiBuf->ttxStats));
+         ttxStatsStart = time(NULL);
          pVbiBuf->ttxHeader.fill_cnt = 0;
          pVbiBuf->ttxHeader.magPgResetReq = pVbiBuf->ttxHeader.magPgResetCnf - 1;
          pVbiBuf->mipPageNo     = 0;

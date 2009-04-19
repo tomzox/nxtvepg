@@ -20,7 +20,7 @@
  *  Author:
  *          Tom Zoerner
  *
- *  $Id: epgacqsrv.c,v 1.20 2008/08/10 19:38:40 tom Exp tom $
+ *  $Id: epgacqsrv.c,v 1.22 2009/03/29 19:17:04 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGCTL
@@ -40,7 +40,9 @@
 #include "epgctl/mytypes.h"
 #include "epgctl/debug.h"
 #include "epgctl/epgversion.h"
+#include "epgvbi/ttxdecode.h"
 #include "epgdb/epgblock.h"
+#include "epgdb/epgdbif.h"
 #include "epgdb/epgswap.h"
 #include "epgdb/epgqueue.h"
 #include "epgdb/epgtscqueue.h"
@@ -233,8 +235,9 @@ static void EpgAcqServer_BuildStatsMsg( EPGDBSRV_STATE * req, bool aiFollows )
             req->msgBuf.stats_ind.u.update.ai      = acqStats.nxtv.ai;
             req->msgBuf.stats_ind.u.update.hist    = acqStats.nxtv.hist[acqStats.nxtv.histIdx];
             req->msgBuf.stats_ind.u.update.histIdx = acqStats.nxtv.histIdx;
-            req->msgBuf.stats_ind.u.update.ttx_dec = acqStats.ttx_dec;
             req->msgBuf.stats_ind.u.update.stream  = acqStats.nxtv.stream;
+            req->msgBuf.stats_ind.u.update.ttx_dec = acqStats.ttx_dec;
+            req->msgBuf.stats_ind.u.update.ttx_duration = acqStats.ttx_duration;
             req->msgBuf.stats_ind.u.update.nowMaxAcqRepCount = acqStats.nxtv.nowMaxAcqRepCount;
             req->msgBuf.stats_ind.u.update.nowMaxAcqNetCount = acqStats.nxtv.nowMaxAcqNetCount;
             req->msgBuf.stats_ind.u.update.lastStatsUpdate = acqStats.lastStatsUpdate;
@@ -282,6 +285,104 @@ static void EpgAcqServer_BuildDbUpdateMsg( EPGDBSRV_STATE * req )
    req->sendDbUpdTime = 0;
 
    EpgNetIo_WriteMsg(&req->io, MSG_TYPE_DB_UPD_IND, sizeof(MSG_STRUCT_DB_UPD_IND), &req->msgBuf, FALSE);
+}
+
+// ----------------------------------------------------------------------------
+// Build acquisition status description
+// - result is a pointer to a single string; text lines are new-line separated
+//
+static char * EpgAcqServer_BuildAcqDescrStr( void )
+{
+   char * pMsg = xmalloc(10000);
+   EPGACQ_DESCR acqState;
+   EPG_ACQ_STATS sv;
+   EPG_ACQ_VPS_PDC vpsPdc;
+   bool newVpsPdc;
+   uint acq_duration;
+   const char * pAcqModeStr;
+   const char * pAcqPasvStr;
+   uint off = 0;
+
+   EpgAcqCtl_DescribeAcqState(&acqState);
+   EpgAcqCtl_GetAcqStats(&sv);
+   newVpsPdc = EpgAcqCtl_GetVpsPdc(&vpsPdc, VPSPDC_REQ_DAEMON, TRUE);
+
+   EpgAcqCtl_GetAcqModeStr(&acqState, TRUE, &pAcqModeStr, &pAcqPasvStr);
+   off += snprintf(pMsg + off, 10000 - off, "Acq mode:               %s\n", pAcqModeStr);
+   if (pAcqPasvStr != NULL)
+      off += snprintf(pMsg + off, 10000 - off, "Passive reason:         %s\n", pAcqPasvStr);
+
+   if ((sv.nxtv.acqStartTime > 0) && (sv.nxtv.acqStartTime <= sv.lastStatsUpdate))
+      acq_duration = sv.lastStatsUpdate - sv.nxtv.acqStartTime;
+   else
+      acq_duration = 0;
+
+   off += snprintf(pMsg + off, 10000 - off, "Acq working for:        %s EPG\n",
+                                            acqState.isTtxSrc ? "Teletext" : "Nextview");
+
+   off += snprintf(pMsg + off, 10000 - off, "Channel VPS/PDC CNI:    %04X\n"
+                                            "Channel VPS/PDC PIL:    %02d.%02d. %02d:%02d\n",
+                                     vpsPdc.cni,
+                                     (vpsPdc.pil >> 15) & 0x1F, (vpsPdc.pil >> 11) & 0x0F,
+                                     (vpsPdc.pil >>  6) & 0x1F, (vpsPdc.pil) & 0x3F);
+
+   off += snprintf(pMsg + off, 10000 - off, "Nextview acq duration:  %d\n"
+                                            "Nextview provider CNI:  %04X\n"
+                                            "Providers done:         %d of %d\n"
+                                            "Expected block total:   %d + %d\n"
+                                            "Block total in DB:      %d + %d\n",
+                               acq_duration,
+                               acqState.nxtvDbCni,
+                               acqState.cycleIdx, acqState.cniCount,
+                               sv.nxtv.count[0].ai, sv.nxtv.count[1].ai,
+                               sv.nxtv.count[0].allVersions + sv.nxtv.count[0].expired + sv.nxtv.count[0].defective,
+                               sv.nxtv.count[1].allVersions + sv.nxtv.count[1].expired + sv.nxtv.count[1].defective
+                  );
+   if (ACQMODE_IS_CYCLIC(acqState.mode))
+   {
+      off += snprintf(pMsg + off, 10000 - off, "Network variance:       %1.2f / %1.2f\n",
+                                   sv.nxtv.count[0].variance, sv.nxtv.count[1].variance);
+   }
+
+   off += snprintf(pMsg + off, 10000 - off,
+                 "TTX pkg/frame:          %.1f\n"
+                 "EPG pages/sec:          %1.2f\n"
+                 "EPG page no:            %X\n"
+                 "AI recv. count:         %d\n"
+                 "AI min/avg/max [sec]:   %d/%2.2f/%d\n"
+                 "PI repetition now/1/2:  %d/%.2f/%.2f\n"
+                 "TTX acq. duration:      %d\n"
+                 "TTX lost/got pages:     %d/%d\n"
+                 "TTX lost/got pkg:       %d/%d\n"
+                 "EPG dropped/got blocks: %d/%d\n"
+                 "EPG blanked/got chars:  %d/%d\n",
+                 (double)sv.ttx_dec.ttxPkgRate / (1 << TTX_PKG_RATE_FIXP),
+                 ((acq_duration > 0) ? ((double)sv.ttx_dec.epgPagCount / acq_duration) : 0),
+                 sv.nxtv.stream.epgPageNo,
+                 sv.nxtv.ai.aiCount,
+                 (int)sv.nxtv.ai.minAiDistance,
+                    ((sv.nxtv.ai.aiCount > 1) ? ((double)sv.nxtv.ai.sumAiDistance / (sv.nxtv.ai.aiCount - 1)) : 0),
+                    (int)sv.nxtv.ai.maxAiDistance,
+                 sv.nxtv.nowMaxAcqRepCount, sv.nxtv.count[0].avgAcqRepCount, sv.nxtv.count[1].avgAcqRepCount,
+                 sv.ttx_duration,
+                 sv.nxtv.stream.epgPagMissing, sv.nxtv.stream.epgPagCount,
+                 sv.nxtv.stream.epgPkgMissing, sv.nxtv.stream.epgPkgCount,
+                 sv.nxtv.stream.epgBlkErr, sv.nxtv.stream.epgBlkCount,
+                 sv.nxtv.stream.epgParErr, sv.nxtv.stream.epgStrSum
+          );
+
+   if (acqState.ttxSrcCount > 0)
+   {
+      off += snprintf(pMsg + off, 10000 - off, "Teletext sources done:  %d of %d\n"
+                                               "Teletext source name:   %s\n"
+                                               "Teletext acq duration:  %d\n",
+                                  acqState.ttxGrabDone, acqState.ttxSrcCount,
+                                  (*sv.ttx_grab.srcName ? (const char*)sv.ttx_grab.srcName : "-"),
+                                  (int)(sv.lastStatsUpdate - sv.ttx_grab.acqStartTime)
+                     );
+   }
+
+   return pMsg;
 }
 
 // ----------------------------------------------------------------------------
@@ -468,6 +569,16 @@ static bool EpgAcqServer_CheckMsg( uint len, EPGNETIO_MSG_HEADER * pHead, EPGDBS
                result       = TRUE;
             }
          }
+         else if ( (len == sizeof(EPGNETIO_MSG_HEADER) + 7) &&
+                   (memcmp(pBody, "ACQSTAT", 7) == 0) )
+         {
+            result = TRUE;
+         }
+         else if ( (len == sizeof(EPGNETIO_MSG_HEADER) + 3) &&
+                   (memcmp(pBody, "PID", 3) == 0) )
+         {
+            result = TRUE;
+         }
          break;
 
       case MSG_TYPE_FORWARD_REQ:
@@ -508,6 +619,7 @@ static bool EpgAcqServer_CheckMsg( uint len, EPGNETIO_MSG_HEADER * pHead, EPGDBS
          break;
 
       case MSG_TYPE_CONNECT_CNF:
+      case MSG_TYPE_CONQUERY_CNF:
       case MSG_TYPE_FORWARD_CNF:
       case MSG_TYPE_FORWARD_IND:
       case MSG_TYPE_BLOCK_IND:
@@ -546,7 +658,21 @@ static bool EpgAcqServer_TakeMessage( EPGDBSRV_STATE *req, EPGDBSRV_MSG_BODY * p
    switch (req->io.readHeader.type)
    {
       case MSG_TYPE_CONNECT_REQ:
-         if (req->state == SRV_STATE_WAIT_CON_REQ)
+         if (memcmp(pMsg, "ACQSTAT", 7) == 0)
+         {
+            char * pStr = EpgAcqServer_BuildAcqDescrStr();
+            EpgNetIo_WriteMsg(&req->io, MSG_TYPE_CONQUERY_CNF, strlen(pStr), pStr, TRUE);
+            result = TRUE;
+         }
+         else if (memcmp(pMsg, "PID", 3) == 0)
+         {
+            char * pStr = xmalloc(20);
+            snprintf(pStr, 20, "PID %ld\n", (long) getpid());
+            EpgNetIo_WriteMsg(&req->io, MSG_TYPE_CONQUERY_CNF, strlen(pStr), pStr, TRUE);
+            result = TRUE;
+         }
+         else if ( (memcmp(pMsg->con_req.magic, MAGIC_STR, MAGIC_STR_LEN) == 0) &&
+                   (req->state == SRV_STATE_WAIT_CON_REQ) )
          {
             // Nextview browser requests acq forward: reply with version information
             dprintf0("EpgAcqServer-TakeMessage: con req for BROWSER type\n");

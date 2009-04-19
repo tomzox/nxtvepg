@@ -19,7 +19,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: dlg_ctxmencf.tcl,v 1.15 2009/03/13 22:24:22 tom Exp tom $
+#  $Id: dlg_ctxmencf.tcl,v 1.16 2009/03/29 18:32:04 tom Exp tom $
 #
 set ctxmencf_popup 0
 set ctxmencf [list {pi_context.addfilt {} {}} \
@@ -353,7 +353,10 @@ proc ContextMenuGetExamples {} {
                "All variables"] \
          [list tvapp.xawtv "Tune this channel" \
                {setstation ${network}} \
-               "Change channel in connected TV app."]
+               "Change channel in connected TV app."] \
+         [list tvapp.xawtv "Mute TV channel" \
+               {volume mute} \
+               "Mute audio connected TV app."]
    } else {
       lappend examples \
          [list tvapp.wintv "Record this show" \
@@ -361,7 +364,10 @@ proc ContextMenuGetExamples {} {
                "Send 'record' command to TV app."] \
          [list tvapp.wintv "Tune this TV channel" \
                {setstation ${network}} \
-               "Change channel in connected TV app."]
+               "Change channel in connected TV app."] \
+         [list tvapp.wintv "Mute TV channel" \
+               {volume mute} \
+               "Mute audio connected TV app."]
    }
    return $examples
 }

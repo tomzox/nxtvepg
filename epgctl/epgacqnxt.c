@@ -23,7 +23,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgacqnxt.c,v 1.6 2008/10/12 16:12:16 tom Exp tom $
+ *  $Id: epgacqnxt.c,v 1.7 2009/03/29 19:21:08 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGCTL
@@ -101,7 +101,8 @@ static bool EpgAcqNxtv_UpdateProvider( bool changeDb );
 #define EPGACQ_DB_DUMP_INTV      60   // interval between db dumps
 #define EPGACQ_ADV_CHK_INTV      15   // interval between cycle complete checks
 #define EPGACQ_CHN_FIX_INTV      20   // interval between channel change attempts when forced passive
-#define EPGACQ_TIMEOUT_RECV  (2*60)   // max. interval without reception (any blocks)
+#define EPGACQ_RECV_CHK_INTV     60   // interval between channel updates while no reception
+#define EPGACQ_TIMEOUT_RECV     180   // max. interval without reception (any blocks)
 
 #define EPGACQ_STREAM1_UPD_INTV    (1*60*60)
 #define EPGACQ_STREAM2_UPD_INTV   (14*60*60)
@@ -972,12 +973,12 @@ void EpgAcqNxtv_ChannelChange( bool changeDb )
          // inform server module about the current provider
          EpgAcqServer_SetProvider(0);
 #endif
+         EpgAcqNxtv_StatisticsReset();
+         EpgAcqNxtv_StatisticsUpdate();
       }
 
       EpgAcqNxtv_TtxReset(acqCtl.pAcqDbContext, &acqCtl.acqDbQueue, EPG_ILLEGAL_PAGENO, EPG_ILLEGAL_APPID);
       acqCtl.state = ACQSTATE_WAIT_BI;
-      EpgAcqNxtv_StatisticsReset();
-      EpgAcqNxtv_StatisticsUpdate();
    }
 }
 
@@ -1010,26 +1011,24 @@ bool EpgAcqNxtv_MonitorSource( void )
       acqCtl.chanChangePend = TRUE;
    }
 
-   // check if acq stalled (db not modified or dumped) -> reset acq
+   // check if acq stalled (no AI or no new PI) -> reset acq
    // but make sure the channel isn't changed too often (need to wait at least 10 secs for AI)
-   if ( (now >= acqCtl.dumpTime + EPGACQ_TIMEOUT_RECV) &&
-        (now >= acqCtl.chanChangeTime + EPGACQ_TIMEOUT_RECV) )
+   if ( (now >= acqCtl.dumpTime + EPGACQ_RECV_CHK_INTV) &&
+        (now >= acqCtl.acqStats.ai.lastAiTime + EPGACQ_RECV_CHK_INTV) &&
+        (now >= acqCtl.chanChangeTime + EPGACQ_RECV_CHK_INTV) )
    {
       dprintf3("EpgAcqNxtv-MonitorSource: no reception from provider 0x%04X (%d,%d since dump,chan) - reset acq\n", EpgDbContextGetCni(acqCtl.pAcqDbContext), (int)(now - acqCtl.dumpTime), (int)(now - acqCtl.chanChangeTime));
 
-      if (ACQMODE_IS_CYCLIC(acqCtl.mode))
+      if (now >= acqCtl.acqStats.acqStartTime + EPGACQ_TIMEOUT_RECV)
       {
          advance = TRUE;
-      }
-      else if (acqCtl.mode == ACQMODE_FOLLOW_UI)
-      {
-         EpgAcqNxtv_UpdateProvider(FALSE);
+         acqCtl.chanChangePend = TRUE;
       }
       else
       {
-         EpgAcqNxtv_ChannelChange(TRUE);
+         EpgAcqNxtv_UpdateProvider(FALSE);
+         acqCtl.chanChangePend = TRUE;
       }
-      acqCtl.chanChangePend = TRUE;
    }
 
    return advance;

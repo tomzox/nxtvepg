@@ -22389,3 +22389,159 @@ nxtvepg-de.pod [rev:NONE - INTERMEDIATE VERSION RELEASED]
 nxtvepg.pod [rev:NONE - INTERMEDIATE VERSION RELEASED]
 www/pre-releases.html [MISSING CHECK-IN - OVERWRITTEN by PRE2]
 #>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> RELEASE_2_9_0_PRE1 <<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+nxtvepg-de.pod [rev:1.19, 2009-03-14T21:24:32]:
+- removed option -demo & replaced mention of "demo database" with XMLTV
+- extended credits for Néo and Kurt Lettmaier
+nxtvepg.pod [rev:1.135, 2009-03-14T21:24:32]:
+- removed option -demo & replaced mention of "demo database" with XMLTV
+- extended credits for Néo and Kurt Lettmaier
+epgtcl/mainwin.tcl [rev:1.263, 2009-03-16T21:51:17]:
+- Updated copyright for 2009
+COPYRIGHT [rev:1.19, 2009-03-16T21:52:22]:
+- Updated copyright for 2009
+Makefile [rev:1.106, 2009-03-16T21:53:18]:
+- Updated copyright for 2009
+dsdrv/wintuner.c [rev:1.28, 2009-03-26T21:12:20]:
+- suppress warning "no tuner found on I2C bus" for tuner type "unknown"
+    (on request of Maik Riechert via email 2008-02-23)
+- also improved the text of the warning
+epgctl/epgscan.c [rev:1.49, 2009-03-26T21:26:44]:
+- Win32 only: Added message in case the initial channel change fails
+- b/c there's no driver message popup if the tuner is set to "unknown"
+epgctl/epgacqctl.c [rev:1.93, 2009-03-28T18:44:24]:
+- added EpgAcqCtl_GetAcqModeStr(): split off from epgui/statswin.c
+    (in support of daemon acq status query)
+- added element cycleIdx to struct EPGACQ_DESCR to display "n of m prov. done"
+epgctl/epgacqctl.h [rev:1.47, 2009-03-28T18:44:24]:
+- added EpgAcqCtl_GetAcqModeStr(): split off from epgui/statswin.c
+    (in support of daemon acq status query)
+- added element cycleIdx to struct EPGACQ_DESCR to display "n of m prov. done"
+epgdb/epgnetio.c [rev:1.42, 2009-03-28T21:20:44]:
+- added EpgNetIo_GetTimeOfDay() as WIN32 compat wrapper for gettimeofday()
+- made EpgNetIo_UpdateTimeout() available to WIN32
+epgdb/epgnetio.h [rev:1.30, 2009-03-28T21:20:49]:
+- added message MSG_TYPE_CONQUERY_CNF (for new option -daemonquery)
+    bumped protocol version due to change in message IDs
+- added EpgNetIo_GetTimeOfDay() as WIN32 compat wrapper for gettimeofday()
+- made EpgNetIo_UpdateTimeout() available to WIN32
+epgctl/epgacqsrv.c [rev:1.21, 2009-03-28T21:22:18]:
+- Added support for daemon acq status query
+- extended CONNECT_REQ to allow for simply ASCII based query & response
+    + currently implemented: ACQSTAT, PID; response via new CONQUERY_CNF
+    + reply sent via new message CONQUERY_CNF: plain text content (after header)
+- added new internal function EpgAcqServer_BuildAcqDescrStr()
+epgctl/epgacqclnt.c [rev:1.24, 2009-03-28T21:23:14]:
+- Added support for daemon acq status query
+- added new interface EpgAcqClient_QueryAcqStatus() for -daemonquery option
+- split off sub-func EpgAcqClient_SimpleQuery() from _TerminateDaemon()
+    + based on extended semantics of CONNECT_REQ and new CONQUERY_CNF
+    + also changed _TerminateDaemon() to use "PID" query via CONNECT_REQ
+    + minor fix in timeout handling
+- on request in forum 2007-02-22 by Gernot and 2008-02-20 by martin1802
+epgctl/epgacqclnt.h [rev:1.6, 2009-03-28T21:23:14]:
+- Added support for daemon acq status query
+- added new interface EpgAcqClient_QueryAcqStatus() for -daemonquery option
+- split off sub-func EpgAcqClient_SimpleQuery() from _TerminateDaemon()
+    + based on extended semantics of CONNECT_REQ and new CONQUERY_CNF
+    + also changed _TerminateDaemon() to use "PID" query via CONNECT_REQ
+    + minor fix in timeout handling
+- on request in forum 2007-02-22 by Gernot and 2008-02-20 by martin1802
+epgui/cmdline.c [rev:1.16, 2009-03-28T21:26:44]:
+- Added support for daemon acq status query
+- added new command line option "-daemonquery" and daemon mode DAEMON_QUERY
+epgui/cmdline.h [rev:1.10, 2009-03-28T21:26:44]:
+- Added support for daemon acq status query
+- added new command line option "-daemonquery" and daemon mode DAEMON_QUERY
+epgui/daemon.c [rev:1.15, 2009-03-28T21:28:03]:
+- Added support for daemon acq status query
+- added new Daemon_StatusQuery() to handle new daemon mode DAEMON_QUERY:
+    query acq status & print to stdout; report errors to stderr
+epgui/daemon.h [rev:1.6, 2009-03-28T21:28:03]:
+- Added support for daemon acq status query
+- added new Daemon_StatusQuery() to handle new daemon mode DAEMON_QUERY:
+    query acq status & print to stdout; report errors to stderr
+epgui/daemon_main.c [rev:1.11, 2009-03-28T21:28:27]:
+- Added support for daemon acq status query
+- handle new daemon mode DAEMON_QUERY: call new Daemon_StatusQuery()
+epgui/epgmain.c [rev:1.164, 2009-03-28T21:28:27]:
+- Added support for daemon acq status query
+- handle new daemon mode DAEMON_QUERY: call new Daemon_StatusQuery()
+epgui/statswin.c [rev:1.78, 2009-03-28T21:31:36]:
+- Added support for daemon acq status query
+- moved StatsWin_PrintAcqMode() into epgacqctl.c
+    + shared with epgacqsrv.c for reply to ACQSTAT response to CONNECT_REQ
+- also bugfix ToggleDbStats: don't disable STATS_IND if TTX stats still open
+xmltv/xmltv_cni.c [rev:1.7, 2009-03-29T18:19:00]:
+- XMLTV export emits standard XMLTV channel IDs instead of "CNI%04" format IDs
+- added new interfaces to allow to load CNI->XMLTV (i.e. reverse) mapping table
+    based on [GLOBAL] section in xmltv-etsi.map plus new [EXPORT|GLOBAL] section
+xmltv/xmltv_cni.h [rev:1.4, 2009-03-29T18:19:00]:
+- XMLTV export emits standard XMLTV channel IDs instead of "CNI%04" format IDs
+- added new interfaces to allow to load CNI->XMLTV (i.e. reverse) mapping table
+    based on [GLOBAL] section in xmltv-etsi.map plus new [EXPORT|GLOBAL] section
+xmltv-etsi.map [rev:1.7, 2009-03-29T18:20:00]:
+- added reverse mapping for export of Kabel1 (tvtv) Nextview EPG
+- added a few more channel IDs for IT and BE; also TV5,NBC,M6
+- added de.arte-tv.com
+epgui/dumpxml.c [rev:1.23, 2009-03-29T18:31:00]:
+- XMLTV export emits standard XMLTV channel IDs instead of "CNI%04" format IDs
+- on request by devport in forum 2008-08-06
+- based on mapping table in file xmltv-etsi.map incl. reverse mapping extension
+epgtcl/rcfile.tcl [rev:1.34, 2009-03-29T18:31:32]:
+- Added Show/Hide option to remove "Tune TV" button from the main window
+- store "showTuneTvButton" in RC file (var existed already, but was not
+    stored as is was set dynamically upon TV app attach)
+epgtcl/mainwin.tcl [rev:1.264, 2009-03-29T18:31:38]:
+- Added Show/Hide option to remove "Tune TV" button from the main window
+- upon TV app attach/detach now only enable/disable instead of map/unmap
+- on request by tychobarfy in forum 2008-10-14
+epgtcl/dlg_ctxmencf.tcl [rev:1.16, 2009-03-29T18:32:04]:
+- Added new example "Mute TV audio"
+epgvbi/ttxdecode.c [rev:1.62, 2009-03-29T19:03:45]:
+- Added global variable ttxStatsStart: timestamp of last TTX stats reset
+- should be used to calculate averages over time from TTX stats counters
+    (instead of overall acq. duration, as it was done before)
+epgvbi/ttxdecode.h [rev:1.31, 2009-03-29T19:03:45]:
+- Added global variable ttxStatsStart: timestamp of last TTX stats reset
+- should be used to calculate averages over time from TTX stats counters
+    (instead of overall acq. duration, as it was done before)
+epgui/statswin.c [rev:1.79, 2009-03-29T19:15:11]:
+- Added element "ttx_duration" (next to "ttx_dec") to struct EPG_ACQ_STATS
+- use ttx_duration for TTX stats averaging (instead of acqStartTime)
+epgctl/epgacqclnt.c [rev:1.25, 2009-03-29T19:16:54]:
+- Added element "ttx_duration" (next to "ttx_dec") to struct EPG_ACQ_STATS
+- added handling of ttx_duration in STATS_IND
+epgctl/epgacqsrv.h [rev:1.13, 2009-03-29T19:16:54]:
+- Added element "ttx_duration" (next to "ttx_dec") to struct EPG_ACQ_STATS
+- added handling of ttx_duration in STATS_IND
+epgctl/epgacqsrv.c [rev:1.22, 2009-03-29T19:17:04]:
+- Added element "ttx_duration" (next to "ttx_dec") to struct EPG_ACQ_STATS
+- added handling of ttx_duration in STATS_IND
+- use the new element for ACQSTAT message reply (equiv. to statswin.c)
+epgctl/epgacqctl.c [rev:1.94, 2009-03-29T19:17:16]:
+- Added element "ttx_duration" (next to "ttx_dec") to struct EPG_ACQ_STATS
+- calculated from TTX stats reset timestamp returned by TtxDecode_GetStatistics
+- should be used to calculate averages over time from TTX stats counters
+    (instead of overall acq. duration, as it was done before)
+epgctl/epgacqctl.h [rev:1.48, 2009-03-29T19:17:16]:
+- Added element "ttx_duration" (next to "ttx_dec") to struct EPG_ACQ_STATS
+- calculated from TTX stats reset timestamp returned by TtxDecode_GetStatistics
+- should be used to calculate averages over time from TTX stats counters
+    (instead of overall acq. duration, as it was done before)
+epgctl/epgscan.c [rev:1.50, 2009-03-29T19:17:29]:
+- Added element "ttx_duration" (next to "ttx_dec") to struct EPG_ACQ_STATS
+- adapted for interface change TtxDecode_GetStatistics()
+epgctl/epgacqnxt.c [rev:1.7, 2009-03-29T19:21:08]:
+- Implemented stalled-reception timeout even for single provider
+- even if there's only one provider: re-tune every 60 seconds,
+    advance to next source every 3 minutes
+- also: don't reset EPG statistics and acq duration for such resets
+    (note: this requires a new/separate timer for TTX stats "ttx_duration")
+- on request in forum 2008-02-20 by martin1802
+epgctl/epgversion.h [rev:1.94, 2009-03-29T19:51:53]:
+- set version to 2.9.0pre2
+www/pre-releases.html [rev:1.91, 2009-03-29T20:17:59]:
+- Updated for pre-release 2.9.0pre1 and pre2
+CHANGES [rev:1.58, 2009-04-19T18:15:40]:
+- added change log for 2.9.0pre2 (2009-03-29)
+#>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> RELEASE_2_9_0_PRE2 <<<<<<<<<<<<<<<<<<<<<<<<<<<<<

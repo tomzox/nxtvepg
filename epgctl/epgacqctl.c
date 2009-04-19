@@ -24,7 +24,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgacqctl.c,v 1.92 2007/12/30 23:21:24 tom Exp tom $
+ *  $Id: epgacqctl.c,v 1.94 2009/03/29 19:17:16 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGCTL
@@ -122,6 +122,7 @@ void EpgAcqCtl_DescribeAcqState( EPGACQ_DESCR * pAcqState )
             pAcqState->passiveReason = acqCtl.passiveReason;
             pAcqState->cyclePhase    = acqCtl.cyclePhase;
             pAcqState->cniCount      = acqCtl.cniCount;
+            pAcqState->cycleIdx      = acqCtl.cycleIdx;
             pAcqState->cycleCni      = EpgAcqCtl_GetReqProv();
             pAcqState->isNetAcq      = FALSE;
 
@@ -146,6 +147,96 @@ void EpgAcqCtl_DescribeAcqState( EPGACQ_DESCR * pAcqState )
    }
    else
       fatal0("EpgAcqCtl-DescribeAcqState: illegal NULL ptr param");
+}
+
+// ----------------------------------------------------------------------------
+// Return text strings line which describes the current acq mode
+//
+void EpgAcqCtl_GetAcqModeStr( const EPGACQ_DESCR * pAcqState, bool forTtx,
+                              const char ** ppModeStr, const char ** ppPasvStr )
+{
+   if (pAcqState->passiveReason == ACQPASSIVE_NONE)
+   {
+      switch (pAcqState->mode)
+      {
+         case ACQMODE_PASSIVE:
+            *ppModeStr = "passive";
+            break;
+         case ACQMODE_EXTERNAL:
+            *ppModeStr = "external";
+            break;
+         case ACQMODE_FOLLOW_UI:
+         case ACQMODE_FOLLOW_MERGED:
+            if ((forTtx ?
+                  (pAcqState->cniCount - ((pAcqState->ttxSrcCount > 0) ? 1 : 0)) :
+                  (pAcqState->ttxSrcCount)) == 0)
+               *ppModeStr = "follow browser database";
+            else
+               *ppModeStr = "follow browser database (merged)";
+            break;
+         case ACQMODE_CYCLIC_2:
+            if (pAcqState->cniCount <= 1)
+               *ppModeStr = "manual";
+            else
+            {
+               if (pAcqState->cyclePhase == ACQMODE_PHASE_STREAM2)
+                  *ppModeStr = "manual, phase 'All'";
+               else
+                  *ppModeStr = "manual, phase 'Complete'";
+            }
+            break;
+         default:
+            switch (pAcqState->cyclePhase)
+            {
+               case ACQMODE_PHASE_NOWNEXT:
+                  *ppModeStr = "cyclic, phase 'Now'";
+                  break;
+               case ACQMODE_PHASE_STREAM1:
+                  *ppModeStr = "cyclic, phase 'Near'";
+                  break;
+               case ACQMODE_PHASE_STREAM2:
+                  *ppModeStr = "cyclic, phase 'All'";
+                  break;
+               case ACQMODE_PHASE_MONITOR:
+                  *ppModeStr = "cyclic, phase 'Complete'";
+                  break;
+               default:
+                  break;
+            }
+            break;
+      }
+      *ppPasvStr = NULL;
+   }
+   else
+   {
+      if (pAcqState->nxtvState == ACQDESCR_DISABLED)
+      {
+         *ppModeStr = "disabled";
+      }
+      else
+      {
+         *ppModeStr = "forced passive";
+
+         switch (pAcqState->passiveReason)
+         {
+            case ACQPASSIVE_NO_TUNER:
+               *ppPasvStr = "input source is not a tuner";
+               break;
+            case ACQPASSIVE_NO_FREQ:
+               *ppPasvStr = "frequency unknown";
+               break;
+            case ACQPASSIVE_NO_DB:
+               *ppPasvStr = "database missing";
+               break;
+            case ACQPASSIVE_ACCESS_DEVICE:
+               *ppPasvStr = "video device busy";
+               break;
+            default:
+               *ppPasvStr = "unknown";
+               break;
+         }
+      }
+   }
 }
 
 // ---------------------------------------------------------------------------
@@ -197,6 +288,7 @@ bool EpgAcqCtl_GetDbStats( EPGDB_BLOCK_COUNT * pDbStats, uint * pNowMaxAcqNetCou
 //
 bool EpgAcqCtl_GetAcqStats( EPG_ACQ_STATS * pAcqStats )
 {
+   time_t ttx_start_t;
    bool result = FALSE;
 
    if (acqCtl.acqEnabled)
@@ -207,11 +299,12 @@ bool EpgAcqCtl_GetAcqStats( EPG_ACQ_STATS * pAcqStats )
       {
          EpgAcqNxtv_GetAcqStats(&pAcqStats->nxtv);
          EpgAcqTtx_GetAcqStats(&pAcqStats->ttx_grab);
+         pAcqStats->lastStatsUpdate = time(NULL);
 
          // retrieve additional data from TTX packet decoder
-         TtxDecode_GetStatistics(&pAcqStats->ttx_dec);
+         TtxDecode_GetStatistics(&pAcqStats->ttx_dec, &ttx_start_t);
+         pAcqStats->ttx_duration = pAcqStats->lastStatsUpdate - ttx_start_t;
 
-         pAcqStats->lastStatsUpdate = time(NULL);
          pAcqStats->nxtvMaster = !acqCtl.isTtxSrc;
          result = TRUE;
       }

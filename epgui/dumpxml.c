@@ -18,7 +18,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: dumpxml.c,v 1.22 2008/10/19 12:59:35 tom Exp tom $
+ *  $Id: dumpxml.c,v 1.23 2009/03/29 18:31:00 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -31,6 +31,9 @@
 
 #include "epgctl/mytypes.h"
 #include "epgctl/debug.h"
+
+#include "xmltv/xml_hash.h"
+#include "xmltv/xmltv_cni.h"
 
 #include "epgctl/epgversion.h"
 #include "epgdb/epgblock.h"
@@ -315,38 +318,16 @@ static void EpgDumpXml_WriteHeader( EPGDB_CONTEXT * pDbContext,
 // ----------------------------------------------------------------------------
 // Write XML channel table
 //
-static void EpgDumpXml_WriteChannel( EPGDB_CONTEXT * pDbContext, const AI_BLOCK * pAiBlock,
-                                     char ** pChnIds, uint netwopIdx,
-                                     FILE * fp, DUMP_XML_MODE xmlDtdVersion )
+static void EpgDumpXml_WriteChannel( const AI_BLOCK * pAiBlock, const char * pChnId,
+                                     uint netwopIdx, FILE * fp, DUMP_XML_MODE xmlDtdVersion )
 {
-   const uchar     * pNetname;
-   const uchar     * pChnId;
-   char cni_buf[16+3+1];
-   uint cni;
+   const uchar * pNetname;
 
    if (netwopIdx < pAiBlock->netwopCount)
    {
       pNetname = EpgSetup_GetNetName(pAiBlock, netwopIdx, NULL);
-      cni = AI_GET_NET_CNI_N(pAiBlock, netwopIdx);
 
-      // determine the XMLTV channel ID
-      pChnIds[netwopIdx] = NULL;
-      if ( IS_XMLTV_CNI(cni) )
-      {
-         // for imported XMLTV files: keep the original channel ID
-         // XXX FIXME: this is not the original one if overriden by xmltv-etsi.map
-         pChnId = RcFile_GetXmltvNetworkId(cni);
-         if (pChnId != NULL)
-            pChnIds[netwopIdx] = xstrdup(pChnId);
-      }
-      if (pChnIds[netwopIdx] == NULL)
-      {
-         // TODO: map numerical CNI to RFC2838 (e.g. "ard.de")
-         sprintf(cni_buf, "CNI%04X", cni);
-         pChnIds[netwopIdx] = xstrdup(cni_buf);
-      }
-
-      fprintf(fp, "<channel id=\"%s\">\n", pChnIds[netwopIdx]);
+      fprintf(fp, "<channel id=\"%s\">\n", pChnId);
 
       if ( IS_XML_DTD5(xmlDtdVersion) == FALSE )
       {
@@ -565,6 +546,10 @@ void EpgDumpXml_Standalone( EPGDB_CONTEXT * pDbContext, FILTER_CONTEXT * fc,
       pAiBlock = EpgDbGetAi(pDbContext);
       if (pAiBlock != NULL)
       {
+#ifdef USE_XMLTV_IMPORT
+         XMLTV_CNI_REV_CTX xmlIdMap;
+         XmltvCni_InitMapCni2Ids(&xmlIdMap, AI_GET_SERVICENAME(pAiBlock));
+#endif
          // get "OSD information" with service name and message
          pOiBlock = EpgDbGetOi(pDbContext, 0);
 
@@ -579,11 +564,32 @@ void EpgDumpXml_Standalone( EPGDB_CONTEXT * pDbContext, FILTER_CONTEXT * fc,
          // channel table
          for (netwopIdx = 0; netwopIdx < pAiBlock->netwopCount; netwopIdx++)
          {
-            pChnIds[netwopIdx] = NULL;
+            // determine the XMLTV channel ID
+            const uchar * pChnId;
+            uint cni = AI_GET_NET_CNI_N(pAiBlock, netwopIdx);
+#ifdef USE_XMLTV_IMPORT
+            pChnId = XmltvCni_MapCni2Ids(&xmlIdMap, cni);
+            if (pChnId != NULL)
+               pChnIds[netwopIdx] = xstrdup(pChnId);
+            else
+#endif
+            if ( IS_XMLTV_CNI(cni) &&
+                 ((pChnId = RcFile_GetXmltvNetworkId(cni)) != NULL) )
+            {
+               // for imported XMLTV files: keep the original channel ID
+               // XXX FIXME: this is not the original one if overriden by xmltv-etsi.map
+               pChnIds[netwopIdx] = xstrdup(pChnId);
+            }
+            else
+            {
+               pChnIds[netwopIdx] = xmalloc(16+3+1);
+               sprintf(pChnIds[netwopIdx], "CNI%04X", cni);
+            }
+            EpgDumpXml_HtmlRemoveQuotes(pChnIds[netwopIdx], pChnIds[netwopIdx], strlen(pChnIds[netwopIdx]) + 1);
 
             if ((fc == NULL) || netFilter[netwopIdx])
             {
-               EpgDumpXml_WriteChannel(pDbContext, pAiBlock, pChnIds, netwopIdx, fp, dumpMode);
+               EpgDumpXml_WriteChannel(pAiBlock, pChnIds[netwopIdx], netwopIdx, fp, dumpMode);
             }
          }
 
@@ -603,6 +609,9 @@ void EpgDumpXml_Standalone( EPGDB_CONTEXT * pDbContext, FILTER_CONTEXT * fc,
 
          // footer
          fprintf(fp, "</tv>\n");
+#ifdef USE_XMLTV_IMPORT
+         XmltvCni_FreeMapCni2Ids(&xmlIdMap);
+#endif
       }
       EpgDbLockDatabase(pDbContext, FALSE);
    }

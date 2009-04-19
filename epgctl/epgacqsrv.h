@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgacqsrv.h,v 1.12 2008/08/10 19:38:40 tom Exp tom $
+ *  $Id: epgacqsrv.h,v 1.13 2009/03/29 19:16:54 tom Exp tom $
  */
 
 #ifndef __EPGACQSRV_H
@@ -95,6 +95,8 @@ typedef struct MSG_STRUCT_STATS_IND_STRUCT
          uint16_t             histIdx;
          uint32_t             nowMaxAcqRepCount;
          uint32_t             nowMaxAcqNetCount;
+         uint32_t             ttx_duration;
+         uint32_t             resv_align4;
          time32_t             lastStatsUpdate;
       } update;
    } u;

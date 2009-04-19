@@ -30,7 +30,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: Makefile,v 1.105 2008/10/12 20:03:06 tom Exp tom $
+#  $Id: Makefile,v 1.106 2009/03/16 21:53:18 tom Exp $
 #
 
 ifeq ($(OS),Windows_NT)
@@ -381,7 +381,7 @@ nxtvepg.1 nxtvepgd.1 manual.html: nxtvepg.pod epgctl/epgversion.h
 	  EPG_VERSION_STR=`egrep '[ \t]*#[ \t]*define[ \t]*EPG_VERSION_STR' epgctl/epgversion.h | head -1 | sed -e 's#.*"\(.*\)".*#\1#'`; \
 	  echo "pod2man nxtvepg.pod > nxtvepg.1"; \
 	  pod2man -date " " -center "Nextview EPG Decoder" -section "1" \
-	          -release "nxtvepg "$$EPG_VERSION_STR" (C) 1999-2008 Tom Zoerner" \
+	          -release "nxtvepg "$$EPG_VERSION_STR" (C) 1999-2009 Tom Zoerner" \
 	     nxtvepg.pod > nxtvepg.1; \
           echo ".so man1/nxtvepg.1" > nxtvepgd.1; \
 	  echo "pod2html nxtvepg.pod > manual.html"; \

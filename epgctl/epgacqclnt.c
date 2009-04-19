@@ -21,7 +21,7 @@
  *  Author:
  *          Tom Zoerner
  *
- *  $Id: epgacqclnt.c,v 1.23 2008/10/19 12:58:17 tom Exp tom $
+ *  $Id: epgacqclnt.c,v 1.25 2009/03/29 19:16:54 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGCTL
@@ -456,6 +456,7 @@ static bool EpgAcqClient_CheckMsg( uint len, EPGNETIO_MSG_HEADER * pHead, EPGDBS
                         swap32(&pBody->stats_ind.u.initial.stats.nxtv.acqStartTime);
                         swap32(&pBody->stats_ind.u.initial.stats.lastStatsUpdate);
                         EpgAcqClient_SwapEpgdbAcqAiStats(&pBody->stats_ind.u.initial.stats.nxtv.ai);
+                        swap32(&pBody->stats_ind.u.initial.stats.ttx_duration);
                         for (idx=0; idx < sizeof(pBody->stats_ind.u.initial.stats.ttx_dec) / sizeof(uint32_t); idx++)
                            swap32(((uint32_t *)&pBody->stats_ind.u.initial.stats.ttx_dec) + idx);
                         for (idx=0; idx < sizeof(pBody->stats_ind.u.initial.stats.nxtv.stream) / sizeof(uint32_t); idx++)
@@ -490,6 +491,7 @@ static bool EpgAcqClient_CheckMsg( uint len, EPGNETIO_MSG_HEADER * pHead, EPGDBS
                         swap16(&pBody->stats_ind.u.update.histIdx);
                         swap32(&pBody->stats_ind.u.update.nowMaxAcqRepCount);
                         swap32(&pBody->stats_ind.u.update.nowMaxAcqNetCount);
+                        swap32(&pBody->stats_ind.u.update.ttx_duration);
                         swap32(&pBody->stats_ind.u.update.lastStatsUpdate);
                         for (idx=0; idx < sizeof(pBody->stats_ind.u.update.ttx_dec) / sizeof(uint32_t); idx++)
                            swap32(((uint32_t *)&pBody->stats_ind.u.update.ttx_dec) + idx);
@@ -517,6 +519,11 @@ static bool EpgAcqClient_CheckMsg( uint len, EPGNETIO_MSG_HEADER * pHead, EPGDBS
       case MSG_TYPE_CLOSE_IND:
          result = (len == sizeof(EPGNETIO_MSG_HEADER));
          break;
+
+      case MSG_TYPE_CONQUERY_CNF:
+         debug0("EpgAcqClient-CheckMsg: Unexpected CONQUERY_CNF");
+         break;
+
       case MSG_TYPE_CONNECT_REQ:
       case MSG_TYPE_FORWARD_REQ:
       case MSG_TYPE_STATS_REQ:
@@ -1045,119 +1052,183 @@ void EpgAcqClient_Stop( void )
       debug0("EpgDbClient-Stop: acq not enabled");
 }
 
-#ifndef WIN32
 // ----------------------------------------------------------------------------
-// Connect and query daemon for it's process ID, then kill the process
+// Connect to the server, transmit a query and read the response
 //
-bool EpgAcqClient_TerminateDaemon( char ** ppErrorMsg )
+static char * EpgAcqClient_SimpleQuery( const char * pQueryStr, char ** ppErrorMsg )
 {
-   EPGDBSRV_MSG_BODY * pMsg;
    struct timeval  timeout;
    struct timeval  tv;
    struct timeval  selectStart;
    fd_set  fds;
    bool    ioBlocked;
    sint    selSockCnt;
+   char * pMsgBuf = NULL;
+
+   EpgAcqClient_ConnectServer();
+   if (clientState.io.sock_fd != -1)
+   {
+      // overall timeout for connect and message exchange
+      timeout.tv_sec  = 20;
+      timeout.tv_usec = 0;
+
+      // wait for the connect to complete
+      FD_ZERO(&fds);
+      FD_SET(clientState.io.sock_fd, &fds);
+      tv = timeout;
+      EpgNetIo_GetTimeOfDay(&selectStart);
+      selSockCnt = select(clientState.io.sock_fd + 1, NULL, &fds, NULL, &tv);
+      if (selSockCnt > 0)
+      {
+         EpgNetIo_UpdateTimeout(&selectStart, &timeout);
+
+         if (EpgNetIo_FinishConnect(clientState.io.sock_fd, ppErrorMsg))
+         {
+            // write request message & wait until it's sent out
+            EpgNetIo_WriteMsg(&clientState.io, MSG_TYPE_CONNECT_REQ,
+                              strlen(pQueryStr), (char*)pQueryStr, FALSE);
+            do
+            {
+               FD_ZERO(&fds);
+               FD_SET(clientState.io.sock_fd, &fds);
+               EpgNetIo_GetTimeOfDay(&selectStart);
+               tv = timeout;
+
+               selSockCnt = select(clientState.io.sock_fd + 1, NULL, &fds, NULL, &tv);
+               if (selSockCnt <= 0)
+                  goto socket_error;
+
+               if (EpgNetIo_HandleIO(&clientState.io, &ioBlocked, FALSE) == FALSE)
+                  goto failure;
+
+               EpgNetIo_UpdateTimeout(&selectStart, &timeout);
+
+            } while (clientState.io.writeLen != 0);
+
+            // wait for the reply message
+            clientState.io.waitRead = TRUE;
+            do
+            {
+               FD_ZERO(&fds);
+               FD_SET(clientState.io.sock_fd, &fds);
+               EpgNetIo_GetTimeOfDay(&selectStart);
+               tv = timeout;
+
+               selSockCnt = select(clientState.io.sock_fd + 1, &fds, NULL, NULL, &tv);
+               if (selSockCnt <= 0)
+                  goto socket_error;
+
+               if (EpgNetIo_HandleIO(&clientState.io, &ioBlocked, TRUE) == FALSE)
+                  goto failure;
+
+               EpgNetIo_UpdateTimeout(&selectStart, &timeout);
+
+            } while ( (clientState.io.waitRead) ||
+                      (clientState.io.readLen != clientState.io.readOff) );
+
+            if (clientState.io.readHeader.type == MSG_TYPE_CONQUERY_CNF)
+            {
+               // make a null-terminated copy of the response text
+               pMsgBuf = xmalloc(clientState.io.readLen + 1);
+               memcpy(pMsgBuf, clientState.io.pReadBuf, clientState.io.readLen);
+               pMsgBuf[clientState.io.readLen - sizeof(EPGNETIO_MSG_HEADER)] = 0;
+            }
+            else
+            {
+               debug1("EpgAcqClient-SimpleQuery: unexpected response type %d", clientState.io.readHeader.type);
+               SystemErrorMessage_Set(ppErrorMsg, 0, "Protocol error", NULL);
+            }
+
+            xfree(clientState.io.pReadBuf);
+            clientState.io.pReadBuf = NULL;
+            clientState.io.readLen = 0;
+            clientState.io.readOff = 0;
+         }
+      }
+      else
+         goto socket_error;
+   }
+   EpgAcqClient_Close(FALSE);
+   return pMsgBuf;
+
+socket_error:
+   if (selSockCnt == 0)
+   {
+      SystemErrorMessage_Set(ppErrorMsg, 0, "Communication timeout (no response from server)", NULL);
+      debug0("EpgAcqClient-SimpleQuery: timeout waiting for connect");
+   }
+   else
+   {
+      SystemErrorMessage_Set(ppErrorMsg, errno, "Lost connection (I/O error)", NULL);
+      debug1("EpgAcqClient-SimpleQuery: connect failed: error=%d", errno);
+   }
+failure:
+   EpgAcqClient_Close(FALSE);
+   return NULL;
+}
+
+// ----------------------------------------------------------------------------
+// Connect and query daemon for it's acq status
+// - the caller must free the returned message buffer
+//
+char * EpgAcqClient_QueryAcqStatus( char ** ppErrorMsg )
+{
+   char * pMsgBuf = NULL;
+
+   *ppErrorMsg = NULL;
+
+   if (clientState.state == CLNT_STATE_OFF)
+   {
+      pMsgBuf = EpgAcqClient_SimpleQuery("ACQSTAT", ppErrorMsg);
+
+      if (ppErrorMsg != NULL)
+      {
+         *ppErrorMsg = clientState.pErrorText;
+         clientState.pErrorText = NULL;
+      }
+      EpgAcqClient_Close(FALSE);
+   }
+   return pMsgBuf;
+}
+
+#ifndef WIN32
+// ----------------------------------------------------------------------------
+// Connect and query daemon for it's process ID, then kill the process
+//
+bool EpgAcqClient_TerminateDaemon( char ** ppErrorMsg )
+{
+   struct timeval  timeout;
+   struct timeval  tv;
+   struct timeval  selectStart;
+   fd_set  fds;
+   bool    ioBlocked;
+   sint    selSockCnt;
+   long    pid_val;
    pid_t   pid;
 
    *ppErrorMsg = NULL;
    selSockCnt = 0;
    pid = -1;
 
-   // overall timeout until response has arrived
-   timeout.tv_sec  = 2;
-   timeout.tv_usec = 0;
-
    if (clientState.state == CLNT_STATE_OFF)
    {
-      EpgAcqClient_ConnectServer();
-      if (clientState.io.sock_fd != -1)
+      char * pMsgBuf = EpgAcqClient_SimpleQuery("PID", ppErrorMsg);
+      if (pMsgBuf != NULL)
       {
-         // wait for the connect to complete
-         FD_ZERO(&fds);
-         FD_SET(clientState.io.sock_fd, &fds);
-         gettimeofday(&selectStart, NULL);
-         tv = timeout;
-         selSockCnt = select(clientState.io.sock_fd + 1, NULL, &fds, NULL, &tv);
-         if (selSockCnt > 0)
+         if ((sscanf(pMsgBuf, "PID %ld", &pid_val) == 1) && (pid_val > 0))
          {
-            EpgNetIo_UpdateTimeout(&selectStart, &timeout);
-
-            if (EpgNetIo_FinishConnect(clientState.io.sock_fd, ppErrorMsg))
-            {
-               // the message contains a magic to allow the server to immediately drop
-               // unintended (e.g. wrong service or port) or malicious (e.g. port scanner) connections
-               memcpy(clientMsg.con_req.magic, MAGIC_STR, MAGIC_STR_LEN);
-               memset(clientMsg.con_req.reserved, 0, sizeof(clientMsg.con_req.reserved));
-               clientMsg.con_req.endianMagic = PROTOCOL_ENDIAN_MAGIC;
-               EpgNetIo_WriteMsg(&clientState.io, MSG_TYPE_CONNECT_REQ, sizeof(clientMsg.con_req), &clientMsg.con_req, FALSE);
-
-               // write message to the socket
-               do
-               {
-                  FD_ZERO(&fds);
-                  FD_SET(clientState.io.sock_fd, &fds);
-                  gettimeofday(&selectStart, NULL);
-                  tv = timeout;
-
-                  selSockCnt = select(clientState.io.sock_fd + 1, NULL, &fds, NULL, &tv);
-                  if (selSockCnt <= 0)
-                     goto socket_error;
-
-                  if (EpgNetIo_HandleIO(&clientState.io, &ioBlocked, FALSE) == FALSE)
-                     goto failure;
-
-                  EpgNetIo_UpdateTimeout(&selectStart, &timeout);
-
-               } while (clientState.io.writeLen != 0);
-
-               // wait for the reply message
-               clientState.io.waitRead = TRUE;
-               do
-               {
-                  FD_ZERO(&fds);
-                  FD_SET(clientState.io.sock_fd, &fds);
-                  gettimeofday(&selectStart, NULL);
-                  tv = timeout;
-
-                  selSockCnt = select(clientState.io.sock_fd + 1, &fds, NULL, NULL, &tv);
-                  if (selSockCnt <= 0)
-                     goto socket_error;
-
-                  if (EpgNetIo_HandleIO(&clientState.io, &ioBlocked, TRUE) == FALSE)
-                     goto failure;
-
-               } while ( (clientState.io.waitRead) ||
-                         (clientState.io.readLen != clientState.io.readOff) );
-
-               pMsg = (EPGDBSRV_MSG_BODY *) clientState.io.pReadBuf;
-               if ( (pMsg->con_cnf.blockCompatVersion != DUMP_COMPAT) ||
-                    (pMsg->con_cnf.protocolCompatVersion != PROTOCOL_COMPAT) ||
-                    (pMsg->con_cnf.daemon_pid <= 0) )
-               {
-                  SystemErrorMessage_Set(ppErrorMsg, 0, "Incompatible server version", NULL);
-               }
-               else
-               { // retrieve pid from message
-                  pid = pMsg->con_cnf.daemon_pid;
-               }
-
-               xfree(clientState.io.pReadBuf);
-               clientState.io.pReadBuf = NULL;
-               clientState.io.readLen = 0;
-               clientState.io.readOff = 0;
-            }
+            pid = (pid_t) pid_val;
          }
          else
-            goto socket_error;
+         {
+            SystemErrorMessage_Set(ppErrorMsg, 0, "Incompatible server version", NULL);
+         }
+         xfree(pMsgBuf);
       }
    }
    else if (clientState.state >= CLNT_STATE_WAIT_FWD_CNF)
    {
-      if (clientState.daemonPid > 0)
-      {
-         pid = clientState.daemonPid;
-      }
+      pid = clientState.daemonPid;
    }
 
    // note: not only check -1: must make sure not to kill entire process groups
@@ -1165,18 +1236,28 @@ bool EpgAcqClient_TerminateDaemon( char ** ppErrorMsg )
    {
       if (kill(pid, SIGTERM) == 0)
       {
+         // overall timeout for waiting for the connection to close
+         timeout.tv_sec  = 10;
+         timeout.tv_usec = 0;
+
          // wait for daemon to close the socket, i.e. for socket to become readable
          clientState.io.waitRead = TRUE;
          while (clientState.io.sock_fd != -1)
          {
             FD_ZERO(&fds);
             FD_SET(clientState.io.sock_fd, &fds);
-            gettimeofday(&selectStart, NULL);
+            EpgNetIo_GetTimeOfDay(&selectStart);
             tv = timeout;
 
             selSockCnt = select(clientState.io.sock_fd + 1, &fds, NULL, NULL, &tv);
             if (selSockCnt <= 0)
-               goto socket_error;
+            {
+               // do not report this error to the user, as the kill above was successful
+               debug1("EpgAcqClient-TerminateDaemon: socket error %d", errno);
+               EpgAcqClient_Close(FALSE);
+               break;
+            }
+            EpgNetIo_UpdateTimeout(&selectStart, &timeout);
 
             if (EpgNetIo_HandleIO(&clientState.io, &ioBlocked, TRUE) == FALSE)
             {  // connection lost -> daemon is dead -> done (not an error here)
@@ -1212,21 +1293,6 @@ bool EpgAcqClient_TerminateDaemon( char ** ppErrorMsg )
    }
 
    return (pid > 0);
-
-socket_error:
-   if (selSockCnt == 0)
-   {
-      SystemErrorMessage_Set(ppErrorMsg, 0, "Lost connection (I/O timeout)", NULL);
-      debug0("EpgAcqClient-GetDaemonPid: timeout waiting for connect");
-   }
-   else
-   {
-      SystemErrorMessage_Set(ppErrorMsg, errno, "Lost connection (I/O error)", NULL);
-      debug1("EpgAcqClient-GetDaemonPid: connect failed: error=%d", errno);
-   }
-failure:
-   EpgAcqClient_Close(FALSE);
-   return -1;
 }
 #endif
 
@@ -1593,6 +1659,7 @@ static bool EpgAcqClient_ProcessStats( bool * pAiFollows )
 
             pAcqStats->nxtv.ai = pUpd->u.update.ai;
             pAcqStats->ttx_dec = pUpd->u.update.ttx_dec;
+            pAcqStats->ttx_duration = pUpd->u.update.ttx_duration;
             pAcqStats->nxtv.stream = pUpd->u.update.stream;
             pAcqStats->nxtv.nowMaxAcqRepCount = pUpd->u.update.nowMaxAcqRepCount;
             pAcqStats->nxtv.nowMaxAcqNetCount = pUpd->u.update.nowMaxAcqNetCount;
@@ -1623,8 +1690,8 @@ static bool EpgAcqClient_ProcessStats( bool * pAiFollows )
 
    if (received && !*pAiFollows && (lastAiAcqTime != 0))
    {  // update AI block acquisition time
-      // required as start time for the next dump (upon connection loss and reestablishment)
-      // XXX TODO: must not set time for non-req proviers XXX
+      // required as start time for the next dump (upon connection loss and re-establishment)
+      // XXX TODO: must not set time for non-req providers XXX
       EpgDbSetAiUpdateTime(clientState.pAcqDbContext, lastAiAcqTime);
    }
 

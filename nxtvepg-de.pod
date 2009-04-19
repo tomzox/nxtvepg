@@ -20,7 +20,7 @@
 #  Author: Tom Zoerner (Original)
 #          German translation by Kurt Lettmaier & Olaf Nöhring
 #
-# $Id: nxtvepg-de.pod,v 1.18 2008/10/03 21:02:17 tom Exp tom $
+# $Id: nxtvepg-de.pod,v 1.19 2009/03/14 21:24:32 tom Exp tom $
 # ---------------------------------------------------------------------------
 
 =head1 NAME
@@ -139,6 +139,25 @@ Zum Beenden des Daemon-Prozesses siehe unten stehende Option I<-daemonstop>.
 Mit dieser Option wird ein im Hintergrund laufender Akquistionsprozess gesucht und falls gefunden angehalten; danach beendet sich das Programm. Beachten Sie, dass Sie die entsprechende Berechtigung benötigen, ein Signal zum Beenden des Prozesses zu senden (muss mit derselben Benutzer-ID laufen). Diese Option ist dazu gedacht, die Steuerung der Akquisition durch Skripte zu ermöglichen, z.B. um diese zu einer bestimmten Zeit automatisch zu starten oder zu terminieren.
 
 B<Tipp:> Wenn der Daemon auf dem gleichen Host und der selben uid läuft, können Sie ihn auch beenden, indem Sie die Option "I<Enable acquisition>" unter dem I<Control>-Menü abstellen, während Sie mit dem Daemon verbunden sind. Weitere Details siehe L<"CONTROL"> und L<"FILES">.
+
+=item B<-daemonquery>
+
+Mit dieser Option wird der Status eines im Hintergrund laufender Akquistionsprozess erfragt und ausgegeben. Auf diese Weise kann der Status ohne Verwendung der grafischen Benutzerschnittstelle von nxtvepg abgefragt werden. Dies ermöglicht auch den Status innerhalb von Skripten automatisch zu verarbeiten. Der Statustext wird auf das Terminal ausgegeben falls sie nicht umgelenkt werden (siehe auch Option I<-outfile>.) Fehlermeldung erscheinen ebenfalls auf dem Terminal.
+
+Für die Abfrage aus anderen Programmen heraus kann der Status auch direkt vom Hintergrundprozeß abgefragt werden, d.h. ohne Option I<-daemonquery>. Dazu muß eine TCP Verbindung zum Host und Port an dem der Daemon Client-Verbindungen annimmt aufgebaut werden und der Binär-String "\x00\x11\x00\x00ACQSTAT" gesendet werden. Der Daemon antwortet dann mit einem 4-Byte Header und danach dem Statustext in variabler Länge. Die ersten beiden Bytes des Headers spezifizieren die Länge des Texts inklusive Header in "Big-Endian"; die nächsten zwei Bytes können in diesem Fall ignoriert werden. Hier ist ein Beispielprogramm implementiert in der Programmiersprache I<Tcl>:
+
+   #!/usr/bin/tclsh
+   if {[catch {set sock_fd [socket localhost 7658]} err] == 0} {
+      fconfigure $sock_fd -buffering none -encoding binary
+      puts -nonewline $sock_fd [binary format Scxa7 11 0 ACQSTAT]
+      set line [read $sock_fd 4]
+      binary scan $line "Scx" len type
+      set line [read $sock_fd [expr {$len - 4}]]
+      binary scan $line "a*" msg
+      puts -nonewline $msg
+   } else {
+      puts stderr "Failed to connect to daemon ($err)"
+   }
 
 =item B<-nodetach>
 
@@ -1538,8 +1557,9 @@ C<tomzo (at) users (dot) sourceforge (dot) net>
 Der beste Weg Feedback zu übermitteln, ist über das Diskussionsforum auf der nxtvepg-Homepage.
 
 Vielen Dank
-an Néo für die Bereitstellung der setup.exe für Windows Releases
-und die französische Übersetzung der Web-Seiten;
+an Néo für die fortlaufende Bereitstellung der setup.exe für Windows Releases,
+das K!TV Instellationsmanual und die französische Übersetzung der Web-Seiten;
+an Kurt Lettmaier für seine Bug Reports;
 an Kurt Lettmaier und Olaf Nöhring für die deutsche Übersetzung des Manuals;
 an Thierry Ménétrier und Peter Rolf für ihr wertvolles Feedback und ihre Anregungen;
 an Simon Barner für die FreeBSD-Portierung;
@@ -1556,7 +1576,7 @@ und nicht zuletzt an die Autoren von bttv und v4l für ihre exzellente Arbeit, un
 
 =head1 COPYRIGHT
 
-Copyright (C) 1999 - 2008 by Th. Zörner. Alle Rechte vorbehalten.
+Copyright (C) 1999 - 2009 by Th. Zörner. Alle Rechte vorbehalten.
 
 Zusätzliche Copyrights gelten für Teile des verwendeten Quelltexts. Bitte in der Datei COPYRIGHT und den Kommentaren im Quelltext nach Details sehen.
 

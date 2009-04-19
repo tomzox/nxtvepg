@@ -20,14 +20,15 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: rcfile.tcl,v 1.33 2008/02/03 18:52:13 tom Exp tom $
+#  $Id: rcfile.tcl,v 1.34 2009/03/29 18:31:32 tom Exp tom $
 #
 
 proc LoadRcFile {filename } {
    global shortcuts shortcut_tree
    global cfnettimes cfnetjoin
    global showNetwopListbox showNetwopListboxLeft showShortcutListbox
-   global showLayoutButton showStatusLine showColumnHeader showDateScale
+   global showTuneTvButton showLayoutButton showStatusLine
+   global showColumnHeader showDateScale
    global hideOnMinimize menuUserLanguage help_winsize help_lang
    global pibox_height pilistbox_cols shortinfo_height
    global pibox_type pinetbox_col_count pinetbox_col_width
@@ -505,7 +506,8 @@ proc GetGuiRcData {} {
    global shortcuts shortcut_tree
    global cfnettimes cfnetjoin
    global showNetwopListbox showNetwopListboxLeft showShortcutListbox
-   global showLayoutButton showStatusLine showColumnHeader showDateScale
+   global showTuneTvButton showLayoutButton showStatusLine
+   global showColumnHeader showDateScale
    global hideOnMinimize menuUserLanguage help_winsize help_lang
    global pibox_height pilistbox_cols shortinfo_height
    global pibox_type pinetbox_col_count pinetbox_col_width
@@ -578,6 +580,7 @@ proc GetGuiRcData {} {
       append rcfile [list set showNetwopListbox $showNetwopListbox] "\n"
       append rcfile [list set showNetwopListboxLeft $showNetwopListboxLeft] "\n"
       append rcfile [list set showShortcutListbox $showShortcutListbox] "\n"
+      append rcfile [list set showTuneTvButton $showTuneTvButton] "\n"
       append rcfile [list set showLayoutButton $showLayoutButton] "\n"
       append rcfile [list set showStatusLine $showStatusLine] "\n"
       append rcfile [list set showDateScale $showDateScale] "\n"

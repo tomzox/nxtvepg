@@ -20,7 +20,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: daemon_main.c,v 1.10 2008/10/19 14:25:55 tom Exp tom $
+ *  $Id: daemon_main.c,v 1.11 2009/03/28 21:28:27 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -209,6 +209,10 @@ int main( int argc, char *argv[] )
    {  // Daemon mode: no GUI - just do acq and handle requests from GUI via sockets
       Daemon_Start();
    }
+   else if (mainOpts.optDaemonMode == DAEMON_QUERY)
+   {
+      Daemon_StatusQuery();
+   }
    else if (mainOpts.optDaemonMode == DAEMON_STOP)
    {
       Daemon_Stop();
@@ -226,8 +230,9 @@ int main( int argc, char *argv[] )
       Daemon_StartDump();
    }
    else
+   {
       fatal1("not in any expected mode: opmode %d\n", mainOpts.optDaemonMode);
-
+   }
    Daemon_Destroy();
 
    #if defined(WIN32) && !defined(__MINGW32__)

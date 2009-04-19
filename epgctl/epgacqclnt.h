@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgacqclnt.h,v 1.5 2006/11/25 22:10:41 tom Exp tom $
+ *  $Id: epgacqclnt.h,v 1.6 2009/03/28 21:23:14 tom Exp tom $
  */
 
 #ifndef __EPGACQCLNT_H
@@ -70,6 +70,7 @@ void EpgAcqClient_Destroy( void );
 bool EpgAcqClient_SetAddress( const char * pHostName, const char * pPort );
 bool EpgAcqClient_Start( void );
 void EpgAcqClient_Stop( void );
+char * EpgAcqClient_QueryAcqStatus( char ** ppErrorMsg );
 bool EpgAcqClient_TerminateDaemon( char ** pErrorMsg );
 void EpgAcqClient_HandleSocket( EPGACQ_EVHAND * pAcqEv );
 bool EpgAcqClient_CheckTimeouts( void );

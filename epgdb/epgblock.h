@@ -87,8 +87,8 @@ typedef struct
    uint16_t  off_netwops;
 } AI_BLOCK;
 
-#define AI_GET_NETWOPS(X)       ((const AI_NETWOP *)((uchar *)(X)+(X)->off_netwops))
-#define AI_GET_NETWOP_N(X,N)    (&((const AI_NETWOP *)((uchar *)(X)+(X)->off_netwops))[N])
+#define AI_GET_NETWOPS(X)       ((const AI_NETWOP *)((uint16_t *)(X)+(X)->off_netwops/sizeof(uint16_t)))
+#define AI_GET_NETWOP_N(X,N)    (&((const AI_NETWOP *)((uint16_t *)(X)+(X)->off_netwops/sizeof(uint16_t)))[N])
 #define AI_GET_SERVICENAME(X)   ((const uchar *)(X)+(X)->off_serviceNameStr)
 #define AI_GET_STR_BY_OFF(X,O)  ((const uchar *)(X)+(O))
 #define AI_GET_NETWOP_NAME(X,N) ((const uchar *)(X)+AI_GET_NETWOPS(X)[N].off_name)
@@ -308,7 +308,7 @@ typedef struct
 #define NI_HAS_HEADER(X)       ((bool)(((X)->off_header) != 0))
 #define NI_GET_EVENTS(X)       ((const EVENT_ATTRIB*)((uchar*)(X)+((X)->off_events)))
 #define NI_GET_EVENT_STR(X,Y)  ((const uchar*)(X)+((Y)->off_evstr))
-#define NI_GET_DESCRIPTORS(X)  ((const DESCRIPTOR*)((uchar*)(X)+((X)->off_descriptors)))
+#define NI_GET_DESCRIPTORS(X)  ((const DESCRIPTOR*)((uint8_t*)(X)+((X)->off_descriptors)))
 
 // ---------------------------------------------------------------------------
 //    MI Block
@@ -334,7 +334,7 @@ typedef struct
 
 #define MI_GET_MESSAGE(X)      ((const uchar*)(X)+((X)->off_message))
 #define MI_HAS_MESSAGE(X)      ((bool)((X)->off_message != 0))
-#define MI_GET_DESCRIPTORS(X)  ((const DESCRIPTOR*)((uchar*)(X)+((X)->off_descriptors)))
+#define MI_GET_DESCRIPTORS(X)  ((const DESCRIPTOR*)((uint8_t*)(X)+((X)->off_descriptors)))
 
 
 // ---------------------------------------------------------------------------
@@ -373,7 +373,7 @@ typedef struct
 #define OI_HAS_HEADER(X)       ((bool)((X)->off_header != 0))
 #define OI_GET_MESSAGE(X)      ((const uchar*)(X)+((X)->off_message))
 #define OI_HAS_MESSAGE(X)      ((bool)((X)->off_message != 0))
-#define OI_GET_DESCRIPTORS(X)  ((const DESCRIPTOR*)((uchar*)(X)+((X)->off_descriptors)))
+#define OI_GET_DESCRIPTORS(X)  ((const DESCRIPTOR*)((uint8_t*)(X)+((X)->off_descriptors)))
 
 
 // ---------------------------------------------------------------------------
@@ -431,7 +431,7 @@ typedef struct
    uint16_t  off_desc;
 } TI_BLOCK;
 
-#define TI_GET_DESC(X)       ((const TI_DESC*)((uchar*)(X)+((X)->off_desc)))
+#define TI_GET_DESC(X)       ((const TI_DESC*)((uint16_t*)(X)+((X)->off_desc)/sizeof(uint16_t)))
 
 // ----------------------------------------------------------------------------
 // EPG block types (internal redefinition; ordering is relevant!)

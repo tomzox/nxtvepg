@@ -40,7 +40,7 @@
  *  DScaler #Id: TDA8275.cpp,v 1.10 2005/10/04 19:59:48 to_see Exp #
  *  DScaler #Id: TDA8275.h,v 1.6 2005/10/04 19:59:09 to_see Exp #
  *
- *  $Id: wintuner.c,v 1.27 2008/10/19 15:30:15 tom Exp tom $
+ *  $Id: wintuner.c,v 1.28 2009/03/26 21:12:20 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_VBI
@@ -2726,9 +2726,13 @@ bool Tuner_SetFrequency( TUNER_TYPE type, uint wFrequency, uint norm )
 
    static uint lastWFreq = 0;
 
-   if ((TunerDeviceI2C == 0) || (pTvCard == NULL) || (pTvCard->i2cBus == NULL))
+   if (type == TUNER_ABSENT)
    {
-      debug0("Tuner-SetFrequency: called when not initialized");
+      result = FALSE;
+   }
+   else if ((TunerDeviceI2C == 0) || (pTvCard == NULL) || (pTvCard->i2cBus == NULL))
+   {
+      debug2("Tuner-SetFrequency: called when not initialized (type=%d I2C=%d)", type, TunerDeviceI2C);
       result = FALSE;
    }
    else if ((type < TUNERS_COUNT) && (type != TUNER_ABSENT))
@@ -2917,7 +2921,11 @@ bool Tuner_Init( TUNER_TYPE type, TVCARD * pNewTvCardIf )
       isTda9887Ex           = FALSE;
       haveTda8290           = FALSE;
 
-      if (type < TUNERS_COUNT)
+      if (type == TUNER_ABSENT)
+      {
+         result = TRUE;
+      }
+      else if (type < TUNERS_COUNT)
       {
          I2CBus_Lock();
 
@@ -3012,7 +3020,15 @@ bool Tuner_Init( TUNER_TYPE type, TVCARD * pNewTvCardIf )
          if (result == FALSE)
          {
             TunerDeviceI2C = 0;
-            MessageBox(NULL, "Warning: no tuner found on I2C bus.\nAcquisition will probably not work (cannot switch TV channels.)\nSee README.txt for more info.", "nxtvepg driver problem", MB_ICONSTOP | MB_OK | MB_TASKMODAL | MB_SETFOREGROUND);
+            MessageBox(NULL, "Warning: No TV tuner was found during the I2C bus "
+                             "scan. You either have selected the wrong tuner type "
+                             "in the TV card configuration, or your card's tuner "
+                             "is not supported. Acquisition will probably not "
+                             "work (cannot switch TV channels. Configure "
+                             "\"No tuner/Unknown\" to avoid this message. "
+                             "See README.txt for more info.",
+                             "nxtvepg driver problem",
+                             MB_ICONSTOP | MB_OK | MB_TASKMODAL | MB_SETFOREGROUND);
             debug0("Tuner-Init: no tuner found - disabling module");
          }
          I2CBus_Unlock();

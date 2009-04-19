@@ -20,7 +20,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: mainwin.tcl,v 1.262 2009/01/06 13:47:07 tom Exp tom $
+#  $Id: mainwin.tcl,v 1.264 2009/03/29 18:31:38 tom Exp tom $
 #
 # import constants from other modules
 #=INCLUDE= "epgtcl/shortcuts.h"
@@ -318,7 +318,7 @@ proc CreateMainWindow {} {
       .all.shortcuts.clock configure -font [DeriveFont $font_normal 0 bold]
    }
 
-   button    .all.shortcuts.tune -text "Tune TV" -command TuneTV -takefocus 0
+   button    .all.shortcuts.tune -text "Tune TV" -command TuneTV_ButtonPress -state disabled -takefocus 0
    relief_ridge_v84 .all.shortcuts.tune
    bind      .all.shortcuts.tune <Button-3> {TuneTvPopupMenu 1 %x %y}
    #grid     .all.shortcuts.tune -row 1 -column 0 -sticky nwe
@@ -439,8 +439,8 @@ proc CreateMainWindow {} {
    bind      TextPiBox <Key-9>           {ToggleShortcut 8}
    bind      TextPiBox <Key-0>           {ToggleShortcut 9}
    bind      TextPiBox <Key-i>           {C_Tvapp_ShowEpg}
-   bind      TextPiBox <Return>          {if {[llength [info commands .all.shortcuts.tune]] != 0} {tkButtonInvoke .all.shortcuts.tune}}
-   bind      TextPiBox <Double-Button-1> {if {[llength [info commands .all.shortcuts.tune]] != 0} {tkButtonInvoke .all.shortcuts.tune}}
+   bind      TextPiBox <Return>          {TuneTV_KeyPress}
+   bind      TextPiBox <Double-Button-1> {TuneTV_KeyPress}
    bind      TextPiBox <Escape>          {tkButtonInvoke .all.shortcuts.reset}
    bind      TextPiBox <Control-Key-f>   {SubStrPopup}
    bind      TextPiBox <Control-Key-c>   {CreateContextMenu key .all.pi.list.text 0 0}
@@ -779,6 +779,7 @@ proc CreateMenubar {} {
    .menubar.config.show_hide add checkbutton -label "Show networks (left)" -command {ShowOrHideShortcutList showNetwopListboxLeft; UpdateRcFile} -variable showNetwopListboxLeft
    .menubar.config.show_hide add checkbutton -label "Show networks (middle)" -command {ShowOrHideShortcutList showNetwopListbox; UpdateRcFile} -variable showNetwopListbox
    .menubar.config.show_hide add checkbutton -label "Show layout button" -command {ShowOrHideShortcutList showLayoutButton; UpdateRcFile} -variable showLayoutButton
+   .menubar.config.show_hide add checkbutton -label "Show \"Tune TV\" button" -command {ShowOrHideShortcutList showTuneTvButton; UpdateRcFile} -variable showTuneTvButton
    .menubar.config.show_hide add checkbutton -label "Show status line" -command ToggleStatusLine -variable showStatusLine
    .menubar.config.show_hide add checkbutton -label "Show column headers" -command ToggleColumnHeader -variable showColumnHeader
    .menubar.config.show_hide add checkbutton -label "Show weekday scale" -command ToggleDateScale -variable showDateScale
@@ -1211,24 +1212,12 @@ proc Create_XawtvPopup {dpyname mode xcoo ycoo width height rperc rtime ptitle} 
 ##  - on Windows: only called when a TV app is connected
 ##  - note that the "show" flag is not saved in the nxtvepg rc/ini file
 ##
-set showTuneTvButton 0
-
 proc CreateTuneTvButton {} {
-   global showTuneTvButton
-
-   if {[lsearch -exact [grid slaves .all.shortcuts] .all.shortcuts.tune] == -1} {
-      grid .all.shortcuts.tune -row 1 -column 0 -columnspan 2 -sticky news
-   }
-   set showTuneTvButton 1
+   .all.shortcuts.tune configure -state normal
 }
 
 proc RemoveTuneTvButton {} {
-   global showTuneTvButton
-
-   if {[lsearch -exact [grid slaves .all.shortcuts] .all.shortcuts.tune] != -1} {
-      grid forget .all.shortcuts.tune
-   }
-   set showTuneTvButton 0
+   .all.shortcuts.tune configure -state disabled
 }
 
 ##  ---------------------------------------------------------------------------
@@ -1239,6 +1228,7 @@ set showNetwopListboxLeft 0
 set showShortcutListbox 1
 set showStatusLine 1
 set showColumnHeader 1
+set showTuneTvButton 1
 set showLayoutButton 1
 set showDateScale 1
 set hideOnMinimize 1
@@ -3231,7 +3221,7 @@ proc PiDateScale_Goto {ycoo_rel but_state} {
 ##  - pops up a warning if network names have not been sync'ed with TV app yet.
 ##    this popup is shown just once after each program start.
 ##
-proc TuneTV {} {
+proc TuneTV_ButtonPress {} {
    global tunetv_msg_nocfg
 
    # warn if network names have not been sync'ed with TV app yet
@@ -3250,6 +3240,15 @@ proc TuneTV {} {
 
    # invoke the user-configured command (stored in context menu config)
    ExecuteTuneTvCommand
+}
+
+# callback for double-click or "Return" key on PI
+proc TuneTV_KeyPress {} {
+   if {[llength [info commands .all.shortcuts.tune]] != 0} {
+      tkButtonInvoke .all.shortcuts.tune
+   } else {
+      TuneTV_ButtonPress
+   }
 }
 
 # callback for right-click onto the "Tune TV" button
@@ -3532,7 +3531,7 @@ proc CreateAbout {} {
       #label .about.tcl_version -text " Tcl/Tk version $tcl_patchLevel"
       #pack .about.tcl_version -side top
 
-      label .about.copyr1 -text "Copyright (C) 1999 - 2007 by T. Zörner"
+      label .about.copyr1 -text "Copyright (C) 1999 - 2009 by Th. \"Tom\" Zörner"
       label .about.copyr2 -text $NXTVEPG_MAILTO
       label .about.copyr3 -text $NXTVEPG_URL -font $font_fixed -foreground blue
       pack .about.copyr1 .about.copyr2 -side top
@@ -4508,7 +4507,7 @@ proc PiBox_DisplayErrorMessage {text} {
       $wid insert end "nxtvepg\n" bold24Tag
       $wid insert end "Receiving and Browsing TV Programme Listings on your PC\n" bold16Tag
       $wid window create end -window ${wid}.nxtvlogo
-      $wid insert end "\n\nCopyright (C) 1999 - 2007 by T. Zoerner\n" bold12Tag
+      $wid insert end "\n\nCopyright (C) 1999 - 2009 by Tom Zoerner\n" bold12Tag
       $wid insert end "$NXTVEPG_MAILTO\n\n" bold12Tag
       $wid tag add centerTag 1.0 {end - 1 lines}
       $wid insert end "This program is free software; you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation. This program is distributed in the hope that it will be useful, but without any warranty. See the GPL for more details.\n\n" wrapTag

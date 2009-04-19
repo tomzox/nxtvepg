@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgacqctl.h,v 1.46 2008/02/03 16:15:00 tom Exp tom $
+ *  $Id: epgacqctl.h,v 1.48 2009/03/29 19:17:16 tom Exp tom $
  */
 
 #ifndef __EPGACQCTL_H
@@ -96,7 +96,8 @@ typedef struct
    EPGACQ_PASSIVE passiveReason;
    uint32_t       nxtvDbCni;
    uint32_t       cycleCni;
-   uint16_t       cniCount;
+   uint8_t        cycleIdx;
+   uint8_t        cniCount;
    uint16_t       ttxSrcCount;
    int16_t        ttxGrabIdx;
    uint16_t       ttxGrabDone;
@@ -180,7 +181,7 @@ typedef struct
    uint8_t             nxtvMaster;
    TTX_DEC_STATS       ttx_dec;
    EPG_TTX_GRAB_STATS  ttx_grab;
-   uint32_t            resvd_0;         // for 64-bit alignment
+   uint32_t            ttx_duration;
    EPG_NXTV_ACQ_STATS  nxtv;
 } EPG_ACQ_STATS;
 
@@ -207,6 +208,8 @@ bool EpgAcqCtl_SelectMode( EPGACQ_MODE newAcqMode, EPGACQ_PHASE maxPhase,
 bool EpgAcqCtl_SetInputSource( uint inputIdx, uint slicerType );
 bool EpgAcqCtl_CheckDeviceAccess( void );
 void EpgAcqCtl_DescribeAcqState( EPGACQ_DESCR * pAcqState );
+void EpgAcqCtl_GetAcqModeStr( const EPGACQ_DESCR * pAcqState, bool forTtx,
+                              const char ** ppModeStr, const char ** ppPasvStr );
 void EpgAcqCtl_Suspend( bool suspend );
 bool EpgAcqCtl_IsActive( void );
 

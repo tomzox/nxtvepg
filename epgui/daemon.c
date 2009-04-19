@@ -18,7 +18,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: daemon.c,v 1.14 2008/10/19 17:52:30 tom Exp tom $
+ *  $Id: daemon.c,v 1.15 2009/03/28 21:28:03 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -1086,6 +1086,33 @@ void Daemon_ProvScanStart( void )
    {
       Daemon_ProvScanMainLoop();
    }
+}
+
+// ---------------------------------------------------------------------------
+// Query & print the acquisition status of a running daemon
+//
+void Daemon_StatusQuery( void )
+{
+   char * pMsgBuf;
+   char * pErrMsg;
+
+   EpgAcqClient_Init(NULL);
+   EpgSetup_NetAcq(FALSE);
+   EpgSetup_CardDriver(mainOpts.videoCardIndex);
+
+   pMsgBuf = EpgAcqClient_QueryAcqStatus(&pErrMsg);
+   if (pMsgBuf != NULL)
+   {
+      printf("%s", pMsgBuf);
+      xfree(pMsgBuf);
+   }
+   else if (pErrMsg != NULL)
+   {
+      fprintf(stderr, "%s\n", pErrMsg);
+      xfree(pErrMsg);
+   }
+
+   EpgAcqClient_Destroy();
 }
 
 // ---------------------------------------------------------------------------

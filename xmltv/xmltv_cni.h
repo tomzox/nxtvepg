@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: xmltv_cni.h,v 1.3 2007/01/20 19:36:05 tom Exp tom $
+ *  $Id: xmltv_cni.h,v 1.4 2009/03/29 18:19:00 tom Exp tom $
  */
 
 #ifndef __XMLTV_CNI_H
@@ -34,6 +34,19 @@ typedef struct
    XML_HASH_PTR nameHash;
 } XMLTV_CNI_CTX;
 
+typedef struct
+{
+   char * pName;
+   uint cni;
+} XMLTV_CNI_REV_MAP;
+
+typedef struct
+{
+   XMLTV_CNI_REV_MAP * pMap;
+   uint         maxMapLen;
+   uint         mapLen;
+} XMLTV_CNI_REV_CTX;
+
 // ----------------------------------------------------------------------------
 // Interface functions
 //
@@ -41,6 +54,10 @@ void XmltvCni_MapInit( XMLTV_CNI_CTX * pCniCtx, uint provCni,
                        const char * pSourceName, const char * pSourceUrl );
 void XmltvCni_MapDestroy( XMLTV_CNI_CTX * pCniCtx );
 uint XmltvCni_MapNetCni( XMLTV_CNI_CTX * pCniCtx, const char * pChannelId );
+
+bool XmltvCni_InitMapCni2Ids( XMLTV_CNI_REV_CTX * pCtx, const char * pSrcName );
+void XmltvCni_FreeMapCni2Ids( XMLTV_CNI_REV_CTX * pCtx );
+const char * XmltvCni_MapCni2Ids( XMLTV_CNI_REV_CTX * pCtx, uint cni );
 
 uint XmltvCni_MapProvider( const char * pXmlPath );
 const char * XmltvCni_LookupProviderPath( uint provCni );

@@ -22,7 +22,7 @@
  *  Author:
  *          Tom Zoerner
  *
- *  $Id: epgnetio.c,v 1.41 2008/10/12 16:01:36 tom Exp tom $
+ *  $Id: epgnetio.c,v 1.42 2009/03/28 21:20:44 tom Exp $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB
@@ -1593,7 +1593,21 @@ bool EpgNetIo_FinishConnect( int sock_fd, char ** ppErrorText )
    return result;
 }
 
-#ifndef WIN32
+// ----------------------------------------------------------------------------
+// Query a mille-second -resolution time value
+// - required because WIN32 doesn't support gettimeofday()
+//
+void EpgNetIo_GetTimeOfDay( struct timeval * pTime )
+{
+#ifdef WIN32
+   uint msecs = GetCurrentTime();
+   pTime->tv_sec = msecs / 1000;
+   pTime->tv_usec = (msecs % 1000) * 1000;
+#else
+   gettimeofday(pTime, NULL);
+#endif
+}
+
 // ----------------------------------------------------------------------------
 // Substract time spent waiting in select from a given max. timeout struct
 // - This function is intended for functions which call select() repeatedly
@@ -1609,7 +1623,7 @@ void EpgNetIo_UpdateTimeout( struct timeval * pStartTime, struct timeval * pTime
    int            errno_saved;
 
    errno_saved = errno;
-   gettimeofday(&tv_stop, NULL);
+   EpgNetIo_GetTimeOfDay(&tv_stop);
    errno = errno_saved;
 
    // first calculate difference between start and current time
@@ -1641,7 +1655,6 @@ void EpgNetIo_UpdateTimeout( struct timeval * pStartTime, struct timeval * pTime
       pTimeout->tv_usec = 0;
    }
 }
-#endif  // WIN32
 
 // ----------------------------------------------------------------------------
 // Initialize the module

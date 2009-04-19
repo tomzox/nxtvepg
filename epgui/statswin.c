@@ -33,7 +33,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: statswin.c,v 1.77 2008/10/19 14:25:55 tom Exp tom $
+ *  $Id: statswin.c,v 1.79 2009/03/29 19:15:11 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -136,104 +136,6 @@ static void StatsWin_UpdateHist( int target )
    {  // acq not running -> clear history
       sprintf(comm, "DbStatsWin_ClearHistory %s\n", dbswn[target]);
       eval_check(interp, comm);
-   }
-}
-
-// ----------------------------------------------------------------------------
-// Build text line which describes the current acquisition mode
-// - used in acq. stats window both for Nextview and TTX grabber
-//
-static void StatsWin_PrintAcqMode( EPGACQ_DESCR * pAcqState, char * pBuf, bool forTtx )
-{
-   uint dbCnt;
-
-   if (pAcqState->passiveReason == ACQPASSIVE_NONE)
-   {
-      switch (pAcqState->mode)
-      {
-         case ACQMODE_PASSIVE:
-            strcpy(pBuf, "Acq mode:         passive\n");
-            break;
-         case ACQMODE_EXTERNAL:
-            strcpy(pBuf, "Acq mode:         external\n");
-            break;
-         case ACQMODE_FOLLOW_UI:
-         case ACQMODE_FOLLOW_MERGED:
-            if (forTtx == FALSE)
-               dbCnt = pAcqState->cniCount - ((pAcqState->ttxSrcCount > 0) ? 1 : 0);
-            else
-               dbCnt = pAcqState->ttxSrcCount;
-            if (dbCnt <= 1)
-               strcpy(pBuf, "Acq mode:         follow browser database\n");
-            else
-               sprintf(pBuf, "Acq mode:         follow browser (%d databases)\n", dbCnt);
-            break;
-         case ACQMODE_CYCLIC_2:
-            if (pAcqState->cniCount <= 1)
-               strcpy(pBuf, "Acq mode:         manual\n");
-            else
-            {
-               if (pAcqState->cyclePhase == ACQMODE_PHASE_STREAM2)
-                  strcpy(pBuf, "Acq mode:         manual, phase 'All'\n");
-               else
-                  strcpy(pBuf, "Acq mode:         manual, phase 'Complete'\n");
-            }
-            break;
-         default:
-            switch (pAcqState->cyclePhase)
-            {
-               case ACQMODE_PHASE_NOWNEXT:
-                  strcpy(pBuf, "Acq mode:         cyclic, phase 'Now'\n");
-                  break;
-               case ACQMODE_PHASE_STREAM1:
-                  strcpy(pBuf, "Acq mode:         cyclic, phase 'Near'\n");
-                  break;
-               case ACQMODE_PHASE_STREAM2:
-                  strcpy(pBuf, "Acq mode:         cyclic, phase 'All'\n");
-                  break;
-               case ACQMODE_PHASE_MONITOR:
-                  strcpy(pBuf, "Acq mode:         cyclic, phase 'Complete'\n");
-                  break;
-               default:
-                  break;
-            }
-            break;
-      }
-   }
-   else
-   {
-      if (pAcqState->nxtvState == ACQDESCR_DISABLED)
-      {
-         strcpy(pBuf, "Acq mode:         disabled\n");
-      }
-      else
-      {
-         strcpy(pBuf, "Acq mode:         forced passive\n");
-         #ifdef WIN32
-         if (EpgSetup_CheckTvCardConfig() == FALSE)
-         {
-            strcat(pBuf,    "Passive reason:   TV card not configured");
-         }
-         else
-         #endif
-         switch (pAcqState->passiveReason)
-         {
-            case ACQPASSIVE_NO_TUNER:
-               strcat(pBuf, "Passive reason:   input source is not a tuner\n");
-               break;
-            case ACQPASSIVE_NO_FREQ:
-               strcat(pBuf, "Passive reason:   frequency unknown\n");
-               break;
-            case ACQPASSIVE_NO_DB:
-               strcat(pBuf, "Passive reason:   database missing\n");
-               break;
-            case ACQPASSIVE_ACCESS_DEVICE:
-               strcat(pBuf, "Passive reason:   video device busy\n");
-               break;
-            default:
-               break;
-         }
-      }
    }
 }
 
@@ -376,17 +278,10 @@ static void StatsWin_PrintNxtvAcqStats( EPGDB_CONTEXT * dbc, EPGACQ_DESCR * pAcq
                                         EPG_ACQ_STATS * sv, EPG_ACQ_VPS_PDC * pVpsPdc, const char * pWid )
 {
    double ttxRate;
-   ulong duration;
+   time32_t acq_duration;
+   const char * pAcqModeStr;
+   const char * pAcqPasvStr;
    Tcl_DString cmd_dstr;
-
-   if ((sv->nxtv.acqStartTime > 0) && (sv->nxtv.acqStartTime <= sv->lastStatsUpdate))
-   {
-      duration = sv->lastStatsUpdate - sv->nxtv.acqStartTime;
-      if (duration == 0)
-         duration = 1;
-   }
-   else
-      duration = 0;
 
    comm[0] = 0;
 
@@ -420,8 +315,13 @@ static void StatsWin_PrintNxtvAcqStats( EPGDB_CONTEXT * dbc, EPGACQ_DESCR * pAcq
    }
    #endif
 
+   if ((sv->nxtv.acqStartTime > 0) && (sv->nxtv.acqStartTime <= sv->lastStatsUpdate))
+      acq_duration = sv->lastStatsUpdate - sv->nxtv.acqStartTime;
+   else
+      acq_duration = 0;
+
    sprintf(comm + strlen(comm), "Acq Runtime:      %02d:%02d\n",
-                 (uint)(duration / 60), (uint)(duration % 60));
+                                (uint)(acq_duration / 60), (uint)(acq_duration % 60));
 
    if (pVpsPdc->cni != 0)
    {
@@ -453,9 +353,9 @@ static void StatsWin_PrintNxtvAcqStats( EPGDB_CONTEXT * dbc, EPGACQ_DESCR * pAcq
                  "                  dropped %d of %d blocks (%d%%),\n"
                  "                  blanked %d of %d chars (%d%%)\n",
                  ttxRate, ttxRate * 42 * 8 * 25,
-                 ((duration > 0) ? (int)((sv->ttx_dec.epgPkgCount*45*8)/duration) : 0),
+                 ((sv->ttx_duration > 0) ? (int)((sv->ttx_dec.epgPkgCount*45*8)/sv->ttx_duration) : 0),
                  ((sv->ttx_dec.ttxPkgCount > 0) ? ((double)sv->ttx_dec.epgPkgCount*100.0/sv->ttx_dec.ttxPkgCount) : 0.0),
-                 ((duration > 0) ? ((double)sv->ttx_dec.epgPagCount / duration) : 0),
+                 ((sv->ttx_duration > 0) ? ((double)sv->ttx_dec.epgPagCount / sv->ttx_duration) : 0),
                     sv->nxtv.stream.epgPageNo,
                  sv->nxtv.ai.aiCount, sv->nxtv.stream.epgAppId,
                  (int)sv->nxtv.ai.minAiDistance,
@@ -470,7 +370,16 @@ static void StatsWin_PrintNxtvAcqStats( EPGDB_CONTEXT * dbc, EPGACQ_DESCR * pAcq
                  ((sv->nxtv.stream.epgStrSum > 0) ? (sv->nxtv.stream.epgParErr * 100 / sv->nxtv.stream.epgStrSum) : 0)
           );
 
-   StatsWin_PrintAcqMode(pAcqState, comm + strlen(comm), FALSE);
+   EpgAcqCtl_GetAcqModeStr(pAcqState, FALSE, &pAcqModeStr, &pAcqPasvStr);
+#ifdef WIN32
+   if (EpgSetup_CheckTvCardConfig() == FALSE)
+   {
+      pAcqPasvStr = "TV card not configured";
+   }
+#endif
+   sprintf(comm + strlen(comm), "Acq mode:         %s\n", pAcqModeStr);
+   if (pAcqPasvStr != NULL)
+      sprintf(comm + strlen(comm), "Passive reason:   %s\n", pAcqPasvStr);
 
    if (ACQMODE_IS_CYCLIC(pAcqState->mode))
    {
@@ -608,7 +517,9 @@ static void StatsWin_UpdateTtxStats( ClientData clientData )
    EPGACQ_DESCR acqState;
    EPG_ACQ_STATS sv;
    EPG_ACQ_VPS_PDC vpsPdc;
-   ulong duration;
+   time32_t acq_duration;
+   const char * pAcqModeStr;
+   const char * pAcqPasvStr;
    Tcl_DString cmd_dstr;
 
    if (statsWinTtx.open)
@@ -622,17 +533,17 @@ static void StatsWin_UpdateTtxStats( ClientData clientData )
 
       if ((sv.ttx_grab.acqStartTime > 0) && (sv.ttx_grab.acqStartTime <= sv.lastStatsUpdate))
       {
-         duration = sv.lastStatsUpdate - sv.ttx_grab.acqStartTime;
-         if (duration == 0)
-            duration = 1;
+         acq_duration = sv.lastStatsUpdate - sv.ttx_grab.acqStartTime;
       }
       else
-         duration = 0;
+         acq_duration = 0;
 
       comm[0] = 0;
 
-      sprintf(comm + strlen(comm), "Acq Runtime:      %02d:%02d\n",
-                    (uint)(duration / 60), (uint)(duration % 60));
+      sprintf(comm + strlen(comm), "Acq Runtime:      %02d:%02d\n"
+                                   "Channel Index:    %d of %d\n",
+                                   (uint)(acq_duration / 60), (uint)(acq_duration % 60),
+                                   acqState.ttxGrabDone, acqState.ttxSrcCount);
 
       if (sv.nxtvMaster == FALSE)
          sprintf(comm + strlen(comm), "Channel Name:     %s\n", sv.ttx_grab.srcName);
@@ -661,7 +572,7 @@ static void StatsWin_UpdateTtxStats( ClientData clientData )
                     "Captured range:   %03X-%03X\n"
                     "Captured pages:   %d (%d pkg, %1.1f%% of TTX)\n"
                     "Decoder quality:  blanked %d of %d chars (%d%%)\n",
-                    ((duration > 0) ? (int)((sv.ttx_dec.ttxPkgCount*45*8)/duration) : 0),
+                    ((sv.ttx_duration > 0) ? (int)((sv.ttx_dec.ttxPkgCount*45*8)/sv.ttx_duration) : 0),
                     sv.ttx_grab.pkgStats.ttxPageStartNo,
                        sv.ttx_grab.pkgStats.ttxPageStopNo,
                     sv.ttx_grab.pkgStats.ttxPagCount,
@@ -671,7 +582,16 @@ static void StatsWin_UpdateTtxStats( ClientData clientData )
                     ((sv.ttx_grab.pkgStats.ttxPkgStrSum > 0) ? (sv.ttx_grab.pkgStats.ttxPkgParErr * 100 / sv.ttx_grab.pkgStats.ttxPkgStrSum) : 0)
              );
 
-      StatsWin_PrintAcqMode(&acqState, comm + strlen(comm), TRUE);
+      EpgAcqCtl_GetAcqModeStr(&acqState, TRUE, &pAcqModeStr, &pAcqPasvStr);
+#ifdef WIN32
+      if (EpgSetup_CheckTvCardConfig() == FALSE)
+      {
+         pAcqPasvStr = "TV card not configured";
+      }
+#endif
+      sprintf(comm + strlen(comm), "Acq mode:         %s\n", pAcqModeStr);
+      if (pAcqPasvStr != NULL)
+         sprintf(comm + strlen(comm), "Passive reason:   %s\n", pAcqPasvStr);
 
       {
          Tcl_DStringInit(&cmd_dstr);
@@ -1179,7 +1099,7 @@ static int StatsWin_ToggleDbStats( ClientData ttp, Tcl_Interp *interp, int argc,
             // disable extended statistics reports when all windows are closed
             if ( (dbStatsWinState[DB_TARGET_ACQ].open == FALSE) &&
                  (dbStatsWinState[DB_TARGET_UI].open == FALSE) &&
-                 (statsWinTtx.open) )
+                 (statsWinTtx.open == FALSE) )
             {
                EpgAcqCtl_EnableAcqStats(FALSE);
             }

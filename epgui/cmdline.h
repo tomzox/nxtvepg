@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: cmdline.h,v 1.9 2008/10/19 14:25:55 tom Exp tom $
+ *  $Id: cmdline.h,v 1.10 2009/03/28 21:26:44 tom Exp tom $
  */
 
 #ifndef __CMDLINE_H
@@ -41,6 +41,7 @@ typedef enum
    EPG_CLOCK_CTRL,
    EPG_CL_PROV_SCAN,
    DAEMON_RUN,
+   DAEMON_QUERY,
    DAEMON_STOP
 } EPG_DAEMON_MODE;
 

@@ -5,6 +5,28 @@ features).  For patchlevel releases also internal changes might be listed in
 case they may fix bugs (or cause new ones)
 
 
+from 2.9.0pre1 to 2.9.0pre2 (2009-Mar-29)
+
+- The XMLTV export was changed to output channel identifiers which
+  match those of other XMLTV grabbers as far as possible. Instead of
+  part-numerical IDs such as "CNI1DC1" the export will now contain DNS-like
+  names such as "ard.de" (the mapping is defined in file "xmltv-etsi.map")
+- The daemon was extended to allow simple remote queries for its EPG
+  acquisition status.  A new command line option "-daemonquery" was
+  added to perform such a query; a demo script was added to the manual
+  to document the protocol and allow direct queries by other applications.
+- An acquisition timeout was added upon stalled reception, even when
+  working on a single provider. This will stop acquisition when working
+  with command line option "-acqonce".
+- A configuration option was added to the "Show/Hide" sub-menu which
+  allows to hide the "Tune TV" button in the main window. (The automatic
+  addition/hiding of this button upon attach of a TV application has been
+  removed to allow for manual control.)
+- MS Windows only: The warning "Tuner not found on I2C bus" will now be
+  suppressed if the tuner is configured as "unknown" as this used to
+  annoy users with partly unsupported TV cards.
+
+
 from 2.9.0pre0 to 2.9.0pre1 (2009-Mar-14)
 
 - The "time scales" dialog was redesigned to allow scrolling vertically

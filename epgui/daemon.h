@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: daemon.h,v 1.5 2005/04/07 17:42:17 tom Exp tom $
+ *  $Id: daemon.h,v 1.6 2009/03/28 21:28:03 tom Exp tom $
  */
 
 #ifndef __DAEMON_H
@@ -61,6 +61,7 @@ void Daemon_Init( void );
 void Daemon_Destroy( void );
 void Daemon_Start( void );
 void Daemon_Stop( void );
+void Daemon_StatusQuery( void );
 bool Daemon_RemoteStop( void );
 void Daemon_ForkIntoBackground( void );
 void Daemon_SystemClockCmd( EPG_CLOCK_CTRL_MODE clockMode, uint cni );

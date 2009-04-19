@@ -20,7 +20,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgmain.c,v 1.163 2008/10/19 17:52:30 tom Exp tom $
+ *  $Id: epgmain.c,v 1.164 2009/03/28 21:28:27 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -2203,6 +2203,10 @@ int main( int argc, char *argv[] )
       {  // Daemon mode: no GUI - just do acq and handle requests from GUI via sockets
          Daemon_Start();
       }
+      else if (mainOpts.optDaemonMode == DAEMON_QUERY)
+      {
+         Daemon_StatusQuery();
+      }
       else if (mainOpts.optDaemonMode == DAEMON_STOP)
       {
          Daemon_Stop();
@@ -2214,6 +2218,10 @@ int main( int argc, char *argv[] )
       else if (mainOpts.optDaemonMode == EPG_CL_PROV_SCAN)
       {
          Daemon_ProvScanStart();
+      }
+      else
+      {
+         fatal1("Invalid daemon mode: %d", mainOpts.optDaemonMode);
       }
       Daemon_Destroy();
    }
