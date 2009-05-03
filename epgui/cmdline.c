@@ -22,7 +22,7 @@
  *  Author: Tom Zoerner
  *          Win32 SetArgv() function taken from the Tcl/Tk library
  *
- *  $Id: cmdline.c,v 1.16 2009/03/28 21:26:44 tom Exp tom $
+ *  $Id: cmdline.c,v 1.17 2009/04/19 18:23:11 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -109,6 +109,7 @@ static void MainOptionError( const char *argv0, const char *argvn, const char * 
 {
 #ifdef WIN32
    char * pBuf;
+   int len, plen;
 #endif
    const char * const pUsageFmt =
                    "%s: %s: %s\n"
@@ -118,8 +119,11 @@ static void MainOptionError( const char *argv0, const char *argvn, const char * 
 #ifndef WIN32
    fprintf(stderr, pUsageFmt, argv0, reason, argvn, argv0, argv0);
 #else
-   pBuf = xmalloc(strlen(pUsageFmt) + strlen(argv0)*2 + strlen(reason) + strlen(argvn));
-   sprintf(pBuf, pUsageFmt, argv0, reason, argvn, argv0, argv0);
+   len = strlen(pUsageFmt) + strlen(argv0)*3 +
+         strlen(reason) + strlen(argvn);
+   pBuf = xmalloc(len + 1);
+   plen = snprintf(pBuf, len, pUsageFmt, argv0, reason, argvn, argv0, argv0);
+   assert(plen < len);
    MessageBox(NULL, pBuf, "nxtvepg command line options error", MB_ICONSTOP | MB_OK | MB_TASKMODAL | MB_SETFOREGROUND);
    xfree(pBuf);
 #endif

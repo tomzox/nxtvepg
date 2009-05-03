@@ -23,7 +23,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgacqnxt.c,v 1.7 2009/03/29 19:21:08 tom Exp tom $
+ *  $Id: epgacqnxt.c,v 1.8 2009/05/02 19:25:17 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGCTL
@@ -1158,8 +1158,9 @@ void EpgAcqNxtv_ProcessBlocks( bool * pAdvance )
       if ( EpgDbDump(acqCtl.pAcqDbContext) )
       {
          dprintf1("EpgAcqNxtv-ProcessBlocks: dumped db %04X to file\n", EpgDbContextGetCni(acqCtl.pAcqDbContext));
-         acqCtl.dumpTime = now;
       }
+      // update timestamp (even upon failure to avoid retries in 1-second intervals)
+      acqCtl.dumpTime = now;
       EpgDbLockDatabase(acqCtl.pAcqDbContext, FALSE);
    }
 }

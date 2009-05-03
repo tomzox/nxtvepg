@@ -26,7 +26,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: vbidecode.c,v 1.37 2003/12/06 18:55:54 tom Exp tom $
+ *  $Id: vbidecode.c,v 1.38 2009/05/02 19:33:51 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_VBI
@@ -261,7 +261,7 @@ void VbiDecodeLine(const uchar * lbuf, int line, bool doVps)
 
          if (i > 14)
          {
-            TtxDecode_AddVpsData(data);
+            TtxDecode_AddVpsData(data + 3);
          }
       }
       //else

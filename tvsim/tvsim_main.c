@@ -21,7 +21,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: tvsim_main.c,v 1.34 2008/09/14 19:23:22 tom Exp tom $
+ *  $Id: tvsim_main.c,v 1.35 2009/05/02 18:57:03 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_TVSIM
@@ -780,19 +780,28 @@ bool BtDriver_StartAcq( void )
 {
    char devName[32];
 #if !defined(__NetBSD__) && !defined(__FreeBSD__)
-   char * pDevPath = NULL;
+   static char * pLastDevPath = NULL;
+   char * pDevPath;
+   uint try;
 
-   if (pDevPath == NULL)
+   for (try = 0; try < 3; try++)
    {
-      if (access("/dev/v4l", X_OK) == 0)
-         pDevPath = "/dev/v4l";
-      else
+      if (pLastDevPath != NULL)
+         pDevPath = pLastDevPath;
+      else if (try <= 1)
          pDevPath = "/dev";
+      else
+         pDevPath = "/dev/v4l";
 
-      dprintf1("BtDriver-StartAcq: set v4l device path %s\n", pDevPath);
+      sprintf(devName, "%s/video%u", pDevPath, videoCardIndex);
+
+      if (access(devName, R_OK) == 0)
+      {
+         pLastDevPath = pDevPath;
+         break;
+      }
    }
-
-   sprintf(devName, "%s/video%u", pDevPath, videoCardIndex);
+   dprintf1("BtDriver-StartAcq: set device path %s\n", pDevPath);
 
 #else  // NetBSD
    sprintf(devName, "/dev/tuner%u", videoCardIndex);
@@ -804,7 +813,7 @@ bool BtDriver_StartAcq( void )
       if (errno == EBUSY)
          fprintf(stderr, "video input device %s is busy (-> close all video apps)\n", devName);
       else
-         fprintf(stderr, "Failed to open %s: %s", devName, strerror(errno));
+         fprintf(stderr, "Failed to open %s: %s\n", devName, strerror(errno));
    }
 
    return (video_fd >= 0);

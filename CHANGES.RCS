@@ -22545,3 +22545,105 @@ www/pre-releases.html [rev:1.91, 2009-03-29T20:17:59]:
 CHANGES [rev:1.58, 2009-04-19T18:15:40]:
 - added change log for 2.9.0pre2 (2009-03-29)
 #>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> RELEASE_2_9_0_PRE2 <<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+dsdrv/saa7134.c [rev:1.26, 2009-04-19T18:16:25]:
+- Commented excessive dprintf for every processed field
+dsdrv/saa7134_typ.c [rev:1.25, 2009-04-19T18:19:23]:
+- Major bugfix: infinit loop in AutoDetectCardType()
+- reported in forum by dj1985 2009-04-12
+epgvbi/btdrv4win.c [rev:1.61, 2009-04-19T18:20:44]:
+- Improved diagnostic message for WDM_DRV_DLL_PATH load failure:
+- separate message for ERROR_MOD_NOT_FOUND (i.e. secondary DLL not found)
+- reported in forum by dj1985 2009-04-12
+epgvbi/syserrmsg.c [rev:1.6, 2009-04-19T18:21:10]:
+- Added DPRINTF output of generated messages
+epgctl/epgacqclnt.c [rev:1.26, 2009-04-19T18:22:18]:
+- Bugfix EpgAcqClient_QueryAcqStatus error message handling
+- message in clientState.pErrorText was never picked up
+epgui/cmdline.c [rev:1.17, 2009-04-19T18:23:11]:
+- WIN32 bugfix MainOptionError: temp buffer for error message output too small
+epgui/daemon.c [rev:1.16, 2009-04-19T18:24:00]:
+- Daemon_StatusQuery: fixed error message handling, adapted for WIN32
+dsdrv/wintuner.c [rev:1.29, 2009-04-25T17:54:40]:
+- Bugfix TDA8275 & TDA8290: wrong I2C addresses used
+- originally reported by Maik Riechert (email 2008-02-23) LifeView FlyDVB Trio
+- reported & debugged by dj1985 (forum 2009-04-12) Hauppauge WinTV HVR 1110
+epgvbi/btdrv4linux.c [rev:1.76, 2009-05-02T16:21:06]:
+- Fixed compiler warning: exclude unused signal handler for USE_THREADS
+dsdrv/SAA713xCards.ini [rev:1.3, 2009-05-02T17:20:30]:
+- Added preliminary config for Hauppauge WinTV HVR 1110 Analog/DVB-T/Radio
+- provided by dj1985 2009/04/22 in forum
+tvsim/tvsim_main.c [rev:1.35, 2009-05-02T18:57:03]:
+- Updated V4L device path code: merged from btdrv4linux.c
+tvsim/vbirec_main.c [rev:1.29, 2009-05-02T18:57:11]:
+- Fixed TTX dump for Linux: ttx ring-buffer in ttxdecode.c was not enabled
+epgdb/ttxgrab.c [rev:1.10, 2009-05-02T19:03:54]:
+- Design fix TtxDecode_GetCniAndPil(): changed pCniInd into array
+epgdb/epgnetio.c [rev:1.43, 2009-05-02T19:09:07]:
+- Fixed gcc 4.3.3 compiler warning "unused result" for system calls
+- added dummy result assignment for write() into log file
+epgdb/ttxgrab.c [rev:1.11, 2009-05-02T19:10:04]:
+- Fixed gcc 4.3.3 compiler warning "unused result" for system calls
+- added missing error handling for pipe() before fork()
+epgctl/debug.c [rev:1.29, 2009-05-02T19:10:34]:
+- Fixed gcc 4.3.3 compiler warning "unused result" for system calls
+- added dummy result assignment for write() into log file
+epgctl/epgacqctl.c [rev:1.95, 2009-05-02T19:24:12]:
+- Design fix TtxDecode_GetCniAndPil(): changed CniInd & PilInd into arrays
+epgctl/epgacqnxt.c [rev:1.8, 2009-05-02T19:25:17]:
+- Minor fix for dump failure: update timestamp to avoid retries every second
+epgvbi/winshmsrv.c [rev:1.12, 2009-05-02T19:26:13]:
+- Design fix TtxDecode_GetCniAndPil(): changed CniInd & PilInd into arrays
+epgvbi/btdrv4linux.c [rev:1.77, 2009-05-02T19:26:37]:
+- Adapted for interface change TtxDecode_AddVpsData() (fix compiler warning)
+epgvbi/ttxdecode.c [rev:1.63, 2009-05-02T19:30:34]:
+- Design fix TtxDecode_GetCniAndPil(): changed pCniInd into array
+- must remember seq.no. for each CNI type separately
+- bug reported in forum by 2009-04-29 by tychobarfy
+epgvbi/ttxdecode.h [rev:1.32, 2009-05-02T19:30:34]:
+- Design fix TtxDecode_GetCniAndPil(): changed pCniInd into array
+- must remember seq.no. for each CNI type separately
+- bug reported in forum by 2009-04-29 by tychobarfy
+epgvbi/ttxdecode.c [rev:1.64, 2009-05-02T19:33:43]:
+- Adapted TtxDecode_AddVpsData() to fix compiler warning
+- expect data pointer +3 bytes, compared to before
+- avoids passing &data[-3] for callers without leading 3 bytes in buffer
+epgvbi/vbidecode.c [rev:1.38, 2009-05-02T19:33:51]:
+- Adapted for interface change TtxDecode_AddVpsData() (fix compiler warning)
+epgvbi/zvbidecoder.c [rev:1.8, 2009-05-02T19:34:00]:
+- Adapted for interface change TtxDecode_AddVpsData() (fix compiler warning)
+epgui/daemon.c [rev:1.17, 2009-05-02T19:47:49]:
+- WIN32: Added handling of suspend/hibernate: stop/restart EPG acq
+- UNTESTED: daemon may quit when acq is disabled(?)
+- on request of dj1985 in forum 2009-04-12
+epgui/epgmain.c [rev:1.165, 2009-05-02T19:47:58]:
+- WIN32: Added handling of suspend/hibernate: stop/restart EPG acq
+- NOTE: requires patch in the Tk libary (see README.tcl)
+- on request of dj1985 in forum 2009-04-12
+epgui/daemon.c [rev:1.18, 2009-05-02T19:49:00]:
+- Fixed gcc 4.3.3 compiler warning "unused result" for system calls
+- added dummy result assignment for write()
+epgui/epgmain.c [rev:1.166, 2009-05-02T19:51:52]:
+- Fixed gcc 4.3.3 compiler warning "unused result" for system calls
+- added dummy result assignment for write()
+epgui/wintv.c [rev:1.29, 2009-05-02T19:52:54]:
+- Fixed gcc 4.3.3 compiler warning: added dummy var init
+Makefile.win32 [rev:1.76, 2009-05-02T19:54:14]:
+- Adapted for gcc 4.3.3: added CC option "-Wno-pointer-sign"
+Makefile [rev:1.107, 2009-05-02T19:57:45]:
+- Updated for Ubuntu 9.04:
+- adapted Tcl/Tk version query: two-digit only (X.Y)
+    already suggested 2008-10-11 in forum by mmarek
+- adapted path to Tcl/Tk script libraries: now in /usr/share
+- also: added rule to kill implicit rule for RCS check-out
+README.tcltk [rev:1.7, 2009-05-02T19:57:54]:
+- Added Tk patch to handle suspend/hibernate on WIN32
+- based on existing handling of shutdown/logout events
+epgctl/epgversion.h [rev:1.95, 2009-05-03T17:58:43]:
+- set version to 2.9.0pre3
+Makefile.win32 [rev:1.77, 2009-05-03T18:36:06 - LATE CHECKIN]:
+- Updated for Ubuntu 9.04:
+- switched from plain "strip" to "i586-mingw32msvc-strip" because the
+    generic version bails with "File format is ambiguous"
+www/pre-releases.html [rev:1.92, 2010-03-23T19:21:31 - LATE CHECKIN]:
+- Updated for pre-release 2.9.0pre3 (May 3rd 2009)
+#>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> RELEASE_2_9_0_PRE3 <<<<<<<<<<<<<<<<<<<<<<<<<<<<<

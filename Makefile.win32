@@ -22,7 +22,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: Makefile.win32,v 1.75 2009/03/13 22:28:46 tom Exp tom $
+#  $Id: Makefile.win32,v 1.77 2009/05/03 18:36:06 tom Exp $
 #
 
 ifeq ($(OS),Windows_NT)
@@ -46,6 +46,7 @@ AS      = $(GCC_ROOT)/bin/as
 NM      = $(GCC_ROOT)/bin/nm
 WINDRES = /usr/bin/i586-mingw32msvc-windres
 DLLTOOL = $(GCC_ROOT)/bin/dlltool
+STRIP   = i586-mingw32msvc-strip
 #ROOT    = $(HOME)/Save/dos
 ROOT    = /home/tom/Save/dos
 CC      = i586-mingw32msvc-gcc
@@ -88,6 +89,7 @@ DEFS   += -DUSE_TTX_GRABBER -DTTX_GRAB_SCRIPT_PATH=\".\"
 DEFS   += -DWIN32
 
 WARN    = -Wall -Wpointer-arith -Wnested-externs -Wmissing-prototypes
+WARN   += -Wno-pointer-sign
 WARN   += -Werror
 #WARN  += -Wstrict-prototypes
 CFLAGS  = -pipe $(WARN) $(INCS) $(DEFS) -g -O -mno-cygwin
@@ -328,8 +330,8 @@ zip: all
 	ARCHIVE=$(BUILD_DIR)/nxtvepg-$${EPG_VERSION_STR}-win.zip; \
 	echo Packing $$ARCHIVE; \
 	rm -f $$ARCHIVE; \
-	strip $(BUILD_DIR)/nxtvepg.exe; \
-	strip $(BUILD_DIR)/nxtvepgd.exe; \
+	$(STRIP) $(BUILD_DIR)/nxtvepg.exe; \
+	$(STRIP) $(BUILD_DIR)/nxtvepgd.exe; \
 	zip -9 -j $$ARCHIVE $(BUILD_DIR)/nxtvepg.exe $(BUILD_DIR)/nxtvepgd.exe; \
 	zip -9 $$ARCHIVE tcl$(TCL_L).dll tk$(TCL_L).dll NextViewPlugin.dll dsdrv4.sys dsdrv4.vxd nxtvepg.ico; \
 	zip -9 $$ARCHIVE -l manual.html manual-de.html Nxtvepg.ad \
@@ -344,7 +346,7 @@ zip: all
 	ARCHIVE=$(BUILD_DIR)/nxtvepg-$${EPG_VERSION_STR}-tvsim.zip; \
 	echo Packing $$ARCHIVE; \
 	rm -f $$ARCHIVE; \
-	strip $(BUILD_DIR)/tvsim.exe $(BUILD_DIR)/vbirec.exe $(BUILD_DIR)/vbiplay.exe; \
+	$(STRIP) $(BUILD_DIR)/tvsim.exe $(BUILD_DIR)/vbirec.exe $(BUILD_DIR)/vbiplay.exe; \
 	zip -j -9 $$ARCHIVE $(BUILD_DIR)/tvsim.exe $(BUILD_DIR)/vbirec.exe $(BUILD_DIR)/vbiplay.exe; \
 	zip -j -9 -l $$ARCHIVE tvsim/tvsim.html tvsim/vbirec.html tvsim/vbiplay.html; \
 	mv COPYRIGHT COPYRIGHT2.txt; \

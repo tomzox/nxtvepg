@@ -1,6 +1,6 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/HTMLlat1.ent">
 <HTML lang="en">
-<!-- $Id: pre-releases.html,v 1.91 2009/03/29 20:17:59 tom Exp $ -->
+<!-- $Id: pre-releases.html,v 1.92 2010/03/23 19:21:31 tom Exp $ -->
 <HEAD>
 <TITLE>Developers and alpha testers download page</TITLE>
 <META http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
@@ -141,7 +141,7 @@ daemon version, or vice versa.
 </P>
 -->
 
-<H3>nxtvepg pre-release 2.9.0pre2 (March 29th 2009)</H3>
+<H3>nxtvepg pre-release 2.9.0pre3 (May 3rd 2009)</H3>
 <P>
 Details on changes in this and older releases is available in the
 <A HREF="#changelog">changelog</A>.
@@ -151,7 +151,7 @@ Details on changes in this and older releases is available in the
 <LI><I>no pre-releases are currently available</I>
 -->
 <LI CLASS="spaced">Sources:
-    <A HREF="http://nxtvepg.sourceforge.net/tmp/nxtvepg-2.9.0pre2.tar.gz">nxtvepg-2.9.0pre2.tar.gz</A> (apx 1.7 MB)
+    <A HREF="http://nxtvepg.sourceforge.net/tmp/nxtvepg-2.9.0pre3.tar.gz">nxtvepg-2.9.0pre3.tar.gz</A> (apx 1.7 MB)
 <!--
 <BR>Note: if you want to test nxtvepg with
 <A HREF="http://nxtvepg.sourceforge.net/tmp/README-proxy.txt">VBI proxy</A>
@@ -160,7 +160,7 @@ Details on changes in this and older releases is available in the
 <A HREF="http://zapping.sourceforge.net/">zapping.sourceforge.net</A>.
 -->
 <LI CLASS="spaced">Win32 executable:
-    <A HREF="http://nxtvepg.sourceforge.net/tmp/nxtvepg-2.9.0pre2-win.zip">nxtvepg-2.9.0pre2-win.zip</A> (apx. 2.5 MB)
+    <A HREF="http://nxtvepg.sourceforge.net/tmp/nxtvepg-2.9.0pre3-win.zip">nxtvepg-2.9.0pre3-win.zip</A> (apx. 2.5 MB)
 <!--
 <BR><SPAN CLASS="anno">Does not contain libraries tcl85.dll and tk85.dll and other unchanged files.
    Please unzip the last official release 2.8.1 into the target directory and then
@@ -320,6 +320,20 @@ Please refer to the <A HREF="ttx_grab.html">Teletext EPG grabber</A> page.
 <HR WIDTH="75%">
 
 <H2><A NAME="changelog">Change history</A></H2>
+
+<H3>Changes between 2.9.0pre2 and 2.9.0pre3 (2009-May-03)</H3>
+<UL>
+<LI>Windows: A bug which caused nxtvepg to lock up during auto-detection
+  of SAA7134/SAA7133 based TV cards was fixed.
+<LI>Windows: Bugs in the driver for TV cards based on the Philips SAA7134
+  capture chip and tuner TDA8275/TDA8290 was fixed which prevented TV
+  channel changes with error message "No tuner found on I2C bus"
+<LI>Windows: handle power events (APM) to allow the system to enter standby
+  even while EPG capture is enabled; re-enable capturing automatically
+  upon resume
+<LI>A bug in TV channel identification via VPS/PDC was fixed which sometimes
+  caused endless toggling of EPG on-screen-display in the TV application.
+</UL>
 
 <H3>Changes between 2.9.0pre1 and 2.9.0pre2 (2009-Mar-29)</H3>
 <UL>

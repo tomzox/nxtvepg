@@ -21,7 +21,7 @@
  *  Author:
  *          Tom Zoerner
  *
- *  $Id: epgacqclnt.c,v 1.25 2009/03/29 19:16:54 tom Exp tom $
+ *  $Id: epgacqclnt.c,v 1.26 2009/04/19 18:22:18 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGCTL
@@ -1181,12 +1181,16 @@ char * EpgAcqClient_QueryAcqStatus( char ** ppErrorMsg )
    {
       pMsgBuf = EpgAcqClient_SimpleQuery("ACQSTAT", ppErrorMsg);
 
-      if (ppErrorMsg != NULL)
+      if (*ppErrorMsg == NULL)
       {
          *ppErrorMsg = clientState.pErrorText;
          clientState.pErrorText = NULL;
       }
       EpgAcqClient_Close(FALSE);
+   }
+   else
+   {
+      fatal0("EpgAcqClient-QueryAcqStatus: already connected\n");
    }
    return pMsgBuf;
 }

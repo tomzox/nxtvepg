@@ -21,7 +21,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: wintv.c,v 1.28 2009/03/13 20:44:55 tom Exp tom $
+ *  $Id: wintv.c,v 1.29 2009/05/02 19:52:54 tom Exp tom $
  */
 
 #ifndef WIN32
@@ -588,6 +588,8 @@ static int Wintv_ReadConfig( Tcl_Interp *interp, WINTVCF *pNewWintvcf )
    int cfArgc, idx;
    int result = TCL_ERROR;
 
+   memset(pNewWintvcf, 0, sizeof(pNewWintvcf));
+
    pTmpStr = Tcl_GetVar(interp, "wintvcf", TCL_GLOBAL_ONLY|TCL_LEAVE_ERR_MSG);
    if (pTmpStr != NULL)
    {
@@ -629,7 +631,7 @@ static int Wintv_ReadConfig( Tcl_Interp *interp, WINTVCF *pNewWintvcf )
                   pNewWintvcf->tunetv    = tunetv;
                   pNewWintvcf->follow    = follow;
                   pNewWintvcf->doPop     = doPop;
-                }
+               }
                else
                   debug0("Wintv-ReadConfig: illegal NULL param");
             }

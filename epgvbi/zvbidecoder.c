@@ -19,7 +19,7 @@
 
 /* ZVBI #Id: decoder.c,v 1.12 2003/05/17 13:02:04 tomzo Exp # */
 
-/* nxtvepg $Id: zvbidecoder.c,v 1.7 2004/02/13 19:25:34 tom Exp tom $ */
+/* nxtvepg $Id: zvbidecoder.c,v 1.8 2009/05/02 19:34:00 tom Exp tom $ */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_VBI
 #define DPRINTF_OFF
@@ -923,7 +923,7 @@ bool ZvbiSliceAndProcess( vbi_raw_decoder *rd, uint8_t *raw, uint32_t frame_no )
             }
             else if (p_out[line_idx].id == VBI_SLICED_VPS)
             {
-               TtxDecode_AddVpsData(p_out[line_idx].data - 3);
+               TtxDecode_AddVpsData(p_out[line_idx].data);
             }
          }
          result = TRUE;

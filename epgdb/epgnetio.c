@@ -22,7 +22,7 @@
  *  Author:
  *          Tom Zoerner
  *
- *  $Id: epgnetio.c,v 1.42 2009/03/28 21:20:44 tom Exp $
+ *  $Id: epgnetio.c,v 1.43 2009/05/02 19:09:07 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB
@@ -177,6 +177,7 @@ void EpgNetIo_Logger( int level, int clnt_fd, int errCode, const char * pText, .
    const char *argv[10];
    uint argc, idx;
    sint fd;
+   ssize_t wstat;
    time_t now = time(NULL);
 
    if (pText != NULL)
@@ -189,7 +190,8 @@ void EpgNetIo_Logger( int level, int clnt_fd, int errCode, const char * pText, .
          if (fd >= 0)
          {  // each line in the file starts with a timestamp
             strftime(timestamp, sizeof(timestamp) - 1, "[%d/%b/%Y:%H:%M:%S +0000] ", gmtime(&now));
-            write(fd, timestamp, strlen(timestamp));
+            wstat = write(fd, timestamp, strlen(timestamp));
+            ifdebug1(wstat < 0, "EpgNetIo-Logger: failed to write log: %s", strerror(errno));
          }
          else
             debug2("EpgNetIo-Logger: failed to open '%s': %s", epgNetIoLogCf.pLogfileName, strerror(errno));
@@ -241,7 +243,10 @@ void EpgNetIo_Logger( int level, int clnt_fd, int errCode, const char * pText, .
       for (idx=0; idx < argc; idx++)
       {
          if (fd >= 0)
-            write(fd, argv[idx], strlen(argv[idx]));
+         {
+            wstat = write(fd, argv[idx], strlen(argv[idx]));
+            ifdebug1(wstat < 0, "EpgNetIo-Logger: failed to write log: %s", strerror(errno));
+         }
          if (epgNetIoLogCf.do_logtty && (level <= LOG_WARNING))
             fprintf(stderr, "%s", argv[idx]);
       }
@@ -249,7 +254,8 @@ void EpgNetIo_Logger( int level, int clnt_fd, int errCode, const char * pText, .
       // terminate the line with a newline character and close the file
       if (fd >= 0)
       {
-         write(fd, "\n", 1);
+         wstat = write(fd, "\n", 1);
+         ifdebug1(wstat < 0, "EpgNetIo-Logger: failed to write log: %s", strerror(errno));
          close(fd);
       }
       if (epgNetIoLogCf.do_logtty && (level <= LOG_WARNING))

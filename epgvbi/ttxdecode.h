@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: ttxdecode.h,v 1.31 2009/03/29 19:03:45 tom Exp tom $
+ *  $Id: ttxdecode.h,v 1.32 2009/05/02 19:30:34 tom Exp tom $
  */
 
 #ifndef __TTXDECODE_H
@@ -70,7 +70,8 @@ bool TtxDecode_CheckForPackets( bool * pStopped );
 const VBI_LINE * TtxDecode_GetPacket( uint pkgOff );
 void TtxDecoder_ReleasePackets( void );
 bool TtxDecode_GetCniAndPil( uint * pCni, uint * pPil, CNI_TYPE * pCniType,
-                             uint * pCniInd, uint * pPilInd, volatile EPGACQ_BUF * pThisVbiBuf );
+                             uint pCniInd[3], uint pPilInd[3],
+                             volatile EPGACQ_BUF * pThisVbiBuf );
 void TtxDecode_GetStatistics( TTX_DEC_STATS * pStats, time_t * pStatsStart );
 void TtxDecode_NotifyChannelChange( volatile EPGACQ_BUF * pThisVbiBuf );
 #endif

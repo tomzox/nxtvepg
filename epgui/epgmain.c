@@ -20,7 +20,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgmain.c,v 1.164 2009/03/28 21:28:27 tom Exp tom $
+ *  $Id: epgmain.c,v 1.166 2009/05/02 19:51:52 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -1081,9 +1081,10 @@ bool EpgMain_StartDaemon( void )
 {
    int     pipe_fd[2];
    pid_t   pid;
+   ssize_t wstat;
    char  * daemonArgv[10];
    int     daemonArgc;
-   char    fd_buf[20];
+   char    fd_buf[24];
    bool    result = FALSE;
 
    if (pipe(pipe_fd) == 0)
@@ -1105,7 +1106,7 @@ bool EpgMain_StartDaemon( void )
       daemonArgv[daemonArgc++] = fd_buf;
       daemonArgv[daemonArgc] = NULL;
 
-      sprintf(fd_buf, "%d", pipe_fd[1]);
+      snprintf(fd_buf, sizeof(fd_buf) - 1, "%d", pipe_fd[1]);
       pid = fork();
       switch (pid)
       {
@@ -1118,8 +1119,10 @@ bool EpgMain_StartDaemon( void )
 
             fprintf(stderr, "Failed to execute the daemon: %s\n", strerror(errno));
             // pass error to GUI
-            sprintf(fd_buf, "ERR=%d\n", errno);
-            write(pipe_fd[1], fd_buf, strlen(fd_buf) + 1);
+            snprintf(fd_buf, sizeof(fd_buf) - 1, "ERR=%d\n", errno);
+            fd_buf[sizeof(fd_buf) - 1] = 0;
+            wstat = write(pipe_fd[1], fd_buf, strlen(fd_buf) + 1);
+            ifdebug1(wstat < 0, "EpgMain-StartDaemon: failed to return errno to GUI err:%d", errno);
             close(pipe_fd[1]);
             exit(1);
             // never reached
@@ -1449,8 +1452,55 @@ static int TclCbWinHandleShutdown( ClientData ttp, Tcl_Interp *interp, int argc,
    WinApiDestructionHandler(NULL);
    return TCL_OK;
 }
+
+// ---------------------------------------------------------------------------
+// Callbacks to deal with Windows suspend & resume: stop/restart acquisition
+// - without these Windows will not go to sleep automatically;
+//   after forced sleep acq wouldn't restart
+//
+static BOOL ApmSuspendState = 0;
+static int TclCbWinHandleQuerySuspend( ClientData ttp, Tcl_Interp *interp, int argc, CONST84 char *argv[] )
+{
+   UpdateRcFile(TRUE);
+   return TCL_OK;
+}
+static int TclCbWinHandleSuspend( ClientData ttp, Tcl_Interp *interp, int argc, CONST84 char *argv[] )
+{
+   if (EpgScan_IsActive())
+   {
+      debug0("HandleSuspend: Aborting the EPG scan");
+      // abort the scan (not restarted upon resume)
+      eval_check(interp, "C_StopEpgScan");
+   }
+   else if (EpgAcqCtl_IsActive())
+   {
+      debug0("HandleSuspend: Suspending acquisition");
+      EpgAcqCtl_Stop();
+      ApmSuspendState = TRUE;
+   }
+   else
+   {
+      debug0("HandleSuspend: acquisition not enabled");
+   }
+   return TCL_OK;
+}
+static int TclCbWinHandleResume( ClientData ttp, Tcl_Interp *interp, int argc, CONST84 char *argv[] )
+{
+   debug1("HandleResume: re-enable acq?:%d", ApmSuspendState);
+
+   // restart acq only if stopped by APM suspend
+   if (ApmSuspendState)
+   {
+      ApmSuspendState = FALSE;
+      AutoStartAcq();
+   }
+   return TCL_OK;
+}
 #endif
 
+// ---------------------------------------------------------------------------
+// Callback to catch fatal exceptions on Windows: abort acquisition & exit
+//
 static LONG WINAPI WinApiExceptionHandler(struct _EXCEPTION_POINTERS *exc_info)
 {
    static bool inExit = FALSE;
@@ -2066,7 +2116,14 @@ static int ui_init( int argc, char **argv, bool withTk )
       Tcl_CreateCommand(interp, "C_SystrayIcon", TclCbWinSystrayIcon, (ClientData) NULL, NULL);
       #if (TCL_MAJOR_VERSION != 8) || (TCL_MINOR_VERSION >= 5)
       Tcl_CreateCommand(interp, "C_WinHandleShutdown", TclCbWinHandleShutdown, (ClientData) NULL, NULL);
+      Tcl_CreateCommand(interp, "C_WinHandleQuerySuspend", TclCbWinHandleQuerySuspend, (ClientData) NULL, NULL);
+      Tcl_CreateCommand(interp, "C_WinHandleSuspend", TclCbWinHandleSuspend, (ClientData) NULL, NULL);
+      Tcl_CreateCommand(interp, "C_WinHandleResume", TclCbWinHandleResume, (ClientData) NULL, NULL);
       eval_check(interp, "wm protocol . WM_SAVE_YOURSELF C_WinHandleShutdown\n");
+      // the following events are only generated if the Tk library is patched (see README.tcl)
+      eval_check(interp, "wm protocol . WM_APM_QUERY_SUSPEND C_WinHandleQuerySuspend\n");
+      eval_check(interp, "wm protocol . WM_APM_SUSPEND C_WinHandleSuspend\n");
+      eval_check(interp, "wm protocol . WM_APM_RESUME C_WinHandleResume\n");
       #endif
       #endif
 

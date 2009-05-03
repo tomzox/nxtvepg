@@ -19,7 +19,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: ttxgrab.c,v 1.9 2008/10/05 16:33:01 tom Exp tom $
+ *  $Id: ttxgrab.c,v 1.11 2009/05/02 19:10:04 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB
@@ -111,7 +111,7 @@ static struct
    HANDLE       child_stderr;
    char       * pPerlExe;
 #endif
-   uint           cniDecInd;
+   uint32_t     cniDecInd[CNI_TYPE_COUNT];
    TTX_GRAB_STATS stats;
 } ttxGrabState;
 
@@ -312,7 +312,7 @@ static void TtxGrab_ProcessCni( void )
    ssize_t ret;
 
    // retrieve new CNI from teletext decoder, if any
-   if ( TtxDecode_GetCniAndPil(&newCni, NULL, &cniType, &ttxGrabState.cniDecInd, NULL, NULL) )
+   if ( TtxDecode_GetCniAndPil(&newCni, NULL, &cniType, ttxGrabState.cniDecInd, NULL, NULL) )
    {
       memset(&vbl, 0, sizeof(vbl));
 
@@ -597,76 +597,82 @@ static bool TtxGrab_SpawnParser( FILE * fpGrabInTmp, const char * pOutFile, cons
    char * argv[16];
    uint arg_idx;
 
-   pipe(pipe_fd);
-   pid = fork();
-   if (pid == 0)
+   if (pipe(pipe_fd) == 0)
    {
-      // assign pipe to child's STDERR
-      close(pipe_fd[0]);
-      dup2(pipe_fd[1], 2);
-      close(pipe_fd[1]);
-
-      // assign teletext packet temp file as STDIN
-      dup2(fileno(fpGrabInTmp), 0);
-
-      sprintf(exp_str, "%d", ttxGrabState.expireMin);
-      //unlink(pOutFile); // FIXME
-
-      arg_idx = 0;
-      argv[arg_idx++] = TTX_GRAB_SCRIPT_LOCAL;
-      argv[arg_idx++] = TTX_GRAB_SCRIPT_LOCAL;
-      argv[arg_idx++] = "-expire";
-      argv[arg_idx++] = exp_str;
-      if (pMergeFile != NULL)
+      pid = fork();
+      if (pid == 0)
       {
-         argv[arg_idx++] = "-merge";
-         argv[arg_idx++] = (char *) pMergeFile;
-      }
-      argv[arg_idx++] = "-outfile";
-      argv[arg_idx++] = (char *) pOutFile;
-      argv[arg_idx++] = "-";
-      argv[arg_idx] = NULL;
+         // assign pipe to child's STDERR
+         close(pipe_fd[0]);
+         dup2(pipe_fd[1], 2);
+         close(pipe_fd[1]);
 
-      if (access(TTX_GRAB_SCRIPT_LOCAL, R_OK) == 0)
+         // assign teletext packet temp file as STDIN
+         dup2(fileno(fpGrabInTmp), 0);
+
+         sprintf(exp_str, "%d", ttxGrabState.expireMin);
+         //unlink(pOutFile); // FIXME
+
+         arg_idx = 0;
+         argv[arg_idx++] = TTX_GRAB_SCRIPT_LOCAL;
+         argv[arg_idx++] = TTX_GRAB_SCRIPT_LOCAL;
+         argv[arg_idx++] = "-expire";
+         argv[arg_idx++] = exp_str;
+         if (pMergeFile != NULL)
+         {
+            argv[arg_idx++] = "-merge";
+            argv[arg_idx++] = (char *) pMergeFile;
+         }
+         argv[arg_idx++] = "-outfile";
+         argv[arg_idx++] = (char *) pOutFile;
+         argv[arg_idx++] = "-";
+         argv[arg_idx] = NULL;
+
+         if (access(TTX_GRAB_SCRIPT_LOCAL, R_OK) == 0)
+         {
+            dprintf9("EXEC perl %s %s %s %s %s %s %s %s %s\n", argv[0], argv[1], argv[2], argv[3], ((arg_idx > 4) ? argv[4] : ""), ((arg_idx > 5) ? argv[5] : ""), ((arg_idx > 6) ? argv[6] : ""), ((arg_idx > 7) ? argv[7] : ""), ((arg_idx > 8) ? argv[8] : ""));
+            execvp("perl", argv);
+         }
+         else if (access(TTX_GRAB_SCRIPT_NXTVEPG, R_OK) == 0)
+         {
+            argv[0] = TTX_GRAB_SCRIPT_NXTVEPG;
+            argv[1] = TTX_GRAB_SCRIPT_NXTVEPG;
+            dprintf9("EXEC perl %s %s %s %s %s %s %s %s %s\n", argv[0], argv[1], argv[2], argv[3], ((arg_idx > 4) ? argv[4] : ""), ((arg_idx > 5) ? argv[5] : ""), ((arg_idx > 6) ? argv[6] : ""), ((arg_idx > 7) ? argv[7] : ""), ((arg_idx > 8) ? argv[8] : ""));
+            execvp("perl", argv);
+         }
+         else
+         {
+            argv[1] = TTX_GRAB_SCRIPT_GLOBAL;
+            dprintf8("EXEC %s %s %s %s %s %s %s %s\n", argv[1], argv[2], argv[3], ((arg_idx > 4) ? argv[4] : ""), ((arg_idx > 5) ? argv[5] : ""), ((arg_idx > 6) ? argv[6] : ""), ((arg_idx > 7) ? argv[7] : ""), ((arg_idx > 8) ? argv[8] : ""));
+            execvp(TTX_GRAB_SCRIPT_GLOBAL, argv + 1);
+         }
+
+         // only reached in error cases
+         fprintf(stderr, "Failed to start grabber script or perl interpreter: %s\n", strerror(errno));
+         exit(-1);
+      } 
+      else if (pid > 0)
       {
-         dprintf9("EXEC perl %s %s %s %s %s %s %s %s %s\n", argv[0], argv[1], argv[2], argv[3], ((arg_idx > 4) ? argv[4] : ""), ((arg_idx > 5) ? argv[5] : ""), ((arg_idx > 6) ? argv[6] : ""), ((arg_idx > 7) ? argv[7] : ""), ((arg_idx > 8) ? argv[8] : ""));
-         execvp("perl", argv);
-      }
-      else if (access(TTX_GRAB_SCRIPT_NXTVEPG, R_OK) == 0)
-      {
-         argv[0] = TTX_GRAB_SCRIPT_NXTVEPG;
-         argv[1] = TTX_GRAB_SCRIPT_NXTVEPG;
-         dprintf9("EXEC perl %s %s %s %s %s %s %s %s %s\n", argv[0], argv[1], argv[2], argv[3], ((arg_idx > 4) ? argv[4] : ""), ((arg_idx > 5) ? argv[5] : ""), ((arg_idx > 6) ? argv[6] : ""), ((arg_idx > 7) ? argv[7] : ""), ((arg_idx > 8) ? argv[8] : ""));
-         execvp("perl", argv);
-      }
+         // parent process
+         close(pipe_fd[1]);
+         fcntl(pipe_fd[0], F_SETFL, O_NONBLOCK);
+         ttxGrabState.child_pipe = pipe_fd[0];
+         ttxGrabState.child_pid = pid;
+
+         dprintf3("TtxGrab-SpawnParser: grabbing into '%s', merge '%s', pid=%d\n", pOutFile, ((pMergeFile!=NULL)?pMergeFile:""), (int)pid);
+         result = TRUE;
+      } 
       else
-      {
-         argv[1] = TTX_GRAB_SCRIPT_GLOBAL;
-         dprintf8("EXEC %s %s %s %s %s %s %s %s\n", argv[1], argv[2], argv[3], ((arg_idx > 4) ? argv[4] : ""), ((arg_idx > 5) ? argv[5] : ""), ((arg_idx > 6) ? argv[6] : ""), ((arg_idx > 7) ? argv[7] : ""), ((arg_idx > 8) ? argv[8] : ""));
-         execvp(TTX_GRAB_SCRIPT_GLOBAL, argv + 1);
+      { 
+         fprintf(stderr, "Failed to fork for spawning perl interpreter: %s\n", strerror(errno));
+         close(pipe_fd[0]);
+         close(pipe_fd[1]);
       }
-
-      // only reached in error cases
-      fprintf(stderr, "Failed to start grabber script or perl interpreter: %s\n", strerror(errno));
-      exit(-1);
-   } 
-   else if (pid > 0)
-   {
-      // parent process
-      close(pipe_fd[1]);
-      fcntl(pipe_fd[0], F_SETFL, O_NONBLOCK);
-      ttxGrabState.child_pipe = pipe_fd[0];
-      ttxGrabState.child_pid = pid;
-
-      dprintf3("TtxGrab-SpawnParser: grabbing into '%s', merge '%s', pid=%d\n", pOutFile, ((pMergeFile!=NULL)?pMergeFile:""), (int)pid);
-      result = TRUE;
-   } 
-   else
-   { 
-      fprintf(stderr, "Failed to fork for spawning perl interpreter: %s\n", strerror(errno));
-      close(pipe_fd[0]);
-      close(pipe_fd[1]);
    }
+   else
+   {
+      fprintf(stderr, "Failed to create pipe to perl interpreter: %s\n", strerror(errno));
+   } 
 #else
    PROCESS_INFORMATION proc_info;
    STARTUPINFO         startup;
@@ -1024,7 +1030,7 @@ bool TtxGrab_Start( uint startPage, uint stopPage, bool enableOutput )
    memset(&ttxGrabState.curPgHdRep, 0, sizeof(ttxGrabState.curPgHdRep));
    memset(&ttxGrabState.refPgHdText, 0xff, sizeof(ttxGrabState.refPgHdText));
    ttxGrabState.havePgHd = FALSE;
-   ttxGrabState.cniDecInd = 0;
+   memset(ttxGrabState.cniDecInd, 0, sizeof(ttxGrabState.cniDecInd));
 
    // close output file if still open (acquisition reset)
    if (ttxGrabState.fpTtxTmp != NULL)

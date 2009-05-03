@@ -31,7 +31,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: vbirec_main.c,v 1.28 2008/09/14 19:25:20 tom Exp tom $
+ *  $Id: vbirec_main.c,v 1.29 2009/05/02 18:57:11 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_TVSIM
@@ -801,6 +801,7 @@ static void UpdateTtxHeader( const uchar * pHeaderData )
 //
 static void SecTimerEvent( ClientData clientData )
 {
+   ssize_t wstat;
    uint idx;
 
    if (pVbiBuf->chanChangeReq == pVbiBuf->chanChangeCnf)
@@ -820,7 +821,19 @@ static void SecTimerEvent( ClientData clientData )
       {
          if (fdTtxFile != -1)
          {
-            write(fdTtxFile, (char *) &pVbiBuf->line[idx], sizeof(VBI_LINE));
+            wstat = write(fdTtxFile, (char *) &pVbiBuf->line[idx], sizeof(VBI_LINE));
+            if (wstat < sizeof(VBI_LINE))
+            {
+               sprintf(comm, "tk_messageBox -type ok -icon error "
+                             "-message {Write error in export file: %s}", strerror(errno));
+               eval_check(interp, comm);
+
+#ifndef WIN32
+               TtxDecode_StopTtxAcq();
+#endif
+               close(fdTtxFile);
+               fdTtxFile = -1;
+            }
          }
 
          pVbiBuf->reader_idx = (idx + 1) % TTXACQ_BUF_COUNT;
@@ -894,7 +907,13 @@ static char * TclCb_EnableDump( ClientData clientData, Tcl_Interp * interp, CONS
          if (enable && (fdTtxFile == -1))
          {  // dump has been switched on
             fdTtxFile = open(pFileName, O_WRONLY|O_CREAT|O_APPEND|O_BINARY, 0666);
-            if (fdTtxFile == -1)
+            if (fdTtxFile >= 0)
+            {
+#ifndef WIN32
+               TtxDecode_StartTtxAcq(FALSE, 0, 0xFFF);
+#endif
+            }
+            else
             {  // failed to create the file -> give error message and disable dump
                Tcl_SetVar(interp, "dumpttx_enable", "0", TCL_GLOBAL_ONLY);
                sprintf(comm, "tk_messageBox -type ok -icon error "
@@ -904,6 +923,9 @@ static char * TclCb_EnableDump( ClientData clientData, Tcl_Interp * interp, CONS
          }
          else if ((enable == FALSE) && (fdTtxFile != -1))
          {  // dump has been switched off
+#ifndef WIN32
+            TtxDecode_StopTtxAcq();
+#endif
             close(fdTtxFile);
             fdTtxFile = -1;
          }

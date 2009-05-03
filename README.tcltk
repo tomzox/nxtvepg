@@ -22,10 +22,63 @@ as follows:
 - finally, to get the nxtvepg logo in the Windows task bar, all ico
   files must be overwritten with the content of nxtvepg.ico (nxtvepg
   tries to override the logo at run-time, but that doesn't work)
+- patch tk8.5.6/win/tkWinWm.c to include the below extension
 - make
 - make install may fail due to trying to run ./tclsh.exe: edit the
   makefile and modify the two install rules to use the host "tclsh"
   instead
+
+
+Patch for power event handling:
+-------------------------------
+
+File tk8.5.6/win/tkWinWm.c:
+
+//...
+#include <pbt.h>  //TZO++
+//...
+static LRESULT CALLBACK
+WmProc(
+    //...
+    case WM_QUERYENDSESSION: {
+    //...
+    case WM_POWERBROADCAST: {
+	XEvent event;
+
+	/*
+         * XXX TZO extension for nxtvepg:
+	 * Synthesize wm protocol messages on Windows suspend and resume
+	 */
+	if ((wParam == PBT_APMQUERYSUSPEND)||
+	    (wParam == PBT_APMQUERYSTANDBY)) {
+            winPtr = GetTopLevel(hwnd);
+            event.xclient.message_type =
+                Tk_InternAtom((Tk_Window) winPtr, "WM_PROTOCOLS");
+            event.xclient.data.l[0] =
+                Tk_InternAtom((Tk_Window) winPtr, "WM_APM_QUERY_SUSPEND");
+            TkWmProtocolEventProc(winPtr, &event);
+
+        } else if ((wParam == PBT_APMSUSPEND)||
+	           (wParam == PBT_APMSTANDBY)) {
+            winPtr = GetTopLevel(hwnd);
+            event.xclient.message_type =
+                Tk_InternAtom((Tk_Window) winPtr, "WM_PROTOCOLS");
+            event.xclient.data.l[0] =
+                Tk_InternAtom((Tk_Window) winPtr, "WM_APM_SUSPEND");
+            TkWmProtocolEventProc(winPtr, &event);
+        }
+	else if ((wParam == PBT_APMRESUMESUSPEND)||
+	         (wParam == PBT_APMRESUMESTANDBY)) {
+            winPtr = GetTopLevel(hwnd);
+            event.xclient.message_type =
+                Tk_InternAtom((Tk_Window) winPtr, "WM_PROTOCOLS");
+            event.xclient.data.l[0] =
+                Tk_InternAtom((Tk_Window) winPtr, "WM_APM_RESUME");
+            TkWmProtocolEventProc(winPtr, &event);
+        }
+	break;
+    }
+//...
 
 
 Building TCL 8.4.x

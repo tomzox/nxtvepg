@@ -32,7 +32,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: ttxdecode.c,v 1.62 2009/03/29 19:03:45 tom Exp tom $
+ *  $Id: ttxdecode.c,v 1.64 2009/05/02 19:33:43 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_VBI
@@ -253,7 +253,8 @@ void TtxDecode_GetScanResults( uint *pCni, bool *pNiWait, uint *pDataPageCnt, uc
 //   needs not care how the CNI was obtained.
 //
 bool TtxDecode_GetCniAndPil( uint * pCni, uint * pPil, CNI_TYPE * pCniType,
-                             uint * pCniInd, uint * pPilInd, volatile EPGACQ_BUF * pThisVbiBuf )
+                             uint pCniInd[CNI_TYPE_COUNT], uint pPilInd[CNI_TYPE_COUNT],
+                             volatile EPGACQ_BUF * pThisVbiBuf )
 {
    CNI_TYPE type;
    bool result = FALSE;
@@ -270,7 +271,7 @@ bool TtxDecode_GetCniAndPil( uint * pCni, uint * pPil, CNI_TYPE * pCniType,
          for (type=0; type < CNI_TYPE_COUNT; type++)
          {
             if ( pThisVbiBuf->cnis[type].haveCni &&
-                 ((pCniInd == NULL) || (*pCniInd != pThisVbiBuf->cnis[type].outCniInd)) )
+                 ((pCniInd == NULL) || (pCniInd[type] != pThisVbiBuf->cnis[type].outCniInd)) )
             {
                if (pCni != NULL)
                {
@@ -282,18 +283,18 @@ bool TtxDecode_GetCniAndPil( uint * pCni, uint * pPil, CNI_TYPE * pCniType,
                      *pCni = pThisVbiBuf->cnis[type].outCni;
 
                   if (pCniInd != NULL)
-                     *pCniInd = pThisVbiBuf->cnis[type].outCniInd;
+                     pCniInd[type] = pThisVbiBuf->cnis[type].outCniInd;
                }
 
                if (pPil != NULL)
                {
                   if ( pThisVbiBuf->cnis[type].havePil &&
-                       ((pPilInd == NULL) || (*pPilInd != pThisVbiBuf->cnis[type].outPilInd)) )
+                       ((pPilInd == NULL) || (pPilInd[type] != pThisVbiBuf->cnis[type].outPilInd)) )
                   {
                      *pPil = pThisVbiBuf->cnis[type].outPil;
 
                      if (pPilInd != NULL)
-                        *pPilInd = pThisVbiBuf->cnis[type].outPilInd;
+                        pPilInd[type] = pThisVbiBuf->cnis[type].outPilInd;
                   }
                   else
                      *pPil = INVALID_VPS_PIL;
@@ -302,6 +303,7 @@ bool TtxDecode_GetCniAndPil( uint * pCni, uint * pPil, CNI_TYPE * pCniType,
                {
                   *pCniType = type;
                }
+               dprintf7("TtxDecode-GetCniAndPil: type:%d CNI?:%d 0x%04X, PIL?:%d %X (Ind:%d,%d)\n", type, pThisVbiBuf->cnis[type].haveCni, pThisVbiBuf->cnis[type].havePil, pThisVbiBuf->cnis[type].outCni, pThisVbiBuf->cnis[type].outPil, pThisVbiBuf->cnis[type].outCniInd, pThisVbiBuf->cnis[type].outPilInd);
                result = TRUE;
                break;
             }
@@ -593,21 +595,21 @@ void TtxDecode_AddVpsData( const uchar * data )
    {
       pVbiBuf->ttxStats.vpsLineCount += 1;
 
-      cni = ((data[13] & 0x3) << 10) | ((data[14] & 0xc0) << 2) |
-            ((data[11] & 0xc0)) | (data[14] & 0x3f);
+      cni = ((data[13 - 3] & 0x3) << 10) | ((data[14 - 3] & 0xc0) << 2) |
+            ((data[11 - 3] & 0xc0)) | (data[14 - 3] & 0x3f);
 
       if ((cni != 0) && (cni != 0xfff))
       {
          if (cni == 0xDC3)
          {  // special case: "ARD/ZDF Gemeinsames Vormittagsprogramm"
-            cni = (data[5] & 0x20) ? 0xDC1 : 0xDC2;
+            cni = (data[5 - 3] & 0x20) ? 0xDC1 : 0xDC2;
          }
 
          // decode VPS PIL
-         mday   =  (data[11] & 0x3e) >> 1;
-         month  = ((data[12] & 0xe0) >> 5) | ((data[11] & 1) << 3);
-         hour   =  (data[12] & 0x1f);
-         minute =  (data[13] >> 2);
+         mday   =  (data[11 - 3] & 0x3e) >> 1;
+         month  = ((data[12 - 3] & 0xe0) >> 5) | ((data[11 - 3] & 1) << 3);
+         hour   =  (data[12 - 3] & 0x1f);
+         minute =  (data[13 - 3] >> 2);
 
          dprintf5("AddVpsData: CNI 0x%04X, PIL %d.%d. %02d:%02d\n", cni, mday, month, hour, minute);
 

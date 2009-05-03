@@ -24,7 +24,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgacqctl.c,v 1.94 2009/03/29 19:17:16 tom Exp tom $
+ *  $Id: epgacqctl.c,v 1.95 2009/05/02 19:24:12 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGCTL
@@ -59,6 +59,8 @@
 // ---------------------------------------------------------------------------
 // Declaration of module state variables
 
+typedef uint32_t ACQ_VPS_PIL_IND[CNI_TYPE_COUNT];
+
 typedef struct
 {
    bool           acqEnabled;
@@ -76,8 +78,8 @@ typedef struct
    bool           haveWarnedInpSrc;
    bool           advanceCycle;
    bool           isTtxSrc;
-   uint32_t       acqCniInd[VPSPDC_REQ_COUNT];
-   uint32_t       acqPilInd[VPSPDC_REQ_COUNT];
+   ACQ_VPS_PIL_IND  acqCniInd[VPSPDC_REQ_COUNT];
+   ACQ_VPS_PIL_IND  acqPilInd[VPSPDC_REQ_COUNT];
    EPG_ACQ_VPS_PDC  acqVpsPdc;
 } EPGACQCTL_STATE;
 
@@ -458,13 +460,14 @@ bool EpgAcqCtl_GetVpsPdc( EPG_ACQ_VPS_PDC * pVpsPdc, VPSPDC_REQ_ID clientId, boo
          {
             if (force)
             {
-               acqCtl.acqCniInd[clientId] = 0;
-               acqCtl.acqPilInd[clientId] = 0;
+               memset(acqCtl.acqCniInd[clientId], 0, sizeof(acqCtl.acqCniInd[clientId]));
+               memset(acqCtl.acqPilInd[clientId], 0, sizeof(acqCtl.acqPilInd[clientId]));
             }
             // poll for new VPS/PDC data
             // if there are results which have not been given yet to the client, return them
             if ( TtxDecode_GetCniAndPil(&newCni, &newPil, &cniType,
-                                        &acqCtl.acqCniInd[clientId], &acqCtl.acqPilInd[clientId], NULL) )
+                                        acqCtl.acqCniInd[clientId], acqCtl.acqPilInd[clientId],
+                                        NULL) )
             {
                pVpsPdc->cniType = cniType;
                pVpsPdc->pil = newPil;
@@ -474,7 +477,7 @@ bool EpgAcqCtl_GetVpsPdc( EPG_ACQ_VPS_PDC * pVpsPdc, VPSPDC_REQ_ID clientId, boo
          }
          else
          {  // retrieve data from network client
-            result = EpgAcqClient_GetVpsPdc(pVpsPdc, &acqCtl.acqCniInd[clientId]);
+            result = EpgAcqClient_GetVpsPdc(pVpsPdc, &acqCtl.acqCniInd[clientId][0]);
          }
       }
    }
@@ -1139,7 +1142,8 @@ bool EpgAcqCtl_ProcessVps( void )
         (acqCtl.mode != ACQMODE_NETWORK) )
    {
       if ( TtxDecode_GetCniAndPil(&newCni, &newPil, &cniType,
-                                  &acqCtl.acqCniInd[VPSPDC_REQ_POLL], &acqCtl.acqPilInd[VPSPDC_REQ_POLL], NULL) )
+                                  acqCtl.acqCniInd[VPSPDC_REQ_POLL],
+                                  acqCtl.acqPilInd[VPSPDC_REQ_POLL], NULL) )
       {
          if ( (acqCtl.acqVpsPdc.cni != newCni) ||
               ((newPil != acqCtl.acqVpsPdc.pil) && VPS_PIL_IS_VALID(newPil)) )

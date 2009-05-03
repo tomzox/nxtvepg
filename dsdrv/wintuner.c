@@ -40,7 +40,7 @@
  *  DScaler #Id: TDA8275.cpp,v 1.10 2005/10/04 19:59:48 to_see Exp #
  *  DScaler #Id: TDA8275.h,v 1.6 2005/10/04 19:59:09 to_see Exp #
  *
- *  $Id: wintuner.c,v 1.28 2009/03/26 21:12:20 tom Exp tom $
+ *  $Id: wintuner.c,v 1.29 2009/04/25 17:54:40 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_VBI
@@ -793,7 +793,7 @@ static BOOL Tda8290_WriteToSubAddress(BYTE subAddress, BYTE writeByte)
 {
    BYTE buf[3];
 
-   buf[0] = I2C_ADDR_TDA8290;
+   buf[0] = I2C_ADDR_TDA8290 << 1;
    buf[1] = subAddress;
    buf[2] = writeByte;
 
@@ -804,7 +804,7 @@ static BOOL Tda8290_ReadFromSubAddress(BYTE subAddress, BYTE *readBuffer, size_t
 {
    BYTE addr[2];
 
-   addr[0] = I2C_ADDR_TDA8290;
+   addr[0] = I2C_ADDR_TDA8290 << 1;
    addr[1] = subAddress;
 
    return pTvCard->i2cBus->I2cRead(pTvCard, addr, sizeof(addr), readBuffer, len);
@@ -1218,7 +1218,7 @@ static BOOL Tda8275_WriteToSubAddress(BYTE subAddress, BYTE writeByte)
 {
    BYTE buf[3];
 
-   buf[0] = I2C_ADDR_TDA8275_1;
+   buf[0] = TunerDeviceI2C;
    buf[1] = subAddress;
    buf[2] = writeByte;
 
@@ -1228,7 +1228,7 @@ static BOOL Tda8275_WriteToSubAddress(BYTE subAddress, BYTE writeByte)
 
 static bool Tda8275_IsTDA8275A( void )
 {
-    static const BYTE addr[2] = {I2C_ADDR_TDA8275_1, TDA8275_SR1};
+    BYTE addr[2] = {TunerDeviceI2C, TDA8275_SR1};
     BYTE Result;
 
     // Read HID Bit's (18:21) : 0000 = TDA8275
@@ -1391,7 +1391,7 @@ static bool Tda8275_SetFrequency(long frequencyHz, eTDA8290Standard standard)
             
             n11ton0 = (WORD)((double)(1 << row->SPD) * ((double)freqRFIFHz / 250000) + 0.5);
 
-            channelBytes[0] = I2C_ADDR_TDA8275_1;
+            channelBytes[0] = TunerDeviceI2C;
             channelBytes[1] = TDA8275_DB1;
             channelBytes[2+0]  = (n11ton0 >> 6) & 0x3F;
             channelBytes[2+1]  = (n11ton0 << 2) & 0xFC;
@@ -1438,7 +1438,7 @@ static bool Tda8275_SetFrequency(long frequencyHz, eTDA8290Standard standard)
 
         n11ton0 = (WORD)((double)(1 << row->spd) * ((double)freqRFIFHz / 250000) + 0.5);
 
-        channelBytes[0] = I2C_ADDR_TDA8275_1;
+        channelBytes[0] = TunerDeviceI2C;
         channelBytes[1] = TDA8275_DB1;
         channelBytes[2+0] = (n11ton0 >> 6) & 0x3F;
         channelBytes[2+1] = (n11ton0 << 2) & 0xFC;

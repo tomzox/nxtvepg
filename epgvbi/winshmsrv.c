@@ -19,7 +19,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: winshmsrv.c,v 1.11 2007/12/31 16:34:02 tom Exp tom $
+ *  $Id: winshmsrv.c,v 1.12 2009/05/02 19:26:13 tom Exp tom $
  */
 
 #ifndef WIN32
@@ -76,8 +76,8 @@ static struct
    uint8_t   tvGrantTuner;
    uint32_t  tvStationIdx;
    uint32_t  tvEpgQueryIdx;
-   uint32_t  vpsCniInd;
-   uint32_t  vpsPilInd;
+   uint32_t  vpsCniInd[CNI_TYPE_COUNT];
+   uint32_t  vpsPilInd[CNI_TYPE_COUNT];
 } shmTvCache;
 
 // ----------------------------------------------------------------------------
@@ -180,15 +180,18 @@ const uchar * WinSharedMem_GetErrorMsg( void )
 //
 bool WintvSharedMem_GetCniAndPil( uint * pCni, uint * pPil )
 {
+   CNI_TYPE type;
    bool result = FALSE;
 
    if ( (pTvShm != NULL) && (pTvShm->tvAppAlive) )
    {
-      result = TtxDecode_GetCniAndPil(pCni, pPil, NULL,
-                                      &shmTvCache.vpsCniInd, &shmTvCache.vpsPilInd,
+      result = TtxDecode_GetCniAndPil(pCni, pPil, &type,
+                                      shmTvCache.vpsCniInd, shmTvCache.vpsPilInd,
                                       &pTvShm->vbiBuf);
-
-      //dprintf2("WintvSharedMem-GetCniAndPil: cni=0x%04X, PIL=%X\n", *pCni, *pPil);
+      if (result)
+      {
+         dprintf5("WintvSharedMem-GetCniAndPil: cni=0x%04X, PIL=%X (type:%d ind:%d,%d)\n", *pCni, *pPil, type, shmTvCache.vpsCniInd[type], shmTvCache.vpsPilInd[type]);
+      }
    }
    return result;
 }
@@ -594,12 +597,14 @@ void WintvSharedMem_HandleTvCmd( void )
               (pTvShm->tvReqTvCard != shmTvCache.tvReqTvCard) ||
               (pTvShm->tvCardIdx   != shmTvCache.tvCardIdx) )
          {
+            dprintf3("WintvSharedMem-HandleTvCmd: TV app alive:%d card:%d idx:%d\n", pTvShm->tvAppAlive, pTvShm->tvReqTvCard, pTvShm->tvCardIdx);
             WinSharedMem_AttachTvapp();
          }
 
          // check for channel change by TV app
          if (shmTvCache.tvStationIdx != pTvShm->tvStationIdx)
          {
+            dprintf2("WintvSharedMem-HandleTvCmd: station:%d (was:%d)\n", pTvShm->tvStationIdx, shmTvCache.tvStationIdx);
             shmTvCache.tvStationIdx = pTvShm->tvStationIdx;
             // notify the GUI
             if (pWinShmSrvCb->pCbStationSelected != NULL)
@@ -612,17 +617,18 @@ void WintvSharedMem_HandleTvCmd( void )
          // check for EPG query
          if (shmTvCache.tvEpgQueryIdx != pTvShm->tvEpgQueryIdx)
          {
+            dprintf1("WintvSharedMem-HandleTvCmd: EPG query idx:%d\n", pTvShm->tvEpgQueryIdx);
             shmTvCache.tvEpgQueryIdx = pTvShm->tvEpgQueryIdx;
             // notify the GUI
             if (pWinShmSrvCb->pCbEpgQuery != NULL)
                pWinShmSrvCb->pCbEpgQuery();
          }
 
-         // check if tuner was granted or reposessed
+         // check if tuner was granted or reclaimed
          if (shmTvCache.tvGrantTuner != pTvShm->tvGrantTuner)
          {
+            dprintf1("WintvSharedMem-HandleTvCmd: grant tuner:%d\n", pTvShm->tvGrantTuner);
             shmTvCache.tvGrantTuner = pTvShm->tvGrantTuner;
-            dprintf1("Tuner grant flag changed to %d\n", shmTvCache.tvGrantTuner);
             // notify the GUI
             if (pWinShmSrvCb->pCbTunerGrant != NULL)
                pWinShmSrvCb->pCbTunerGrant(shmTvCache.tvGrantTuner);
@@ -633,6 +639,7 @@ void WintvSharedMem_HandleTvCmd( void )
          // if TV app was alive before and is daed now -> detach
          if (shmTvCache.tvAppAlive)
          {
+            dprintf0("WintvSharedMem-HandleTvCmd: TV app detached\n");
             WinSharedMem_DetachTvapp();
          }
       }

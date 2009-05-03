@@ -22,7 +22,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: debug.c,v 1.28 2007/12/30 21:46:54 tom Exp tom $
+ *  $Id: debug.c,v 1.29 2009/05/02 19:10:34 tom Exp tom $
  */
 
 #define __DEBUG_C
@@ -115,14 +115,15 @@ void DebugLogLine( bool doHalt )
    static bool debugStrInitialized = FALSE;
    char *ct;
    sint fd;
+   ssize_t wstat;
 
    fd = open("debug.out", O_WRONLY|O_CREAT|O_APPEND, 0666);
    if (fd >= 0)
    {
       time_t ts = time(NULL);
       ct = ctime(&ts);
-      write(fd, ct, 20);
-      write(fd, debugStr, strlen(debugStr));
+      wstat = write(fd, ct, 20);
+      wstat = write(fd, debugStr, strlen(debugStr));
       close(fd);
    }
    else

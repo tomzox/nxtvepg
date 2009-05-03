@@ -25,7 +25,7 @@
  *  DScaler #Id: SAA7134Source.cpp,v 1.100 2006/09/24 14:14:44 robmuller Exp #
  *  DScaler #Id: SAA7134Provider.cpp,v 1.10 2002/12/24 08:22:14 atnak Exp #
  *
- *  $Id: saa7134.c,v 1.25 2007/12/30 21:40:27 tom Exp tom $
+ *  $Id: saa7134.c,v 1.26 2009/04/19 18:16:25 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_VBI
@@ -892,7 +892,7 @@ static DWORD WINAPI SAA7134_VbiThread( LPVOID dummy )
          {
             do
             {
-               dprintf1("processing field %d\n", oldIdx);
+               //dprintf1("processing field %d\n", oldIdx);
                WriteFieldMarker(oldIdx);
 
                pVbiLine = HwMem_GetUserPointer(&VbiDmaMem[oldIdx / 2]);

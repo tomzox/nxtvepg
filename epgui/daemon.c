@@ -18,7 +18,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: daemon.c,v 1.15 2009/03/28 21:28:03 tom Exp tom $
+ *  $Id: daemon.c,v 1.18 2009/05/02 19:49:00 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -35,6 +35,7 @@
 #include <winsock2.h>
 #include <io.h>
 #include <direct.h>
+#include <pbt.h>
 #endif
 #include <stdio.h>
 #include <errno.h>
@@ -464,6 +465,25 @@ static LRESULT CALLBACK DaemonControlWindowMsgCb( HWND hwnd, UINT message, WPARA
          }
          // quit the window message loop
          PostQuitMessage(0);
+         return result;
+
+       case WM_POWERBROADCAST:
+         debug1("WM_POWERBROADCAST: event %d", wParam);
+         if ((wParam == PBT_APMQUERYSUSPEND) ||
+             (wParam == PBT_APMQUERYSTANDBY))
+         {
+            Daemon_UpdateRcFile(TRUE);
+         }
+         else if ((wParam == PBT_APMSUSPEND) ||
+                  (wParam == PBT_APMSTANDBY))
+         {
+            EpgAcqCtl_Stop();
+         }
+         else if ((wParam == PBT_APMRESUMESUSPEND) ||
+                  (wParam == PBT_APMRESUMESTANDBY))
+         {
+            EpgAcqCtl_Start();
+         }
          return result;
    }
    return DefWindowProc(hwnd, message, wParam, lParam);
@@ -961,13 +981,16 @@ static void Daemon_TriggerGui( void )
    #ifdef WIN32
    HANDLE  parentEvHd;
    uchar   id_buf[20];
+   #else
+   ssize_t wstat;
    #endif
 
    if (mainOpts.optGuiPipe != -1)
    {
       #ifndef WIN32
       // the cmd line param contains the file handle of the pipe between daemon and GUI
-      write(mainOpts.optGuiPipe, "OK", 3);
+      wstat = write(mainOpts.optGuiPipe, "OK", 3);
+      ifdebug1(wstat < 0, "Daemon-TriggerGui: failed to write to pipe: %d", errno);
       close(mainOpts.optGuiPipe);
 
       #else  // WIN32
@@ -1094,7 +1117,7 @@ void Daemon_ProvScanStart( void )
 void Daemon_StatusQuery( void )
 {
    char * pMsgBuf;
-   char * pErrMsg;
+   char * pErrMsg = NULL;
 
    EpgAcqClient_Init(NULL);
    EpgSetup_NetAcq(FALSE);
@@ -1106,9 +1129,13 @@ void Daemon_StatusQuery( void )
       printf("%s", pMsgBuf);
       xfree(pMsgBuf);
    }
-   else if (pErrMsg != NULL)
+   if (pErrMsg != NULL)
    {
+#ifndef WIN32
       fprintf(stderr, "%s\n", pErrMsg);
+#else
+      printf("%s\n", pErrMsg);
+#endif
       xfree(pErrMsg);
    }
 

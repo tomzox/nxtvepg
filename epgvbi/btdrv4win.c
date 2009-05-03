@@ -42,7 +42,7 @@
  *      Tom Zoerner
  *
  *
- *  $Id: btdrv4win.c,v 1.60 2007/12/31 16:34:13 tom Exp tom $
+ *  $Id: btdrv4win.c,v 1.61 2009/04/19 18:20:44 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_VBI
@@ -242,15 +242,27 @@ static bool BtDriver_WdmDllLoad( bool showDrvErr )
       debug1("BtDriver-WdmDllLoad: Failed to load DLL " WDM_DRV_DLL_PATH " (%ld)", errCode);
       if (showDrvErr)
       {
-         if ( (errCode != ERROR_FILE_NOT_FOUND) &&
-              (errCode != ERROR_MOD_NOT_FOUND) )
+         if (errCode == ERROR_FILE_NOT_FOUND)
+         {
+            MessageBox(NULL, "WDM interface library '" WDM_DRV_DLL_PATH "' not found.\n"
+                             "Without this DLL file you can only use the internal\n"
+                             "'dsdrv' driver for your TV card.",
+                             "nxtvepg WDM problem", MB_ICONEXCLAMATION | MB_OK | MB_TASKMODAL | MB_SETFOREGROUND);
+         }
+         else if (errCode == ERROR_MOD_NOT_FOUND)
+         {
+            MessageBox(NULL, "Failed to load WDM interface library '" WDM_DRV_DLL_PATH "'\n"
+                             "probably because DLL 'MSVCR70D.dll' was not found in the path.\n"
+                             "Without loading the WDM DLL you can only use the internal\n"
+                             "'dsdrv' driver for your TV card.",
+                             "nxtvepg WDM problem", MB_ICONEXCLAMATION | MB_OK | MB_TASKMODAL | MB_SETFOREGROUND);
+         }
+         else
          {
             SystemErrorMessage_Set(&pErrMsg, errCode, "Failed to load WDM interface library '" WDM_DRV_DLL_PATH "': ", NULL);
             MessageBox(NULL, pErrMsg, "nxtvepg WDM problem", MB_ICONSTOP | MB_OK | MB_TASKMODAL | MB_SETFOREGROUND);
             xfree(pErrMsg);
          }
-         else
-            MessageBox(NULL, "WDM interface library '" WDM_DRV_DLL_PATH "' not found.\nWithout this DLL file you can only use the internal\n'dsdrv' driver for your TV card. ", "nxtvepg WDM problem", MB_ICONEXCLAMATION | MB_OK | MB_TASKMODAL | MB_SETFOREGROUND);
       }
    }
 

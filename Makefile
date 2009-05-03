@@ -30,7 +30,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: Makefile,v 1.106 2009/03/16 21:53:18 tom Exp $
+#  $Id: Makefile,v 1.107 2009/05/02 19:57:45 tom Exp tom $
 #
 
 ifeq ($(OS),Windows_NT)
@@ -59,8 +59,8 @@ FLEX    = /usr/bin/flex
 YACC    = /usr/bin/yacc
 
 # select Tcl/Tk version (8.5 recommended due to modernized widget appearence)
-TCL_VER := $(shell echo 'puts [package require Tcl]' | tclsh)
-#TCL_VER := $(shell echo 'puts [info tclversion]' | tclsh)
+TCL_VER := $(shell echo 'puts [info tclversion]' | tclsh)
+#TCL_VER := $(shell echo 'puts [package require Tcl]' | tclsh)
 #TCL_VER = 8.5
 
 ifeq ($(shell test -d /usr/include/tcl$(TCL_VER) && echo YES),YES)
@@ -78,10 +78,10 @@ DEFS   += -DX11_APP_DEFAULTS=\"$(resdir)/app-defaults/Nxtvepg\"
 #INCS   += -I/usr/local/tcl/tcl8.0/generic -I/usr/local/tcl/tk8.0/generic
 
 # path to Tcl/Tk script library (note Tk is sometimes in X11/lib/tk#.#)
-#TCL_LIBRARY_PATH = /usr/share/tcltk/tcl$(TCL_VER)
-#TK_LIBRARY_PATH = /usr/share/tcltk/tk$(TCL_VER)
-TK_LIBRARY_PATH  = /usr/lib/tk$(TCL_VER)
-TCL_LIBRARY_PATH = /usr/lib/tcl$(TCL_VER)
+#TK_LIBRARY_PATH  = /usr/lib/tk$(TCL_VER)
+#TCL_LIBRARY_PATH = /usr/lib/tcl$(TCL_VER)
+TCL_LIBRARY_PATH = /usr/share/tcltk/tcl$(TCL_VER)
+TK_LIBRARY_PATH = /usr/share/tcltk/tk$(TCL_VER)
 DEFS   += -DTK_LIBRARY_PATH=\"$(TK_LIBRARY_PATH)\"
 DEFS   += -DTCL_LIBRARY_PATH=\"$(TCL_LIBRARY_PATH)\"
 
@@ -265,6 +265,9 @@ $(BUILD_DIR)/%.c: %.tcl $(BUILD_DIR)/tcl2c
           false ; \
 	fi
 
+# kill implicit rule for RCS check-out
+%: RCS/%,v
+
 .SUFFIXES: .yy .lex
 
 %.tab.c %.tab.h: %.yy
@@ -329,7 +332,7 @@ covstats:
 
 .PHONY: bak
 bak:
-	cd .. && tar cvf /tmp/pc.tar -X pc/tar-ex pc ttx
+	cd .. && tar cvf /tmp/pc.tar -X pc/tar-ex pc
 	bzip2 -9f /tmp/pc.tar
 
 .PHONY: build_dir

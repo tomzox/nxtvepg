@@ -44,7 +44,7 @@
  *    NetBSD:  Mario Kemper <magick@bundy.zhadum.de>
  *    FreeBSD: Simon Barner <barner@gmx.de>
  *
- *  $Id: btdrv4linux.c,v 1.75 2009/03/13 19:46:21 tom Exp tom $
+ *  $Id: btdrv4linux.c,v 1.77 2009/05/02 19:26:37 tom Exp tom $
  */
 
 #if !defined(linux) && !defined(__NetBSD__) && !defined(__FreeBSD__) 
@@ -1841,18 +1841,6 @@ bool BtDriver_CheckDevice( void )
 
 
 // ---------------------------------------------------------------------------
-// The Acquisition process bows out on the usual signals
-//
-static void BtDriver_SignalHandler( int sigval )
-{
-#ifndef USE_THREADS
-   dprintf2("Received signal %d in %s process\n", sigval, isVbiProcess ? "VBI" : "EPG");
-#endif
-   acqShouldExit = TRUE;
-   signal(sigval, BtDriver_SignalHandler);
-}
-
-// ---------------------------------------------------------------------------
 // Receive wake-up signal or ACK
 // - do nothing
 //
@@ -1861,6 +1849,18 @@ static void BtDriver_SignalWakeUp( int sigval )
    recvWakeUpSig = TRUE;
    signal(sigval, BtDriver_SignalWakeUp);
 }
+
+// ---------------------------------------------------------------------------
+// The Acquisition process bows out on the usual signals
+//
+#ifndef USE_THREADS
+static void BtDriver_SignalHandler( int sigval )
+{
+   dprintf2("Received signal %d in %s process\n", sigval, isVbiProcess ? "VBI" : "EPG");
+   acqShouldExit = TRUE;
+   signal(sigval, BtDriver_SignalHandler);
+}
+#endif
 
 // ---------------------------------------------------------------------------
 // Receive signal to free or take vbi device
@@ -2456,7 +2456,7 @@ static void BtDriver_DecodeFrame( void )
          }
          else if ((pZvbiData[line].id & VBI_SLICED_VPS) != 0)
          {
-            TtxDecode_AddVpsData(pZvbiData[line].data - 3);
+            TtxDecode_AddVpsData(pZvbiData[line].data);
          }
          else
             debug1("BtDriver-DecodeFrame: unrequested service 0x%x", pZvbiData[line].id);

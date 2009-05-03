@@ -2362,9 +2362,9 @@ For I<MySQL> you could create the following tables:
    );
 
 Note that the database can also be exported directly from the command
-line by using B<-dump pi>, B<-dump ai> or B<-dump pdc> (see L<"OPTIONS">)
-In this case you can use one or more I<-epgquery> options to export
-only selected channels and programmes.
+line by using B<-dump pi>, B<-dump ai> or B<-dump pdc>.  In this case
+you can use one or more I<-epgquery> options to export only selected
+channels and programmes (for details see L<"OPTIONS">.)
 
 =head2 Export as XMLTV
 
@@ -2402,9 +2402,9 @@ appears shifted by one or two hours in your TV app's schedule, try
 this option.
 
 Note that the database can also be exported directly from the command
-line by using the B<-dump xml> option (see L<"OPTIONS">). In this case,
-you can additionally use one or more I<-epgquery> options to export
-only selected channels and programmes (for details see L<"OPTIONS">)
+line by using the B<-dump xml> option. In this case you can additionally
+use one or more I<-epgquery> options to export only selected channels
+and programmes (for details see L<"OPTIONS">.)
 
 =head2 Export as HTML
 
@@ -2456,10 +2456,11 @@ you have to put them into a subdirectory called F<images>; also your
 browser has to support the B<PNG> image format.
 
 Note that the HTML file can also be written directly from the command
-line by using the B<-dump html> switch (see L<"OPTIONS">).  In this
-case the number of written programmes can be limited by appending a
-number to the keyword (e.g. "-dump html:50") and you can use one or more
-I<-epgquery> options to export only selected channels and programmes.
+line by using the B<-dump html> switch.  In this case the number of
+written programmes can be limited by appending a number to the keyword
+(e.g. "-dump html:50") and you can use one or more I<-epgquery> options
+to export only selected channels and programmes (for details see
+L<"OPTIONS">)
 
 =head2 View statistics/timescales
 
@@ -3546,7 +3547,7 @@ the reverse direction of the above) to map internal numerical network
 identifiers to DNS-like channel identifier names. In this case sections
 C<[GLOBAL]>, C<[EXPORT|GLOBAL]> and C<[EXPORT|*xyz*]> are used and
 the given pattern is matched against the provider name (not the
-provider network name.)
+provider network name.) See also L<"CONTROL: Export as XMLTV">.
 
 =item B</dev/vbi0>, B</dev/vbi1>, etc.
 

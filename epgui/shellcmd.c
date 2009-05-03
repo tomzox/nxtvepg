@@ -556,6 +556,9 @@ static int PiOutput_ExecUserCmd( ClientData ttp, Tcl_Interp *interp, int objc, T
    int   netwop_no;
    int   start_time;
    int   result;
+#ifndef WIN32
+   int   retCode;
+#endif
 
    if ((objc != 3)  && (objc != 5))
    {  // parameter count is invalid
@@ -632,7 +635,12 @@ static int PiOutput_ExecUserCmd( ClientData ttp, Tcl_Interp *interp, int objc, T
                ShellCmd_AppendChar('\0', &cmdbuf);
 
                // execute the command
-               system(cmdbuf.strbuf);
+               retCode = system(cmdbuf.strbuf);
+               if (retCode != 0)
+               {
+                  fprintf(stderr, "Warning: command '%s' had non-zero exit status %d\n",
+                                  cmdbuf.strbuf, retCode);
+               }
 
                #else  // WIN32
                ShellCmd_AppendChar('\0', &cmdbuf);
@@ -729,6 +737,9 @@ static int PiOutput_ExecParsedScript( Tcl_Interp *interp, Tcl_Obj * pTypeObj, Tc
    int    ctrl;
    int    cmdLen;
    int    result;
+#ifndef WIN32
+   int    retCode;
+#endif
 
    if ( (Tcl_GetIndexFromObj(interp, pTypeObj, pCtxMenuTypeKeywords, "keyword", TCL_EXACT, &ctrl) != TCL_OK) ||
         ((pCmdStr = Tcl_GetByteArrayFromObj(pCmdObj, &cmdLen)) == NULL) )
@@ -753,7 +764,12 @@ static int PiOutput_ExecParsedScript( Tcl_Interp *interp, Tcl_Obj * pTypeObj, Tc
             break;
 
          case CTX_TYPE_EXEC_UNIX:
-            system(pCmdStr);
+            retCode = system(pCmdStr);
+            if (retCode != 0)
+            {
+               fprintf(stderr, "Warning: command '%s' had non-zero exit status %d\n",
+                               pCmdStr, retCode);
+            }
             break;
 #endif
 

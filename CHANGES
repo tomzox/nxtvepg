@@ -5,6 +5,20 @@ features).  For patchlevel releases also internal changes might be listed in
 case they may fix bugs (or cause new ones)
 
 
+from 2.9.0pre2 to 2.9.0pre3 (2009-May-03)
+
+- Windows: A bug which caused nxtvepg to lock up during auto-detection
+  of SAA7134/SAA7133 based TV cards was fixed.
+- Windows: Bugs in the driver for TV cards based on the Philips SAA7134
+  capture chip and tuner TDA8275/TDA8290 was fixed which prevented TV
+  channel changes with error message "No tuner found on I2C bus"
+- Windows: handle power events (APM) to allow the system to enter standby
+  even while EPG capture is enabled; re-enable capturing automatically
+  upon resume
+- A bug in TV channel identification via VPS/PDC was fixed which sometimes
+  caused endless toggling of EPG on-screen-display in the TV application.
+
+
 from 2.9.0pre1 to 2.9.0pre2 (2009-Mar-29)
 
 - The XMLTV export was changed to output channel identifiers which

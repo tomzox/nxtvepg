@@ -980,11 +980,13 @@ B<Tipp:> Die Dateien können auch direkt über die Befehlszeile mittels der Schalt
 
 Öffnet einen Dialog, der es erlaubt, alle Programminformationen im XML-Format zu exportieren. Das Format ist durch die B<XmlTV DTD> genau festgelegt (siehe L<http://xmltv.org/>.) Die erzeugte Datei enthält sowohl die Sendertabelle als auch die Programmdaten.  Sie umfasst auch Sender, die Sie möglicherweise in der Auflistung innerhalb nxtvepg abgestellt haben.
 
-B<Tipp:> Sie können die Menge der exportierten Daten einschränken indem Sie eine zusammengeführte Datenbank konfigurieren. Dies ist auch für einen einzelnen Provider möglich. Auf diese Weise können Sie bestimmte Sender oder Attribute ausschließen, z.B. um Themen-Kategorien von der Ausgabe auszuschließen (siehe Untermenü I<Configure> im Dialog der Merge-Konfiguration).
+Seit nxtvepg Version 2.9.0 werden Senderkennungen ("channel id") im von der XMLTV DTD empfohlenen Format generiert. Anstelle der vorherigen numerischen Kennungen (wie z.B. "CNI0DC1" für ARD) erscheinen daher DNS-ähnliche textuelle Kennungen (wie z.B. "ard.de")  Der Vorteil der Umstellung ist die Kopatibilität mit anderen XMLTV Grabbern, welche das Zusammenführen von Daten aus verschiedenen Quellen erleichtert.  Die Wahl der Kennungen kann mittels der Datei B<xmltv-etsi.map> beeinflußt werden: Zum Tragen kommen dabei die Sektionen C<[GLOBAL]>, C<[EXPORT|GLOBAL]> and C<[EXPORT|*xyz*]> (wobei "xyz" ein Teil des Anbieternamens ist.) Falls die Datei nicht gefunden wird, fällt nxtvepg auf das alte Namensschema zurück. Falls Sie beim alten Scheme bleiben wollen, können sie auch in Datei B<xmltv-etsi.map> Regeln einfügen die numerischen Kennungen auf numerische Kennungen mit dem alten "CNI" Präfix abbilden (z.B. "0DC1 CNI0DC1" in Sektion C<[EXPORT|GLOBAL]>)
+
+B<Tipp:> Sie können die Menge der exportierten Daten einschränken indem Sie eine zusammengeführte Datenbank konfigurieren. Dies ist auch für einen einzelnen Provider möglich. Auf diese Weise können Sie bestimmte Sender oder Attribute ausschließen, z.B. um Themen-Kategorien von der Ausgabe auszuschließen (siehe Untermenü I<Configure> im Dialog der Merge-Konfiguration). Siehe auch unten für Alternativen beim Export über die Komandozeile.
 
 Einige TV-Anwendungen sind dafür bekannt, XMLTV-Timestamps nicht korrekt auszuwerten. Um diese Probleme zu umgehen gibt es eine Option, die erlaubt, Datumsangaben und Uhrzeiten in lokaler Zeit anstatt UTC (auch bekannt als I<Greenwhich Mean Time> oder GMT) zu exportieren. Erscheinen alle Programmdaten um eine oder zwei Stunden verschoben in Ihrer TV-Anwendung, versuchen Sie es mit dieser Option.
 
-B<Tipp:> Die Datenbank kann auch direkt über die Befehlszeile mittels des Schalters B<-dump xml> exportiert werden. (Siehe auch L<"OPTIONS">)
+B<Tipp:> Die Datenbank kann auch direkt über die Befehlszeile mittels des Schalters B<-dump xml> exportiert werden. Dabei können sie auch eine oder mehrere B<-epgquery> Optionen anfügen um den Export auf ausgewählte Sender oder Programme einzuschränken (für Details siehe L<"OPTIONS">)
 
 =head2 Export as HTML
 
@@ -1003,6 +1005,8 @@ Wenn Sie "I<Write descriptions>" wählen, werden Sie für jede exportierte Sendung
 Wenn Sie "I<Write titles and descriptions>" wählen, enthält das HTML-Dokument zuerst eine tabellarische Titelübersicht und darunter die zugehörigen Beschreibungen. In diesem Modus können Sie "I<Add hyperlinks to titles>" auswählen, um Hyperlinks von den Titeln in der Tabelle zu den entsprechenden Beschreibungen hinzuzufügen.
 
 Das Aussehen des erzeugten Dokuments wird durch ein internes CSS-Stylesheet festgelegt. Mögen Sie dieses Aussehen nicht, können Sie es mit einem eigenen Stylesheet überschreiben. Speichern Sie dieses in eine Datei mit Namen F<nxtvhtml.css> und legen Sie diese in dasselbe Verzeichnis wie die generierte HTML-Datei. Siehe L<http://www.w3.org/> für mehr Informationen zu HTML und Stylesheets. Wenn Ihre Spalten-Konfiguration Bilder enthält (siehe L<"COMPOSITE ATTRIBUTES">), müssen Sie diese in ein Unterverzeichnis namens F<images> legen; des Weiteren sollte Ihr Web-Browser das Bildformat B<PNG> unterstützen.
+
+B<Tipp:> Die HTML Datei kann auch direkt über die Befehlszeile mittels des Schalters B<-dump html> erzeugt werden. In dem Fall können sie die Zahl der geschriebenen Sendungen durch Anhängen von ":" und einer Zahl angeben (z.B. "-dump html:50" für den Export von 50 Programmen.) Weiterhin können Sie eine oder mehrere B<-epgquery> Optionen anfügen um den Export auf ausgewählte Sender oder Programme einzuschränken (für Details siehe L<"OPTIONS">)
 
 =head2 View statistics/timescales
 
@@ -1453,7 +1457,11 @@ Die letzten 4 Stellen der Dateinamen stellen den hexadezimalen CNI (Country and 
 
 =item B</usr/share/nxtvepg/xmltv-etsi.map>
 
-Diese Datei wird beim Import von EPG Daten aus XMLTV Dateien verwendet um Senderbezeichnungen in numerische Senderkennungsn umzuwandeln, wie sie von nxtvepg verwendet werden. Genauer gesagt, die Datei entählt Zuweisungen von ETSI CNIs (Canonic Network Identification) an Namen die in XML I<E<lt>channel id="..."E<gt>> Tags in importierten XMLTV Datei verwendet werden.
+Diese Datei wird beim Import von EPG Daten aus XMLTV Dateien verwendet um Senderbezeichnungen in numerische Senderkennungsn umzuwandeln, wie sie von nxtvepg verwendet werden. Genauer gesagt, die Datei entählt Zuweisungen von ETSI CNIs (Canonic Network Identification) an Namen die in XML I<E<lt>channel id="..."E<gt>> Tags in importierten XMLTV Datei verwendet werden. Dies sollte dazu verwendet werden, die Kennung mit den im TV-Signal über VPS/PDC empfangenen Kennungen zu syncrhonisieren, so daß einer verbundnen TV-Applikation der passende Sendungstitel zur Verfügung gestellt werden kann.
+
+Der Inhalt der Datei ist in Sektionen eingeteilt: Sektion C<[GLOBAL]> wird für alle XMLTV Dateien gelesen. Weiter Sektionen werden nur gelesen wenn das in den Klammern angegebene Muster zum Anbieternamen paßt, genauer gesagt zum in der Datei in den C<source-info-name> oder C<source-data-url> tags angegebenen Namen. Für weitere Details siehe auch die Kommentare innerhalb der Datei selbst.
+
+Sektionen C<[EXPORT|...]> werden für die umgekehrte Richtung verwendet, d.h. den Export von Nextview EPG Daten in XMLTV Dateien. Details dazu siehe L<"CONTROL: Export as XMLTV">.
 
 =item B</dev/vbi0>, B</dev/vbi1>, etc.
 
@@ -1519,7 +1527,7 @@ Konfigurationsdatei, in die alle Konfigurations- und persönliche Einstellungen g
 
 =item B<xmltv-etsi.map>
 
-Diese Datei wird beim Import von EPG Daten aus XMLTV Dateien verwendet um Senderbezeichnungen in numerische Senderkennungsn umzuwandeln, wie sie von nxtvepg verwendet werden. Genauer gesagt, die Datei entählt Zuweisungen von ETSI CNIs (Canonic Network Identification) an Namen die in XML I<E<lt>channel id="..."E<gt>> Tags in importierten XMLTV Datei verwendet werden.
+Diese Datei wird beim Import von EPG Daten aus XMLTV Dateien verwendet um Senderbezeichnungen in numerische Senderkennungsn umzuwandeln, wie sie von nxtvepg verwendet werden. Genauer gesagt, die Datei entählt Zuweisungen von ETSI CNIs (Canonic Network Identification) an Namen die in XML I<E<lt>channel id="..."E<gt>> Tags in importierten XMLTV Datei verwendet werden.  Für weitere Details siehe die Beschreibung der Datei in der UNIX-Sektion, oder die Kommentare in der Detail selbst.
 
 =item B<Nxtvepg.ad>
 

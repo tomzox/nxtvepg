@@ -20,7 +20,7 @@
  *  Author:
  *          Tom Zoerner
  *
- *  $Id: syserrmsg.c,v 1.5 2003/10/05 18:55:01 tom Exp tom $
+ *  $Id: syserrmsg.c,v 1.6 2009/04/19 18:21:10 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_VBI
@@ -147,6 +147,8 @@ void SystemErrorMessage_Set( char ** ppErrorText, int errCode, const char * pTex
             strcpy(*ppErrorText + off, sysErrStr);
             //off += strlen(sysErrStr);
          }
+
+         dprintf1("SystemErrorMessage: %s\n", *ppErrorText);
       }
    }
 }
