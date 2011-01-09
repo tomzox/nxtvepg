@@ -28,7 +28,7 @@
  *
  *  DScaler #Id: BT848Card_Types.cpp,v 1.41 2004/01/29 15:14:41 adcockj Exp #
  *
- *  $Id: bt8x8_typ.c,v 1.18 2007/12/29 23:21:55 tom Exp tom $
+ *  $Id: bt8x8_typ.c,v 1.19 2011/01/05 19:26:17 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_VBI
@@ -4396,7 +4396,7 @@ static uint AutoDetectTuner( TVCARD * pTvCard, uint CardId )
 // Query TDA9887 parameters stored in card INI file
 // - returns TRUE if TDA9887 is configured via card INI
 //
-static bool GetTda9887Modes( TVCARD * pTvCard, bool * pHasTda9887, void ** ppModes )
+static bool GetTda9887Modes( TVCARD * pTvCard, bool * pHasTda9887, const TTDA9887FormatModes ** ppModes )
 {
     if ((pTvCard != NULL) && (pHasTda9887 != NULL) && (ppModes != NULL))
     {

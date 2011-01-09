@@ -20,7 +20,7 @@
 #  Author: Tom Zoerner (Original)
 #          German translation by Kurt Lettmaier & Olaf Nöhring
 #
-# $Id: nxtvepg-de.pod,v 1.19 2009/03/14 21:24:32 tom Exp tom $
+# $Id: nxtvepg-de.pod,v 1.20 2009/09/30 10:00:00 tom Exp tom $
 # ---------------------------------------------------------------------------
 
 =head1 NAME

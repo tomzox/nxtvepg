@@ -20,7 +20,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: tvcard.h,v 1.8 2006/01/04 16:17:59 tom Exp tom $
+ *  $Id: tvcard.h,v 1.9 2011/01/05 19:26:17 tom Exp tom $
  */
 
 #ifndef __TVCARD_H
@@ -30,6 +30,9 @@
 // Declaration of common hardware interfaces
 //
 struct TVCARD_struct;
+
+struct TTDA9887FormatModes_s;
+typedef struct TTDA9887FormatModes_s TTDA9887FormatModes;
 
 typedef struct
 {
@@ -47,7 +50,7 @@ typedef struct
    const char * (* GetCardName) ( struct TVCARD_struct * pTvCard, uint CardId );
    uint         (* AutoDetectCardType) ( struct TVCARD_struct * pTvCard );
    uint         (* AutoDetectTuner) ( struct TVCARD_struct * pTvCard, uint CardId );
-   bool         (* GetTda9887Modes) ( struct TVCARD_struct * pTvCard, bool * pHasTda9887, void ** ppModes );
+   bool         (* GetTda9887Modes) ( struct TVCARD_struct * pTvCard, bool * pHasTda9887, const TTDA9887FormatModes ** ppModes );
    void         (* GetIffType) ( struct TVCARD_struct * pTvCard, bool * pIsPinnacle, bool * pIsMono );
    uint         (* GetPllType) ( struct TVCARD_struct * pTvCard, uint cardId );
    bool         (* SupportsAcpi) ( struct TVCARD_struct * pTvCard );

@@ -25,7 +25,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgblock.h,v 1.54 2008/08/10 19:29:39 tom Exp tom $
+ *  $Id: epgblock.h,v 1.57 2011/01/22 21:49:00 tom Exp tom $
  */
 
 #ifndef __EPGBLOCK_H
@@ -173,6 +173,8 @@ typedef struct {
 #define PI_MAX_THEME_COUNT      7
 #define PI_MAX_SORTCRIT_COUNT   7
 
+#define PI_FEATURE_VIDEO_HD        0x400  // not in Nextview EPG
+#define PI_FEATURE_VIDEO_BW        0x200  // not in Nextview EPG
 #define PI_FEATURE_SUBTITLES       0x100
 #define PI_FEATURE_REPEAT          0x080
 #define PI_FEATURE_LIVE            0x040

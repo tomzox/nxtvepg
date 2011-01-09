@@ -28,7 +28,7 @@
  *  DScaler #Id: CX2388xCard_Types.cpp,v 1.31 2004/12/25 22:40:18 to_see Exp #
  *  DScaler #Id: CX2388xCard_Tuner.cpp,v 1.9 2005/12/27 19:29:35 to_see Exp #
  *
- *  $Id: cx2388x_typ.c,v 1.19 2006/12/21 20:17:35 tom Exp tom $
+ *  $Id: cx2388x_typ.c,v 1.20 2011/01/05 19:26:17 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_DSDRV
@@ -766,7 +766,7 @@ static const char * GetCardName( TVCARD * pTvCard, uint CardId )
     return pName;
 }
 
-static bool GetTda9887Modes( TVCARD * pTvCard, bool * pHasTda9887, void ** ppModes )
+static bool GetTda9887Modes( TVCARD * pTvCard, bool * pHasTda9887, const TTDA9887FormatModes ** ppModes )
 {
     TCardType* pCardList;
     uint  m_CardType;

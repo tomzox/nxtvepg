@@ -25,7 +25,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: rcfile.c,v 1.13 2008/10/19 17:54:50 tom Exp tom $
+ *  $Id: rcfile.c,v 1.14 2010/03/23 19:42:14 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -409,6 +409,15 @@ bool RcFile_WriteCloseFile( FILE * fp, bool writeOk, const char * pRcPath, char 
 
    if (fp != NULL)
    {
+#ifndef WIN32
+      if (fsync(fileno(fp)) != 0)
+#else
+      if (_commit(fileno(fp)) != 0)
+#endif
+      {
+         debug2("RcFile-WriteCloseFile: error on fsync: %d (%s)", errno, strerror(errno));
+         writeOk = FALSE;
+      }
       if (fclose(fp) != 0)
       {
          debug2("RcFile-WriteCloseFile: error on close: %d (%s)", errno, strerror(errno));

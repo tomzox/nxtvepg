@@ -22647,3 +22647,146 @@ Makefile.win32 [rev:1.77, 2009-05-03T18:36:06 - LATE CHECKIN]:
 www/pre-releases.html [rev:1.92, 2010-03-23T19:21:31 - LATE CHECKIN]:
 - Updated for pre-release 2.9.0pre3 (May 3rd 2009)
 #>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> RELEASE_2_9_0_PRE3 <<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+epgui/shellcmd.c [rev:1.18, 2009-05-24T15:23:32]:
+- Fixed gcc 4.3.3 compiler warning "unused result" for system calls
+- added dummy assignment of "system" result
+nxtvepg-de.pod [rev:1.20, 2009-09-30T10:00:00]:
+- [Late check-in: Included in 2.9.0preX without check-in]
+- added new option -daemonquery
+- added new option -epgquery
+- added note to export XML: XMLTV channel IDs now in DNS-like format
+- added references to -dump and -epgquery to Export sections (where missing)
+nxtvepg.pod [rev:1.136, 2009-09-30T10:00:00]:
+- [Late check-in: Included in 2.9.0preX without check-in]
+- added new option -daemonquery
+- added new option -epgquery
+- added note to export XML: XMLTV channel IDs now in DNS-like format
+- added references to -dump and -epgquery to Export sections (where missing)
+COPYRIGHT [rev:1.20, 2010-03-23T19:18:52]:
+- Updated copyright for 2010
+Makefile [rev:1.108, 2010-03-23T19:18:52]:
+- Updated copyright for 2010
+epgtcl/mainwin.tcl [rev:1.265, 2010-03-23T19:19:06]:
+- Updated copyright for 2010
+epgdb/epgdbsav.c [rev:1.69, 2010-03-23T19:29:57]:
+- Added fsync() before moving the new/temp db file over the old one
+epgdb/epgblock.h [rev:1.55, 2010-03-23T19:35:01]:
+- Fixed compiler warnings about pointer arithmetic in macros (aliasing)
+- [change probably done June/2009]
+epgdb/epgblock.h [rev:1.56, 2010-03-23T19:36:36]:
+- Added new PI feature flags "BW" and "HD" for XMLTV import
+epgui/rcfile.c [rev:1.14, 2010-03-23T19:42:14]:
+- Added fsync() before moving the new/temp rc file over the old one
+epgui/dumpxml.c [rev:1.24, 2010-03-23T20:15:30]:
+- Updated to XMLTV DTD 0.5.56:
+- export new PI feature flags "BW" and "HD" (from XMLTV import)
+- map 2-channel sound to new sound attribute "bilingual"
+epgui/pidescr.c [rev:1.12, 2010-03-23T20:15:41]:
+- added new PI feature flags "BW" and "HD" (from XMLTV import)
+- replaced hard-coded constants with feature-flag macros in epgblock.h
+epgui/pioutput.c [rev:1.62, 2010-03-23T20:15:47]:
+- Added new PI feature flags "BW" and "HD" (from XMLTV import)
+epgdb/epgdbmerge.c [rev:1.34, 2010-03-30T18:55:09]:
+- added merge of XMLTV-only PI feature flags "BW" and "HD"
+- replaced hard-coded constants with feature-flag macros in epgblock.h
+epgdb/ttxgrab.c [rev:1.12, 2010-04-25T14:09:32]:
+- Added fsync() before moving the new/temp XML file over the old one [2009]
+epgdb/ttxgrab.c [rev:1.13, 2010-04-25T14:09:50]:
+- Switched from "tv_grab_ttx.pl" to compiled exe "tv_grab_ttx"
+epgui/epgquery.c [rev:1.3, 2010-05-06T19:44:01]:
+- [LATE CHECKIN 2010-05-06: included in 2.9.0pre4 but never checked in]
+  - large delta, purpose unknown
+epgdb/epgdbmerge.c [rev:1.35, 2011-01-05T19:07:06]:
+- EpgDbMerge_PiMatch(): Made title matching more flexible [May/2010]
+epgdb/ttxgrab.c [rev:1.14, 2011-01-05T19:08:08]:
+- Switched from "tv_grab_ttx.pl" to compiled exe "tv_grab_ttx" [May/2010]
+epgui/menucmd.c [rev:1.135, 2011-01-05T19:12:13]:
+- MenuCmd_GetTtxConfig: removed "perl_path" config option (WIN32)
+- obsolete due to switch to internal TTX grabber
+epgtcl/dlg_acqmode.tcl [rev:1.12, 2011-01-05T19:13:39]:
+- PopupTtxGrab: removed "perl_path" config option (WIN32) [Apr/2010]
+- obsolete due to switch to internal TTX grabber
+dsdrv/bt8x8_typ.c [rev:1.19, 2011-01-05T19:26:17]:
+- TVCARD_CFG: replaced void** to get rid of compiler warning [May/2010]
+dsdrv/cx2388x_typ.c [rev:1.20, 2011-01-05T19:26:17]:
+- TVCARD_CFG: replaced void** to get rid of compiler warning [May/2010]
+dsdrv/saa7134_typ.c [rev:1.26, 2011-01-05T19:26:17]:
+- TVCARD_CFG: replaced void** to get rid of compiler warning [May/2010]
+dsdrv/tvcard.h [rev:1.9, 2011-01-05T19:26:17]:
+- TVCARD_CFG: replaced void** to get rid of compiler warning [May/2010]
+dsdrv/wintuner.h [rev:1.12, 2011-01-05T19:26:28]:
+- Changed TTDA9887FormatModes into struct & moved typedef into tvcard.h [05/2010]
+- tpyedef req'ed in tvcard.h to avoid void*, but also avoid including us there
+dsdrv/wintuner.c [rev:1.30, 2011-01-05T19:27:05]:
+- TVCARD_CFG: replaced void** to get rid of compiler warning [May/2010]
+xmltv/xmltv_db.c [rev:1.18, 2011-01-05T19:29:38]:
+- Added support for audio:bilingual and video:b/w,HD
+xmltv/xmltv_db.h [rev:1.11, 2011-01-05T19:29:38]:
+- Added support for audio:bilingual and video:b/w,HD
+xmltv/xmltv_tags.c [rev:1.12, 2011-01-05T19:29:38]:
+- Added support for audio:bilingual and video:b/w,HD
+www/ttx_grab.html [rev:1.3, 2011-01-05T19:32:48]:
+- Prepared release 2.0 - never released in 2010! [May/2010]
+- switched from "tv_grab_ttx.pl" to compiled exe "tv_grab_ttx"
+COPYRIGHT [rev:1.21, 2011-01-05T20:03:08]:
+- Updated copyright for 2011
+epgtcl/mainwin.tcl [rev:1.266, 2011-01-05T20:03:50]:
+- Updated copyright for 2011
+README [rev:1.48, 2011-01-06T11:29:46]:
+- Added note of new dependency on "libboost-regex-dev" and C++
+Makefile [rev:1.109, 2011-01-06T11:35:13]:
+- Adapted for switch from Perl to C++ for teletext grabber [Apr/2010]
+- removed installation of external grabber perl script
+- added handling of *.cc files; added -lboost_regex
+- added new sub-directory and list TTXSRC
+Makefile.win32 [rev:1.78, 2011-01-06T11:35:25]:
+- Adapted for switch from Perl to C++ for teletext grabber [Apr/2010]
+- removed installation of external grabber perl script
+- added handling of *.cc files; added -lboost_regex
+- added new sub-directory and list TTXSRC
+xmltv-etsi.map [rev:1.8, 2011-01-06T11:40:16]:
+- [Changes from May/2/2009!]
+- added 1D76 das-vierte.de
+- renamed 1D85 "de.arte-tv.com" into "arte-tv.com"
+epgdb/ttxgrab.c [rev:1.15, 2011-01-09T16:53:29]:
+- TtxGrab_GetPageStats:
+    + added return value "pPredictDelay"
+    + improved prediction of "inRange"
+    + delay "lock" until enough page headers for prediction available
+- TtxGrab-PageHeaderCheck: extended trace output during start-up phase
+- TtxGrab_ProcessPackets: bugfix page header check:
+    + always check header buffer, not just captured pages
+epgdb/ttxgrab.h [rev:1.4, 2011-01-09T16:53:50]:
+- TtxGrab_GetPageStats: added return value "pPredictDelay"
+epgvbi/btdrv.h [rev:1.50, 2011-01-09T16:54:01]:
+- Redefined page number stats in struct TTX_HEAD_BUF:
+- replaced per-mag counters with ring buffer holding last 25 page numbers
+epgvbi/ttxdecode.c [rev:1.65, 2011-01-09T16:54:09]:
+- Redefined page number stats in struct TTX_HEAD_BUF:
+- replaced per-mag counters with ring buffer holding last 25 page numbers
+epgctl/epgacqttx.c [rev:1.4, 2011-01-09T18:02:36]:
+- Improved teletext grabber "Now" phase:
+- added prediction of delay until reaching the OV start page
+- replaced "srcSkipWrapped": use timer instead
+- don't skip due to !inRange until header lock
+epgctl/epgversion.h [rev:1.96, 2011-01-09T19:06:59]:
+- set version to 2.9.0pre4
+www/ttx_grab.html [rev:1.4, 2011-01-09T20:27:14]:
+- Updated for release 2.0 (2011-01-09)
+www/pre-releases.html [rev:1.93, 2011-01-09T20:27:20]:
+- Updated for release 2.9.0pre4
+www/index-de.html [rev:1.101, 2011-01-09T20:27:26]:
+- Updated copyright to 2011
+www/index-fr.html [rev:1.35, 2011-01-09T20:27:26]:
+- Updated copyright to 2011
+www/index.html [rev:1.110, 2011-01-09T20:27:26]:
+- Updated copyright to 2011
+CHANGES [rev:1.59, 2011-01-09T20:28:59]:
+- Updated for release 2.9.0pre3 and 2.9.0pre4
+README.boost_regex [rev:1.1, 2011-01-12T20:32:12]:
+- Initial revision
+epgdb/epgblock.h [rev:1.57, 2011/01/22T21:49:00]:
+[LATE CHECKIN 2011-01-22: included in 2.9.0pre4 but never checked in]
+- increased MAX_MERGED_DB_COUNT from 31 for 63
+  (likely for XMLTV import)
+#>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> RELEASE_2_9_0_PRE4 <<<<<<<<<<<<<<<<<<<<<<<<<<<<<

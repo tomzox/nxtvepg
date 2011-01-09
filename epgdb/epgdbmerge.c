@@ -22,7 +22,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgdbmerge.c,v 1.33 2007/12/30 21:49:10 tom Exp tom $
+ *  $Id: epgdbmerge.c,v 1.35 2011/01/05 19:07:06 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB
@@ -281,7 +281,8 @@ static EPGDB_BLOCK * EpgDbMergePiBlocks( PDBC dbc, EPGDB_BLOCK **pFoundBlocks )
       {
          if (pFoundBlocks[actIdx] != NULL) 
          {
-            pPi->feature_flags |= pFoundBlocks[actIdx]->blk.pi.feature_flags & 0x03;
+            const uint16_t mask = PI_FEATURE_SOUND_MASK;
+            pPi->feature_flags |= pFoundBlocks[actIdx]->blk.pi.feature_flags & mask;
             break;
          }
       }
@@ -296,13 +297,33 @@ static EPGDB_BLOCK * EpgDbMergePiBlocks( PDBC dbc, EPGDB_BLOCK **pFoundBlocks )
       {
          if (pFoundBlocks[actIdx] != NULL) 
          {
-            pPi->feature_flags |= pFoundBlocks[actIdx]->blk.pi.feature_flags & 0x0c;
+            const uint16_t mask = PI_FEATURE_PAL_PLUS | PI_FEATURE_FMT_WIDE;
+            pPi->feature_flags |= pFoundBlocks[actIdx]->blk.pi.feature_flags & mask;
             break;
          }
       }
       else
          break;
    }
+#ifdef USE_XMLTV_IMPORT
+   // feature picture format, 2nd iteration only across XMLTV sources
+   for (dbIdx=0; dbIdx < dbCount; dbIdx++)
+   {
+      actIdx = dbmc->max[MERGE_TYPE_FORMAT][dbIdx];
+      if (actIdx < dbCount)
+      {
+         if ( (pFoundBlocks[actIdx] != NULL)  &&
+              dbmc->prov[dbIdx].pDbContext->xmltv )
+         {
+            const uint16_t mask = PI_FEATURE_VIDEO_HD | PI_FEATURE_VIDEO_BW;
+            pPi->feature_flags |= pFoundBlocks[actIdx]->blk.pi.feature_flags & mask;
+            break;
+         }
+      }
+      else
+         break;
+   }
+#endif // USE_XMLTV_IMPORT
    // feature repeat
    for (dbIdx=0; dbIdx < dbCount; dbIdx++)
    {
@@ -311,7 +332,8 @@ static EPGDB_BLOCK * EpgDbMergePiBlocks( PDBC dbc, EPGDB_BLOCK **pFoundBlocks )
       {
          if (pFoundBlocks[actIdx] != NULL) 
          {
-            pPi->feature_flags |= pFoundBlocks[actIdx]->blk.pi.feature_flags & 0x80;
+            const uint16_t mask = PI_FEATURE_REPEAT;
+            pPi->feature_flags |= pFoundBlocks[actIdx]->blk.pi.feature_flags & mask;
             break;
          }
       }
@@ -326,7 +348,8 @@ static EPGDB_BLOCK * EpgDbMergePiBlocks( PDBC dbc, EPGDB_BLOCK **pFoundBlocks )
       {
          if (pFoundBlocks[actIdx] != NULL) 
          {
-            pPi->feature_flags |= pFoundBlocks[actIdx]->blk.pi.feature_flags & 0x100;
+            const uint16_t mask = PI_FEATURE_SUBTITLES;
+            pPi->feature_flags |= pFoundBlocks[actIdx]->blk.pi.feature_flags & mask;
             break;
          }
       }
@@ -341,7 +364,11 @@ static EPGDB_BLOCK * EpgDbMergePiBlocks( PDBC dbc, EPGDB_BLOCK **pFoundBlocks )
       {
          if (pFoundBlocks[actIdx] != NULL) 
          {
-            pPi->feature_flags |= pFoundBlocks[actIdx]->blk.pi.feature_flags & 0xfe70;
+            const uint16_t mask = 0xFFFFu & ~(PI_FEATURE_SOUND_MASK |
+                                              PI_FEATURE_PAL_PLUS | PI_FEATURE_FMT_WIDE |
+                                              PI_FEATURE_VIDEO_HD | PI_FEATURE_VIDEO_BW |
+                                              PI_FEATURE_REPEAT | PI_FEATURE_SUBTITLES);
+            pPi->feature_flags |= pFoundBlocks[actIdx]->blk.pi.feature_flags & mask;
             break;
          }
       }
@@ -585,6 +612,7 @@ static bool EpgDbMerge_PiMatch( const PI_BLOCK * pRefPi, const PI_BLOCK * pNewPi
             }
          }
          // if one title is shorter: next must be non-alpha in longer one
+         // OR both start and stop time must be very close
          pe = (*p1 != 0) ? p1 : p2;
          ps = pe;
          if (*ps != 0)
@@ -592,9 +620,18 @@ static bool EpgDbMerge_PiMatch( const PI_BLOCK * pRefPi, const PI_BLOCK * pNewPi
             while (isspace(*ps))
                ps++;
          }
-         result = (*pe == 0) ||
-                  !isalnum(*ps) ||
-                  (isspace(*pe) && ((p1 - PI_GET_TITLE(pRefPi)) >= 20));
+         if ( (*pe == 0) ||
+              !isalnum(*ps) ||
+              (isspace(*pe) && ((p1 - PI_GET_TITLE(pRefPi)) >= 20)) )
+         {
+            result = TRUE;
+         }
+         else if (((*p1 == 0) || (*p2 == 0)) &&
+                  (abs(pNewPi->start_time - pRefPi->start_time) < 5*60) &&
+                  (abs(pNewPi->stop_time - pRefPi->stop_time) < 5*60))
+         {
+            result = TRUE;
+         }
       }
       if (result == FALSE)
          dprintf6("        CMP FAIL   '%s' %s -- %d,%d,%d,%d\n", PI_GET_TITLE(pNewPi), EpgDbMergePrintTime(pNewPi), ovl, rt1, rt2, abs(pNewPi->start_time - pRefPi->start_time));

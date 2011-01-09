@@ -21,7 +21,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgacqttx.c,v 1.3 2008/10/12 16:12:16 tom Exp tom $
+ *  $Id: epgacqttx.c,v 1.4 2011/01/09 18:02:36 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGCTL
@@ -65,6 +65,7 @@ typedef enum
 typedef struct
 {
    bool           srcDone;
+   time_t         predictStart;
    time_t         mtime;
    uint           freq;
 } TTXACQ_SOURCE;
@@ -80,18 +81,19 @@ typedef struct
    time_t         acqStartTime;
    time_t         chanChangeTime;
    bool           allSrcDone;
-   bool           srcSkipWrapped;
    sint           lastDoneSrc;
+   time_t         lastDoneTime;
    char          *pTtxNames;
    TTXACQ_SOURCE *pSources;
 } EPGACQTTX_CTL;
 
 static EPGACQTTX_CTL  acqCtl;
 
-#define TTX_START_TIMEOUT_NOW         3
+#define TTX_START_TIMEOUT_NOW         5
 #define TTX_START_TIMEOUT_FULL       15
 #define TTX_START_TIMEOUT_IDLE       60
 
+#define TTX_GRAB_TIMEOUT_SCAN        20
 #define TTX_GRAB_TIMEOUT_NOW         25
 #define TTX_GRAB_TIMEOUT_FULL        90
 #define TTX_GRAB_TIMEOUT_PASV_NOW    30
@@ -355,11 +357,12 @@ void EpgAcqTtx_InitCycle( bool isTtxSrc, EPGACQ_PHASE phase )
    for (idx = 0; idx < acqCtl.ttxSrcCount; idx++)
    {
       acqCtl.pSources[idx].srcDone = FALSE;
+      acqCtl.pSources[idx].predictStart = 0;
    }
    acqCtl.ttxSrcIdx = 0;
    acqCtl.allSrcDone = FALSE;
-   acqCtl.srcSkipWrapped = FALSE;
    acqCtl.lastDoneSrc = -1;
+   acqCtl.lastDoneTime = 0;
 }
 
 #ifdef USE_TTX_GRABBER
@@ -367,33 +370,41 @@ void EpgAcqTtx_InitCycle( bool isTtxSrc, EPGACQ_PHASE phase )
 // Search source table for next unfinished source
 // - skip sources which already have been processes (done set to TRUE)
 // - return -1 if all sources have been done
-// - sets "wrap" flag if all remaining sources have been skipped once
+// - always start at the beginning to work in order of user priority
 //
 static sint EpgAcqTtx_GetNextSrc( sint ttxSrcIdx )
 {
-   uint skipCount;
+   uint idx;
+   time_t now = time(NULL);
    sint result = -1;
 
-   skipCount = 0;
-   do
+   for (idx = 0; idx < acqCtl.ttxSrcCount; idx++)
    {
-      if ((ttxSrcIdx >= 0) && (ttxSrcIdx + 1 < acqCtl.ttxSrcCount))
-         ttxSrcIdx = ttxSrcIdx + 1;
-      else
-         ttxSrcIdx = 0;
-
-      if ((ttxSrcIdx == acqCtl.lastDoneSrc) && (acqCtl.srcSkipWrapped == FALSE))
+      if ( (now + 1 <= acqCtl.pSources[idx].predictStart) &&
+           (now + 2 >= acqCtl.pSources[idx].predictStart) )
       {
-         dprintf1("EpgAcqTtx-GetNextSrc: search wrapped around last idx=%d\n", acqCtl.lastDoneSrc);
-         acqCtl.srcSkipWrapped = TRUE;
-      }
-      if (acqCtl.pSources[ttxSrcIdx].srcDone == FALSE)
-      {
-         result = ttxSrcIdx;
+         result = idx;
          break;
       }
-      skipCount += 1;
-   } while (skipCount < acqCtl.ttxSrcCount);
+   }
+   if (result == -1)
+   {
+      uint skipCount = 0;
+      do
+      {
+         if ((ttxSrcIdx >= 0) && (ttxSrcIdx + 1 < acqCtl.ttxSrcCount))
+            ttxSrcIdx = ttxSrcIdx + 1;
+         else
+            ttxSrcIdx = 0;
+
+         if (acqCtl.pSources[ttxSrcIdx].srcDone == FALSE)
+         {
+            result = ttxSrcIdx;
+            break;
+         }
+         skipCount += 1;
+      } while (skipCount < acqCtl.ttxSrcCount);
+   }
 
    return result;
 }
@@ -516,6 +527,7 @@ bool EpgAcqTtx_MonitorSources( void )
    bool inRange;
    bool rangeDone;
    bool lock;
+   uint predictDelay;
    time_t now = time(NULL);
    bool advance = FALSE;
 
@@ -530,7 +542,7 @@ bool EpgAcqTtx_MonitorSources( void )
 
    if (acqCtl.state == TTXACQ_STATE_STARTUP)
    {
-      TtxGrab_GetPageStats(&inRange, NULL, &lock);
+      TtxGrab_GetPageStats(&inRange, NULL, &lock, &predictDelay);
 
       if ( (acqCtl.mode != ACQMODE_PASSIVE) &&
            (acqCtl.mode != ACQMODE_EXTERNAL) &&
@@ -541,16 +553,24 @@ bool EpgAcqTtx_MonitorSources( void )
          if (acqCtl.cyclePhase == ACQMODE_PHASE_NOWNEXT)
          {
             // NOW mode: query page sequence prediction
-            if ((inRange == FALSE) && (acqCtl.srcSkipWrapped == FALSE))
+            if ( lock && (inRange == FALSE) &&
+                 ((now < acqCtl.lastDoneTime + TTX_GRAB_TIMEOUT_SCAN) || (acqCtl.lastDoneTime == 0)) )
             {
-               dprintf2("EpgAcqTtx-MonitorSources: SKIP channel %d (%s)\n", acqCtl.ttxSrcIdx, EpgAcqTtx_GetChannelName(acqCtl.ttxSrcIdx));
+               dprintf3("EpgAcqTtx-MonitorSources: SKIP channel %d (%s) delay:%d\n",
+                        acqCtl.ttxSrcIdx, EpgAcqTtx_GetChannelName(acqCtl.ttxSrcIdx), predictDelay);
+               if ((predictDelay > 0) && (predictDelay <= 15))
+                  acqCtl.pSources[acqCtl.ttxSrcIdx].predictStart = now + predictDelay;
+               else
+                  acqCtl.pSources[acqCtl.ttxSrcIdx].predictStart = 0;
                advance = TRUE;
             }
             else if (lock)
             {
                if (EpgAcqTtx_CheckSourceFreq(acqCtl.ttxSrcIdx))
                {
-                  dprintf2("EpgAcqTtx-MonitorSources: load NOW from channel %d (%s)\n", acqCtl.ttxSrcIdx, EpgAcqTtx_GetChannelName(acqCtl.ttxSrcIdx));
+                  dprintf4("EpgAcqTtx-MonitorSources: load NOW from channel %d (%s) inRange?:%d timeout?:%d\n",
+                           acqCtl.ttxSrcIdx, EpgAcqTtx_GetChannelName(acqCtl.ttxSrcIdx),
+                           inRange, (now >= acqCtl.lastDoneTime + TTX_GRAB_TIMEOUT_SCAN));
                   acqCtl.state = TTXACQ_STATE_GRAB;
                   UiControlMsg_AcqEvent(ACQ_EVENT_CTL);
                }
@@ -630,12 +650,11 @@ bool EpgAcqTtx_MonitorSources( void )
 
       if (acqCtl.cyclePhase == ACQMODE_PHASE_NOWNEXT)
       {
-         TtxGrab_GetPageStats(NULL, &rangeDone, NULL);
+         TtxGrab_GetPageStats(NULL, &rangeDone, NULL, NULL);
          if (rangeDone || (now >= acqCtl.chanChangeTime + TTX_GRAB_TIMEOUT_NOW))
          {
             advance = TRUE;
          }
-         //TtxGrab_GetPageStats(&inRange, NULL, NULL);
          //if ((inRange == FALSE) && (pageCount <= 1))
          // -> revert decisition to stay on this channel -> advance
       }
@@ -668,17 +687,25 @@ bool EpgAcqTtx_MonitorSources( void )
          TtxGrab_PostProcess(EpgAcqTtx_GetChannelName(acqCtl.ttxSrcIdx), TRUE);
          acqCtl.pSources[acqCtl.ttxSrcIdx].srcDone = TRUE;
          acqCtl.lastDoneSrc = acqCtl.ttxSrcIdx;
+         acqCtl.lastDoneTime = time(NULL);
       }
       if ( (acqCtl.mode != ACQMODE_PASSIVE) &&
            (acqCtl.mode != ACQMODE_EXTERNAL) )
       {
-         if (acqCtl.cyclePhase == ACQMODE_PHASE_NOWNEXT)
+         if ( (acqCtl.cyclePhase == ACQMODE_PHASE_NOWNEXT) &&
+              (acqCtl.pSources[acqCtl.ttxSrcIdx].srcDone == FALSE) )
             ttxSrcIdx = EpgAcqTtx_GetNextSrc(acqCtl.ttxSrcIdx);
          else // note: -1 to restore normal order after passive mode
             ttxSrcIdx = EpgAcqTtx_GetNextSrc(-1);
-         if (ttxSrcIdx >= 0)
+
+         if (ttxSrcIdx == acqCtl.ttxSrcIdx)
          {
-            dprintf4("EpgAcqTtx-MonitorSources: %d (%s) done, next channel %d (%s)\n", acqCtl.ttxSrcIdx, EpgAcqTtx_GetChannelName(acqCtl.ttxSrcIdx), ttxSrcIdx, EpgAcqTtx_GetChannelName(ttxSrcIdx));
+            // same as before - nothing to do
+         }
+         else if (ttxSrcIdx >= 0)
+         {
+            dprintf4("EpgAcqTtx-MonitorSources: switch from %d (%s) to next channel %d (%s)\n",
+                     acqCtl.ttxSrcIdx, EpgAcqTtx_GetChannelName(acqCtl.ttxSrcIdx), ttxSrcIdx, EpgAcqTtx_GetChannelName(ttxSrcIdx));
             acqCtl.ttxSrcIdx = ttxSrcIdx;
 
             EpgAcqTtx_UpdateProvider();

@@ -76,7 +76,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: xmltv_db.c,v 1.17 2008/08/09 17:08:46 tom Exp tom $
+ *  $Id: xmltv_db.c,v 1.18 2011/01/05 19:29:38 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_XMLTV
@@ -1185,11 +1185,6 @@ void Xmltv_PiCatAddText( XML_STR_BUF * pBuf )
 
 // ----------------------------------------------------------------------------
 
-void Xmltv_PiVideoBwSet( void )
-{
-}
-
-// DTD 0.6 only
 void Xmltv_PiVideoAspectOpen( void )
 {
    xds.pi_aspect_x = 0;
@@ -1236,6 +1231,23 @@ void Xmltv_PiVideoAspectAddXY( XML_STR_BUF * pBuf )
       debug1("Xmltv-VideoAspectAddXY: parse error '%s'", pStr);
 }
 
+void Xmltv_PiVideoColourAdd( XML_STR_BUF * pBuf )
+{
+   char * pStr = XML_STR_BUF_GET_STR(*pBuf);
+
+   if (strcasecmp(pStr, "no") == 0)
+   {
+      xds.pi.feature_flags |= PI_FEATURE_VIDEO_BW;
+   }
+   else if (strcasecmp(pStr, "yes") == 0)
+   {
+      xds.pi.feature_flags &= ~PI_FEATURE_VIDEO_BW;
+   }
+   else
+      debug1("Xmltv-PiVideoColourAdd: parse error '%s'", pStr);
+
+}
+
 void Xmltv_PiVideoQualityAdd( XML_STR_BUF * pBuf )
 {
    char * pStr = XML_STR_BUF_GET_STR(*pBuf);
@@ -1245,6 +1257,11 @@ void Xmltv_PiVideoQualityAdd( XML_STR_BUF * pBuf )
         (strcasecmp(pStr, "PAL-plus") == 0) )
    {
       xds.pi.feature_flags |= PI_FEATURE_PAL_PLUS;
+      xds.pi.feature_flags &= ~PI_FEATURE_VIDEO_HD;
+   }
+   else if (strncasecmp(pStr, "HD", 2) == 0)
+   {
+      xds.pi.feature_flags |= PI_FEATURE_VIDEO_HD;
    }
 }
 
@@ -1285,6 +1302,11 @@ void Xmltv_PiAudioStereoAdd( XML_STR_BUF * pBuf )
    {
       xds.pi.feature_flags &= ~PI_FEATURE_SOUND_MASK;
       xds.pi.feature_flags |= PI_FEATURE_SOUND_SURROUND;
+   }
+   else if (strcasecmp(pStr, "bilingual") == 0)
+   {
+      xds.pi.feature_flags &= ~PI_FEATURE_SOUND_MASK;
+      xds.pi.feature_flags |= PI_FEATURE_SOUND_2CHAN;
    }
    else
       debug1("Xmltv-PiAudioStereoAdd: unknown keyword '%s'", pStr);

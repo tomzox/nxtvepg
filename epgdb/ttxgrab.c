@@ -19,7 +19,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: ttxgrab.c,v 1.11 2009/05/02 19:10:04 tom Exp tom $
+ *  $Id: ttxgrab.c,v 1.15 2011/01/09 16:53:29 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB
@@ -28,21 +28,16 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h> 
-#include <fcntl.h>
-#include <errno.h>
-#include <sys/stat.h>
-#ifndef WIN32
+#include <time.h> 
 #include <sys/types.h>
-#include <signal.h>
-#include <wait.h>
-#else
-#include <windows.h>
-#endif
+#include <sys/stat.h>
+#include <unistd.h>
+#include <errno.h>
 
 #include "epgctl/mytypes.h"
 #include "epgctl/debug.h"
 
+#include "epgttx/ttx_cif.h"
 #include "epgvbi/btdrv.h"
 #include "epgvbi/ttxdecode.h"
 #include "epgvbi/hamming.h"
@@ -50,20 +45,9 @@
 
 #ifdef USE_TTX_GRABBER
 
-#if !defined (TTX_GRAB_SCRIPT_PATH)
-#error "Name of external grabber script missing"  // should be defined in makefile
-#endif
-
-// three possible locations for the grabber script: current dir, nxtvepg cfg dir, $PATH
-#define TTX_GRAB_SCRIPT_LOCAL   "tv_grab_ttx.pl"
-#ifndef WIN32
-#define TTX_GRAB_SCRIPT_NXTVEPG  TTX_GRAB_SCRIPT_PATH "/tv_grab_ttx.pl"
-#define TTX_GRAB_SCRIPT_GLOBAL  "tv_grab_ttx"
-#endif
-
 #define XML_OUT_FILE_PAT   "ttx-%s.xml.tmp"
 #define TTX_CAP_FILE_PAT   "ttx-%s.dat"
-#define TTX_CAP_FILE_TMP   "ttx.tmp"
+#define TTX_CAP_FILE_TMP   "ttx-%s.dat.tmp"
 
 #ifdef __MINGW32__
 typedef long ssize_t;
@@ -89,29 +73,19 @@ typedef long ssize_t;
 
 static struct
 {
-   char       * pXmlTmpFile;
    uint         expireMin;
    bool         keepTtxInp;
    uint         startPage;
    uint         stopPage;
+
    bool         havePgHd;
    sint         refPgNumPos;
    uint         refPgDiffCnt;
    uchar        refPgHdText[HEADER_CHECK_LEN];
    uchar        curPgHdText[HEADER_CHECK_LEN];
    uchar        curPgHdRep[HEADER_CHECK_LEN];
-   FILE       * fpTtxTmp;
-   int          ioError;
-#ifndef WIN32
-   int          child_pipe;
-   pid_t        child_pid;
-#else
-   bool         child_active;
-   HANDLE       child_handle;
-   HANDLE       child_stderr;
-   char       * pPerlExe;
-#endif
    uint32_t     cniDecInd[CNI_TYPE_COUNT];
+   bool         postProcDone;
    TTX_GRAB_STATS stats;
 } ttxGrabState;
 
@@ -259,6 +233,8 @@ static void TtxGrab_PageHeaderCheck( const uchar * curPageHeader, uint pageNo )
    }
    else
    {  // first header after channel change -> copy header
+      uint errCnt = 0;
+      uint diffCnt = 0;
       minRepCount = 0;
       for (idx=0; idx < HEADER_CHECK_LEN; idx++)
       {
@@ -270,12 +246,16 @@ static void TtxGrab_PageHeaderCheck( const uchar * curPageHeader, uint pageNo )
             {
                ttxGrabState.refPgHdText[idx] = dec;
                ttxGrabState.curPgHdRep[idx] = 1;
+               diffCnt += 1;
             }
             else if (ttxGrabState.curPgHdRep[idx] < HEADER_CHAR_MIN_REP)
             {
                ttxGrabState.curPgHdRep[idx] += 1;
             }
          }
+         else
+            errCnt += 1;
+
          if (ttxGrabState.curPgHdRep[idx] >= HEADER_CHAR_MIN_REP)
             minRepCount += 1;
       }
@@ -297,6 +277,9 @@ static void TtxGrab_PageHeaderCheck( const uchar * curPageHeader, uint pageNo )
          else
             dprintf2("TtxGrab-PageHeaderCheck: page no %03X not found in header \"%." HEADER_CHECK_LEN_STR "s\"\n", pageNo, TtxGrab_PrintHeader(ttxGrabState.refPgHdText, FALSE));
       }
+      else
+         dprintf4("TtxGrab-PageHeaderCheck: minRep:%d err:%d diff:%d - header \"%." HEADER_CHECK_LEN_STR "s\"\n",
+                  minRepCount, errCnt, diffCnt, TtxGrab_PrintHeader(ttxGrabState.refPgHdText, FALSE));
    }
 }
 
@@ -306,47 +289,13 @@ static void TtxGrab_PageHeaderCheck( const uchar * curPageHeader, uint pageNo )
 //
 static void TtxGrab_ProcessCni( void )
 {
-   VBI_LINE vbl;
    CNI_TYPE cniType;
    uint   newCni;
-   ssize_t ret;
 
    // retrieve new CNI from teletext decoder, if any
    if ( TtxDecode_GetCniAndPil(&newCni, NULL, &cniType, ttxGrabState.cniDecInd, NULL, NULL) )
    {
-      memset(&vbl, 0, sizeof(vbl));
-
-      switch (cniType)
-      {
-         case CNI_TYPE_VPS:
-            vbl.pkgno = 32;
-            break;
-         case CNI_TYPE_PDC:
-         case CNI_TYPE_NI:
-            vbl.pageno = 0x800;
-            vbl.pkgno = 30;
-            break;
-         default:
-            SHOULD_NOT_BE_REACHED;
-            break;
-      }
-      // note: data buffer is not dword-aligned -> use memcpy
-      memcpy(vbl.data, &newCni, sizeof(newCni));
-
-      //dprintf2("TtxGrab-StoreCni: 0x%04X -> 0x%04X\n", newCni, CniConvertUnknownToPdc(newCni));
-
-      if (ttxGrabState.fpTtxTmp != NULL)
-      {
-         ret = fwrite(&vbl, sizeof(vbl), 1, ttxGrabState.fpTtxTmp);
-         if (ret != 1)
-         {
-            debug1("TtxGrab-ProcessPackets: write error %d", errno);
-            ttxGrabState.ioError = ferror(ttxGrabState.fpTtxTmp);
-            fclose(ttxGrabState.fpTtxTmp);
-            ttxGrabState.fpTtxTmp = NULL;
-            // TODO notify parent
-         }
-      }
+      ttx_db_add_cni(newCni);
    }
 }
 
@@ -362,12 +311,11 @@ bool TtxGrab_ProcessPackets( void )
    const VBI_LINE * pVbl;
    uint pkgOff;
    bool seenHeader;
-   ssize_t ret;
 
    if ( (pVbiBuf != NULL) &&
         (pVbiBuf->chanChangeReq == pVbiBuf->chanChangeCnf) )
    {
-      assert(pVbiBuf->startPageNo == ttxGrabState.startPage);
+      //assert(pVbiBuf->startPageNo == ttxGrabState.startPage);
 
       // fetch the oldest packet from the teletext ring buffer
       seenHeader = FALSE;
@@ -377,51 +325,42 @@ bool TtxGrab_ProcessPackets( void )
          ttxGrabState.stats.ttxPkgCount += 1;
          pkgOff += 1;
 
-         if ( (pVbl->pageno >= ttxGrabState.startPage) &&
-              (pVbl->pageno <= ttxGrabState.stopPage) )
+         //dprintf4("Process idx=%d: pg=%03X.%04X pkg=%d\n", pVbiBuf->reader_idx, pVbl->pageno, pVbl->ctrl_lo & 0x3F7F, pVbl->pkgno);
+         if (pVbl->pkgno == 0)
          {
-            //dprintf4("Process idx=%d: pg=%03X.%04X pkg=%d\n", pVbiBuf->reader_idx, pVbl->pageno, pVbl->ctrl_lo & 0x3F7F, pVbl->pkgno);
-            if (pVbl->pkgno == 0)
-            {
-               //dprintf3("%03X.%04X %s\n", pVbl->pageno, pVbl->ctrl_lo & 0x3F7F, TtxGrab_PrintHeader(pVbl->data, TRUE));
-               seenHeader = TRUE;
-               ttxGrabState.stats.ttxPagCount += 1;
+            //dprintf3("%03X.%04X %s\n", pVbl->pageno, pVbl->ctrl_lo & 0x3F7F, TtxGrab_PrintHeader(pVbl->data, TRUE));
+            seenHeader = TRUE;
+            ttxGrabState.stats.ttxPagCount += 1;
+            if (((pVbl->pageno & 0x0F) <= 9) && (((pVbl->pageno >> 4) & 0x0F) <= 9))
                TtxGrab_PageHeaderCheck(pVbl->data + 8, pVbl->pageno);
-            }
+         }
 
-            ttxGrabState.stats.ttxPkgStrSum += 40;
-            ttxGrabState.stats.ttxPkgParErr +=
-               UnHamParityArray(pVbl->data, (void*)pVbl->data, 40);
-            // XXX FIXME: using void cast to remove const for target buffer
+         ttxGrabState.stats.ttxPkgStrSum += 40;
+         ttxGrabState.stats.ttxPkgParErr +=
+            UnHamParityArray(pVbl->data, (void*)pVbl->data, 40);
+         // XXX FIXME: using void cast to remove const for target buffer
 
-            // skip file output if disabled (note all other processing is intentionally done anyways)
-            if ( (ttxGrabState.fpTtxTmp != NULL) &&
-                 (ttxGrabState.refPgDiffCnt == 0) )
-            {
-               ret = fwrite(pVbl, sizeof(*pVbl), 1, ttxGrabState.fpTtxTmp);
-               if (ret != 1)
-               {
-                  debug1("TtxGrab-ProcessPackets: write error %d", ferror(ttxGrabState.fpTtxTmp));
-                  ttxGrabState.ioError = ferror(ttxGrabState.fpTtxTmp);
-                  fclose(ttxGrabState.fpTtxTmp);
-                  ttxGrabState.fpTtxTmp = NULL;
-                  // TODO notify parent
-                  break;
-               }
-            }
+         // skip file output if disabled (note all other processing is intentionally done anyways)
+         if (ttxGrabState.refPgDiffCnt == 0)
+         {
+            ttx_db_add_pkg( pVbl->pageno,
+                            pVbl->ctrl_lo | (pVbl->ctrl_hi << 16),
+                            pVbl->pkgno,
+                            pVbl->data,
+                            time(NULL));
          }
       }
 
       // make sure to check at least one page header for channel changes
       // (i.e. even if no page in the requested range was found in this interval)
-      if ((seenHeader == FALSE) || ttxGrabState.havePgHd)
       {
          char buf[40];
          uint pgNum;
          pkgOff = 0;
          while (TtxDecode_GetPageHeader(buf, &pgNum, pkgOff))
          {
-            TtxGrab_PageHeaderCheck(buf + 8, pgNum);
+            if (((pgNum & 0x0F) <= 9) && (((pgNum >> 4) & 0x0F) <= 9))
+               TtxGrab_PageHeaderCheck(buf + 8, pgNum);
             if (ttxGrabState.havePgHd && (ttxGrabState.refPgDiffCnt == 0))
                break;
             //else dprintf2("##### %03X %s\n", pgNum, TtxGrab_PrintHeader(buf, TRUE));
@@ -462,9 +401,10 @@ bool TtxGrab_CheckSlicerQuality( void )
 // - rangeDone: all pages of the requested range captured
 // - sourceLock: page header stored (i.e. channel change detection enabled)
 //
-void TtxGrab_GetPageStats( bool * pInRange, bool * pRangeDone, bool * pSourceLock )
+void TtxGrab_GetPageStats( bool * pInRange, bool * pRangeDone, bool * pSourceLock, uint * pPredictDelay )
 {
    uint magBuf[8];
+   uint nearBuf[3];
    uint idx;
    uint sum;
    uint mag;
@@ -473,32 +413,68 @@ void TtxGrab_GetPageStats( bool * pInRange, bool * pRangeDone, bool * pSourceLoc
    bool inRange = FALSE;
    bool rangeDone = FALSE;
 
-   if (TtxDecode_GetMagStats(magBuf, &dirSum, TRUE))
+   if (pSourceLock != NULL)
+      *pSourceLock = FALSE;
+   if (pPredictDelay != NULL)
+      *pPredictDelay = 0;
+
+   if (TtxDecode_GetMagStats(magBuf, &dirSum, FALSE))
    {
       sum = 0;
       for (idx=0; idx<8; idx++)
          sum += magBuf[idx];
-      if (sum != 0)
+      if (sum >= 20)
       {
          mag = (ttxGrabState.startPage >> 8) & 0x07;
 
-         inRange = (magBuf[mag] <= 2);
-         revDirection = ((0 - dirSum) >= (int)sum/4) && (sum > 10);
+         revDirection = ((0 - dirSum) >= (int)sum/4);
          if (revDirection)
-            inRange &= ((magBuf[MODULO_ADD(mag,1,8)] + magBuf[MODULO_ADD(mag,2,8)]) > sum / 4)
-                    && (magBuf[MODULO_ADD(mag,1,8)] > 0);
+         {
+            nearBuf[0] = magBuf[mag];
+            nearBuf[1] = magBuf[MODULO_ADD(mag,1,8)];
+            nearBuf[2] = magBuf[MODULO_ADD(mag,2,8)];
+         }
          else
-            inRange &= ((magBuf[MODULO_SUB(mag,1,8)] + magBuf[MODULO_SUB(mag,2,8)]) > sum / 4)
-                    && (magBuf[MODULO_SUB(mag,1,8)] > 0);
+         {
+            nearBuf[0] = magBuf[mag];
+            nearBuf[1] = magBuf[MODULO_SUB(mag,1,8)];
+            nearBuf[2] = magBuf[MODULO_SUB(mag,2,8)];
+         }
 
-         rangeDone = (magBuf[mag] <= 2) && (sum > 10) &&
+         if (nearBuf[2] >= sum * 80/100)
+            inRange = TRUE;
+         else if ((nearBuf[1] + nearBuf[2]) >= sum * 80/100)
+            inRange = (nearBuf[0] <= 2);
+         else
+            inRange = FALSE;
+
+         rangeDone = (magBuf[mag] <= 2) &&
                      ( (ttxGrabState.stats.ttxPagCount > 30) ||
                        (ttxGrabState.stats.ttxPagCount >= (ttxGrabState.stopPage - ttxGrabState.startPage + 1)));
 
+         if (pSourceLock != NULL)
+            *pSourceLock = ttxGrabState.havePgHd;
+
+         if (!rangeDone && (pPredictDelay != NULL))
+         {
+            for (idx=0; idx<8; idx++)
+            {
+               if (magBuf[idx] >= sum * 75/100)
+               {
+                  if (idx == mag)  // one cycle
+                     *pPredictDelay = 30;
+                  else if (revDirection)
+                     *pPredictDelay = ((idx + 8 - mag - 1) % 8) * 3;
+                  else
+                     *pPredictDelay = ((mag + 8 - idx - 1) % 8) * 3;
+               }
+            }
+         }
 #ifndef DPRINTF_OFF
          for (idx=0; idx<8; idx++)
             dprintf1("%2d%% ", magBuf[idx] * 100 / sum);
-         dprintf5(" - sum:%d dir:%d rev:%d wait:%d done:%d\n", sum, dirSum, revDirection, inRange, rangeDone);
+         dprintf5(" - sum:%d dir:%d rev:%d wait:%d done:%d\n",
+                  sum, dirSum, revDirection, inRange, rangeDone);
 #endif
       }
    }
@@ -507,8 +483,6 @@ void TtxGrab_GetPageStats( bool * pInRange, bool * pRangeDone, bool * pSourceLoc
       *pInRange = inRange;
    if (pRangeDone != NULL)
       *pRangeDone = rangeDone;
-   if (pSourceLock != NULL)
-      *pSourceLock = ttxGrabState.havePgHd;
 }
 
 // ---------------------------------------------------------------------------
@@ -550,380 +524,18 @@ static bool TtxGrab_CheckFileExists( const char * pPath )
 }
 
 // ---------------------------------------------------------------------------
-// Terminate the post-processor process forcefully
-//
-static bool TtxGrab_KillParser( void )
-{
-   bool result = FALSE;
-#ifndef WIN32
-   assert((ttxGrabState.child_pid == -1) || (ttxGrabState.child_pid > 0));
-
-   if (ttxGrabState.child_pid > 0)  // fail-safe: do not check for -1 only
-   {
-      int status;
-      if (kill(ttxGrabState.child_pid, SIGTERM) == 0)
-         dprintf1("TtxGrab-Stop: killed grabber PID %d\n", ttxGrabState.child_pid);
-      waitpid(ttxGrabState.child_pid, &status, WNOHANG);
-      ttxGrabState.child_pid = -1;
-      result = TRUE;
-   }
-#else
-   if (ttxGrabState.child_active)
-   {
-      dprintf0("TtxGrab-Stop: killing grabber process\n");
-      assert(ttxGrabState.child_handle != INVALID_HANDLE_VALUE);
-      TerminateProcess(ttxGrabState.child_handle, 1);
-      WaitForSingleObject(ttxGrabState.child_handle, 200);  // max. 200 ms
-      CloseHandle(ttxGrabState.child_handle);
-      CloseHandle(ttxGrabState.child_stderr);
-      ttxGrabState.child_active = FALSE;
-      ttxGrabState.child_handle = INVALID_HANDLE_VALUE;
-      result = TRUE;
-   }
-#endif
-   return result;
-}
-
-// ---------------------------------------------------------------------------
-// Spawn child process and invoke perl
-//
-static bool TtxGrab_SpawnParser( FILE * fpGrabInTmp, const char * pOutFile, const char * pMergeFile )
-{ 
-   bool result = FALSE;
-#ifndef WIN32
-   int pipe_fd[2];
-   pid_t pid;
-   char exp_str[20];
-   char * argv[16];
-   uint arg_idx;
-
-   if (pipe(pipe_fd) == 0)
-   {
-      pid = fork();
-      if (pid == 0)
-      {
-         // assign pipe to child's STDERR
-         close(pipe_fd[0]);
-         dup2(pipe_fd[1], 2);
-         close(pipe_fd[1]);
-
-         // assign teletext packet temp file as STDIN
-         dup2(fileno(fpGrabInTmp), 0);
-
-         sprintf(exp_str, "%d", ttxGrabState.expireMin);
-         //unlink(pOutFile); // FIXME
-
-         arg_idx = 0;
-         argv[arg_idx++] = TTX_GRAB_SCRIPT_LOCAL;
-         argv[arg_idx++] = TTX_GRAB_SCRIPT_LOCAL;
-         argv[arg_idx++] = "-expire";
-         argv[arg_idx++] = exp_str;
-         if (pMergeFile != NULL)
-         {
-            argv[arg_idx++] = "-merge";
-            argv[arg_idx++] = (char *) pMergeFile;
-         }
-         argv[arg_idx++] = "-outfile";
-         argv[arg_idx++] = (char *) pOutFile;
-         argv[arg_idx++] = "-";
-         argv[arg_idx] = NULL;
-
-         if (access(TTX_GRAB_SCRIPT_LOCAL, R_OK) == 0)
-         {
-            dprintf9("EXEC perl %s %s %s %s %s %s %s %s %s\n", argv[0], argv[1], argv[2], argv[3], ((arg_idx > 4) ? argv[4] : ""), ((arg_idx > 5) ? argv[5] : ""), ((arg_idx > 6) ? argv[6] : ""), ((arg_idx > 7) ? argv[7] : ""), ((arg_idx > 8) ? argv[8] : ""));
-            execvp("perl", argv);
-         }
-         else if (access(TTX_GRAB_SCRIPT_NXTVEPG, R_OK) == 0)
-         {
-            argv[0] = TTX_GRAB_SCRIPT_NXTVEPG;
-            argv[1] = TTX_GRAB_SCRIPT_NXTVEPG;
-            dprintf9("EXEC perl %s %s %s %s %s %s %s %s %s\n", argv[0], argv[1], argv[2], argv[3], ((arg_idx > 4) ? argv[4] : ""), ((arg_idx > 5) ? argv[5] : ""), ((arg_idx > 6) ? argv[6] : ""), ((arg_idx > 7) ? argv[7] : ""), ((arg_idx > 8) ? argv[8] : ""));
-            execvp("perl", argv);
-         }
-         else
-         {
-            argv[1] = TTX_GRAB_SCRIPT_GLOBAL;
-            dprintf8("EXEC %s %s %s %s %s %s %s %s\n", argv[1], argv[2], argv[3], ((arg_idx > 4) ? argv[4] : ""), ((arg_idx > 5) ? argv[5] : ""), ((arg_idx > 6) ? argv[6] : ""), ((arg_idx > 7) ? argv[7] : ""), ((arg_idx > 8) ? argv[8] : ""));
-            execvp(TTX_GRAB_SCRIPT_GLOBAL, argv + 1);
-         }
-
-         // only reached in error cases
-         fprintf(stderr, "Failed to start grabber script or perl interpreter: %s\n", strerror(errno));
-         exit(-1);
-      } 
-      else if (pid > 0)
-      {
-         // parent process
-         close(pipe_fd[1]);
-         fcntl(pipe_fd[0], F_SETFL, O_NONBLOCK);
-         ttxGrabState.child_pipe = pipe_fd[0];
-         ttxGrabState.child_pid = pid;
-
-         dprintf3("TtxGrab-SpawnParser: grabbing into '%s', merge '%s', pid=%d\n", pOutFile, ((pMergeFile!=NULL)?pMergeFile:""), (int)pid);
-         result = TRUE;
-      } 
-      else
-      { 
-         fprintf(stderr, "Failed to fork for spawning perl interpreter: %s\n", strerror(errno));
-         close(pipe_fd[0]);
-         close(pipe_fd[1]);
-      }
-   }
-   else
-   {
-      fprintf(stderr, "Failed to create pipe to perl interpreter: %s\n", strerror(errno));
-   } 
-#else
-   PROCESS_INFORMATION proc_info;
-   STARTUPINFO         startup;
-   SECURITY_ATTRIBUTES sec_att;
-   HANDLE rdPipe, wrPipe;
-   char * pPerlExe;
-   char * pCmd;
-
-   memset(&proc_info, 0, sizeof(proc_info));
-   memset(&startup, 0, sizeof(startup));
-   startup.cb = sizeof(startup);
-   startup.dwFlags = STARTF_USESTDHANDLES;
-   startup.hStdOutput = GetStdHandle(STD_OUTPUT_HANDLE);
-
-   // assign teletext packet temp file as STDIN
-   startup.hStdInput = (HANDLE)_get_osfhandle(_fileno(fpGrabInTmp));
-   ifdebug2(startup.hStdInput == INVALID_HANDLE_VALUE, "Failed to get handle for ttx temp file (fd %d): %ld", _fileno(fpGrabInTmp), GetLastError());
-   SetHandleInformation(startup.hStdInput, HANDLE_FLAG_INHERIT, HANDLE_FLAG_INHERIT);
-
-   memset(&sec_att, 0, sizeof(sec_att));
-   sec_att.nLength = sizeof(sec_att);
-   sec_att.bInheritHandle = TRUE;
-   CreatePipe(&rdPipe, &wrPipe, &sec_att, 0);
-   SetHandleInformation(rdPipe, HANDLE_FLAG_INHERIT, 0);
-   startup.hStdError = wrPipe;
-   //startup.hStdError = GetStdHandle(STD_ERROR_HANDLE);
-
-   if (ttxGrabState.pPerlExe != NULL)
-      pPerlExe = ttxGrabState.pPerlExe;
-   else
-      pPerlExe = "perl";
-
-   if (pMergeFile != NULL)
-   {
-      pCmd = xmalloc(strlen(pPerlExe) + strlen(pOutFile) + strlen(pMergeFile) + 100);
-      sprintf(pCmd, "\"%s\" \"%s\" -expire %d -merge \"%s\" -outfile \"%s\" -", pPerlExe, TTX_GRAB_SCRIPT_LOCAL, ttxGrabState.expireMin, pMergeFile, pOutFile);
-   }
-   else
-   {
-      pCmd = xmalloc(strlen(pPerlExe) + strlen(pOutFile) + 100);
-      sprintf(pCmd, "\"%s\" \"%s\" -expire %d -outfile \"%s\" -", pPerlExe, TTX_GRAB_SCRIPT_LOCAL, ttxGrabState.expireMin, pOutFile);
-   }
-
-   if (CreateProcess(NULL, pCmd, NULL, NULL, TRUE,
-                     CREATE_NO_WINDOW, NULL, NULL, &startup, &proc_info) )
-   {
-      result = TRUE;
-
-      ttxGrabState.child_active = TRUE;
-      ttxGrabState.child_handle = proc_info.hProcess;
-      ttxGrabState.child_stderr = rdPipe;
-
-      SetThreadPriority(proc_info.hThread, THREAD_PRIORITY_BELOW_NORMAL);
-      CloseHandle(proc_info.hThread);
-      CloseHandle(wrPipe);
-
-      dprintf3("TtxGrab-SpawnParser: PID %ld, grabbing into '%s', merge '%s'\n", proc_info.dwProcessId, pOutFile, ((pMergeFile!=NULL)?pMergeFile:""));
-   }
-   else
-   {  // FIXME cannot report to stderr since we're not a console process
-      debug1("Failed to start process: system error #%ld", GetLastError());
-      CloseHandle(rdPipe);
-      CloseHandle(wrPipe);
-   }
-   xfree(pCmd);
-#endif
-   return result;
-}
-
-// ---------------------------------------------------------------------------
-// Check if the child-process has finished
-// - the child status is polled from inside the ttx packet handler
-//   i.e. there's no asynchronous notification
-// - UNIX: wait for zero-read on child's STDERR output
-// - WIN32: poll child process status
-//
-static bool TtxGrab_CheckChildStatus( uint * pExitCode )
-{
-   bool result = FALSE;
-#ifndef WIN32
-   struct timeval tv;
-   char buf[256];
-   fd_set rd;
-   int sret;
-   ssize_t rdlen;
-
-   if (ttxGrabState.child_pipe != -1)
-   {
-      do
-      {
-         do
-         {
-            FD_ZERO(&rd);
-            FD_SET(ttxGrabState.child_pipe, &rd);
-            tv.tv_sec = 0;
-            tv.tv_usec = 0;
-            sret = select(ttxGrabState.child_pipe + 1, &rd, NULL, NULL, &tv);
-         } while ((sret < 0) && (errno == EINTR));
-
-         if (sret > 0)
-         {
-            if (FD_ISSET(ttxGrabState.child_pipe, &rd))
-            {
-               rdlen = read(ttxGrabState.child_pipe, buf, sizeof(buf)-1);
-               if (rdlen > 0)
-               {
-                  buf[rdlen] = 0;
-                  dprintf1("TtxGrab-CheckChildStatus: read from STDERR: '%s'\n", buf);
-               }
-               else if ((rdlen == 0) || ((rdlen < 0) && (errno != EINTR) && (errno != EAGAIN)))
-               {
-                  dprintf1("TtxGrab-CheckChildStatus: post-processing finished (PID %d)\n", (int)ttxGrabState.child_pid);
-                  *pExitCode = 0; //FIXME
-                  result = TRUE;
-               }
-            }
-         }
-         else if (sret < 0)
-         {
-            debug1("TtxGrab-CheckChildStatus: select on child handle failed: %d", errno);
-            *pExitCode = -1;
-            result = TRUE;
-         }
-      } while (!result && (sret > 0));
-   }
-   if (result)
-   {
-      //sret = waitpid(ttxGrabState.childPid, &status, WNOHANG);
-      close(ttxGrabState.child_pipe);
-      ttxGrabState.child_pipe = -1;
-      ttxGrabState.child_pid = -1;
-   }
-#else
-   DWORD exitCode;
-   DWORD lenAvail;
-   char buf[256];
-
-   if (ttxGrabState.child_active)
-   {
-      while (PeekNamedPipe(ttxGrabState.child_stderr, &buf, 1,
-                           NULL, &lenAvail, NULL) && (lenAvail > 0))
-      {
-         if (lenAvail >= sizeof(buf))
-            lenAvail = sizeof(buf) - 1;
-
-         if (ReadFile(ttxGrabState.child_stderr, &buf, lenAvail, &lenAvail, NULL))
-         {
-            buf[lenAvail] = 0;
-            debug1("TtxGrab-CheckChildStatus: read from STDERR: '%s'", buf);
-         }
-      }
-
-      if (GetExitCodeProcess(ttxGrabState.child_handle, &exitCode))
-      {
-         if (exitCode != STILL_ACTIVE)
-         {
-#ifndef DPRINTF_OFF
-            FILETIME CreationTime, ExitTime, KernelTime, UserTime;
-
-            if (GetProcessTimes(ttxGrabState.child_handle,
-                                &CreationTime, &ExitTime, &KernelTime, &UserTime))
-            {
-               ULARGE_INTEGER KernelTimeInt, UserTimeInt;  // 100ns per tick
-               memcpy(&KernelTimeInt, &KernelTime, sizeof(KernelTime));
-               memcpy(&UserTimeInt, &UserTime, sizeof(UserTime));
-               dprintf2("TtxGrab-CheckChildStatus: post-processing is done: exit code %ld, required %lld ms\n", exitCode, (KernelTimeInt.QuadPart + UserTimeInt.QuadPart)/10000);
-            }
-#endif
-            if (WaitForSingleObject(ttxGrabState.child_handle, 200) == WAIT_FAILED)
-               debug1("TtxGrab-CheckChildStatus: failed to wait for child: %ld", GetLastError());
-            CloseHandle(ttxGrabState.child_handle);
-            CloseHandle(ttxGrabState.child_stderr);
-            ttxGrabState.child_active = FALSE;
-            ttxGrabState.child_handle = INVALID_HANDLE_VALUE;
-
-            ifdebug1(exitCode != 0, "TtxGrab-CheckChildStatus: non-zero exit code from perl script: %ld", exitCode);
-            *pExitCode = (uint) exitCode;
-            result = TRUE;
-         }
-      }
-      else
-         debug1("TtxGrab-CheckChildStatus: failed to query child process status: %ld", GetLastError());
-   }
-#endif
-   return result;
-}
-
-// ---------------------------------------------------------------------------
 // Check if post-processing is done: poll child process status
 // - optionally returns a pointer to the name of the generated XML file
 //   note: the caller must free the memory for the name!
 //
 bool TtxGrab_CheckPostProcess( char ** ppXmlName )
 {
-   char * pXmlOutFile;
-   uint exitCode = 0;
    bool result = FALSE;
-
-   if ( TtxGrab_CheckChildStatus(&exitCode) )
+   if (ttxGrabState.postProcDone)
    {
-      if (ttxGrabState.pXmlTmpFile != NULL)
-      {
-         if ( (exitCode == 0) &&
-              TtxGrab_CheckFileExists(ttxGrabState.pXmlTmpFile) )
-         {
-            pXmlOutFile = xstrdup(ttxGrabState.pXmlTmpFile);
-
-            // remove ".tmp" suffix from output file name
-            pXmlOutFile[strlen(pXmlOutFile) - 4] = 0;
-
-            // replace XML file with temporary output: XML_OUT_FILE_PAT
-#ifndef WIN32
-            if (rename(ttxGrabState.pXmlTmpFile, pXmlOutFile) != 0)
-            {
-               debug3("TtxGrab-CheckPostProcess: failed to rename '%s' into '%s': %d", ttxGrabState.pXmlTmpFile, pXmlOutFile, errno);
-               unlink(ttxGrabState.pXmlTmpFile);
-               xfree(pXmlOutFile);
-            }
-#else
-            // note: MoveFileEx which allows safely replacing existing files is not available for W98 (how lame is that)
-            if (DeleteFile(pXmlOutFile) == 0)
-               ifdebug2(GetLastError() != ERROR_FILE_NOT_FOUND, "TtxGrab-CheckPostProcess: failed to remove '%s': %ld", pXmlOutFile, GetLastError());
-            if (MoveFile(ttxGrabState.pXmlTmpFile, pXmlOutFile) == 0)
-            {
-               debug3("TtxGrab-CheckPostProcess: failed to rename '%s' into '%s': %ld", ttxGrabState.pXmlTmpFile, pXmlOutFile, GetLastError());
-               unlink(ttxGrabState.pXmlTmpFile);
-               xfree(pXmlOutFile);
-            }
-#endif
-            else
-            {  // successfully renamed tmp output file to target XML file
-               // if requested, return XML file name; else free the memory
-               if (ppXmlName != NULL)
-                  *ppXmlName = pXmlOutFile;
-               else
-                  xfree(pXmlOutFile);
-
-               result = TRUE;
-            }
-         }
-         else
-         {
-            ifdebug1(exitCode == 0, "TtxGrab-CheckPostProcess: grabber output file missing or empty (%s)", ttxGrabState.pXmlTmpFile);
-            unlink(ttxGrabState.pXmlTmpFile);
-         }
-
-         xfree(ttxGrabState.pXmlTmpFile);
-         ttxGrabState.pXmlTmpFile = NULL;
-      }
-      else
-         debug0("TtxGrab-CheckPostProcess: XML tmp file undefined");
+      dprintf0("TtxGrab-CheckPostProcess: DONE\n");
+      ttxGrabState.postProcDone = FALSE;
+      result = TRUE;
    }
    return result;
 }
@@ -933,79 +545,60 @@ bool TtxGrab_CheckPostProcess( char ** ppXmlName )
 //
 void TtxGrab_PostProcess( const char * pName, bool reset )
 {
+   char * pXmlTmpFile;
    char * pXmlMergeFile;
-   char * pKeptInpFile;
-   int sys_ret;
+   char * pXmlOutFile;
 
-   // optional (debug only): keep VBI raw data by renaming the file
-   if (ttxGrabState.keepTtxInp && (ttxGrabState.fpTtxTmp != NULL))
+   if (ttxGrabState.keepTtxInp)
    {
-#ifdef WIN32
-      fclose(ttxGrabState.fpTtxTmp);
-#endif
-      pKeptInpFile = xmalloc(strlen(pName) + 20);
+      char * pKeptInpFile = xmalloc(strlen(pName) + 20);
       sprintf(pKeptInpFile, TTX_CAP_FILE_PAT, pName);
-      rename(TTX_CAP_FILE_TMP, pKeptInpFile);
-#ifdef WIN32
-      ttxGrabState.fpTtxTmp = fopen(pKeptInpFile, "r+b");
-#endif
+      ttx_db_dump(pKeptInpFile, 100, 899);
       xfree(pKeptInpFile);
    }
 
-   if (ttxGrabState.fpTtxTmp != NULL)
+   // build output file name (note: includes ".tmp" suffix which is removed later)
+   pXmlTmpFile = xmalloc(strlen(pName) + 20);
+   sprintf(pXmlTmpFile, XML_OUT_FILE_PAT, pName);
+
+   pXmlMergeFile = xstrdup(pXmlTmpFile);
+   pXmlMergeFile[strlen(pXmlMergeFile) - 4] = 0;
+   if (TtxGrab_CheckFileExists(pXmlMergeFile) == FALSE)
    {
-      // assign the ttx temp output file as XML input
-      fflush(ttxGrabState.fpTtxTmp);
-      rewind(ttxGrabState.fpTtxTmp);
-
-      // note: old grabber must finish before we get here again
-      TtxGrab_CheckPostProcess(NULL);
-      if (ttxGrabState.pXmlTmpFile != NULL)
-      {
-         debug1("TtxGrab-PostProcess: old grabber still running! terminating process and removing tmp file '%s'", ttxGrabState.pXmlTmpFile);
-         TtxGrab_KillParser();
-         sys_ret = unlink(ttxGrabState.pXmlTmpFile);
-         ifdebug2((sys_ret != 0), "TtxGrab-PostProcess: failed to remove tmp file: %d (%s)", errno, strerror(errno));
-         xfree(ttxGrabState.pXmlTmpFile);
-         ttxGrabState.pXmlTmpFile = NULL;
-      }
-
-      // build output file name (note: includes ".tmp" suffix which is removed later)
-      ttxGrabState.pXmlTmpFile = xmalloc(strlen(pName) + 20);
-      sprintf(ttxGrabState.pXmlTmpFile, XML_OUT_FILE_PAT, pName);
-
-      pXmlMergeFile = xstrdup(ttxGrabState.pXmlTmpFile);
-      pXmlMergeFile[strlen(pXmlMergeFile) - 4] = 0;
-      if (TtxGrab_CheckFileExists(pXmlMergeFile) == FALSE)
-      {
-         xfree(pXmlMergeFile);
-         pXmlMergeFile = NULL;
-      }
-
-      if (TtxGrab_SpawnParser(ttxGrabState.fpTtxTmp, ttxGrabState.pXmlTmpFile, pXmlMergeFile) == FALSE)
-      {
-         // failed to start parser -> remove input and output files
-         xfree(ttxGrabState.pXmlTmpFile);
-         ttxGrabState.pXmlTmpFile = NULL;
-      }
-
-      if (reset)
-      {
-         fclose(ttxGrabState.fpTtxTmp);
-         ttxGrabState.fpTtxTmp = NULL;
-      }
-      else
-      {
-         fseek(ttxGrabState.fpTtxTmp, 0, SEEK_END);
-      }
-
-      if (pXmlMergeFile != NULL)
-      {
-         xfree(pXmlMergeFile);
-      }
+      xfree(pXmlMergeFile);
+      pXmlMergeFile = NULL;
    }
-   else
-      debug0("TtxGrab-PostProcess: acquisition not active");
+   dprintf4("TtxGrab-PostProcess: name:'%s' expire:%d merge:'%s' out:'%s'\n",
+            pName, ttxGrabState.expireMin, (pXmlMergeFile != NULL) ? pXmlMergeFile : "", pXmlTmpFile);
+
+   if (ttx_db_parse(ttxGrabState.startPage, ttxGrabState.stopPage, ttxGrabState.expireMin,
+                    pXmlMergeFile, pXmlTmpFile, 0, 0) == 0)
+   {
+      // replace XML file with temporary output: XML_OUT_FILE_PAT
+      pXmlOutFile = xstrdup(pXmlTmpFile);
+
+      // remove ".tmp" suffix from output file name
+      pXmlOutFile[strlen(pXmlOutFile) - 4] = 0;
+
+      if (rename(pXmlTmpFile, pXmlOutFile) != 0)
+      {
+         debug3("TtxGrab-CheckPostProcess: failed to rename '%s' into '%s': %d", pXmlTmpFile, pXmlOutFile, errno);
+         unlink(pXmlTmpFile);
+      }
+      xfree(pXmlOutFile);
+      ttxGrabState.postProcDone = TRUE;
+   }
+   xfree(pXmlTmpFile);
+
+   if (reset)
+   {
+      ttx_db_init();
+   }
+
+   if (pXmlMergeFile != NULL)
+   {
+      xfree(pXmlMergeFile);
+   }
 }
 
 // ---------------------------------------------------------------------------
@@ -1032,34 +625,7 @@ bool TtxGrab_Start( uint startPage, uint stopPage, bool enableOutput )
    ttxGrabState.havePgHd = FALSE;
    memset(ttxGrabState.cniDecInd, 0, sizeof(ttxGrabState.cniDecInd));
 
-   // close output file if still open (acquisition reset)
-   if (ttxGrabState.fpTtxTmp != NULL)
-   {
-      fclose (ttxGrabState.fpTtxTmp);
-      ttxGrabState.fpTtxTmp = NULL;
-   }
-
-#ifdef WIN32
-   // check if grabber script exists and is readable (need not be executable)
-   if (access(TTX_GRAB_SCRIPT_LOCAL, R_OK) != 0)
-   {
-      debug3("TtxGrab-Start: grabber script '%s' not available: %s (%d)", TTX_GRAB_SCRIPT_LOCAL, strerror(errno), (int)errno);
-      result = FALSE;
-   }
-   else
-#endif
-   {
-      if (enableOutput)
-      {
-         ttxGrabState.ioError = 0;
-         if (ttxGrabState.keepTtxInp)
-            ttxGrabState.fpTtxTmp = fopen(TTX_CAP_FILE_TMP, "w+b");
-         else
-            ttxGrabState.fpTtxTmp = tmpfile();  // note: mode is "w+b"
-         ifdebug1(ttxGrabState.fpTtxTmp == NULL, "TtxGrab-Start: failed to create tmpfile: %d", errno);
-         result = (ttxGrabState.fpTtxTmp != NULL);
-      }
-   }
+   ttx_db_init();
 
    return result;
 }
@@ -1070,27 +636,7 @@ bool TtxGrab_Start( uint startPage, uint stopPage, bool enableOutput )
 //
 void TtxGrab_Stop( void )
 {
-   if (ttxGrabState.fpTtxTmp != NULL)
-   {
-      // note: closing a file created with tmpfile() automatically deletes the file
-      fclose (ttxGrabState.fpTtxTmp);
-      ttxGrabState.fpTtxTmp = NULL;
-   }
-   if (ttxGrabState.keepTtxInp)
-   {
-      unlink(TTX_CAP_FILE_TMP);
-   }
-
-   // stop the child-process, if running
-   TtxGrab_KillParser();
-
-   // remove unprocessed XML output files
-   if (ttxGrabState.pXmlTmpFile != NULL)
-   {
-      unlink(ttxGrabState.pXmlTmpFile);
-      xfree(ttxGrabState.pXmlTmpFile);
-      ttxGrabState.pXmlTmpFile = NULL;
-   }
+   ttx_db_init();
 }
 
 // ---------------------------------------------------------------------------
@@ -1102,18 +648,6 @@ void TtxGrab_SetConfig( uint expireMin, const char * pPerlPath, bool keepTtxInp 
    // passed through to TTX grabber (discard programmes older than X hours)
    ttxGrabState.expireMin = expireMin;
    ttxGrabState.keepTtxInp = keepTtxInp;
-
-#ifdef WIN32
-   if (ttxGrabState.pPerlExe != NULL)
-   {
-      xfree(ttxGrabState.pPerlExe);
-      ttxGrabState.pPerlExe = NULL;
-   }
-   if (pPerlPath != NULL)
-   {
-      ttxGrabState.pPerlExe = xstrdup(pPerlPath);
-   }
-#endif
 }
 
 // ---------------------------------------------------------------------------
@@ -1122,14 +656,6 @@ void TtxGrab_SetConfig( uint expireMin, const char * pPerlPath, bool keepTtxInp 
 void TtxGrab_Exit( void )
 {
    TtxGrab_Stop();
-
-#ifdef WIN32
-   if (ttxGrabState.pPerlExe != NULL)
-   {
-      xfree(ttxGrabState.pPerlExe);
-      ttxGrabState.pPerlExe = NULL;
-   }
-#endif
 }
 
 // ---------------------------------------------------------------------------
@@ -1138,12 +664,6 @@ void TtxGrab_Exit( void )
 void TtxGrab_Init( void )
 {
    memset(&ttxGrabState, 0, sizeof(ttxGrabState));
-#ifndef WIN32
-   ttxGrabState.child_pipe = -1;
-   ttxGrabState.child_pid = -1;
-#else
-   ttxGrabState.child_handle = INVALID_HANDLE_VALUE;  // fail-safe only
-#endif
 }
 
 #endif  // USE_TTX_GRABBER

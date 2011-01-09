@@ -30,7 +30,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: Makefile,v 1.107 2009/05/02 19:57:45 tom Exp tom $
+#  $Id: Makefile,v 1.109 2011/01/06 11:35:13 tom Exp tom $
 #
 
 ifeq ($(OS),Windows_NT)
@@ -97,7 +97,8 @@ DEFS   += -DUSE_XMLTV_IMPORT -DXMLTV_CNI_MAP_PATH=\"$(cfgdir)\"
 
 # enable support for teletext EPG grabber (EXPERIMENTAL)
 # external grabber script is searched for in $PATH (unless you define an absolute path)
-DEFS   += -DUSE_TTX_GRABBER -DTTX_GRAB_SCRIPT_PATH=\"$(cfgdir)\"
+DEFS    += -DUSE_TTX_GRABBER
+ACQLIBS += -lboost_regex
 
 # enable use of daemon and client/server connection
 DEFS   += -DUSE_DAEMON
@@ -127,12 +128,14 @@ endif
 
 WARN    = -Wall -Wnested-externs -Wstrict-prototypes -Wmissing-prototypes
 WARN   += -Wno-pointer-sign
-#WARN  += -Wcast-align -Wpointer-arith -Werror
+WARN   += -Wcast-align -Wpointer-arith -Werror
 #WARN  += -Wcast-qual -Wwrite-strings -Wshadow
 CC      = gcc
+CPP     = g++
 # the following flags can be overridden by an environment variable with the same name
 CFLAGS ?= -pipe -g -O2
 CFLAGS += $(WARN) $(INCS) $(DEFS)
+CPPFLAGS = -pipe -g -O2 $(INCS) $(DEFS)
 LDFLAGS += -lm
 #CFLAGS += -ftest-coverage -fprofile-arcs
 #LDFLAGS += -ftest-coverage -fprofile-arcs
@@ -150,7 +153,7 @@ endif
 
 # ----- don't change anything below ------------------------------------------
 
-SUBDIRS = epgvbi epgdb epgctl epgui epgtcl tvsim xmltv
+SUBDIRS = epgvbi epgdb epgctl epgui epgtcl tvsim xmltv epgttx
 EPGSRC  = epgvbi/btdrv4linux epgvbi/vbidecode epgvbi/zvbidecoder \
           epgvbi/ttxdecode epgvbi/hamming epgvbi/cni_tables epgvbi/tvchan \
           epgvbi/syserrmsg \
@@ -163,6 +166,9 @@ EPGSRC  = epgvbi/btdrv4linux epgvbi/vbidecode epgvbi/zvbidecoder \
 XMLSRC  = xmltv/xml_prolog.tab xmltv/xml_scan.yy xmltv/xml_cdata \
           xmltv/xml_hash xmltv/xmltv_tags xmltv/xmltv_db xmltv/xmltv_cni \
           xmltv/xmltv_timestamp xmltv/xmltv_themes xmltv/xmltv_main
+TTXSRC  = epgttx/ttx_scrape epgttx/ttx_date epgttx/ttx_ov_fmt \
+          epgttx/ttx_feat epgttx/ttx_pg_ref epgttx/ttx_db epgttx/ttx_util \
+          epgttx/ttx_xmltv epgttx/ttx_cif
 GUISRC  = epgui/pibox epgui/pilistbox epgui/pinetbox epgui/piremind \
           epgui/uictrl epgui/pioutput epgui/pidescr epgui/pifilter \
           epgui/statswin epgui/timescale epgui/pdc_themes epgui/menucmd \
@@ -203,6 +209,10 @@ ifneq (,$(findstring USE_XMLTV_IMPORT,$(DEFS)))
 NXTV_OBJS    += $(addprefix $(BUILD_DIR)/, $(addsuffix .o, $(XMLSRC)))
 DAEMON_OBJS  += $(addprefix $(BUILD_DIR)/, $(addsuffix .o, $(XMLSRC)))
 endif
+ifneq (,$(findstring USE_TTX_GRABBER,$(DEFS)))
+NXTV_OBJS    += $(addprefix $(BUILD_DIR)/, $(addsuffix .o, $(TTXSRC)))
+DAEMON_OBJS  += $(addprefix $(BUILD_DIR)/, $(addsuffix .o, $(TTXSRC)))
+endif
 
 .PHONY: devel daemon manuals tvsim tvmans all
 devel   :: build_dir tcl_headers $(BUILD_DIR)/nxtvepg manuals
@@ -240,9 +250,13 @@ endif
 	install -c -m 0644 nxtvepgd.1  $(mandir)
 	install -c -m 0644 Nxtvepg.ad  $(resdir)/app-defaults/Nxtvepg
 	install -c -m 0644 xmltv-etsi.map $(cfgdir)/xmltv-etsi.map
-	install -c -m 0755 tv_grab_ttx.pl $(cfgdir)/tv_grab_ttx.pl
 
-.SUFFIXES: .c .o .tcl
+.SUFFIXES: .cc .c .o .tcl
+
+$(BUILD_DIR)/%.o: %.cc
+	$(CPP) $(CPPFLAGS) -Wp,-MMD,$@.dep.tmp -c -o $@ $<
+	@sed -e "s#^[^ \t].*\.o:#$@:#" < $@.dep.tmp > $@.dep && \
+	   rm -f $@.dep.tmp
 
 $(BUILD_DIR)/%.o: %.c | tcl_headers tcl_headers_tvsim
 	$(CC) $(CFLAGS) -Wp,-MMD,$@.dep.tmp -c -o $@ $<
@@ -384,7 +398,7 @@ nxtvepg.1 nxtvepgd.1 manual.html: nxtvepg.pod epgctl/epgversion.h
 	  EPG_VERSION_STR=`egrep '[ \t]*#[ \t]*define[ \t]*EPG_VERSION_STR' epgctl/epgversion.h | head -1 | sed -e 's#.*"\(.*\)".*#\1#'`; \
 	  echo "pod2man nxtvepg.pod > nxtvepg.1"; \
 	  pod2man -date " " -center "Nextview EPG Decoder" -section "1" \
-	          -release "nxtvepg "$$EPG_VERSION_STR" (C) 1999-2009 Tom Zoerner" \
+	          -release "nxtvepg "$$EPG_VERSION_STR" (C) 1999-2011 Tom Zoerner" \
 	     nxtvepg.pod > nxtvepg.1; \
           echo ".so man1/nxtvepg.1" > nxtvepgd.1; \
 	  echo "pod2html nxtvepg.pod > manual.html"; \

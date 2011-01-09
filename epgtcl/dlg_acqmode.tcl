@@ -18,7 +18,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: dlg_acqmode.tcl,v 1.11 2008/10/12 16:59:47 tom Exp tom $
+#  $Id: dlg_acqmode.tcl,v 1.12 2011/01/05 19:13:39 tom Exp tom $
 #
 set acqmode_popup 0
 set netacqcf_popup 0
@@ -503,29 +503,6 @@ proc PopupTtxGrab {} {
       incr gridrow
       pack  .ttxgrab.all -side top -pady 10 -padx 10 -anchor w
 
-      if {!$::is_unix} {
-         label .ttxgrab.perl_lab -text "The Perl interpreter is required to extract EPG data\nfrom teletext pages. Specify where it's installed\nif it's not included in your standard search PATH:" -justify left -font $font_normal
-         pack  .ttxgrab.perl_lab -side top -pady 5 -padx 10 -anchor w
-         frame .ttxgrab.perl
-         label .ttxgrab.perl.prompt -text "Perl executable:"
-         pack  .ttxgrab.perl.prompt -side left
-         entry .ttxgrab.perl.filename -textvariable ttxgrab_tmpcf(perl_path) -font $font_fixed -width 30
-         pack  .ttxgrab.perl.filename -side left -padx 5
-         button .ttxgrab.perl.dlgbut -image $::fileImage -command {
-            if $::is_unix {set tmp_substr_ext {all {*}}} else {set tmp_substr_ext {Executable {*.exe}}}
-            set tmp [tk_getOpenFile -parent .ttxgrab \
-                        -initialfile [file tail $ttxgrab_tmpcf(perl_path)] \
-                        -initialdir [file dirname $ttxgrab_tmpcf(perl_path)] \
-                        -filetypes [list $tmp_substr_ext]]
-            if {[string length $tmp] > 0} {
-               set ttxgrab_tmpcf(perl_path) $tmp
-            } 
-            unset tmp
-         }
-         pack  .ttxgrab.perl.dlgbut -side left -padx 5
-         pack  .ttxgrab.perl -side top -pady 5 -padx 10 -anchor w
-      }
-
       checkbutton .ttxgrab.keep_ttx -text "Keep teletext raw capture data (for debugging)" -variable ttxgrab_tmpcf(keep_ttx)
       pack  .ttxgrab.keep_ttx -side top -padx 10 -pady 5 -anchor w
 
@@ -569,43 +546,6 @@ proc TtxGrab_Enabled {} {
          $wid configure -state disabled
       }
    }
-}
-
-# helper function to check if Perl is installed
-proc TtxGrab_CheckForPerl {} {
-   global ttxgrab_tmpcf
-
-   set result 1
-
-   # remove leading or trailing space
-   set ttxgrab_tmpcf(perl_path) [regsub -all -- {(^[ \t]+|[ \t]+$)} $ttxgrab_tmpcf(perl_path) {}]
-
-   if $::is_unix {
-      # TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO
-      set path "perl"
-      return 1;
-   } else {
-      if {$ttxgrab_tmpcf(perl_path) ne ""} {
-         set path $ttxgrab_tmpcf(perl_path)
-      } else {
-         set path "perl.exe"
-      }
-   }
-
-   # invoke perl with parameter "-v" to query version number
-   if {[catch {exec -- $path -v} results] == 0} {
-      # success -> check result
-      if {[regexp {perl.*v5\.(0+[45]|[1-9]\d+|[456789])} $results] == 0} {
-         tk_messageBox -type ok -default ok -icon error -parent .ttxgrab \
-                       -message "Incompatible version of Perl is installed (need v5.4 or later.) Press 'Help' for more info."
-         set result 0
-      }
-   } else {
-      set msg "A test to start the Perl interpreter failed ([lindex $::errorCode 2]).  Specify the path to perl.exe in the dialog, or press 'Help for more info."
-      tk_messageBox -type ok -default ok -icon error -parent .ttxgrab -message $msg
-      set result 0
-   }
-   return $result
 }
 
 # helper function to convert page numbers to decimal for display
@@ -658,8 +598,7 @@ proc QuitTtxGrabPopup {} {
 
    if $ttxgrab_tmpcf(enable) {
       set ok 0
-      if { [TtxGrab_CheckForPerl] && \
-           [TtxGrab_PgNoCheck $ttxgrab_tmpcf(ovpg) "overview page"] && \
+      if { [TtxGrab_PgNoCheck $ttxgrab_tmpcf(ovpg) "overview page"] && \
            [TtxGrab_PgNoCheck $ttxgrab_tmpcf(pg_start) "page range start"] && \
            [TtxGrab_PgNoCheck $ttxgrab_tmpcf(pg_end) "page range end"] &&
            [TtxGrab_IntCheck $ttxgrab_tmpcf(net_count) 1 "channel count"] &&

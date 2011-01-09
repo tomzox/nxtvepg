@@ -20,7 +20,7 @@
  *  DScaler #Id: TVFormats.h,v 1.6 2003/01/07 16:49:08 adcockj Exp #
  *  DScaler #Id: TDA9887.h,v 1.8 2004/09/29 20:36:02 to_see Exp #
  *
- *  $Id: wintuner.h,v 1.11 2006/12/21 20:35:42 tom Exp tom $
+ *  $Id: wintuner.h,v 1.12 2011/01/05 19:26:28 tom Exp tom $
  */
 
 #ifndef __WINTUNER_H
@@ -189,12 +189,12 @@ typedef struct
 } TTDA9887Modes;
 
 // Input structure for SetModes(...).
-typedef struct
+struct TTDA9887FormatModes_s
 {
     eTDA9887Format  format;
     BYTE            mask;
     BYTE            bits;
-} TTDA9887FormatModes;
+};
 
 // ---------------------------------------------------------------------------
 // Interface declaration

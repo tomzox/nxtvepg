@@ -27,6 +27,9 @@ standard number ETS 300 707. The author of this software has no connections
 whatsoever to the ETSI - but he still hopes this software distribution will
 be kindly tolerated.
 
+nxtvepg is freeware, licensed under the GNU Public License 2. See file
+COPYRIGHT for details.
+
 
 System requirements:
 
@@ -61,9 +64,10 @@ Linux software requirements:
   CX23881 aka Bt881 capture chip) has no official release as of writing this,
   use snapshot video4linux-20040330 or later from http://www.bytesex.org/
 - GNU C Compiler 2.93.3 or later, unless you got nxtvepg precompiled for
-  your platform
-- Tcl/Tk version 8.4 or later (version 8.5 recommended due to improved look)
-  Sources available for download from http://www.tcl.tk/
+  your platform. As of nxtvepg 2.9 a C++ compiler is required to compile
+  the teletext grabber (optional); This has only been tested with gcc-4.3.3
+- Tcl/Tk version 8.4 or later (version 8.5 recommended due to improvements
+  in appearance.) Sources available for download from http://www.tcl.tk/
 - Any release of X11R5 or X11R6
   Note: X11 and Tcl/Tk are not required if you only build the daemon
 
@@ -107,6 +111,12 @@ UNIX installation procedure (when compiling from source):
   TV card or a supported driver, then replace epgvbi/btdrv4linux with module
   epgvbi/btdrv4dummy in the Makefiles (you still can use network acquisition
   mode to receive data from a supported platform)
+
+- As of nxtvepg-2.9 you need package "libboost-regex-dev", i.e. the Boost
+  regular expression library and header files. You can get it either
+  pre-compiled via "apt-get" or the package manager of your choice, or
+  directly from http://www.boost.org/.  You can remove compile-switch
+  "USE_TTX_GRABBER" in the Makefile to avoid this dependency.
 
 - make
   + Note: typing "make nxtvepg" will not work since there are other targets
@@ -205,6 +215,10 @@ Compilation procedure for Windows
   "make".  If you're not using NT or W2K you may have to adapt the OS
   detection code in Makefile and/or Makefile.win, i.e.
   "ifeq ($(OS),Windows_NT)"
+- To compile the teletext grabber, the Boost regex library is required.
+  Get the sources from http://www.boost.org/ and compile them for
+  Windows. Note only library v 1.42 has been tested. Place the compiled
+  library into the boost/ sub-directory.
 - To generate the help menus from the documentation in POD format you
   need Perl5 (not essential unless you want to modify the help menus)
   from http://www.perl.org/ or as Cygwin package

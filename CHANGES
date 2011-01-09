@@ -5,6 +5,20 @@ features).  For patchlevel releases also internal changes might be listed in
 case they may fix bugs (or cause new ones)
 
 
+from 2.9.0pre3 to 2.9.0pre4 (2011-Jan-09)
+
+- Teletext grabber: The "Now&Next" acquisition phase was optimized further
+  so that in up to 30 networks can be scanned in 10 minutes
+- Teletext grabber: The need to an external Perl interpreter was removed by
+  re-implementation in the C++ programming language.
+- Teletext grabber: There were many minor updates, enhancements and fixes
+  in overview and description page parsing.
+- A new feature flag "HDTV" was introduced: for teletext or XMLTV sources.
+- The XMLTV export was updated to DTD version 0.5.56, which allow use of
+  the "HDTV" and "audio:bilingual" feature flags.
+- XMLTV channel identifiers for "arte" and "das vierte" were added
+
+
 from 2.9.0pre2 to 2.9.0pre3 (2009-May-03)
 
 - Windows: A bug which caused nxtvepg to lock up during auto-detection

@@ -32,7 +32,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: xmltv_tags.c,v 1.11 2005/12/31 19:31:29 tom Exp tom $
+ *  $Id: xmltv_tags.c,v 1.12 2011/01/05 19:29:38 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_XMLTV
@@ -84,6 +84,8 @@ typedef enum
       XMLTV5_PI_CAT,
       XMLTV5_PI_VIDEO,
          XMLTV5_PI_VIDEO_ASPECT,
+         XMLTV5_PI_VIDEO_COLOUR,
+         XMLTV5_PI_VIDEO_QUALITY,
       XMLTV5_PI_AUDIO,
          XMLTV5_PI_AUDIO_STEREO,
       XMLTV5_PI_SUBT,
@@ -203,7 +205,9 @@ static const XMLTV_TAG xmltv5_tags_credits[] =
 };
 static const XMLTV_TAG xmltv5_tags_video[] =
 {
-   XMLTV5_PI_VIDEO_ASPECT
+   XMLTV5_PI_VIDEO_ASPECT,
+   XMLTV5_PI_VIDEO_COLOUR,
+   XMLTV5_PI_VIDEO_QUALITY
 };
 static const XMLTV_TAG xmltv5_tags_audio[] =
 {
@@ -666,6 +670,14 @@ static const XML_TAGDEF xmltv_tag_def[] =
    },
    { XMLTV5_PI_VIDEO_ASPECT, "aspect", XML_NO_CHILDS, XML_HAS_PCDATA,
      { Xmltv_PiVideoAspectOpen, Xmltv_PiVideoAspectClose, Xmltv_PiVideoAspectAddXY, NULL },
+     XMLTV_NO_ATTR,
+   },
+   { XMLTV5_PI_VIDEO_COLOUR, "colour", XML_NO_CHILDS, XML_HAS_PCDATA,
+     { NULL, NULL, Xmltv_PiVideoColourAdd, NULL },
+     XMLTV_NO_ATTR,
+   },
+   { XMLTV5_PI_VIDEO_QUALITY, "quality", XML_NO_CHILDS, XML_HAS_PCDATA,
+     { NULL, NULL, Xmltv_PiVideoQualityAdd, NULL },
      XMLTV_NO_ATTR,
    },
    { XMLTV5_PI_AUDIO, "audio", XML_CHILDS(xmltv5_tags_audio), XML_NO_PCDATA,

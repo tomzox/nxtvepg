@@ -32,7 +32,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: ttxdecode.c,v 1.64 2009/05/02 19:33:43 tom Exp tom $
+ *  $Id: ttxdecode.c,v 1.65 2011/01/09 16:54:09 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_VBI
@@ -121,7 +121,7 @@ void TtxDecode_StartTtxAcq( bool enableScan, uint startPageNo, uint stopPageNo )
 
    // enable ttx processing in the slave process/thread
    pVbiBuf->ttxEnabled = TRUE;
-   pVbiBuf->ttxHeader.op_mode = (enableScan ? EPGACQ_TTX_HEAD_DEC : 0);
+   pVbiBuf->ttxHeader.op_mode = (enableScan ? EPGACQ_TTX_HEAD_DEC : EPGACQ_TTX_HEAD_NONE);
 
    // skip first VBI frame, reset ttx decoder, then set reader idx to writer idx
    if (pVbiBuf->chanChangeReq == pVbiBuf->chanChangeCnf)
@@ -883,7 +883,7 @@ static void TtxDecode_AddPageHeader( uint pageNo, uint ctrl, const uchar * data 
       {
          do_add = TRUE;
       }
-      else
+      else // EPGACQ_TTX_HEAD_NONE
          do_add = FALSE;
 
       if (do_add)
@@ -906,13 +906,22 @@ static void TtxDecode_AddPageHeader( uint pageNo, uint ctrl, const uchar * data 
       // page number sequence statistics
       if (pVbiBuf->ttxHeader.magPgResetReq != pVbiBuf->ttxHeader.magPgResetCnf)
       {
-         memset((void*)pVbiBuf->ttxHeader.magPgCounts, 0, sizeof(pVbiBuf->ttxHeader.magPgCounts));
+         memset((void*)pVbiBuf->ttxHeader.pg_no_ring, 0xff, sizeof(pVbiBuf->ttxHeader.pg_no_ring));
+         pVbiBuf->ttxHeader.ring_val_cnt = 0;
+         pVbiBuf->ttxHeader.ring_wr_idx = 0;
          pVbiBuf->ttxHeader.magPgDirection = 0;
          pVbiBuf->ttxHeader.magPgResetCnf = pVbiBuf->ttxHeader.magPgResetReq;
       }
       if ( ((pageNo & 0x0f) <= 9) && (((pageNo >> 4) & 0x0f) <= 9) )
       {
-         pVbiBuf->ttxHeader.magPgCounts[pageNo >> 8] += 1;
+         pVbiBuf->ttxHeader.ring_wr_idx += 1;
+         if (pVbiBuf->ttxHeader.ring_wr_idx >= EPGACQ_PG_NO_RING_SIZE)
+           pVbiBuf->ttxHeader.ring_wr_idx = 0;
+
+         pVbiBuf->ttxHeader.pg_no_ring[pVbiBuf->ttxHeader.ring_wr_idx] = pageNo;
+
+         if (pVbiBuf->ttxHeader.ring_val_cnt < EPGACQ_PG_NO_RING_SIZE)
+           pVbiBuf->ttxHeader.ring_val_cnt += 1;
       }
 
       // page number direction prediction
@@ -967,7 +976,12 @@ bool TtxDecode_GetMagStats( uint * pMagBuf, sint * pPgDirection, bool reset )
       {
          for (idx = 0; idx < 8; idx++)
          {
-            *(pMagBuf++) = pVbiBuf->ttxHeader.magPgCounts[idx];
+            pMagBuf[idx] = 0;
+         }
+         for (idx = 0; idx < pVbiBuf->ttxHeader.ring_val_cnt; idx++)
+         {
+            uint page = pVbiBuf->ttxHeader.pg_no_ring[idx];
+            pMagBuf[(page >> 8) & 7] += 1;
          }
          *pPgDirection = pVbiBuf->ttxHeader.magPgDirection;
       }

@@ -28,7 +28,7 @@
  *
  *  DScaler #Id: SAA7134Card_Types.cpp,v 1.58 2004/12/16 04:53:51 atnak Exp #
  *
- *  $Id: saa7134_typ.c,v 1.25 2009/04/19 18:19:23 tom Exp tom $
+ *  $Id: saa7134_typ.c,v 1.26 2011/01/05 19:26:17 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_DSDRV
@@ -974,7 +974,7 @@ static uint AutoDetectTuner( TVCARD * pTvCard, uint CardId )
 }
 
 
-static bool GetTda9887Modes( TVCARD * pTvCard, bool * pHasTda9887, void ** ppModes )
+static bool GetTda9887Modes( TVCARD * pTvCard, bool * pHasTda9887, const TTDA9887FormatModes ** ppModes )
 {
     TCardType* pCardList;
     uint  m_CardType;

@@ -18,7 +18,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: menucmd.c,v 1.134 2008/10/19 14:25:55 tom Exp tom $
+ *  $Id: menucmd.c,v 1.135 2011/01/05 19:12:13 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -2995,11 +2995,6 @@ static int MenuCmd_GetTtxConfig( ClientData ttp, Tcl_Interp *interp, int objc, T
          Tcl_SetVar2Ex(interp, pArrName, "ovpg", Tcl_NewIntObj(pRc->ttx.ttx_ov_pg), 0);
          Tcl_SetVar2Ex(interp, pArrName, "duration", Tcl_NewIntObj(pRc->ttx.ttx_duration), 0);
          Tcl_SetVar2Ex(interp, pArrName, "keep_ttx", Tcl_NewIntObj(pRc->ttx.keep_ttx_data), 0);
-#ifndef WIN32
-         Tcl_SetVar2Ex(interp, pArrName, "perl_path", Tcl_NewStringObj("", 0), 0);
-#else
-         Tcl_SetVar2Ex(interp, pArrName, "perl_path", TRANSCODE_NON_NULL(pRc->ttx.perl_path_win), 0);
-#endif
       }
       result = TCL_OK;
    }
@@ -3021,10 +3016,9 @@ static int MenuCmd_UpdateTtxConfig( ClientData ttp, Tcl_Interp *interp, int objc
    int  result;
 
    static CONST84 char * pKeywords[] = { "enable", "net_count", "pg_start",
-         "pg_end", "ovpg", "duration", "perl_path", "keep_ttx", (char *) NULL };
+         "pg_end", "ovpg", "duration", "keep_ttx", (char *) NULL };
    enum ttxcf_keys { TTXGRAB_ENABLE, TTXGRAB_NET_COUNT, TTXGRAB_PG_START,
-      TTXGRAB_PG_END, TTXGRAB_OV_PG, TTXGRAB_DURATION, TTX_GRAB_PERL_PATH,
-      TTXGRAB_KEEP };
+      TTXGRAB_PG_END, TTXGRAB_OV_PG, TTXGRAB_DURATION, TTXGRAB_KEEP };
 
    if (objc != 2)
    {  // parameter count is invalid: none expected
@@ -3070,20 +3064,6 @@ static int MenuCmd_UpdateTtxConfig( ClientData ttp, Tcl_Interp *interp, int objc
                   case TTXGRAB_DURATION:
                      result = Tcl_GetIntFromObj(interp, cfArgv[cf_idx + 1], &tmpInt);
                      rxTtxGrab.ttx_duration = tmpInt;
-                     break;
-                  case TTX_GRAB_PERL_PATH:
-#ifdef WIN32         // not required/supported on UNIX platforms (i.e. use $PATH)
-                     {
-                        const char * pStr = Tcl_GetString(cfArgv[cf_idx + 1]);
-                        if (pStr != NULL)
-                        {
-                           if (pStr[0] != 0)
-                              rxTtxGrab.perl_path_win = xstrdup(pStr);
-                           else
-                              rxTtxGrab.perl_path_win = NULL;
-                        }
-                     }
-#endif
                      break;
                   case TTXGRAB_KEEP:
                      result = Tcl_GetIntFromObj(interp, cfArgv[cf_idx + 1], &tmpInt);

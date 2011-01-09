@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: xmltv_db.h,v 1.10 2007/01/20 19:38:15 tom Exp tom $
+ *  $Id: xmltv_db.h,v 1.11 2011/01/05 19:29:38 tom Exp tom $
  */
 
 #ifndef __XMLTV_DB_H
@@ -71,12 +71,12 @@ void Xmltv_PiCatSetType( XML_STR_BUF * pBuf );
 void Xmltv_PiCatSetSystem( XML_STR_BUF * pBuf );
 void Xmltv_PiCatSetCode( XML_STR_BUF * pBuf );
 void Xmltv_PiCatAddText( XML_STR_BUF * pBuf );
-void Xmltv_PiVideoBwSet( void );
 void Xmltv_PiVideoAspectOpen( void );
 void Xmltv_PiVideoAspectClose( void );
 void Xmltv_PiVideoAspectSetX( XML_STR_BUF * pBuf );
 void Xmltv_PiVideoAspectSetY( XML_STR_BUF * pBuf );
 void Xmltv_PiVideoAspectAddXY( XML_STR_BUF * pBuf );
+void Xmltv_PiVideoColourAdd( XML_STR_BUF * pBuf );
 void Xmltv_PiVideoQualityAdd( XML_STR_BUF * pBuf );
 void Xmltv_PiAudioOpen( void );
 void Xmltv_PiAudioClose( void );

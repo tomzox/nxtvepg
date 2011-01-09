@@ -18,7 +18,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: dumpxml.c,v 1.23 2009/03/29 18:31:00 tom Exp tom $
+ *  $Id: dumpxml.c,v 1.24 2010/03/23 20:15:30 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -438,9 +438,23 @@ static void EpgDumpXml_WriteProgramme( EPGDB_CONTEXT * pDbContext, const AI_BLOC
    // attributes
    if ( IS_XML_DTD5(xmlDtdVersion) )
    {
-      if ((pPiBlock->feature_flags & (PI_FEATURE_PAL_PLUS | PI_FEATURE_FMT_WIDE)) != 0)
+      if ((pPiBlock->feature_flags & (PI_FEATURE_PAL_PLUS |
+                                      PI_FEATURE_FMT_WIDE |
+                                      PI_FEATURE_VIDEO_HD)) != 0)
       {
-         fprintf(fp, "\t<video>\n\t\t<aspect>16:9</aspect>\n\t</video>\n");
+         fprintf(fp, "\t<video>\n");
+         if ((pPiBlock->feature_flags & PI_FEATURE_VIDEO_HD) != 0)  // XMLTV import only
+            fprintf(fp, "\t\t<quality>HDTV</quality>\n");
+
+         if ((pPiBlock->feature_flags & PI_FEATURE_PAL_PLUS) != 0)  // always 16:9
+            fprintf(fp, "\t\t<quality>PAL+</quality>\n"
+                        "\t\t<aspect>16:9</aspect>\n");
+         else if ((pPiBlock->feature_flags & PI_FEATURE_FMT_WIDE) != 0)
+            fprintf(fp, "\t\t<aspect>16:9</aspect>\n");
+
+         if (pPiBlock->feature_flags & PI_FEATURE_VIDEO_BW)  // XMLTV import only
+            fprintf(fp, "\t\t<colour>no</colour>\n");
+         fprintf(fp, "\t</video>\n");
       }
 
       if ((pPiBlock->feature_flags & PI_FEATURE_SOUND_MASK) == PI_FEATURE_SOUND_STEREO)
@@ -451,7 +465,10 @@ static void EpgDumpXml_WriteProgramme( EPGDB_CONTEXT * pDbContext, const AI_BLOC
       {
          fprintf(fp, "\t<audio>\n\t\t<stereo>surround</stereo>\n\t</audio>\n");
       }
-      // else: 2-channel not supported by DTD 0.5 semantics
+      else if ((pPiBlock->feature_flags & PI_FEATURE_SOUND_MASK) == PI_FEATURE_SOUND_2CHAN)
+      {
+         fprintf(fp, "\t<audio>\n\t\t<stereo>bilingual</stereo>\n\t</audio>\n");
+      }
 
       if (pPiBlock->feature_flags & PI_FEATURE_REPEAT)
       {

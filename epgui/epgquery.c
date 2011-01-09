@@ -19,7 +19,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgquery.c,v 1.2 2008/10/12 20:00:29 tom Exp tom $
+ *  $Id: epgquery.c,v 1.3 2010/05/06 19:44:01 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -29,6 +29,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <ctype.h>
 
 #include "epgctl/mytypes.h"
 #include "epgctl/debug.h"
@@ -36,18 +37,19 @@
 #include "epgdb/epgblock.h"
 #include "epgdb/epgdbfil.h"
 #include "epgdb/epgdbif.h"
+#include "epgui/pdc_themes.h"
 #include "epgui/epgmain.h"
 #include "epgui/pidescr.h"
 #include "epgui/dumptext.h"
 #include "epgui/epgsetup.h"
 #include "epgui/epgquery.h"
+#include "xmltv/xmltv_themes.h"
 
 
 static const char * const pFilterKeywords[] =
 {
    "EXPIRE",
    "NETWOP_PRE",
-   "AIR_TIMES",
    "NETIDX",
    "NETNAME",
    "NETCNI",
@@ -63,18 +65,15 @@ static const char * const pFilterKeywords[] =
    "PAR_RAT",
    "EDIT_RAT",
    "FEATURES",
-   "LANGUAGES",
-   "SUBTITLES",
-   "VPS_PDC",
    "INVERT",
    NULL
 };
 
+// note: this enum must be kept in sync with the mask list below!
 typedef enum
 {
    FKW_EXPIRE_TIME,
    FKW_NETWOP_PRE,
-   FKW_AIR_TIMES,
    FKW_NETWOP,
    FKW_NETNAME,
    FKW_NETCNI,
@@ -96,12 +95,23 @@ typedef enum
 
 static const uint pFilterMasks[] =
 {
-   FILTER_EXPIRE_TIME, FILTER_NETWOP_PRE, FILTER_AIR_TIMES,
-   FILTER_NETWOP, FILTER_NETWOP, FILTER_NETWOP,
-   FILTER_THEMES, FILTER_SORTCRIT, FILTER_SERIES,
-   FILTER_SUBSTR, FILTER_SUBSTR, FILTER_SUBSTR,
-   FILTER_PROGIDX, FILTER_TIME_ONCE,
-   FILTER_DURATION, FILTER_PAR_RAT, FILTER_EDIT_RAT, FILTER_FEATURES,
+   FILTER_EXPIRE_TIME,
+   FILTER_NETWOP_PRE,
+   FILTER_NETWOP,
+   FILTER_NETWOP,
+   FILTER_NETWOP,
+   FILTER_THEMES,
+   FILTER_SORTCRIT,
+   FILTER_SERIES,
+   FILTER_SUBSTR,
+   FILTER_SUBSTR,
+   FILTER_SUBSTR,
+   FILTER_PROGIDX,
+   FILTER_TIME_ONCE,
+   FILTER_DURATION,
+   FILTER_PAR_RAT,
+   FILTER_EDIT_RAT,
+   FILTER_FEATURES,
    FILTER_INVERT
 };
 
@@ -203,28 +213,37 @@ static bool EpgQuery_PopTime( const char * pArg, time_t * p_time_val, uint * pAr
 
    if ((pArg != NULL) && (p_time_val != NULL))
    {
-      if (sscanf(pArg + *pArgOff, " %u-%u-%u %n", &t.tm_year, &t.tm_mon, &t.tm_mday, &scan_pos1) >= 3)
-      {
-         memset(&t, 0, sizeof(t));
-         t.tm_isdst = -1;
+      memset(&t, 0, sizeof(t));
+      t.tm_isdst = -1;
 
-         t.tm_year -= 1900;
+      if (sscanf(pArg + *pArgOff, " %u-%u-%u %n",
+                 &t.tm_year, &t.tm_mon, &t.tm_mday, &scan_pos1) >= 3)
+      {
          t.tm_mon -= 1;
+
+         if (t.tm_year >= 1900)
+            t.tm_year -= 1900;
+         else if (t.tm_year < 100)
+            t.tm_year += 2000 - 1900;
 
          switch (pArg[*pArgOff + scan_pos1])
          {
-            case '.': case ':':
-            case ',': case ';':
-            case '-': case '/':
-            case ' ': case '\t':
-               if ( (sscanf(pArg + *pArgOff, " %u:%u:%u%n", &t.tm_hour, &t.tm_min, &t.tm_sec, &scan_pos2) >= 3) ||
-                    (sscanf(pArg + *pArgOff, " %u:%u%n", &t.tm_hour, &t.tm_min, &scan_pos2) >= 2) )
+            case '.':
+            case ':':
+            case '/':
+            case ' ':
+            case '\t':
+               if ( (sscanf(pArg + *pArgOff + scan_pos1 + 1, " %u:%u:%u%n",
+                            &t.tm_hour, &t.tm_min, &t.tm_sec, &scan_pos2) >= 3) ||
+                    (sscanf(pArg + *pArgOff + scan_pos1 + 1, " %u:%u%n",
+                            &t.tm_hour, &t.tm_min, &scan_pos2) >= 2) )
                {
+                  *pArgOff += scan_pos1 + 1 + scan_pos2;
                   result = TRUE;
                }
                break;
             default:
-               scan_pos2 = 0;
+               *pArgOff += scan_pos1;
                result = TRUE;
                break;
          }
@@ -243,7 +262,7 @@ static bool EpgQuery_PopTime( const char * pArg, time_t * p_time_val, uint * pAr
             //if (pt->tm_hour * 60 + pt->tm_min > t.tm_hour * 60 + t.tm_min)
             //   t.tm_mday += 1;
 
-            scan_pos1 = 0;
+            *pArgOff += scan_pos2;
             result = TRUE;
          }
          else
@@ -255,12 +274,10 @@ static bool EpgQuery_PopTime( const char * pArg, time_t * p_time_val, uint * pAr
       if (result)
       {
          *p_time_val = mktime(&t);
-         if (*p_time_val != (time_t)(-1))
+         if (*p_time_val == (time_t)(-1))
          {
-            *pArgOff += scan_pos1 + scan_pos2;
-         }
-         else
             result = FALSE;
+         }
       }
       else
          debug1("EpgQuery-PopTime: invalid time spec in element '%s'", pArg);
@@ -283,9 +300,9 @@ static bool EpgQuery_PopIntRange( const char * pArg, uint * pArgOff, uint * p_in
 
    if ((pArg != NULL) && (pArgOff != NULL) && (p_int1 != NULL))
    {
-      while (*pArgOff == ' ')
+      while (pArg[*pArgOff] == ' ')
          (*pArgOff)++;
-      if (*pArgOff == ',')
+      if (pArg[*pArgOff] == ',')
          (*pArgOff)++;
 
       if ( (p_int2 != NULL) &&
@@ -322,6 +339,47 @@ static bool EpgQuery_PopIntRange( const char * pArg, uint * pArgOff, uint * p_in
 }
 
 // ----------------------------------------------------------------------------
+// Get a PDC code from a theme string
+//
+static bool EpgQuery_PopThemeStr( const char * pArg, uint * pArgOff, uint * p_int,
+                                  EPGDB_CONTEXT * pDbContext )
+{
+   bool result = FALSE;
+#ifdef USE_XMLTV_IMPORT
+   HASHED_THEMES match = {0, 0};
+   char * pLower;
+   char * p;
+
+   // convert given theme category name to lower-case
+   pLower = xstrdup(pArg + *pArgOff);
+   p = pLower;
+   while (*p != 0)
+   {
+      *p = tolower(*p);
+      p++;
+   }
+
+   // determine language for theme categories from AI block
+   switch (EpgSetup_GetDefaultLang(pDbContext))
+   {
+      case 1: Xmltv_ParseThemeStringGerman(&match, pLower); break;
+      case 4: Xmltv_ParseThemeStringFrench(&match, pLower); break;
+      default:
+      case 0: Xmltv_ParseThemeStringEnglish(&match, pLower); break;
+   }
+   xfree(pLower);
+
+   *p_int = (match.theme ? match.theme : match.cat);
+   if (*p_int != 0)
+   {
+      *pArgOff += strlen(pArg + *pArgOff);
+      result = TRUE;
+   }
+#endif
+   return result;
+}
+
+// ----------------------------------------------------------------------------
 // Parse an integer value in the query
 //
 static bool EpgQuery_PopInt( const char * pArg, uint * pArgOff, uint * p_int )
@@ -342,9 +400,6 @@ static void EpgQuery_FilterInit( FILTER_CONTEXT * fc, int filtType )
    {
       case FKW_NETWOP_PRE:
          EpgDbFilterInitNetwopPreFilter(fc);
-         break;
-      case FKW_AIR_TIMES:
-         EpgDbFilterInitAirTimesFilter(fc);
          break;
       case FKW_NETWOP:
       case FKW_NETNAME:
@@ -413,7 +468,7 @@ static bool EpgQuery_FilterSet( EPGDB_CONTEXT * pDbContext,
          }
          else if (EpgQuery_PopTime(pArg, &time1, &argOff))
          {
-            dprintf3("EpgQuery-FilterSet: EXPIRE time '%s': %ld %s", pArg, (long)time1, ctime(&time1));
+            dprintf3("EpgQuery-FilterSet: EXPIRE time '%s': %lu %s", pArg, (long)time1, ctime(&time1));
             EpgDbFilterSetExpireTime(fc, time1);
             result = TRUE;
          }
@@ -436,10 +491,6 @@ static bool EpgQuery_FilterSet( EPGDB_CONTEXT * pDbContext,
          }
          result = (*pArg == 0);
          argOff = 0;
-         break;
-
-      case FKW_AIR_TIMES:
-         //TODO not possible since this config is stored in the GUI section in the RC file (i.e. not loaded in dump mode)
          break;
 
       case FKW_NETWOP:
@@ -467,7 +518,7 @@ static bool EpgQuery_FilterSet( EPGDB_CONTEXT * pDbContext,
          {
             if (pAiBlock != NULL)
             {
-               for (idx = 0; idx < pAiBlock->netwopCount; idx++) 
+               for (idx = 0; idx < pAiBlock->netwopCount; idx++)
                {
                   if ( (AI_GET_NET_CNI_N(pAiBlock, idx) >= int1) &&
                        (AI_GET_NET_CNI_N(pAiBlock, idx) <= int2) )
@@ -493,7 +544,7 @@ static bool EpgQuery_FilterSet( EPGDB_CONTEXT * pDbContext,
       case FKW_NETNAME:
          if (pAiBlock != NULL)
          {
-            for (idx = 0; idx < pAiBlock->netwopCount; idx++) 
+            for (idx = 0; idx < pAiBlock->netwopCount; idx++)
             {
                bool isFromAi = FALSE;
                const char * pCfNetname = EpgSetup_GetNetName(pAiBlock, idx, &isFromAi);
@@ -515,14 +566,22 @@ static bool EpgQuery_FilterSet( EPGDB_CONTEXT * pDbContext,
 
       case FKW_THEMES:
          // TODO: support classes
-         // TODO: match theme by name (e.g. "movie")
          argOff = 0;
          count = 0;
-         while (EpgQuery_PopIntRange(pArg, &argOff, &int1, &int2))
+         if (EpgQuery_PopIntRange(pArg, &argOff, &int1, &int2))
          {
-            dprintf3("EpgQuery-FilterSet: THEME '%s': %d-%d\n", pArg, int1, int2);
-            EpgDbFilterSetThemes(fc, int1, int2, 1);
-            count += int2 - int1 + 1;
+            do
+            {
+               dprintf3("EpgQuery-FilterSet: THEME '%s': %d-%d\n", pArg, int1, int2);
+               EpgDbFilterSetThemes(fc, int1, int2, 1);
+               count += int2 - int1 + 1;
+            } while (EpgQuery_PopIntRange(pArg, &argOff, &int1, &int2));
+         }
+         else if (EpgQuery_PopThemeStr(pArg, &argOff, &int1, pDbContext))
+         {
+            // not numeric -> try to identify a PDC theme by sub-string search
+            EpgDbFilterSetThemes(fc, int1, int1, 1);
+            count += 1;
          }
          result = (count > 0);
          break;
@@ -544,9 +603,21 @@ static bool EpgQuery_FilterSet( EPGDB_CONTEXT * pDbContext,
          count = 0;
          while (EpgQuery_PopIntRange(pArg, &argOff, &int1, &int2))
          {
-            dprintf3("EpgQuery-FilterSet: SERIES '%s': %d-%d\n", pArg, int1, int2);
-            EpgDbFilterSetSeries(fc, int1, int2, TRUE);
-            count += int2 - int1 + 1;
+            if ((int1 > 0x80) && (int2 <= 0xFF))
+            {
+               dprintf3("EpgQuery-FilterSet: SERIES '%s': %d-%d\n", pArg, int1, int2);
+               for (idx = int1; idx < int2; idx++)
+               {
+                  //TODO network code is unknown (always 0)
+                  EpgDbFilterSetSeries(fc, 0, idx, TRUE);
+               }
+               count += int2 - int1 + 1;
+            }
+            else
+            {
+               SystemErrorMessage_Set(ppErrStr, 0, "series code is not in range 129-255 (hex 81-FF)", NULL);
+               count = 0;
+            }
          }
          result = (count > 0);
          break;
@@ -572,6 +643,7 @@ static bool EpgQuery_FilterSet( EPGDB_CONTEXT * pDbContext,
          break;
 
       case FKW_PAR_RAT:
+         argOff = 0;
          if (EpgQuery_PopInt(pArg, &argOff, &int1))
          {
             int1 /= 2;
@@ -584,6 +656,7 @@ static bool EpgQuery_FilterSet( EPGDB_CONTEXT * pDbContext,
          break;
 
       case FKW_EDIT_RAT:
+         argOff = 0;
          if (EpgQuery_PopInt(pArg, &argOff, &int1))
          {
             if (int1 >= 8)
@@ -693,9 +766,12 @@ static bool EpgQuery_FilterSet( EPGDB_CONTEXT * pDbContext,
    }
    if ((result != FALSE) && (pArg[argOff] != 0))
    {
-      if (ppErrStr != NULL)
-         SystemErrorMessage_Set(ppErrStr, 0, "trailing garbage at end of ", pFilterKeywords[filtType],
+      if ((ppErrStr != NULL) && (*ppErrStr == NULL))
+      {
+         SystemErrorMessage_Set(ppErrStr, 0, "trailing garbage at end of ",
+                                             pFilterKeywords[filtType],
                                              " option '", pArg, "'", NULL);
+      }
       result = FALSE;
    }
    if ((result == FALSE) && (ppErrStr != NULL) && (*ppErrStr == NULL))
@@ -770,6 +846,7 @@ bool EpgQuery_CheckSyntax( const char * pArg, char ** ppErrStr )
 {
    int  filtType;
    FILTER_CONTEXT * fc;
+   uint mask = 0;
    uint argOff = 0;
    bool result = FALSE;
 
@@ -781,6 +858,11 @@ bool EpgQuery_CheckSyntax( const char * pArg, char ** ppErrStr )
    {
       fc = EpgDbFilterCreateContext();
 
+      if ((mask & pFilterMasks[filtType]) == 0)
+      {
+         EpgQuery_FilterInit(fc, filtType);
+         mask |= pFilterMasks[filtType];
+      }
       result = EpgQuery_FilterSet(NULL, NULL, fc, filtType, pArg + argOff, ppErrStr);
 
       EpgDbFilterDestroyContext(fc);

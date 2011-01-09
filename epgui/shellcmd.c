@@ -21,7 +21,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: shellcmd.c,v 1.17 2009/03/13 20:46:42 tom Exp tom $
+ *  $Id: shellcmd.c,v 1.18 2009/05/24 15:23:32 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -636,11 +636,6 @@ static int PiOutput_ExecUserCmd( ClientData ttp, Tcl_Interp *interp, int objc, T
 
                // execute the command
                retCode = system(cmdbuf.strbuf);
-               if (retCode != 0)
-               {
-                  fprintf(stderr, "Warning: command '%s' had non-zero exit status %d\n",
-                                  cmdbuf.strbuf, retCode);
-               }
 
                #else  // WIN32
                ShellCmd_AppendChar('\0', &cmdbuf);
@@ -765,11 +760,6 @@ static int PiOutput_ExecParsedScript( Tcl_Interp *interp, Tcl_Obj * pTypeObj, Tc
 
          case CTX_TYPE_EXEC_UNIX:
             retCode = system(pCmdStr);
-            if (retCode != 0)
-            {
-               fprintf(stderr, "Warning: command '%s' had non-zero exit status %d\n",
-                               pCmdStr, retCode);
-            }
             break;
 #endif
 

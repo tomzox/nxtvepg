@@ -20,7 +20,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: pidescr.c,v 1.11 2005/12/29 19:17:18 tom Exp tom $
+ *  $Id: pidescr.c,v 1.12 2010/03/23 20:15:41 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -674,20 +674,24 @@ void PiDescription_AppendFeatureList( const PI_BLOCK *pPiBlock, char * outstr )
       case  3: strcat(outstr, "surround, "); break;
    }
 
-   if (pPiBlock->feature_flags & 0x04)
+   if (pPiBlock->feature_flags & PI_FEATURE_FMT_WIDE)
       strcat(outstr, "wide, ");
-   if (pPiBlock->feature_flags & 0x08)
+   if (pPiBlock->feature_flags & PI_FEATURE_PAL_PLUS)
       strcat(outstr, "PAL+, ");
-   if (pPiBlock->feature_flags & 0x10)
+   if (pPiBlock->feature_flags & PI_FEATURE_DIGITAL)
       strcat(outstr, "digital, ");
-   if (pPiBlock->feature_flags & 0x20)
+   if (pPiBlock->feature_flags & PI_FEATURE_ENCRYPTED)
       strcat(outstr, "encrypted, ");
-   if (pPiBlock->feature_flags & 0x40)
+   if (pPiBlock->feature_flags & PI_FEATURE_LIVE)
       strcat(outstr, "live, ");
-   if (pPiBlock->feature_flags & 0x80)
+   if (pPiBlock->feature_flags & PI_FEATURE_REPEAT)
       strcat(outstr, "repeat, ");
-   if (pPiBlock->feature_flags & 0x100)
+   if (pPiBlock->feature_flags & PI_FEATURE_SUBTITLES)
       strcat(outstr, "subtitles, ");
+   if (pPiBlock->feature_flags & PI_FEATURE_VIDEO_BW)  // XMLTV import only
+      strcat(outstr, "b/w, ");
+   if (pPiBlock->feature_flags & PI_FEATURE_VIDEO_HD)  // XMLTV import only
+      strcat(outstr, "HDTV, ");
 
    if (pPiBlock->editorial_rating > 0)
       sprintf(outstr + strlen(outstr), "rating: %d of 1..7, ", pPiBlock->editorial_rating);

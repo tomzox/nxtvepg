@@ -1,6 +1,6 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/HTMLlat1.ent">
 <HTML lang="en">
-<!-- $Id: ttx_grab.html,v 1.2 2008/10/11 20:18:46 tom Exp $ -->
+<!-- $Id: ttx_grab.html,v 1.4 2011/01/09 20:27:14 tom Exp $ -->
 <HEAD>
 <TITLE>Teletext EPG Grabber Software</TITLE>
 <META http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
@@ -93,31 +93,40 @@ other content in teletext.
 <P>
 This download is mainly inteded for users who want to use the
 grabber stand-alone, i.e. without nxtvepg.  In this case you need the
-additional Video-ZVBI package and the libzvbi library, see below.
+"libzvbi" library, see below.
 </P><P>
 This download can also be used to update the teletext grabber used by
 nxtvepg. To do so, unpack the archive and copy <I>tv_grab_ttx.pl</I>
 into the directory where you start nxtvepg, or on Linux, copy the file
 into directory <KBD>/usr/share/nxtvepg/</KBD>.
 </P>
-<H3>Latest Release: Version 1.1 from October 9th 2008</H3>
+<H3>Latest Release: Version 2.0 from January 9th 2011</H3>
 <P>
-This release mostly improves on the packaging and adds
-<A HREF="man-ttx_grab.html">documentation</A>.
-Also the former separate capture script "cap.pl" has been merged
-into the grabber to simplify the usage. Note: To use this grabber
-version with nxtvepg version 2.8.0, you need to rename the script
-file from "tv_grab_ttx.pl" into "ttx_grab.pl".
+Under the hood the grabber has been completely rewritten in the C++
+language instead of Perl. To the user this is a benefit only insofar
+as the grabber runs now slightly faster and Windows users no longer
+need to obtain a Perl interpreter.
+</P><P>
+Additionally, many minor updates, enhancements and fixes both in
+in overview and description page parsing were done. In essence, the
+quantity and quality of the XMLTV output has been improved.
+</P><P>
+Note using this grabber version in nxtvepg requires
+<A HREF="pre-releases.html#pre_rel_nxtvepg">version 2.9.pre4</A> or later.
 </P>
+
 <DIV CLASS="box">
 <H3><A NAME="download_source">Sources</A></H3>
 <P>
-The grabber is implemented as Perl script and as such architecture
-independent. Hence this package can be used for all platforms.
+Note the grabber is no longer implemented in Perl, thus a compiler is
+required to compile, unless you can use one of the pre-compiled-packages
+below. Note the grabber requires the "libzvbi" library. For this reason,
+compilation on Windows is currently not supported (use an
+<A HREF="pre-releases.html">nxtvepg pre-release</A> instead.)
 </P>
 <UL>
-<LI>Teletext grabber:
-    <A HREF="http://nxtvepg.sourceforge.net/tmp/tv_grab_ttx-1.1.tar.gz">tv_grab_ttx-1.1.tar.gz</A> (apx. 130 kB)
+<LI>Teletext grabber sources (requires a C++ compiler):
+    <A HREF="http://nxtvepg.sourceforge.net/tmp/tv_grab_ttx-2.0.tar.gz">tv_grab_ttx-2.0.tar.gz</A> (apx. 130 kB)
 </UL>
 </DIV>
 
@@ -129,29 +138,16 @@ and all other platforms using the Debian package format.
 <P>
 <UL>
 <LI CLASS="spaced">Teletext grabber:
-    <A HREF="http://nxtvepg.sourceforge.net/tmp/libxmltv-ttx_1.1_all.deb">libxmltv-ttx_1.1_all.deb</A> (architecture independent, apx. 50 kB)
-<LI CLASS="spaced">Video-ZVBI Perl module version 0.2.4:
-    Sources: <A HREF="http://search.cpan.org/~TOMZO/Video-ZVBI">Video::ZVBI</A> (cpan.org)
-    <UL>
-    <LI><A HREF="http://nxtvepg.sourceforge.net/tmp/libzvbi-perl_0.2.4_i386.deb">libzvbi-perl_0.2.4_i386.deb</A> (Intel 32-bit, apx. 180 kB)
-    <LI><A HREF="http://nxtvepg.sourceforge.net/tmp/libzvbi-perl_0.2.4_amd64.deb">libzvbi-perl_0.2.4_amd64.deb</A> (Intel 64-bit, apx. 180 kB)
-    </UL>
+    <!-- <A HREF="http://nxtvepg.sourceforge.net/tmp/libxmltv-ttx_2.0_i386.deb">libxmltv-ttx_2.0_i386.deb</A> (Intel/AMD 32-bit, apx. 274 kB) -->
+    <A HREF="http://nxtvepg.sourceforge.net/tmp/libxmltv-ttx_2.0_amd64.deb">libxmltv-ttx_2.0_amd64.deb</A> (Intel/AMD 64-bit, apx. 274 kB)
 </UL>
 </DIV>
 
 <H3>Dependencies</H3>
 <P>
-The grabber is implemented as Perl scripts. Hence you'll need to have
-a <A HREF="http://cpan.org">Perl interpreter</A>. On UNIX systems this
-is usually part of the core installation. For Windows you can get
-<A HREF="http://www.ActiveState.com/ActivePerl">ActivePerl</A>.
-</P><P>
-Additionally, when not used inside of nxtvepg, you'll need the
-<A HREF="http://search.cpan.org/~TOMZO/Video-ZVBI">Video::ZVBI</A> Perl
-module for capturing teletext. Currently this module only supports
-Linux, and the BSDs.  Note this module in turn requires the
+When not used inside of nxtvepg, you'll also need the
 <A HREF="http://zapping.sourceforge.net/doc/libzvbi/index.html">ZVBI library</A>
-(a VBI capturing library)
+(a VBI, i.e. teletext data capturing library.)
 </P>
 
 <H2>Usage</H2>
@@ -183,7 +179,7 @@ or mail me directly to tomzo at users.sf.net
 
 <H2><A NAME="copyright">Copyright</A></H2>
 <P>
-&copy; Copyright 2006 - 2008 by T. Zoerner.
+&copy; Copyright 2006 - 2011 by T. Zoerner.
 </P><P>
 This program is free software; you can redistribute it and/or modify
 it under the terms of the

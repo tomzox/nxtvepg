@@ -29,7 +29,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgdbsav.c,v 1.68 2008/10/19 17:47:38 tom Exp tom $
+ *  $Id: epgdbsav.c,v 1.69 2010/03/23 19:29:57 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB
@@ -281,7 +281,17 @@ bool EpgDbDump( PDBC dbc )
             pWalk->type = BLOCK_TYPE_PI;
             pWalk = pWalk->pNextBlock;
          }
-
+#ifndef WIN32
+         // make sure the data is written to disk before replacing the old DB file,
+         // else it's possible only a fragment remains after a crash due to out-of-order writes
+         if (fsync(fd) != 0)
+#else
+         if (_commit(fd) != 0)
+#endif
+         {
+            debug2("EpgDbDump: error on fsync: %d (%s)", errno, strerror(errno));
+            result = FALSE;
+         }
          close(fd);
 
          if (result != FALSE)

@@ -20,7 +20,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: pioutput.c,v 1.61 2008/09/20 19:07:05 tom Exp tom $
+ *  $Id: pioutput.c,v 1.62 2010/03/23 20:15:47 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -357,8 +357,12 @@ uint PiOutput_PrintColumnItem( const PI_BLOCK * pPiBlock, PIBOX_COL_TYPES type,
          case PIBOX_COL_FORMAT:
             if (pPiBlock->feature_flags & PI_FEATURE_PAL_PLUS)
                pResult = "PAL+";
+            else if (pPiBlock->feature_flags & PI_FEATURE_VIDEO_HD)
+               pResult = "HDTV";
             else if (pPiBlock->feature_flags & PI_FEATURE_FMT_WIDE)
                pResult = "wide";
+            else if (pPiBlock->feature_flags & PI_FEATURE_VIDEO_BW)
+               pResult = "b/w";
             break;
 
          case PIBOX_COL_ED_RATING:

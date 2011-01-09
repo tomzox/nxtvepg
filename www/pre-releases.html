@@ -1,6 +1,6 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/HTMLlat1.ent">
 <HTML lang="en">
-<!-- $Id: pre-releases.html,v 1.92 2010/03/23 19:21:31 tom Exp $ -->
+<!-- $Id: pre-releases.html,v 1.93 2011/01/09 20:27:20 tom Exp $ -->
 <HEAD>
 <TITLE>Developers and alpha testers download page</TITLE>
 <META http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
@@ -141,7 +141,7 @@ daemon version, or vice versa.
 </P>
 -->
 
-<H3>nxtvepg pre-release 2.9.0pre3 (May 3rd 2009)</H3>
+<H3>nxtvepg pre-release 2.9.0pre4 (January 9th 2011)</H3>
 <P>
 Details on changes in this and older releases is available in the
 <A HREF="#changelog">changelog</A>.
@@ -151,7 +151,7 @@ Details on changes in this and older releases is available in the
 <LI><I>no pre-releases are currently available</I>
 -->
 <LI CLASS="spaced">Sources:
-    <A HREF="http://nxtvepg.sourceforge.net/tmp/nxtvepg-2.9.0pre3.tar.gz">nxtvepg-2.9.0pre3.tar.gz</A> (apx 1.7 MB)
+    <A HREF="http://nxtvepg.sourceforge.net/tmp/nxtvepg-2.9.0pre4.tar.gz">nxtvepg-2.9.0pre4.tar.gz</A> (apx 1.8 MB)
 <!--
 <BR>Note: if you want to test nxtvepg with
 <A HREF="http://nxtvepg.sourceforge.net/tmp/README-proxy.txt">VBI proxy</A>
@@ -160,7 +160,7 @@ Details on changes in this and older releases is available in the
 <A HREF="http://zapping.sourceforge.net/">zapping.sourceforge.net</A>.
 -->
 <LI CLASS="spaced">Win32 executable:
-    <A HREF="http://nxtvepg.sourceforge.net/tmp/nxtvepg-2.9.0pre3-win.zip">nxtvepg-2.9.0pre3-win.zip</A> (apx. 2.5 MB)
+    <A HREF="http://nxtvepg.sourceforge.net/tmp/nxtvepg-2.9.0pre4-win.zip">nxtvepg-2.9.0pre4-win.zip</A> (apx. 3.5 MB)
 <!--
 <BR><SPAN CLASS="anno">Does not contain libraries tcl85.dll and tk85.dll and other unchanged files.
    Please unzip the last official release 2.8.1 into the target directory and then
@@ -309,9 +309,13 @@ weekly magazines, daily soaps or current events.  The output
 of the teletext grabber can be merged with Nextview EPG data
 with the help of XMLTV import.
 </P>
-<H3>Download latest release: October 9th 2008</H3>
+<H3>Download latest release: January 9th 2011</H3>
 <P>
 Please refer to the <A HREF="ttx_grab.html">Teletext EPG grabber</A> page.
+</P><P>
+Note the grabber is fully integrated within nxtvepg, so no further download
+is needed if you're using nxtvepg for capturing EPG data. Just enable the
+grabber via the "Configure" menu.
 </P>
 
 <!-- ------------------------------------------------------------------------ -->
@@ -320,6 +324,20 @@ Please refer to the <A HREF="ttx_grab.html">Teletext EPG grabber</A> page.
 <HR WIDTH="75%">
 
 <H2><A NAME="changelog">Change history</A></H2>
+
+<H3>Changes between 2.9.0pre3 and 2.9.0pre4 (2011-Jan-09)</H3>
+<UL>
+<LI>Teletext grabber: The need to an external Perl interpreter was removed by
+  re-implementation in the C++ programming language.
+<LI>Teletext grabber: The "Now &amp; Next" acquisition phase was optimized further
+  so that in up to 30 networks can be scanned in 10 minutes.
+<LI>Teletext grabber: There were many minor updates, enhancements and fixes
+  in overview and description page parsing.
+<LI>A new feature flag "HDTV" was introduced: for teletext or XMLTV sources.
+<LI>The XMLTV export was updated to DTD version 0.5.56, which allow use of
+  the "HDTV" and "audio:bilingual" feature flags.
+<LI>XMLTV channel identifiers for "arte" and "das vierte" were added.
+</UL>
 
 <H3>Changes between 2.9.0pre2 and 2.9.0pre3 (2009-May-03)</H3>
 <UL>

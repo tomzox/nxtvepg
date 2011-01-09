@@ -37,7 +37,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: btdrv.h,v 1.49 2007/03/03 19:49:38 tom Exp tom $
+ *  $Id: btdrv.h,v 1.50 2011/01/09 16:54:01 tom Exp tom $
  */
 
 #ifndef __BTDRV_H
@@ -154,6 +154,8 @@ typedef struct
 // number of buffers for teletext page headers
 #define EPGACQ_ROLL_HEAD_COUNT 8
 
+#define EPGACQ_PG_NO_RING_SIZE 25
+
 // possible modes for teletext header capture
 #define EPGACQ_TTX_HEAD_NONE   0        // disable header capture
 #define EPGACQ_TTX_HEAD_DEC    1        // capture from pages with decimal numbers only
@@ -169,11 +171,13 @@ typedef struct
    uint8_t   reserved_0[2];     // reserved for future use, always 0
    VBI_LINE  ring_buf[EPGACQ_ROLL_HEAD_COUNT];
 
-   uint32_t  magPgCounts[8];    // Out: number of page headers seen per magazine
-   int32_t   magPgDirection;    // Out: page sequence prediction: <0:down >0:up
-   uint32_t  magPgResetReq;     // In: change value to request reset of page counters
-   uint32_t  magPgResetCnf;     // Out: set to value of "req" after reset
-   uint32_t  reserved_1[4];     // reserved for future use, always 0
+   uint16_t  pg_no_ring[EPGACQ_PG_NO_RING_SIZE];
+   int16_t   magPgDirection;    // Out: page sequence prediction: <0:down >0:up
+   uint8_t   magPgResetReq;     // In: change value to request reset of page counters
+   uint8_t   magPgResetCnf;     // Out: set to value of "req" after reset
+   uint8_t   ring_wr_idx;       // Out: index of the last written value in ring buffer
+   uint8_t   ring_val_cnt;      // Out: number of valid values in ring buffer (starting at 0)
+   uint8_t   reserved_1[4];     // reserved for future use, always 0
 } TTX_HEAD_BUF;
 
 // ---------------------------------------------------------------------------

@@ -15,7 +15,7 @@
 #  sections apply only to XMLTV documents with a matching source-info or
 #  source-data text (inside the <tv> tag or in <source-info><link>)
 #
-#  $Id: xmltv-etsi.map,v 1.7 2009/03/29 18:20:00 tom Exp tom $
+#  $Id: xmltv-etsi.map,v 1.8 2011/01/06 11:40:16 tom Exp tom $
 #
 [GLOBAL]
 1DCA 1.br-online.de
@@ -42,6 +42,7 @@
 1DE1 bw.swr.de
 2C11 channel4.com
 1546 cnn.com
+1D76 das-vierte.de
 5BF2 discoveryeurope.com
 1D8D dsf.com
 2FE1 euronews.net
@@ -85,7 +86,7 @@
 1DE6 wdr.de
 1DC2 zdf.de
 # German arte
-1D85 de.arte-tv.com
+1D85 arte-tv.com
 
 # channel IDs returned by tv_grab_dk in xmltv-0.5.39
 [*tv.tv2.dk*]

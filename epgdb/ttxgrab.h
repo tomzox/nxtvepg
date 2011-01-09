@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: ttxgrab.h,v 1.3 2007/03/10 19:31:32 tom Exp tom $
+ *  $Id: ttxgrab.h,v 1.4 2011/01/09 16:53:50 tom Exp tom $
  */
 
 #ifndef __TTXGRAB_H
@@ -48,7 +48,7 @@ bool TtxGrab_CheckSlicerQuality( void );
 void TtxGrab_GetStatistics( TTX_GRAB_STATS * pStats );
 void TtxGrab_PostProcess( const char * pName, bool reset );
 bool TtxGrab_CheckPostProcess( char ** ppXmlName );
-void TtxGrab_GetPageStats( bool * pInRange, bool * pRangeDone, bool * pSourceLock );
+void TtxGrab_GetPageStats( bool * pInRange, bool * pRangeDone, bool * pSourceLock, uint * pPredictDelay );
 
 void TtxGrab_Init( void );
 void TtxGrab_Exit( void );

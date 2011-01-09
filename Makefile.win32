@@ -22,7 +22,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: Makefile.win32,v 1.77 2009/05/03 18:36:06 tom Exp $
+#  $Id: Makefile.win32,v 1.78 2011/01/06 11:35:25 tom Exp tom $
 #
 
 ifeq ($(OS),Windows_NT)
@@ -30,6 +30,8 @@ ifeq ($(OS),Windows_NT)
 INCS   += -I. -I/usr/include/mingw
 ROOT    = /cygdrive/d
 CC      = gcc
+CPP     = g++
+LD      = g++
 AS      = as
 NM      = nm
 WINDRES = windres
@@ -50,6 +52,8 @@ STRIP   = i586-mingw32msvc-strip
 #ROOT    = $(HOME)/Save/dos
 ROOT    = /home/tom/Save/dos
 CC      = i586-mingw32msvc-gcc
+CPP     = i586-mingw32msvc-g++
+LD      = i586-mingw32msvc-g++
 endif
 
 # if you have perl and/or flex set their path here, else just leave them alone
@@ -83,8 +87,8 @@ DEFS   += -DUSE_DAEMON
 # enable support for importing XMLTV files
 DEFS   += -DUSE_XMLTV_IMPORT
 # enable support for teletext EPG grabber (EXPERIMENTAL)
-# note: in contrary to UNIX the script is expected in the working directory
-DEFS   += -DUSE_TTX_GRABBER -DTTX_GRAB_SCRIPT_PATH=\".\"
+DEFS    += -DUSE_TTX_GRABBER
+ACQLIBS += -Lboost -lboost_regex-gcc-d-1_42
 
 DEFS   += -DWIN32
 
@@ -92,16 +96,21 @@ WARN    = -Wall -Wpointer-arith -Wnested-externs -Wmissing-prototypes
 WARN   += -Wno-pointer-sign
 WARN   += -Werror
 #WARN  += -Wstrict-prototypes
-CFLAGS  = -pipe $(WARN) $(INCS) $(DEFS) -g -O -mno-cygwin
+CFLAGS  = -pipe $(WARN) $(INCS) $(DEFS) -g -O2 -mno-cygwin
+CPPFLAGS = -pipe $(INCS) $(DEFS) -g -O2 -mno-cygwin
 LDFLAGS = -mwindows -mno-cygwin -Wl,--subsystem,windows
 LDFLAGS_CONSOLE = -mconsole -mno-cygwin -Wl,--subsystem,console
 
 BUILD_DIR  = build-win32
 INCS      += -I$(BUILD_DIR)
 
+# FIXME required for O2
+$(BUILD_DIR)/epgui/rcfile.o : CFLAGS += -fno-strict-aliasing
+
 # ----- don't change anything below ------------------------------------------
 
-SUBDIRS = epgvbi epgdb epgctl epgui epgtcl tvsim dsdrv xmltv
+SUBDIRS = epgvbi epgdb epgctl epgui epgtcl tvsim dsdrv xmltv epgttx
+
 EPGSRC  = epgvbi/btdrv4win epgvbi/vbidecode epgvbi/zvbidecoder \
           epgvbi/ttxdecode epgvbi/hamming epgvbi/cni_tables epgvbi/tvchan \
           epgvbi/syserrmsg epgvbi/winshmsrv \
@@ -114,6 +123,9 @@ EPGSRC  = epgvbi/btdrv4win epgvbi/vbidecode epgvbi/zvbidecoder \
 XMLSRC  = xmltv/xml_prolog.tab xmltv/xml_scan.yy xmltv/xml_cdata \
           xmltv/xml_hash xmltv/xmltv_tags xmltv/xmltv_db xmltv/xmltv_cni \
           xmltv/xmltv_timestamp xmltv/xmltv_themes xmltv/xmltv_main
+TTXSRC  = epgttx/ttx_scrape epgttx/ttx_date epgttx/ttx_ov_fmt \
+          epgttx/ttx_feat epgttx/ttx_pg_ref epgttx/ttx_db epgttx/ttx_util \
+          epgttx/ttx_xmltv epgttx/ttx_cif
 GUISRC  = epgui/uictrl epgui/pibox epgui/pilistbox epgui/pinetbox \
           epgui/pidescr epgui/pioutput epgui/pifilter epgui/piremind \
           epgui/statswin epgui/timescale epgui/pdc_themes epgui/menucmd \
@@ -168,6 +180,10 @@ ifneq (,$(findstring USE_XMLTV_IMPORT,$(DEFS)))
 NXTV_OBJS    += $(addprefix $(BUILD_DIR)/, $(addsuffix .o, $(XMLSRC)))
 DAEMON_OBJS  += $(addprefix $(BUILD_DIR)/, $(addsuffix .o, $(XMLSRC)))
 endif
+ifneq (,$(findstring USE_TTX_GRABBER,$(DEFS)))
+NXTV_OBJS    += $(addprefix $(BUILD_DIR)/, $(addsuffix .o, $(TTXSRC)))
+DAEMON_OBJS  += $(addprefix $(BUILD_DIR)/, $(addsuffix .o, $(TTXSRC)))
+endif
 
 .PHONY: devel daemon manuals tvsim tvmans all
 devel   :: build_dir tcl_headers $(BUILD_DIR)/nxtvepg.exe manuals
@@ -178,19 +194,19 @@ tvmans  :: tvsim/tvsim.html tvsim/vbirec.html tvsim/vbiplay.html
 all     :: devel daemon tvsim tvmans verifyxml
 
 $(BUILD_DIR)/nxtvepg.exe: $(BUILD_DIR)/dsdrv/libdsdrv.a $(BUILD_DIR)/dsdrv/libtvcard.a $(NXTV_OBJS) $(TCL_TK_LIBS)
-	$(CC) $(LDFLAGS) $(NXTV_OBJS) $(GUILIBS) $(ACQLIBS) -o $@
+	$(LD) $(LDFLAGS) $(NXTV_OBJS) $(GUILIBS) $(ACQLIBS) -o $@
 
 $(BUILD_DIR)/nxtvepgd.exe: $(BUILD_DIR)/dsdrv/libdsdrv.a $(BUILD_DIR)/dsdrv/libtvcard.a $(DAEMON_OBJS)
-	$(CC) $(LDFLAGS) $(DAEMON_OBJS) $(ACQLIBS) -o $@
+	$(LD) $(LDFLAGS) $(DAEMON_OBJS) $(ACQLIBS) -o $@
 
 $(BUILD_DIR)/tvsim.exe: $(BUILD_DIR)/dsdrv/libdsdrv.a $(BUILD_DIR)/dsdrv/libtvcard.a $(TVSIM_OBJS) $(TCL_TK_LIBS)
-	$(CC) $(LDFLAGS) $(TVSIM_OBJS) $(GUILIBS) $(ACQLIBS) -o $@
+	$(LD) $(LDFLAGS) $(TVSIM_OBJS) $(GUILIBS) $(ACQLIBS) -o $@
 
 $(BUILD_DIR)/vbirec.exe: $(VBIREC_OBJS) $(TCL_TK_LIBS)
-	$(CC) $(LDFLAGS) $(VBIREC_OBJS) $(GUILIBS) $(ACQLIBS) -o $@
+	$(LD) $(LDFLAGS) $(VBIREC_OBJS) $(GUILIBS) $(ACQLIBS) -o $@
 
 $(BUILD_DIR)/vbiplay.exe: $(VBIPLAY_OBJS)
-	$(CC) $(LDFLAGS) $(VBIPLAY_OBJS) $(GUILIBS) $(ACQLIBS) -o $@
+	$(LD) $(LDFLAGS) $(VBIPLAY_OBJS) $(GUILIBS) $(ACQLIBS) -o $@
 
 $(BUILD_DIR)/dsdrv/libdsdrv.a: $(DSDRV_OBJS)
 	$(AR) r $(BUILD_DIR)/dsdrv/libdsdrv.a $(DSDRV_OBJS)
@@ -198,7 +214,12 @@ $(BUILD_DIR)/dsdrv/libdsdrv.a: $(DSDRV_OBJS)
 $(BUILD_DIR)/dsdrv/libtvcard.a: $(TVCARD_OBJS)
 	$(AR) r $(BUILD_DIR)/dsdrv/libtvcard.a $(TVCARD_OBJS)
 
-.SUFFIXES: .c .o .tcl
+.SUFFIXES: .cc .c .o .tcl
+
+$(BUILD_DIR)/%.o: %.cc
+	$(CPP) $(CPPFLAGS) -Wp,-MMD,$@.dep.tmp -c -o $@ $<
+	@sed -e "s#^[^ \t].*\.o:#$@:#" < $@.dep.tmp > $@.dep && \
+	   rm -f $@.dep.tmp
 
 $(BUILD_DIR)/%.o: %.c | tcl_headers tcl_headers_tvsim
 	$(CC) $(CFLAGS) -Wp,-MMD,$@.dep.tmp -c -o $@ $<
@@ -335,7 +356,7 @@ zip: all
 	zip -9 -j $$ARCHIVE $(BUILD_DIR)/nxtvepg.exe $(BUILD_DIR)/nxtvepgd.exe; \
 	zip -9 $$ARCHIVE tcl$(TCL_L).dll tk$(TCL_L).dll NextViewPlugin.dll dsdrv4.sys dsdrv4.vxd nxtvepg.ico; \
 	zip -9 $$ARCHIVE -l manual.html manual-de.html Nxtvepg.ad \
-	                    tv_grab_ttx.pl xmltv-etsi.map; \
+	                    xmltv-etsi.map; \
 	zip -9 -j $$ARCHIVE dsdrv/CX2388xCards.ini dsdrv/SAA713xCards.ini; \
 	for v in TODO README CHANGES COPYRIGHT; do \
 	   mv $$v $${v}.txt; \

@@ -40,7 +40,7 @@
  *  DScaler #Id: TDA8275.cpp,v 1.10 2005/10/04 19:59:48 to_see Exp #
  *  DScaler #Id: TDA8275.h,v 1.6 2005/10/04 19:59:09 to_see Exp #
  *
- *  $Id: wintuner.c,v 1.29 2009/04/25 17:54:40 tom Exp tom $
+ *  $Id: wintuner.c,v 1.30 2011/01/05 19:27:05 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_VBI
@@ -2018,7 +2018,7 @@ static void TDA9887Ex_SetModes(IN eTDA9887Format format, IN BYTE mask, IN BYTE b
     }
 }
 
-static void TDA9887Ex_SetModesEx(IN TTDA9887FormatModes* modes)
+static void TDA9887Ex_SetModesEx(IN const TTDA9887FormatModes* modes)
 {
     uint idx;
 
@@ -2902,7 +2902,7 @@ void Tuner_Close( void )
 //
 bool Tuner_Init( TUNER_TYPE type, TVCARD * pNewTvCardIf )
 {
-   TTDA9887FormatModes * pTda9887Modes;
+   const TTDA9887FormatModes * pTda9887Modes;
    uint i2cStart;
    BYTE i2cPort;
    uint defaultNorm = 0;
@@ -2939,7 +2939,7 @@ bool Tuner_Init( TUNER_TYPE type, TVCARD * pNewTvCardIf )
                defaultNorm = VIDEO_MODE_PAL;
             dprintf1("Tuner-Init: detecting IF demodulator, norm %d\n", defaultNorm);
 
-            if (pTvCard->cfg->GetTda9887Modes(pTvCard, &haveTda9887Standard, (void **)&pTda9887Modes))
+            if (pTvCard->cfg->GetTda9887Modes(pTvCard, &haveTda9887Standard, &pTda9887Modes))
             {
                // presence of TDA9887 isdefined in the card INI file
                if (haveTda9887Standard)

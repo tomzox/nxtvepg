@@ -24,7 +24,7 @@
 #
 #  Author: Tom Zoerner
 #
-# $Id: nxtvepg.pod,v 1.135 2009/03/14 21:24:32 tom Exp tom $
+# $Id: nxtvepg.pod,v 1.136 2009/09/30 10:00:00 tom Exp tom $
 # ---------------------------------------------------------------------------
 
 =head1 NAME
@@ -387,28 +387,143 @@ multiple times to combine different filters. The available filter
 types are a subset of those which are available in the graphical
 interface:
 
-I<EXPIRE=NOW> or I<EXPIRE=time>;
-I<NETWOP_PRE>
-I<AIR_TIMES>
-I<NETIDX>
-I<NETNAME>
-I<NETCNI>
-I<THEME>
-I<SORTCRIT>
-I<SERIES>
-I<TITLE>
-I<TITLE_WHOLE>
-I<TEXT>
-I<PROGIDX>
-I<START>
-I<DURATION>
-I<PAR_RAT>
-I<EDIT_RAT>
-I<FEATURES>
-I<LANGUAGES>
-I<SUBTITLES>
-I<VPS_PDC>
-I<INVERT>
+=over 4
+
+=item I<EXPIRE=NOW> or I<EXPIRE=delay> or I<EXPIRE=time>
+
+This command with parameter value I<NOW> will only list programmes which
+are currently running or starting in the future. In other words, programmes
+which have already finished are suppressed. Alternatively, the parameter
+can be a numeric value which specifies a number of minutes up to which
+the stop time may be in the past; alternatively the value may specify
+a date and time in the format C<YYYY-MM-DD.HH:MM> or just a time in format
+C<HH:MM>. The latter always refers to the current date.
+
+=item I<PROGIDX=index_range>
+
+This command is another possibility to restrict the listing to unexpired
+programmes. With this command for each network the programmes with the
+given index or within the given index range are listed. The index zero
+refers to the currently running programme on each channel. (When none
+is currently running, index 1 refers to the one which is next up.)
+
+=item I<NETNAME=name>
+
+This command will only list programmes running on a network with the
+given name.  To allow for multiple networks, use spearate I<-epgquery>
+options for each network.  The name comparison is case-insensitive;
+unknown network names are silently ignored.
+
+=item I<NETIDX=index_list>
+
+This command will only list programmes with the given index in the channel
+table (i.e. zero refers to the first programme in the table, 1 to the
+second and so on.)  Multiple indices can be given when separated by commas,
+or as a range separated by a dash (e.g. C<NETIDX=0,2,5-10>)
+
+=item I<NETCNI=id_code>
+
+This command will only list programmes with the given numerical VPS or PDC
+channel identification code (e.g. C<NETCNI=0xDC1> for the German "ARD".)
+Multiple CNIs can be given when separated by commas.
+
+=item I<NETWOP_PRE>
+
+This command restricts networks to the same list you have configured
+for the nxtvepg main application. This command has no parameters and
+cannot be combined with any other network selection commands.
+
+=item I<THEME=pdc_code> or I<THEME=name>
+
+This command will only list programmes labeled with the given theme. The
+theme should be specified by its numeric PDC theme code as listed with
+C<-dump pdc> (e.g. C<THEME=16> to search for movies.)  Multiple codes can
+be given when separated by commas, or as a range separated by a dash.
+Alternatively, the theme can be specified as a string (e.g. C<theme=movie>)
+where the language must match that of the database, or English for XMLTV
+sources.
+
+=item I<TITLE=text>
+
+This command will only list programmes with the given text in the
+programme title.
+Case is ignored.  If this option is used more than once, all programmes
+with titles matching at least one of the given text strings are listed.
+
+=item I<TITLE_WHOLE=text>
+
+This command will only list programmes which have the exact given text
+as title.
+Case is ignored.  If this option is used more than once, all programmes
+with titles matching at least one of the given text strings are listed.
+
+=item I<TEXT=text>
+
+This command searches the given text anywhere in the title or description.
+Case is ignored.  If this option is used more than once, all programmes
+matching at least one of the given text strings are listed.
+
+=item I<START=date> or I<START=date1-date2>
+
+This command will list only programmes starting at the given time or in
+the given time range respectively. Times can be specified as combined
+date and time in format C<YYYY-MM-DD.HH:MM> or as just a time in format
+C<HH:MM>. The latter always refers to the current date.
+(Example: C<-epgquery start=22:00-23:00>)
+
+=item I<DURATION=nnn> or I<DURATION=nnn-mmm>
+
+This command will only list programmes with a duration in the given
+numerical range, or with the exact given duration, if "-mmm" is omitted.
+In this context, "duration" means the difference of start and stop times
+in minutes (e.g. "15:00 - 16:00" has a duration of 60 minutes.)
+
+=item I<PAR_RAT=age>
+
+This command will only list programmes which are rated as OK for a
+person of the given age, or older. For example I<PAR_RAT=12> will list
+programmes rated "G", "6", "12".  Use I<-epgquery INVERT> in
+addition to get the opposite behaviour (i.e. in the earlier example:
+programmes not ok for age 12, which equals age 16 and up.) Note
+programms without parental rating are generally excluded when this
+option is used.
+
+=item I<EDIT_RAT=rating>
+
+This command will only list programmes with the given editorial rating
+or a higher rating. The range of ratings depends on the content provider.
+The maximum range is 1 to 7.  Note programms without editorial rating are
+generally excluded when this option is used.
+
+=item I<FEATURES=keywords>
+
+This command will only list programmes with all the features indicated
+by the given keyword list. The following keywords are accepted:
+Relating to audio: I<MONO>, I<STEREO>, I<2CHAN> (multi-lingual), I<SURROUND>;
+relating to screen aspect ratios: I<FULL> (4:3), I<WIDE> (16:9), I<PALPLUS>;
+relating to transmission: I<ANALOG>, I<DIGITAL>;
+relating to encryption: I<UNCRYPT>, I<CRYPT>;
+relating to repetitions or live broadcast: I<LIVE>, I<NEW>, I<REPEAT>;
+relating to teletext subtitles: I<SUBTITLES>.
+
+When this command is used multiple times, the different feature queries
+are logically ORed, meaning all programmes which match all features
+given by one of the commands will be listed. (Example:
+C<-epgquery FEATURES=stereo,wide -epgquery FEATURES=surround,wide> will
+list all programmes in 16:9 aspect ratio with either stereo or
+surround sound.)
+
+=item I<SORTCRIT>
+
+This command will only list programmes labeled with the given "sorting
+criterion" code. These codes are explained in L<"FILTERING">.
+
+=item I<INVERT>
+
+This command will only list programmes which do not match any of the
+filters given with I<-epgquery> options. See also L<"FILTERING">.
+
+=back
 
 Example:
 
