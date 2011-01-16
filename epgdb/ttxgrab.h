@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: ttxgrab.h,v 1.4 2011/01/09 16:53:50 tom Exp tom $
+ *  $Id: ttxgrab.h,v 1.5 2011/01/16 20:27:55 tom Exp tom $
  */
 
 #ifndef __TTXGRAB_H
@@ -52,7 +52,7 @@ void TtxGrab_GetPageStats( bool * pInRange, bool * pRangeDone, bool * pSourceLoc
 
 void TtxGrab_Init( void );
 void TtxGrab_Exit( void );
-void TtxGrab_SetConfig( uint expireMin, const char * pPerlPath, bool keepTtxInp );
+void TtxGrab_SetConfig( uint expireMin, bool keepTtxInp );
 #endif // USE_TTX_GRABBER
 
 #endif // __TTXGRAB_H

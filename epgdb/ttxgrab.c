@@ -19,7 +19,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: ttxgrab.c,v 1.15 2011/01/09 16:53:29 tom Exp tom $
+ *  $Id: ttxgrab.c,v 1.16 2011/01/16 20:27:55 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB
@@ -310,7 +310,7 @@ bool TtxGrab_ProcessPackets( void )
 {
    const VBI_LINE * pVbl;
    uint pkgOff;
-   bool seenHeader;
+   //bool seenHeader;
 
    if ( (pVbiBuf != NULL) &&
         (pVbiBuf->chanChangeReq == pVbiBuf->chanChangeCnf) )
@@ -318,7 +318,7 @@ bool TtxGrab_ProcessPackets( void )
       //assert(pVbiBuf->startPageNo == ttxGrabState.startPage);
 
       // fetch the oldest packet from the teletext ring buffer
-      seenHeader = FALSE;
+      //seenHeader = FALSE;
       pkgOff = 0;
       while ( (pVbl = TtxDecode_GetPacket(pkgOff)) != NULL )
       {
@@ -329,7 +329,7 @@ bool TtxGrab_ProcessPackets( void )
          if (pVbl->pkgno == 0)
          {
             //dprintf3("%03X.%04X %s\n", pVbl->pageno, pVbl->ctrl_lo & 0x3F7F, TtxGrab_PrintHeader(pVbl->data, TRUE));
-            seenHeader = TRUE;
+            //seenHeader = TRUE;
             ttxGrabState.stats.ttxPagCount += 1;
             if (((pVbl->pageno & 0x0F) <= 9) && (((pVbl->pageno >> 4) & 0x0F) <= 9))
                TtxGrab_PageHeaderCheck(pVbl->data + 8, pVbl->pageno);
@@ -643,7 +643,7 @@ void TtxGrab_Stop( void )
 // Configuration parameters
 // - called during start-up and configuration changes
 //
-void TtxGrab_SetConfig( uint expireMin, const char * pPerlPath, bool keepTtxInp )
+void TtxGrab_SetConfig( uint expireMin, bool keepTtxInp )
 {
    // passed through to TTX grabber (discard programmes older than X hours)
    ttxGrabState.expireMin = expireMin;

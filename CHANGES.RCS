@@ -22790,3 +22790,14 @@ epgdb/epgblock.h [rev:1.57, 2011/01/22T21:49:00]:
 - increased MAX_MERGED_DB_COUNT from 31 for 63
   (likely for XMLTV import)
 #>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> RELEASE_2_9_0_PRE4 <<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+epgui/dumpxml.c [rev:1.25, 2011-01-12T22:01:56]:
+- XMLTV: empty "<subtitles></subtitles>" changed to "<subtitles />"
+- XMLTV: within <desc>: replaced double-newline with single one
+epgdb/ttxgrab.c [rev:1.16, 2011-01-16T20:27:55]:
+- TtxGrab_SetConfig(): removed obsolete parameter "pPerlPath"
+- TtxGrab_ProcessPackets(): commented unused variable "seenHeader"
+epgdb/ttxgrab.h [rev:1.5, 2011-01-16T20:27:55]:
+- TtxGrab_SetConfig(): removed obsolete parameter "pPerlPath"
+epgui/epgsetup.c [rev:1.12, 2011-01-16T20:27:55]:
+- removed obsolete parameter "pPerlPath" from call to TtxGrab_SetConfig()
+#>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> above 2011-01-22 <<<<<<<<<<<<<<<<<<<<<<<<<<<<<

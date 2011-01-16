@@ -21,7 +21,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgsetup.c,v 1.11 2008/10/19 17:54:21 tom Exp tom $
+ *  $Id: epgsetup.c,v 1.12 2011/01/16 20:27:55 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -1156,16 +1156,8 @@ bool IsRemoteAcqDefault( void )
 void EpgSetup_TtxGrabber( void )
 {
    const RCFILE * pRc = RcFile_Query();
-   const char * pPerlExe;
 
-#ifndef WIN32
-   // on UNIX we use the PATH environment variable only
-   pPerlExe = NULL;
-#else
-   pPerlExe = pRc->ttx.perl_path_win;
-#endif
-
-   TtxGrab_SetConfig( pRc->db.piexpire_cutoff, pPerlExe, pRc->ttx.keep_ttx_data );
+   TtxGrab_SetConfig( pRc->db.piexpire_cutoff, pRc->ttx.keep_ttx_data );
 }
 #endif // USE_TTX_GRABBER
 

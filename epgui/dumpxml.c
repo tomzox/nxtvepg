@@ -18,7 +18,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: dumpxml.c,v 1.24 2010/03/23 20:15:30 tom Exp tom $
+ *  $Id: dumpxml.c,v 1.25 2011/01/12 22:01:56 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -156,7 +156,7 @@ static void EpgDumpXml_AppendInfoTextCb( void *vp, const char * pDesc, bool addS
       if (addSeparator)
       {
          if ( IS_XML_DTD5(pCbInfo->xmlDtdVersion) )
-            fprintf(fp, "\n\n");
+            fprintf(fp, "\n");
          else
             fprintf(fp, "</p></desc>\n\t<desc><p>");
       }
@@ -168,7 +168,7 @@ static void EpgDumpXml_AppendInfoTextCb( void *vp, const char * pDesc, bool addS
          EpgDumpXml_HtmlWriteString(fp, pDesc, pNewline - pDesc);
 
          if ( IS_XML_DTD5(pCbInfo->xmlDtdVersion) )
-            fprintf(fp, "\n\n");
+            fprintf(fp, "\n");
          else
             fprintf(fp, "</p>\n<p>");
 
@@ -477,7 +477,7 @@ static void EpgDumpXml_WriteProgramme( EPGDB_CONTEXT * pDbContext, const AI_BLOC
 
       if (pPiBlock->feature_flags & PI_FEATURE_SUBTITLES)
       {
-         fprintf(fp, "\t<subtitles type=\"teletext\"></subtitles>\n");
+         fprintf(fp, "\t<subtitles type=\"teletext\" />\n");
       }
 
       if (pPiBlock->parental_rating == 1)
