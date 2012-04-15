@@ -22800,4 +22800,9 @@ epgdb/ttxgrab.h [rev:1.5, 2011-01-16T20:27:55]:
 - TtxGrab_SetConfig(): removed obsolete parameter "pPerlPath"
 epgui/epgsetup.c [rev:1.12, 2011-01-16T20:27:55]:
 - removed obsolete parameter "pPerlPath" from call to TtxGrab_SetConfig()
-#>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> above 2011-01-22 <<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+www/provnets-de.html [rev:1.8, 2012-04-15T17:00:29]:
+- Moved Kabel1 to "former providers" section
+www/provnets.html [rev:1.53, 2012-04-15T17:00:29]:
+- Moved Kabel1 to "former providers" section
+www/provnets.html [rev:1.54, 2012-04-15T17:14:03]:
+- *** empty log message ***
