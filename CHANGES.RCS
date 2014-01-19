@@ -22806,3 +22806,9 @@ www/provnets.html [rev:1.53, 2012-04-15T17:00:29]:
 - Moved Kabel1 to "former providers" section
 www/provnets.html [rev:1.54, 2012-04-15T17:14:03]:
 - *** empty log message ***
+www/index-de.html [rev:1.102, 2014-01-19T18:34:03]:
+- Removed "news" section from main page (last update was 5 years ago)
+www/index-fr.html [rev:1.36, 2014-01-19T18:34:03]:
+- Removed "news" section from main page (last update was 5 years ago)
+www/index.html [rev:1.111, 2014-01-19T18:34:03]:
+- Removed "news" section from main page (last update was 5 years ago)
