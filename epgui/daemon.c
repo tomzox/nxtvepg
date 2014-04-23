@@ -18,7 +18,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: daemon.c,v 1.18 2009/05/02 19:49:00 tom Exp tom $
+ *  $Id: daemon.c,v 1.19 2014/04/23 21:17:46 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -1242,10 +1242,10 @@ void Daemon_Destroy( void )
 void Daemon_Init( void )
 {
    char * pErrMsg = NULL;
-   bool loadOk;
+   /*bool loadOk;*/
 
    RcFile_Init();
-   loadOk = RcFile_Load(mainOpts.rcfile, !mainOpts.isUserRcFile, &pErrMsg);
+   /*loadOk =*/ RcFile_Load(mainOpts.rcfile, !mainOpts.isUserRcFile, &pErrMsg);
 
    if (pErrMsg != NULL)
    {

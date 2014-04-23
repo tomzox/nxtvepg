@@ -18,7 +18,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: dumphtml.c,v 1.11 2008/10/12 19:55:39 tom Exp tom $
+ *  $Id: dumphtml.c,v 1.12 2014/04/23 21:10:51 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -722,7 +722,7 @@ void EpgDumpHtml_Standalone( EPGDB_CONTEXT * pDbContext, FILTER_CONTEXT * fc,
    Tcl_Obj  * pVarObj;
    Tcl_Obj ** pColObjv;
    int  optHtmlType, optAppend, optSel, optMaxCount, optHyperlinks, optTextFmt;
-   int  optUseColsel, colCount, hyperlinkColIdx;
+   int  /*optUseColsel,*/ colCount, hyperlinkColIdx;
    time_t now = time(NULL);
 
    optHtmlType = EpgDumpHtml_ReadTclInt(interp, "dumphtml_type", 0);
@@ -731,7 +731,7 @@ void EpgDumpHtml_Standalone( EPGDB_CONTEXT * pDbContext, FILTER_CONTEXT * fc,
    optMaxCount = EpgDumpHtml_ReadTclInt(interp, "dumphtml_sel_count", 0);
    optHyperlinks = EpgDumpHtml_ReadTclInt(interp, "dumphtml_hyperlinks", 0);
    optTextFmt = EpgDumpHtml_ReadTclInt(interp, "dumphtml_text_fmt", 0);
-   optUseColsel = EpgDumpHtml_ReadTclInt(interp, "dumphtml_use_colsel", 0);
+   //optUseColsel = EpgDumpHtml_ReadTclInt(interp, "dumphtml_use_colsel", 0);
 
    if (optHyperlinks && (optHtmlType == 3))
       hyperlinkColIdx = 4; //TODO: set hyperCol [lsearch -exact $pilistbox_cols title]
@@ -746,7 +746,7 @@ void EpgDumpHtml_Standalone( EPGDB_CONTEXT * pDbContext, FILTER_CONTEXT * fc,
       optMaxCount = subMode;
    }
    optTextFmt = FALSE;
-   optUseColsel = FALSE;
+   //optUseColsel = FALSE;
 
    sprintf(comm, "set pibox_type 0\n"
                  "set pilistbox_cols {weekday day_month_year time title netname}\n"

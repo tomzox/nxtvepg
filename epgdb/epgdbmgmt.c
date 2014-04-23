@@ -21,7 +21,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgdbmgmt.c,v 1.53 2008/10/12 15:54:21 tom Exp tom $
+ *  $Id: epgdbmgmt.c,v 1.54 2014/04/23 21:18:50 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB
@@ -339,9 +339,8 @@ static void EpgDbRemoveObsoleteNetwops( PDBC dbc, uchar netwopCount, uchar filte
    uchar netwop;
    bool  do_remove;
    bool  block_no_in_ai;
-   time_t expireTime;
 
-   expireTime = time(NULL) - dbc->expireDelayPi;
+   //time_t expireTime = time(NULL) - dbc->expireDelayPi;
 
    pWalk = dbc->pFirstPi;
    while (pWalk != NULL)
@@ -414,10 +413,8 @@ static void EpgDbFilterIncompatiblePi( PDBC dbc, const AI_BLOCK *pOldAi, const A
    uchar filter[MAX_NETWOP_COUNT];
    const AI_NETWOP *pOldNets, *pNewNets;
    uchar netwop;
-   bool found;
 
    memset(filter, 0, sizeof(filter));
-   found = FALSE;
 
    pOldNets = AI_GET_NETWOPS(pOldAi);
    pNewNets = AI_GET_NETWOPS(pNewAi);
@@ -429,7 +426,6 @@ static void EpgDbFilterIncompatiblePi( PDBC dbc, const AI_BLOCK *pOldAi, const A
          // that index is no longer used by the new AI or
          // at this index there is a different netwop now -> remove the data
          filter[netwop] = TRUE;
-         found = TRUE;
       }
    }
 

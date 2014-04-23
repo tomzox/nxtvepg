@@ -21,7 +21,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: shellcmd.c,v 1.18 2009/05/24 15:23:32 tom Exp tom $
+ *  $Id: shellcmd.c,v 1.19 2014/04/23 21:25:35 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -636,6 +636,10 @@ static int PiOutput_ExecUserCmd( ClientData ttp, Tcl_Interp *interp, int objc, T
 
                // execute the command
                retCode = system(cmdbuf.strbuf);
+               if (retCode == -1)
+                  perror("Failed to fork for running TV command");
+               else if (WEXITSTATUS(retCode) != 0)
+                  fprintf(stderr, "Non-zero exit code from \"%s\"\n", cmdbuf.strbuf);
 
                #else  // WIN32
                ShellCmd_AppendChar('\0', &cmdbuf);
@@ -760,6 +764,10 @@ static int PiOutput_ExecParsedScript( Tcl_Interp *interp, Tcl_Obj * pTypeObj, Tc
 
          case CTX_TYPE_EXEC_UNIX:
             retCode = system(pCmdStr);
+            if (retCode == -1)
+               perror("Failed to fork for running TV command");
+            else if (WEXITSTATUS(retCode) != 0)
+               fprintf(stderr, "Non-zero exit code from \"%s\"\n", pCmdStr);
             break;
 #endif
 

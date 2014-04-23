@@ -39,7 +39,7 @@
  *    Copyright (c) 1991-1993 The Regents of the University of California.
  *    Copyright (c) 1994 Sun Microsystems, Inc.
  *
- *  $Id: xml_hash.c,v 1.5 2006/12/23 19:38:38 tom Exp tom $
+ *  $Id: xml_hash.c,v 1.6 2014/04/23 21:08:46 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_XMLTV
@@ -207,24 +207,18 @@ XML_HASH_PAYLOAD XmlHash_SearchEntry( XML_HASH_PTR pHashRef, const char * pStr )
 {
    XML_HASH_STATE * pHash = pHashRef;
    sint  walkIdx;
-   sint  prevIdx;
    uint  key;
 
    key = XmlHash_GetKey(pStr) & (HASH_MAP_SIZE - 1);
-   prevIdx = HASH_MAP_FREE;
    walkIdx = pHash->map[key];
 
-   if (walkIdx != HASH_MAP_FREE)
+   while (walkIdx != HASH_MAP_FREE)
    {
-      while (walkIdx != HASH_MAP_FREE)
+      if (strcmp(pHash->pBuckets[walkIdx].pStr, pStr) == 0)
       {
-         if (strcmp(pHash->pBuckets[walkIdx].pStr, pStr) == 0)
-         {
-            break;
-         }
-         prevIdx = walkIdx;
-         walkIdx = pHash->pBuckets[walkIdx].nextIdx;
+         break;
       }
+      walkIdx = pHash->pBuckets[walkIdx].nextIdx;
    }
 
    if (walkIdx != HASH_MAP_FREE)

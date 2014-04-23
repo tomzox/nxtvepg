@@ -20,7 +20,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: xiccc.c,v 1.2 2007/12/31 16:03:14 tom Exp tom $
+ *  $Id: xiccc.c,v 1.3 2014/04/23 21:05:15 tom Exp tom $
  */
 
 #ifdef WIN32
@@ -171,7 +171,7 @@ static void Xiccc_ClaimManagementStep2( XICCC_STATE * pXi, Time timestamp )
 {
    Window owner_wid;
    XEvent ev;
-   Status st;
+   /*Status st;*/
 
    assert(timestamp != CurrentTime);
    assert(pXi->manager_wid != None);
@@ -199,7 +199,7 @@ static void Xiccc_ClaimManagementStep2( XICCC_STATE * pXi, Time timestamp )
          ev.xclient.data.l[1] = pXi->manager_atom;
          ev.xclient.data.l[2] = pXi->manager_wid;
 
-         st = XSendEvent(pXi->dpy, pXi->root_wid, False, StructureNotifyMask, &ev);
+         /*st =*/ XSendEvent(pXi->dpy, pXi->root_wid, False, StructureNotifyMask, &ev);
       }
       else
       {
@@ -600,7 +600,7 @@ bool Xiccc_ParseMsgSetstation( Display * dpy, XICCC_EV_QUEUE * pReq, Atom target
 bool Xiccc_SendNullReply( XICCC_STATE * pXi, XICCC_EV_QUEUE * pReq, Atom target )
 {
    XEvent ev;
-   Status st;
+   /*Status st;*/
 
    if ((pXi != NULL) && (pReq != NULL))
    {
@@ -615,7 +615,7 @@ bool Xiccc_SendNullReply( XICCC_STATE * pXi, XICCC_EV_QUEUE * pReq, Atom target 
       ev.xselection.property = None;
       ev.xselection.time = pReq->timestamp;
 
-      st = XSendEvent(pXi->dpy, pReq->requestor, False, NoEventMask, &ev);
+      /*st =*/ XSendEvent(pXi->dpy, pReq->requestor, False, NoEventMask, &ev);
    }
    else
       fatal0("Xiccc-SendNullReply: illegal NULL ptr param");
@@ -633,7 +633,7 @@ bool Xiccc_SendReply( XICCC_STATE * pXi, const char * pStr, int strLen,
 {
    Atom property;
    XEvent ev;
-   Status st;
+   /*Status st;*/
 
    if ((pXi != NULL) && (pStr != NULL) && (pReq != NULL))
    {
@@ -660,7 +660,7 @@ bool Xiccc_SendReply( XICCC_STATE * pXi, const char * pStr, int strLen,
       ev.xselection.property = property;
       ev.xselection.time = pReq->timestamp;
 
-      st = XSendEvent(pXi->dpy, pReq->requestor, False, NoEventMask, &ev);
+      /*st =*/ XSendEvent(pXi->dpy, pReq->requestor, False, NoEventMask, &ev);
    }
    else
       fatal0("Xiccc-SendReply: illegal NULL ptr param");
@@ -676,7 +676,7 @@ bool Xiccc_SendQuery( XICCC_STATE * pXi, const char * pCmd, sint cmdLen,
                       Atom target, Atom property )
 {
    XEvent ev;
-   Status st;
+   /*Status st;*/
    bool result = FALSE;
 
    dprintf3("Xiccc-SendQuery: wid 0x%X target 0x%X: property %s\n", (int)pXi->remote_manager_wid, (int)target, pCmd);
@@ -699,7 +699,7 @@ bool Xiccc_SendQuery( XICCC_STATE * pXi, const char * pCmd, sint cmdLen,
       ev.xselectionrequest.property = property;
       ev.xselectionrequest.time = CurrentTime;
 
-      st = XSendEvent(pXi->dpy, pXi->remote_manager_wid, False, NoEventMask, &ev);
+      /*st =*/ XSendEvent(pXi->dpy, pXi->remote_manager_wid, False, NoEventMask, &ev);
 
       result = TRUE;
    }

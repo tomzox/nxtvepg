@@ -21,7 +21,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: dumptext.c,v 1.19 2008/10/12 19:55:39 tom Exp tom $
+ *  $Id: dumptext.c,v 1.20 2014/04/23 21:10:51 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -82,8 +82,8 @@ static void DumpText_PiInfoTextCb( void * vp, const char * pDesc, bool addSepara
 //
 static void DumpText_Pi( PI_DESCR_BUF * pb, const PI_BLOCK * pPi, const EPGDB_CONTEXT * pDbContext )
 {
-   const uchar * pShort;
-   const uchar * pLong;
+   //const uchar * pShort;
+   //const uchar * pLong;
    uchar hour, minute, day, month;
    uint  year;
    uchar str_buf[128];
@@ -161,6 +161,7 @@ static void DumpText_Pi( PI_DESCR_BUF * pb, const PI_BLOCK * pPi, const EPGDB_CO
       PiDescription_BufAppend(pb, PI_GET_TITLE(pPi), -1);
       PiDescription_BufAppend(pb, "\t", 1);
 
+#if 0
       if (PI_HAS_SHORT_INFO(pPi))
          pShort = PI_GET_SHORT_INFO(pPi);
       else
@@ -170,6 +171,7 @@ static void DumpText_Pi( PI_DESCR_BUF * pb, const PI_BLOCK * pPi, const EPGDB_CO
          pLong = PI_GET_LONG_INFO(pPi);
       else
          pLong = "";
+#endif
 
       PiDescription_AppendShortAndLongInfoText(pPi, DumpText_PiInfoTextCb, pb, EpgDbContextIsMerged(pDbContext));
       PiDescription_BufAppend(pb, "\n", 1);
@@ -257,7 +259,6 @@ static void DumpText_PdcThemes( PI_DESCR_BUF * pb )
 bool EpgDumpText_Single( EPGDB_CONTEXT * pDbContext, const PI_BLOCK * pPi, PI_DESCR_BUF * pb )
 {
    const AI_BLOCK * pAi;
-   const AI_NETWOP *pNetwop;
    const uchar * pNetname;
    bool  result = FALSE;
 
@@ -268,8 +269,6 @@ bool EpgDumpText_Single( EPGDB_CONTEXT * pDbContext, const PI_BLOCK * pPi, PI_DE
       pAi = EpgDbGetAi(pDbContext);
       if (pAi != NULL)
       {
-         pNetwop = AI_GET_NETWOP_N(pAi, pPi->netwop_no);
-
          // get user-configured network name
          pNetname = EpgSetup_GetNetName(pAi, pPi->netwop_no, NULL);
 

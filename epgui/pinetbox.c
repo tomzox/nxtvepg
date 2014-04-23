@@ -19,7 +19,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: pinetbox.c,v 1.46 2008/01/21 22:46:08 tom Exp tom $
+ *  $Id: pinetbox.c,v 1.47 2014/04/23 21:02:36 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -2671,7 +2671,7 @@ static void PiNetBox_RefreshDownwards( const PI_BLOCK * pPiBlock, uint colIdx )
    uint  tmpColIdx;
    sint  last_row;
    sint  maxDelta;
-   sint  old_stop_row;
+   //sint  old_stop_row;
    sint  last_row_in_col;
    time_t expireTime;
 
@@ -2764,7 +2764,7 @@ static void PiNetBox_RefreshDownwards( const PI_BLOCK * pPiBlock, uint colIdx )
             if (last_row < netbox.height)
             {
                // check for obsolete PI in all columns
-               old_stop_row = 0;
+               //old_stop_row = 0;
                pTmpCol = netbox.cols;
                for (tmpColIdx=0; tmpColIdx < netbox.col_count; tmpColIdx++, pTmpCol++)
                {
@@ -3035,7 +3035,7 @@ static void PiNetBox_RefreshUpwards( const PI_BLOCK * pPiBlock, uint refColIdx, 
    sint  top_row;
    sint  max_top_row;
    sint  maxDelta;
-   sint  old_top_row;
+   //sint  old_top_row;
    sint  top_row_in_col;
    time_t expireTime;
 
@@ -3143,7 +3143,7 @@ static void PiNetBox_RefreshUpwards( const PI_BLOCK * pPiBlock, uint refColIdx, 
                   netbox.pi_off -= 1;
 
                // check for obsolete PI in all columns
-               old_top_row = 0;
+               //old_top_row = 0;
                pTmpCol = netbox.cols;
                for (tmpColIdx=0; tmpColIdx < netbox.col_count; tmpColIdx++, pTmpCol++)
                {
@@ -3794,7 +3794,7 @@ static void PiNetBox_ScrollMoveto( uint newPiOff )
    bool  isPartial;
    uint  pi_off;
    uint  colIdx;
-   sint  oldReqRow;
+   //sint  oldReqRow;
 
    isPartial = FALSE;
    if ((newPiOff == 0) && (netbox.pi_off == 0))
@@ -3808,7 +3808,7 @@ static void PiNetBox_ScrollMoveto( uint newPiOff )
 
    if ((netbox.pi_off != newPiOff) || isPartial)
    {
-      oldReqRow = netbox.cur_req_row;
+      //oldReqRow = netbox.cur_req_row;
       pi_off    = 0;
       pPrevPi   = NULL;
 

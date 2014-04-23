@@ -29,7 +29,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgdbsav.c,v 1.69 2010/03/23 19:29:57 tom Exp tom $
+ *  $Id: epgdbsav.c,v 1.70 2014/04/23 21:36:42 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB
@@ -802,12 +802,6 @@ PDBC EpgDbReload( uint cni, uint expireDelayPi, EPGDB_RELOAD_RESULT * pResult, t
                         result = EpgDbReloadAddPiBlock(dbc, pBlock, pPrevNetwop);
                         break;
 
-                     case BLOCK_TYPE_DEFECT_PI:
-                        // convert type to normal PI, since the "defect pi" type is known only inside this module
-                        pBlock->type = BLOCK_TYPE_PI;
-                        result = EpgDbReloadAddDefectPiBlock(dbc, pBlock);
-                        break;
-
                      case BLOCK_TYPE_NI:
                      case BLOCK_TYPE_OI:
                      case BLOCK_TYPE_MI:
@@ -823,8 +817,17 @@ PDBC EpgDbReload( uint cni, uint expireDelayPi, EPGDB_RELOAD_RESULT * pResult, t
                         break;
 
                      default:
-                        debug1("EpgDb-Reload: unknown or illegal block type 0x%x", pBlock->type);
-                        xfree(pBlock);
+                        if (type == BLOCK_TYPE_DEFECT_PI)  // not a "case" to avoid compiler warning about non-enum member
+                        {
+                           // convert type to normal PI, since the "defect pi" type is known only inside this module
+                           pBlock->type = BLOCK_TYPE_PI;
+                           result = EpgDbReloadAddDefectPiBlock(dbc, pBlock);
+                        }
+                        else
+                        {
+                           debug1("EpgDb-Reload: unknown or illegal block type 0x%x", pBlock->type);
+                           xfree(pBlock);
+                        }
                         break;
                   }
                   lastType = type;
@@ -1333,7 +1336,6 @@ bool EpgDbDumpCheckFileHeader( const char * pFilename )
 bool EpgDbDumpGetDirAndCniFromArg( char * pArg, const char ** ppDirPath, uint * pCni )
 {
    char *pDirPath, *pNamePath;
-   char saveSep = PATH_SEPARATOR;
    sint len;
    int  scanLen;
    bool result;
@@ -1350,7 +1352,6 @@ bool EpgDbDumpGetDirAndCniFromArg( char * pArg, const char ** ppDirPath, uint * 
          if (pArg[len] == PATH_SEPARATOR)
          {
             pDirPath = pArg;
-            saveSep = pArg[len];
             pArg[len] = 0;
             pNamePath = pArg + len + 1;
             break;

@@ -19,9 +19,9 @@
  *    Currently supported is a shared memory protocol for WIN32 (implemented
  *    in K!TV) a X11 atoms based protocol for Xawtv (UNIX)
  *
- *  Author: Tom Zoerner
+ *  Author: Thorsten Zoerner
  *
- *  $Id: tvsim_main.c,v 1.35 2009/05/02 18:57:03 tom Exp tom $
+ *  $Id: tvsim_main.c,v 1.36 2014/04/23 21:31:44 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_TVSIM
@@ -1408,17 +1408,20 @@ static void ParseArgv( int argc, char * argv[] )
 static bool SetHardwareConfig( uint cardIdx )
 {
    const RCFILE * pRc = RcFile_Query();
-   uint drvType, input, prio, slicer, wdmStop;
+   uint drvType, prio;
+#ifdef WIN32
+   uint wdmStop, slicer, input;
+#endif
    bool result;
 
    drvType = pRc->tvcard.drv_type;
    //cardIdx = pRc->tvcard.card_idx;
-   input   = pRc->tvcard.input;
    prio    = pRc->tvcard.acq_prio;
+#ifdef WIN32
+   input   = pRc->tvcard.input;
    slicer  = pRc->tvcard.slicer_type;
    wdmStop = pRc->tvcard.wdm_stop;
 
-#ifdef WIN32
    if ( (drvType == BTDRV_SOURCE_WDM) ||
         (cardIdx < pRc->tvcard.winsrc_count) )
    {

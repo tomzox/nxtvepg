@@ -24,7 +24,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: timescale.c,v 1.17 2008/10/19 13:27:32 tom Exp tom $
+ *  $Id: timescale.c,v 1.18 2014/04/23 19:03:03 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -228,7 +228,6 @@ static void TimeScale_UpdateDateScale( ClientData dummy )
    time_t toff;
    struct tm * pTm;
    uint   target, idx;
-   uint   strOff;
 
    if (scaleUpdateHandler != NULL)
       Tcl_DeleteTimerHandler(scaleUpdateHandler);
@@ -258,7 +257,6 @@ static void TimeScale_UpdateDateScale( ClientData dummy )
 
             // generate list of pixel positions of daybreaks (note: cannot use constant
             // intervals because of possible intermediate daylight saving time change)
-            strOff = strlen(comm);
             idx = 0;
             while (1)
             {

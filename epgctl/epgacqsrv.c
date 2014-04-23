@@ -20,7 +20,7 @@
  *  Author:
  *          Tom Zoerner
  *
- *  $Id: epgacqsrv.c,v 1.22 2009/03/29 19:17:04 tom Exp tom $
+ *  $Id: epgacqsrv.c,v 1.23 2014/04/23 21:17:46 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGCTL
@@ -297,7 +297,7 @@ static char * EpgAcqServer_BuildAcqDescrStr( void )
    EPGACQ_DESCR acqState;
    EPG_ACQ_STATS sv;
    EPG_ACQ_VPS_PDC vpsPdc;
-   bool newVpsPdc;
+   //bool newVpsPdc;
    uint acq_duration;
    const char * pAcqModeStr;
    const char * pAcqPasvStr;
@@ -305,7 +305,7 @@ static char * EpgAcqServer_BuildAcqDescrStr( void )
 
    EpgAcqCtl_DescribeAcqState(&acqState);
    EpgAcqCtl_GetAcqStats(&sv);
-   newVpsPdc = EpgAcqCtl_GetVpsPdc(&vpsPdc, VPSPDC_REQ_DAEMON, TRUE);
+   /*newVpsPdc =*/ EpgAcqCtl_GetVpsPdc(&vpsPdc, VPSPDC_REQ_DAEMON, TRUE);
 
    EpgAcqCtl_GetAcqModeStr(&acqState, TRUE, &pAcqModeStr, &pAcqPasvStr);
    off += snprintf(pMsg + off, 10000 - off, "Acq mode:               %s\n", pAcqModeStr);
