@@ -26,7 +26,7 @@ IROOT   = /usr/local
 BINDIR  = $(IROOT)/bin
 MANDIR   =$(IROOT)/man/man1
 
-LDLIBS  = -ltk8.3 -ltcl8.3 -L/usr/X11R6/lib -lX11 -lm -ldl
+LDLIBS  = -ltk8.5 -ltcl8.5 -L/usr/X11R6/lib -lX11 -lm -ldl
 # use old TCL library version
 #LDLIBS  = -ltk4.2i -ltcl7.6i -L/usr/X11R6/lib -lX11 -lm -ldl
 #LDLIBS  = -ltk8.0 -ltcl8.0 -L/usr/X11R6/lib -lX11 -lm -ldl
@@ -34,16 +34,17 @@ LDLIBS  = -ltk8.3 -ltcl8.3 -L/usr/X11R6/lib -lX11 -lm -ldl
 #LDLIBS  = libtk8.0.a libtcl8.0.a -lX11 -lm -ldl -L/usr/X11R6/lib
 
 INCS   += -I. -I/usr/X11R6/include
+INCS   += -I. -I/usr/include/tcl8.5
 # path to Tcl/Tk headers, if not properly installed
-INCS   += -I/tom/tcl/tcl8.0/generic -I/tom/tcl/tk8.0/generic
+#INCS   += -I/tom/tcl/tcl8.0/generic -I/tom/tcl/tk8.0/generic
 
 # path to Tcl/Tk script library (Tk is usually in X11/lib/tk#.#)
-DEFS   += -DTK_LIBRARY_PATH=\"/usr/lib/tk8.3\"
-DEFS   += -DTCL_LIBRARY_PATH=\"/usr/lib/tcl8.3\"
+DEFS   += -DTK_LIBRARY_PATH=\"/usr/share/tcltk/tk8.5\"
+DEFS   += -DTCL_LIBRARY_PATH=\"/usr/share/tcltk/tcl8.5\"
 
 
 WARN    = -Wall -Wpointer-arith -Wnested-externs \
-          -Werror -Wstrict-prototypes -Wmissing-prototypes
+          -Wstrict-prototypes -Wmissing-prototypes
 CC      = gcc
 CFLAGS  = -pipe $(WARN) $(INCS) $(DEFS) -g -O2
 

@@ -29,6 +29,8 @@
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB
 #define DPRINTF_OFF
 
+#define WIN32
+
 #ifndef WIN32
 #include "sys/ioctl.h"
 
@@ -783,3 +785,16 @@ bool VbiDecodeInit( uchar cardPostfix )
 
 #endif  // WIN32
 
+#ifdef WIN32
+bool VbiDecodeInit( uchar cardPostfix ) { return FALSE; }
+void VbiDecodeExit( void ) {}
+bool VbiDecodeFrame( void ) { return FALSE; }
+void VbiDecodeCheckParent( void ) {}
+bool VbiDecodeWakeUp( void ) { return FALSE; }
+
+bool VbiGetNextChannel( uint *pChan, ulong *pFreq ) { return FALSE; }
+int  VbiGetChannelCount( void ) { return FALSE; }
+bool VbiTuneChannel( ulong freq, bool keepOpen ) { return FALSE; }
+uint VbiTuneGetSignalStrength( void ) { return FALSE; }
+void VbiTuneCloseDevice( void ) {}
+#endif

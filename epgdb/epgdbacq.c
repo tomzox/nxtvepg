@@ -59,7 +59,8 @@
 #define HEADER_CHECK_LEN_STR    "12"   // for debug output
 #define HEADER_CHECK_MAX_ERRORS   2
 
-static EPGACQ_BUF  * pVbiBuf = NULL;
+EPGACQ_BUF  * pVbiBuf = NULL;
+
 static uint        epgAppId;
 static uint        epgPageNo;
 static bool        isEpgPage;

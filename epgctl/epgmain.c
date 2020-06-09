@@ -81,7 +81,7 @@ static const char *rcfile = "NXTVEPG.INI";
        const char *dbdir  = ".";
 #else
 static const char *rcfile = "~/.nxtvepgrc";
-       const char *dbdir  = "/usr/tmp/nxtvdb";
+       const char *dbdir  = "/tmp/nxtvdb";
 static uchar videoCardPostfix = '\0';
 #endif
 static bool disableAcq = FALSE;
