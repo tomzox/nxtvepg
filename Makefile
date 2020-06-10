@@ -31,17 +31,19 @@ IROOT   = /usr/local
 BINDIR  = $(IROOT)/bin
 MANDIR   =$(IROOT)/man/man1
 
-LDLIBS  = -ltk8.3 -ltcl8.3 -L/usr/X11R6/lib -lX11 -lm -ldl
+LDLIBS  = -ltk8.5 -ltcl8.5 -L/usr/X11R6/lib -lX11 -lm -ldl
+LDLIBS  = -ltk8.5 -ltcl8.5 -L/usr/X11R6/lib -lX11 -lm -ldl
 # use static libraries
 #LDLIBS  = dbglib/libtk8.3.a dbglib/libtcl8.3.a -lX11 -lm -ldl -L/usr/X11R6/lib
 
 INCS   += -I. -I/usr/X11R6/include
+INCS   += -I. -I/usr/include/tcl8.5
 # path to Tcl/Tk headers, if not properly installed
 #INCS   += -I/usr/local/tcl/tcl8.0/generic -I/usr/local/tcl/tk8.0/generic
 
 # path to Tcl/Tk script library (Tk is usually in X11/lib/tk#.#)
-DEFS   += -DTK_LIBRARY_PATH=\"/usr/lib/tk8.3\"
-DEFS   += -DTCL_LIBRARY_PATH=\"/usr/lib/tcl8.3\"
+DEFS   += -DTK_LIBRARY_PATH=\"/usr/share/tcltk/tk8.5\"
+DEFS   += -DTCL_LIBRARY_PATH=\"/usr/share/tcltk/tcl8.5\"
 
 
 #WARN    = -Wall -Wpointer-arith -Wnested-externs \
@@ -53,7 +55,7 @@ CFLAGS  = -pipe $(WARN) $(INCS) $(DEFS) -O
 # ----- don't change anything below ------------------------------------------
 
 MODS    = epgctl/epgmain epgctl/debug epgctl/epgacqctl epgctl/epgctxctl \
-          epgvbi/vbidecode epgvbi/tvchan epgvbi/btdrv4linux epgvbi/hamming \
+          epgvbi/vbidecode epgvbi/tvchan epgvbi/btdrv4dummy epgvbi/hamming \
           epgdb/epgdbacq epgdb/epgstream epgdb/epgtxtdump epgdb/epgdbsav \
           epgdb/epgdbmgmt epgdb/epgdbif epgdb/epgdbfil epgdb/epgblock \
           epgdb/epgdbmerge \

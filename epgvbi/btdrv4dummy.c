@@ -67,7 +67,7 @@ bool BtDriver_TuneChannel( ulong freq, bool keepOpen )
    return FALSE;
 }
 
-bool BtDriver_SetInputSource( int inputIdx, bool * pIsTuner )
+bool BtDriver_SetInputSource( int inputIdx, bool keepOpen, bool * pIsTuner )
 {
    if (pIsTuner != NULL)
    {
