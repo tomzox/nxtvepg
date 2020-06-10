@@ -204,9 +204,11 @@ static char * BtDriver_GetDevicePath( BTDRV_DEV_TYPE devType, uint cardIdx )
 
    if (pDevPath == NULL)
    {
+#if 0
       if (access("/dev/v4l", X_OK) == 0)
          pDevPath = "/dev/v4l";
       else
+#endif
          pDevPath = "/dev";
 
       dprintf1("BtDriver-GetDevicePath: set device path %s\n", pDevPath);
