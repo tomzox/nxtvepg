@@ -77,7 +77,7 @@ struct Card
 };
 #endif  //__NetBSD__ || __FreeBSD__
 
-#ifdef linux
+#if 0 // def linux
 # include "linux/videodev.h"
 #else
 # ifndef VIDEO_MODE_SECAM

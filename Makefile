@@ -31,6 +31,9 @@
 #  $Id: Makefile,v 1.65 2003/09/28 18:31:31 tom Exp tom $
 #
 
+# BUG not MT safe
+MAKEFLAGS += -j1
+
 ifeq ($(OS),Windows_NT)
 # for Windows a separate makefile is used
 include Makefile.win32
@@ -54,8 +57,8 @@ resdir  = $(ROOT)/usr/X11R6/lib/X11
 PERL    = /usr/bin/perl
 
 # select Tcl/Tk version (8.3 recommended; text widget in 8.4. is slower)
-TCL_VER := $(shell echo 'puts [package require Tcl]' | tclsh)
-#TCL_VER = 8.4
+#TCL_VER := $(shell echo 'puts [package require Tcl]' | tclsh)
+TCL_VER = 8.5
 
 LDLIBS  = -ltk$(TCL_VER) -ltcl$(TCL_VER) -L/usr/X11R6/lib -lX11 -lXmu -lm -ldl
 
@@ -63,13 +66,14 @@ LDLIBS  = -ltk$(TCL_VER) -ltcl$(TCL_VER) -L/usr/X11R6/lib -lX11 -lXmu -lm -ldl
 #LDLIBS += -Ldbglib -static
 
 INCS   += -I. -I/usr/X11R6/include
+INCS   += -I. -I/usr/include/tcl8.5
 DEFS   += -DX11_APP_DEFAULTS=\"$(resdir)/app-defaults/Nxtvepg\"
 # path to Tcl/Tk headers, if not properly installed
 #INCS   += -I/usr/local/tcl/tcl8.0/generic -I/usr/local/tcl/tk8.0/generic
 
 # path to Tcl/Tk script library (Tk is usually in X11/lib/tk#.#)
-TK_LIBRARY_PATH  = /usr/lib/tk$(TCL_VER)
-TCL_LIBRARY_PATH = /usr/lib/tcl$(TCL_VER)
+TK_LIBRARY_PATH  = /usr/share/tcltk/tk$(TCL_VER)
+TCL_LIBRARY_PATH = /usr/share/tcltk/tcl$(TCL_VER)
 DEFS   += -DTK_LIBRARY_PATH=\"$(TK_LIBRARY_PATH)\"
 DEFS   += -DTCL_LIBRARY_PATH=\"$(TCL_LIBRARY_PATH)\"
 
@@ -95,7 +99,7 @@ DEFS   += -DUSE_DAEMON
 #USER_DBDIR  = .nxtvdb
 #DEFS       += -DEPG_DB_ENV=\"HOME\" -DEPG_DB_DIR=\"$(USER_DBDIR)\"
 ifndef USER_DBDIR
-SYS_DBDIR    = /usr/tmp/nxtvdb
+SYS_DBDIR    = /tmp/nxtvdb
 DEFS        += -DEPG_DB_DIR=\"$(SYS_DBDIR)\"
 INST_DB_DIR  = $(ROOT)$(SYS_DBDIR)
 INST_DB_PERM = 0777
@@ -115,7 +119,7 @@ endif
 
 # ----- don't change anything below ------------------------------------------
 
-CSRC    = epgvbi/btdrv4linux epgvbi/vbidecode epgvbi/zvbidecoder \
+CSRC    = epgvbi/btdrv4dummy epgvbi/vbidecode epgvbi/zvbidecoder \
           epgvbi/ttxdecode epgvbi/hamming epgvbi/cni_tables epgvbi/tvchan \
           epgvbi/syserrmsg \
           epgctl/debug epgctl/epgacqctl epgctl/epgscan epgctl/epgctxctl \
