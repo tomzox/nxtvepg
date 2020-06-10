@@ -104,7 +104,7 @@ static const char *rcfile = "nxtvepg.ini";
        const char *dbdir  = ".";
 #else
 static const char *rcfile = "~/.nxtvepgrc";
-       const char *dbdir  = "/usr/tmp/nxtvdb";
+       const char *dbdir  = "/tmp/nxtvdb";
 #endif
 static int  videoCardIndex = -1;
 static bool disableAcq = FALSE;

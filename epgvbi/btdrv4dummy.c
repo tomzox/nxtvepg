@@ -72,7 +72,7 @@ ulong BtDriver_QueryChannel( void )
    return 0;
 }
 
-bool BtDriver_SetInputSource( int inputIdx, bool * pIsTuner )
+bool BtDriver_SetInputSource( int inputIdx, bool keepOpen, bool * pIsTuner )
 {
    if (pIsTuner != NULL)
    {
