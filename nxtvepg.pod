@@ -479,7 +479,7 @@ programme title after channel changes, changing the channel from
 inside nxtvepg with the I<TuneTV> button, and background Nextview
 data acquisition while you're watching TV.
 
-=back 4
+=back
 
 The first two are passive features, i.e. only nxtvepg needs to be
 adapted to the respective TV applications.  The third one however
@@ -2539,7 +2539,7 @@ Example: The command line
 
 could for example result in
 
-  plan '22.08.2001 13:05' 'Käpt'\''n Blaubärs Seemannsgarn'
+  plan '22.08.2001 13:05' 'Kaept'\''n Blaubaers Seemannsgarn'
 
 to be passed to the Bourne Shell (F</bin/sh>).
 
@@ -2873,7 +2873,7 @@ T. Zoerner, Erlangen, Germany.
 
 Email: tomzo (at) users (dot) sourceforge (dot) net
 
-Many thanks to Thierry Ménétrier for his valuable feedback;
+Many thanks to Thierry Menetrier for his valuable feedback;
 to Simon Barner for the FreeBSD port;
 to Matthieu for the French translation of PDC theme descriptors;
 to E-nek for the DScaler driver port and cooperation
