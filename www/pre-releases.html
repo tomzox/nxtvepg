@@ -1,6 +1,6 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/HTMLlat1.ent">
 <HTML lang="en">
-<!-- $Id: pre-releases.html,v 1.93 2011/01/09 20:27:20 tom Exp $ -->
+<!-- $Id: pre-releases.html,v 1.95 2020/06/14 15:49:33 tom Exp tom $ -->
 <HEAD>
 <TITLE>Developers and alpha testers download page</TITLE>
 <META http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
@@ -26,7 +26,6 @@
 <H2 class="navhead">Language</H2>
 <P>
 <IMG ALT="" SRC="en.png" WIDTH="16" HEIGHT="10"> English<BR>
-<!-- <IMG ALT="" SRC="de.png" WIDTH="16" HEIGHT="10"> <A HREF="pre-releases-de.html">Deutsch</A><BR> -->
 <IMG ALT="" SRC="de.png" WIDTH="16" HEIGHT="10"> <SPAN class="navDisabled">German</SPAN><BR>
 <IMG ALT="" SRC="fr.png" WIDTH="16" HEIGHT="10"> <SPAN class="navDisabled">Français</SPAN><BR>
 </P>
@@ -86,7 +85,6 @@ Please do not redistribute.
 <UL>
 <LI><A HREF="#pre_rel_nxtvepg">nxtvepg development snapshots</A>
 <LI><A HREF="#wdm_if_lib">WDM interface library</A>
-<LI><A HREF="#ttx_grabber">Teletext EPG grabber</A>
 </UL>
 
 <!-- ------------------------------------------------------------------------ -->
@@ -160,7 +158,8 @@ Details on changes in this and older releases is available in the
 <A HREF="http://zapping.sourceforge.net/">zapping.sourceforge.net</A>.
 -->
 <LI CLASS="spaced">Win32 executable:
-    <A HREF="http://nxtvepg.sourceforge.net/tmp/nxtvepg-2.9.0pre4-win.zip">nxtvepg-2.9.0pre4-win.zip</A> (apx. 3.5 MB)
+    <A HREF="http://nxtvepg.sourceforge.net/tmp/nxtvepg-2.9.0pre4b-win.zip">nxtvepg-2.9.0pre4b-win.zip</A> (apx. 3.5 MB)
+    <BR><B>2011-01-15</B>: Updated nxtvepg.exe due to a crash in the Teletext grabber: New version "2.9.0pre4b"
 <!--
 <BR><SPAN CLASS="anno">Does not contain libraries tcl85.dll and tk85.dll and other unchanged files.
    Please unzip the last official release 2.8.1 into the target directory and then
@@ -205,8 +204,7 @@ Older releases and associated files may still be available in the
 <H2><A NAME="wdm_if_lib">WDM Support for nxtvepg</A></H2>
 <P>
 The WDM interface library was developed by Gerard Chevalier in 2004-2005.
-Gerard has stopped development on this project since then.
-The library is currently supported by Tom Zoerner (as far as possible)
+Afterwards it was maintained by T. Zoerner.
 </P><P>
 The following package contains the last release of the WDM interface
 library for Windows. It allows Windows users to optionally use drivers
@@ -291,31 +289,6 @@ This section lists card and system combinations currently reported as "working".
 <P>
 If you have questions or want to provide feedback, please use the
 <A HREF="http://sourceforge.net/forum/forum.php?forum_id=217872">discussion forum</A>.
-</P>
-
-<!-- ------------------------------------------------------------------------ -->
-
-<HR WIDTH="100%">
-
-<H2><A NAME="ttx_grabber">Teletext EPG grabber</A></H2>
-<P>
-Currently a new grabber is under development which allows to
-extract programme listings from teletext pages.  The intention is
-firstly to compensate for the loss of two German Nextview EPG
-providers (3sat and RTL2) and secondly to add more description
-texts to the EPG.  In teletext, many networks
-have good descriptions not only for movies, but especially also for
-weekly magazines, daily soaps or current events.  The output
-of the teletext grabber can be merged with Nextview EPG data
-with the help of XMLTV import.
-</P>
-<H3>Download latest release: January 9th 2011</H3>
-<P>
-Please refer to the <A HREF="ttx_grab.html">Teletext EPG grabber</A> page.
-</P><P>
-Note the grabber is fully integrated within nxtvepg, so no further download
-is needed if you're using nxtvepg for capturing EPG data. Just enable the
-grabber via the "Configure" menu.
 </P>
 
 <!-- ------------------------------------------------------------------------ -->

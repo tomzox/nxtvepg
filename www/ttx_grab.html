@@ -1,6 +1,6 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/HTMLlat1.ent">
 <HTML lang="en">
-<!-- $Id: ttx_grab.html,v 1.4 2011/01/09 20:27:14 tom Exp $ -->
+<!-- $Id: ttx_grab.html,v 1.6 2020/06/14 15:49:39 tom Exp tom $ -->
 <HEAD>
 <TITLE>Teletext EPG Grabber Software</TITLE>
 <META http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
@@ -51,7 +51,7 @@ width="125" height="37" alt="SourceForge.net Logo"></a></span></span>
 
 <H1>Teletext EPG grabber</H1>
 <P>
-This EPG grabber allows to extract TV programme listings in
+This EPG grabber allows extracting TV programme listings in
 <A HREF="http://xmltv.org/">XMLTV format</A>
 from teletext pages as broadcast by most European TV networks.
 The grabber works by reading teletext pages via a TV card from all
@@ -62,7 +62,7 @@ the overviews.
 </P><P>
 The grabber can be used stand-alone, but is best used as addition to the
 <A HREF="intro.html">Nextview EPG</A> grabber
-<I><A HREF="index.html">nxtvepg</A></I> (version 2.8.0 or later),
+nxtvepg (<A HREF="pre-releases.html#pre_rel_nxtvepg">version 2.9.pre4</A>)
 which can also be used to view the programme listings in the generated
 XMLTV files.  The grabber is integrated into the nxtvepg acquisition
 control and can be activated via the configuration menus. The main intent
@@ -87,18 +87,17 @@ formats. That's because almost every network formats tables, dates,
 times and descriptions slightly differently, so that the parser will
 have trouble locating the EPG data among all the advertisements and
 other content in teletext.
+</P><P>
+Since 2020 the grabber's homepage is
+<A HREF="https://github.com/tomzox/tv_grab_ttx">https://github.com/tomzox/tv_grab_ttx</A>
 </P>
 
 <H2>Download</H2>
 <P>
 This download is mainly inteded for users who want to use the
 grabber stand-alone, i.e. without nxtvepg.  In this case you need the
-"libzvbi" library, see below.
-</P><P>
-This download can also be used to update the teletext grabber used by
-nxtvepg. To do so, unpack the archive and copy <I>tv_grab_ttx.pl</I>
-into the directory where you start nxtvepg, or on Linux, copy the file
-into directory <KBD>/usr/share/nxtvepg/</KBD>.
+<A HREF="http://zapping.sourceforge.net/doc/libzvbi/index.html">ZVBI library</A>,
+see below.
 </P>
 <H3>Latest Release: Version 2.0 from January 9th 2011</H3>
 <P>
@@ -111,8 +110,8 @@ Additionally, many minor updates, enhancements and fixes both in
 in overview and description page parsing were done. In essence, the
 quantity and quality of the XMLTV output has been improved.
 </P><P>
-Note using this grabber version in nxtvepg requires
-<A HREF="pre-releases.html#pre_rel_nxtvepg">version 2.9.pre4</A> or later.
+Note this grabber version in compiled into
+<A HREF="pre-releases.html#pre_rel_nxtvepg">version 2.9.pre4</A>.
 </P>
 
 <DIV CLASS="box">
@@ -130,70 +129,9 @@ compilation on Windows is currently not supported (use an
 </UL>
 </DIV>
 
-<DIV CLASS="box">
-<H3><A NAME="download_unix">Binary packages for Linux</A></H3>
 <P>
-These packages can be installed with "dpkg -i PACKAGE" on Debian, Ubuntu
-and all other platforms using the Debian package format.
-<P>
-<UL>
-<LI CLASS="spaced">Teletext grabber:
-    <!-- <A HREF="http://nxtvepg.sourceforge.net/tmp/libxmltv-ttx_2.0_i386.deb">libxmltv-ttx_2.0_i386.deb</A> (Intel/AMD 32-bit, apx. 274 kB) -->
-    <A HREF="http://nxtvepg.sourceforge.net/tmp/libxmltv-ttx_2.0_amd64.deb">libxmltv-ttx_2.0_amd64.deb</A> (Intel/AMD 64-bit, apx. 274 kB)
-</UL>
-</DIV>
-
-<H3>Dependencies</H3>
-<P>
-When not used inside of nxtvepg, you'll also need the
-<A HREF="http://zapping.sourceforge.net/doc/libzvbi/index.html">ZVBI library</A>
-(a VBI, i.e. teletext data capturing library.)
-</P>
-
-<H2>Usage</H2>
-<P>
-The following is a usage example: First the channel is switched to network
-ARD using xawtv's tool v4lctl. The following command captures teletext for
-1.5 minutes and then extracts EPG data from the captured pages into an XMLTV file.
-Finally the XMLTV file is loaded into nxtvepg for display.
-</P>
-<PRE>
-  v4lctl -c /dev/vbi0 setstation ARD
-  tv_grab_ttx -duration 90 -page 301-309 &gt; ARD.xml
-  nxtvepg ARD.xml
-</PRE>
-<P>
-Note capturing from DVB devices requires option "<I>-dvbpid</I>".
-For additional options invoke <I>tv_grab_ttx</I> with command line option
-"<I>-help</I>".
-</P>
-
-
-<H2><A NAME="feedback">Questions and feedback</A></H2>
-<P>
-Your feedback is always welcome.  If you have specific questions, suggestions,
-bug reports or any other kind of feedback, please use the
-<A HREF="http://sourceforge.net/forum/forum.php?forum_id=217872">nxtvepg discussion forum</A>
-or mail me directly to tomzo at users.sf.net
-</P>
-
-<H2><A NAME="copyright">Copyright</A></H2>
-<P>
-&copy; Copyright 2006 - 2011 by T. Zoerner.
-</P><P>
-This program is free software; you can redistribute it and/or modify
-it under the terms of the
-<A HREF="http://www.fsf.org/copyleft/gpl.html">GNU General Public License</A>
-as published by the <A HREF="http://www.fsf.org/">Free Software Foundation.</A>
-This program is distributed in the hope that it will be useful,
-but <B>without any warranty</B>; without even the implied warranty of
-merchantability or fitness for a particular purpose.
-</P><P>
-Content copyright: Please note that content providers do hold a
-copyright on the programme data which can be received by means of this
-software.  The data is free for personal use, but you must not publically
-redistribute it (e.g. make it available on the Internet) without prior
-permission.
+For further information on usage, dependencies and installation please
+refer to the <A HREF="https://github.com/tomzox/tv_grab_ttx">homepage on github</A>
 </P>
 
 </DIV>

@@ -1,0 +1,110 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/HTMLlat1.ent">
+<HTML lang="en">
+<!-- $Id$ -->
+<HEAD>
+<TITLE>Testing Video4Linux device priorities</TITLE>
+<META http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+<META name="language" content="en">
+<META name="keywords" lang="en" content="v4l,v4l2,VIDIOC_S_PRIORITY,ioctl,VIDIOC_G_PRIORITY,channel switch,device priority,background data acquisition,VBI acquisition">
+<META name="description" content="Testing if your video4linux device driver supports priority management, which should prevent that a background application interferes with interactive TV applications or video recprding.">
+<META name="author" content="Tom Zoerner">
+<META name="copyright" content="Tom Zoerner">
+<META name="robots" content="index, follow">
+<LINK rel="stylesheet" type="text/css" href="nxtvepg.css">
+<LINK rel="shortcut icon" type="image/x-icon" href="nxtvepg.ico">
+<LINK rel="top" href="http://nxtvepg.sourceforge.net/" title="nxtvepg homepage">
+</HEAD>
+<BODY>
+
+<DIV CLASS="navBar">
+<P><SMALL>
+<IMG ALT="" SRC="nxtv_icon.gif">&nbsp;nxtvepg&nbsp;
+<A HREF="index.html">home</A> &nbsp;|&nbsp;
+<A HREF="intro.html">about</A>
+</SMALL></P></DIV>
+
+<DIV class="navBlock">
+<H2 class="navhead">Language</H2>
+<P>
+<IMG ALT="" SRC="en.png" WIDTH="16" HEIGHT="10"> English<BR>
+<IMG ALT="" SRC="de.png" WIDTH="16" HEIGHT="10"> <SPAN class="navDisabled">Deutsch</SPAN><BR>
+<IMG ALT="" SRC="fr.png" WIDTH="16" HEIGHT="10"> <SPAN class="navDisabled">Français</SPAN><BR>
+</P>
+
+<H2 class="navhead">News</H2>
+<P>
+</P>
+
+<H2 class="navhead">Documentation</H2>
+<P>
+<A HREF="index.html">Homepage</A><BR>
+<A HREF="intro.html">Introduction</A><BR>
+<A HREF="provnets.html">Providers list</A><BR>
+<A HREF="links.html">Links</A><BR>
+<A HREF="faq.html">FAQ</A><BR>
+<BR>
+<A HREF="man.html">nxtvepg manual</A><BR>
+</P>
+
+<H2 class="navhead">Download</H2>
+<P>
+<A HREF="download.html">Download</A><BR>
+<A HREF="download.html#requirements">System requirements</A><BR>
+<A HREF="changelog.html">Changelog</A><BR>
+</P>
+
+<H2 class="navhead">Screenshots</H2>
+<P>
+<A HREF="screenshot-274.png">Main window</A><BR>
+<A HREF="screenshot-grid1.png">"Grid" layout</A><BR>
+<A HREF="screenshot-reminder.png">Reminders</A><BR>
+<A HREF="screenshot-stats.png">Reception statistics</A><BR>
+<A HREF="screenshot-series.png">Series menu</A><BR>
+<A HREF="screenshot-xawtv.jpg">xawtv with EPG OSD</A><BR>
+</P>
+<span class="center"><span class="logo"><a href="http://sourceforge.net"><img
+src="http://sourceforge.net/sflogo.php?group_id=64430&amp;type=4"
+width="125" height="37" alt="SourceForge.net Logo"></a></span></span>
+</DIV>
+
+<DIV class="mainBlock">
+<H1>Testing Video4Linux device priorities</H1>
+<PRE>
+- nxtvepg relies on driver
+- explanation bg acq: always-on
+- principle
+- howto
+
+This test application allows to check if your video card driver supports
+the handling of "device priorities", which allow background VBI applications
+to play nicely together with interactive applications such as TV apps,
+or video recording.  For the technical background see
+http://nxtvepg.sourceforge.net/v4l2/
+
+For the test unpack the tarball in an empty directory, adapt the Tcl/Tk
+paths in the Makefile if necessary (same as when compiling nxtvepg) and
+compile with "make", then start ./sprio-test and enter the path to your
+video card device at the top.
+
+If the device doesn't support the priority ioctl, you'll immediately
+get an error message in the text field at the top.  If not, check the
+"current device priority level": should be "background" by default,
+or "interactive" when a TV application is running.  You should get an
+error message when pressing button "Test" while a TV app is running,
+unless you increase the priority level up to the current device priority
+level.
+
+You can also test the driver without starting a TV app by using the
+two different priority and frequency control sections.  When assigning
+different priorities in the two sections, changing channels should fail
+for the section with the lower priority.
+
+If you find your driver doesn't support priorities, please upgrade to
+it's latest version.  If it still doesn't work, please complain to the
+device author and/or send me a mail.
+
+</PRE>
+
+</DIV>
+</BODY>
+</HTML>

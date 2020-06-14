@@ -1,0 +1,387 @@
+<HTML>
+<HEAD>
+<TITLE>Nextview EPG: TV application interaction simulator</TITLE>
+<META http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+<META name="language" content="en">
+<META name="author" content="Tom Zoerner">
+<META name="copyright" content="Tom Zoerner">
+<META name="keywords" content="TV application,interaction,nxtvepg,nexTView,K!TV,EPG,program title,shared memory,inter-process communication,TV viewer,freeware,documentation,reference implementation,open source,library">
+<META name="description" content="Online Documentation for the TV application interaction simulator for nxtvepg, which deomnstrators how to include nexTView EPG features into any TV application.">
+<META name="robots" content="index, follow">
+<META name="revisit-after" content="01 month">
+<LINK href="nxtvepg.css" rel=stylesheet type=text/css>
+<LINK rel="shortcut icon" type="image/x-icon" href="nxtvepg.ico">
+<LINK rel="top" href="http://nxtvepg.sourceforge.net/" title="nxtvepg homepage">
+</HEAD>
+<BODY>
+
+<DIV CLASS="navBar">
+<P><SMALL>
+<IMG ALT="" SRC="nxtv_icon.gif">&nbsp;nxtvepg&nbsp;
+<A HREF="index.html">home</A> &nbsp;|&nbsp;
+<A HREF="intro.html">about</A>
+</SMALL></P></DIV>
+
+<DIV class="navBlock">
+<H2 class="navhead">Language</H2>
+<P>
+<IMG ALT="" SRC="en.png" WIDTH="16" HEIGHT="10"> English<BR>
+<IMG ALT="" SRC="de.png" WIDTH="16" HEIGHT="10"> <SPAN class="navDisabled">Deutsch</SPAN><BR>
+<IMG ALT="" SRC="fr.png" WIDTH="16" HEIGHT="10"> <SPAN class="navDisabled">Français</SPAN><BR>
+</P>
+
+<H2 class="navhead">News</H2>
+<P>
+</P>
+
+<H2 class="navhead">Documentation</H2>
+<P>
+<A HREF="index.html">Homepage</A><BR>
+<A HREF="intro.html">Introduction</A><BR>
+<A HREF="provnets.html">Providers list</A><BR>
+<A HREF="links.html">Links</A><BR>
+<A HREF="faq.html">FAQ</A><BR>
+<BR>
+<A HREF="man.html">nxtvepg manual</A><BR>
+</P>
+
+<H2 class="navhead">Download</H2>
+<P>
+<A HREF="download.html">Download</A><BR>
+<A HREF="download.html#requirements">System requirements</A><BR>
+<A HREF="changelog.html">Changelog</A><BR>
+</P>
+
+<H2 class="navhead">Screenshots</H2>
+<P>
+<A HREF="screenshot-274.png">Main window</A><BR>
+<A HREF="screenshot-grid1.png">"Grid" layout</A><BR>
+<A HREF="screenshot-reminder.png">Reminders</A><BR>
+<A HREF="screenshot-stats.png">Reception statistics</A><BR>
+<A HREF="screenshot-series.png">Series menu</A><BR>
+<A HREF="screenshot-xawtv.jpg">xawtv with EPG OSD</A><BR>
+</P>
+<span class="center"><span class="logo"><a href="http://sourceforge.net"><img
+src="http://sourceforge.net/sflogo.php?group_id=64430&amp;type=4"
+width="125" height="37" alt="SourceForge.net Logo"></a></span></span>
+</DIV>
+
+<DIV class="mainBlock">
+
+<H1>TV application interaction simulator</H1>
+<P>
+This is the manual page for the <I>TV application interaction simulator</I> which is part of the
+<A HREF="http://nxtvepg.sourceforge.net/">nxtvepg</A> software package.
+</P>
+
+<p><a name="__index__"></a></p>
+<!-- INDEX BEGIN -->
+
+<ul>
+
+	<li><a href="#name">NAME</a></li>
+	<li><a href="#synopsis">SYNOPSIS</a></li>
+	<li><a href="#description">DESCRIPTION</a></li>
+	<li><a href="#options">OPTIONS</a></li>
+	<li><a href="#interaction_features">INTERACTION FEATURES</a></li>
+	<li><a href="#getting_started">GETTING STARTED</a></li>
+	<li><a href="#files">FILES</a></li>
+	<li><a href="#see_also">SEE ALSO</a></li>
+	<li><a href="#known_bugs">KNOWN BUGS</a></li>
+	<li><a href="#author">AUTHOR</a></li>
+	<li><a href="#copyright">COPYRIGHT</a></li>
+</ul>
+<!-- INDEX END -->
+
+<hr />
+<p>
+</p>
+<h1><a name="name">NAME</a></h1>
+<p>tvsim - TV application interaction simulator</p>
+<p>
+</p>
+<hr />
+<h1><a name="synopsis">SYNOPSIS</a></h1>
+<p><strong>tvsim</strong> [&nbsp;options&nbsp;]</p>
+<p>
+</p>
+<hr />
+<h1><a name="description">DESCRIPTION</a></h1>
+<p><strong>tvsim</strong>
+is a demo application that shows in which ways nxtvepg can cooperate
+with TV applications.
+It's also a reference implementation of the communication protocols
+and offers most of the source code (under the GPL license) that would
+be required to add EPG support to a TV application.  If you want to
+add nxtvepg to a TV application, it's recommended to start with the
+code of tvsim's source modules, remove everthing you don't need (esp.
+the Tcl/Tk GUI and support for all but one protocols), put it in a
+library and link it to your TV app.</p>
+<p>In the current version three protocols are supported: On UNIX two
+protocols based on message transfer via the X11 server: the newer
+one is based on the ICCCM selection manager protocol, the older
+one is the Xawtv remote control protocol (supported by multiple
+applications such as <em>xawtv</em>, <em>xawdecode</em> and <em>Zapping</em>.)
+On Windows, a shared memory based protocol which allows interaction
+with <em>K!TV</em>.</p>
+<p>
+</p>
+<hr />
+<h1><a name="options">OPTIONS</a></h1>
+<p>Summary of command line options (it's a sub-set of the options
+supported by nxtvepg):</p>
+<dl>
+<dt><strong><a name="item__2dgeometry_geometry"><strong>-geometry</strong> <em>geometry</em></a></strong>
+
+<dd>
+<p>Specifies the position of the main window, e.g.  <strong>-geometry -0+0</strong>
+to put the main window in the upper right corner of the visible screen.
+The size of the window cannot be changed.</p>
+</dd>
+</li>
+<dt><strong><a name="item__2diconic"><strong>-iconic</strong></a></strong>
+
+<dd>
+<p>Start with the main window iconified (i.e. minimized).</p>
+</dd>
+</li>
+<dt><strong><a name="item__2drcfile_path"><strong>-rcfile</strong> <em>path</em></a></strong>
+
+<dd>
+<p>Specify an alternate path to the nxtvepg configuration file.
+Default: <strong>$HOME/.nxtvepgrc</strong> on UNIX,
+<strong>nxtvepg.ini</strong> in the current directory on Windows.
+tvsim uses this file only to get the path to a TV channel table
+(you need to configure this in nxtvepg's <em>TV app interaction</em> dialog
+first) and TV card configuration (the latter on Windows only).
+Note the TV card index is not read from the rc/ini file, use the
+option below instead.  See <a href="#getting_started">GETTING STARTED</a> for more details.</p>
+</dd>
+</li>
+<dt><strong><a name="item__2dcard_index"><strong>-card</strong> <em>index</em></a></strong>
+
+<dd>
+<p>Specify which tuner card to use, if you have more than one.
+Default: index 0, i.e. the ``best'' card in the order Brooktree Bt878,
+Bt878A, Bt848, Bt849, Philips SAA7134, Conexant 23881 (aka Bt811).
+If you have more than one TV card with the same chip, the order
+between those is undefined, but still constant (i.e. depends on
+the driver, not tvsim or nxtvepg).</p>
+</dd>
+</li>
+<dt><strong><a name="item__2dhelp"><strong>-help</strong></a></strong>
+
+<dd>
+<p>List all available command line options.</p>
+</dd>
+</li>
+</dl>
+<p><strong>tvsim</strong> uses the nxtvepg INI file, i.e. by default it searches for
+a file named <em>nxtvepg.ini</em> in the current working directory.  If this
+file is located elsewhere, you need to specify the <em>-rcfile</em> option.
+Please refer to <a href="#getting_started">GETTING STARTED</a> below for configuration information.</p>
+<p>
+</p>
+<hr />
+<h1><a name="interaction_features">INTERACTION FEATURES</a></h1>
+<p><strong>tvsim</strong> can demonstrate all TV application interaction features
+which currently are supported by <strong>nxtvepg</strong>:</p>
+<dl>
+<dt><strong><a name="item_automatically_freeing_the_tv_card"><strong>Automatically freeing the TV card</strong></a></strong>
+
+<dd>
+<p>Windows only:
+When nxtvepg is running with acquisition enabled when the TV application
+is started, it automatically frees the TV card to allow the TV application
+to access to the hardware.  When the TV application is stopped, nxtvepg
+automatically accesses the TV card again.  This allows the user to keep
+nxtvepg permanently running in the background without bothering to
+remember to switch acquisition off manually before starting the
+TV application.</p>
+</dd>
+<dd>
+<p>Note this feature is not required on UNIX since concurrent access to
+video and VBI devices by independent processes is supported by the
+drivers.</p>
+</dd>
+<dd>
+<p>The TV application has the possibility to <strong>grant</strong> the tuner to EPG,
+e.g. when capturing is stopped of the TV window is minimized.  nxtvepg
+will then ask the TV app to tune it's provider's channel and forward
+it's teletext data.  However the driver still remains in control of the
+TV app and can revoke the ``grant'' at any time without having to wait
+for nxtvepg.</p>
+</dd>
+</li>
+<dt><strong><a name="item_look_2dup_of_program_info_in_the_epg_database"><strong>Look-up of program info in the EPG database</strong></a></strong>
+
+<dd>
+<p>The TV application can pass a network name to nxtvepg to look up the title,
+start and stop times and PDC theme codes of the current programme on that
+network.  Usually the TV application will display that information on screen
+or in a popup windows next to the live TV image.  In tvsim it's displayed
+in the three text fields below that channel table.  Since Xawtv doesn't
+have EPG support, there's also the option that nxtvepg by itself opens a
+small popup window next to the TV image.</p>
+</dd>
+<dd>
+<p>Some third-party TV viewing and scheduling applications use <em>XMLTV</em>
+instead of this feature, but it's less efficient because the application
+has to read the entire database which is not only time consuming but also
+consumes a significant amount of RAM, and long-running apps will also not
+benefit from constant updates provided by Nextview acquisition.</p>
+</dd>
+</li>
+<dt><strong><a name="item_nxtvepg_following_channel_changes"><strong>nxtvepg following channel changes</strong></a></strong>
+
+<dd>
+<p>When the TV channel is changed inside the TV application, nxtvepg will
+follow with its cursor in the browser window, i.e. it'll set the cursor
+on the program title that's currently running on that network so that
+the detailed program information becomes displayed.  (Channels are
+identified firstly by their name, but also by VPS/PDC which is forwarded
+from the TV application to nxtvepg.)</p>
+</dd>
+</li>
+<dt><strong><a name="item_changing_channels_from_inside_nxtvepg"><strong>Changing channels from inside nxtvepg</strong></a></strong>
+
+<dd>
+<p>When a TV application is connected to nxtvepg, there's a <em>Tune TV</em> button
+in the main window that allows to tune in the network of the program that's
+currently selected in nxtvepg.  This allows the user to comfortably select
+his/her favorite program inside nxtvepg.</p>
+</dd>
+<dd>
+<p>There's also a small context menu behind the Tune-TV button which can be
+opened by clicking on it with the right mouse button.  There's commands to
+start/stop capturing, muting audio and toggle channels.  Additionally the
+user can send arbitrary commands to the connected TV app via user-defined
+entries in nxtvepg's programme schedule context menu and reminder scripts
+(by using prefix <code>!xawtv!</code> or <code>!winshm!</code>, see nxtvepg manual chapter
+<em>Context menu extensions</em>.)  These entries may include parameters of the
+currently selected programme, e.g. start time and network.</p>
+</dd>
+</li>
+<dt><strong><a name="item_epg_data_acquisition_while_watching_tv"><strong>EPG data acquisition while watching TV</strong></a></strong>
+
+<dd>
+<p>Windows only:
+Even while the TV card is ``owned'' by the TV application, it's possible
+for nxtvepg to keep acquiring EPG information if it's connected to a
+TV application that forwards incoming teletext packets on the designated
+EPG page.</p>
+</dd>
+<dd>
+<p>Note this feature is not required on UNIX for the same reasons already
+mentioned above for the first item.</p>
+</dd>
+</li>
+</dl>
+<p>
+</p>
+<hr />
+<h1><a name="getting_started">GETTING STARTED</a></h1>
+<p>The software is called a ``simulator'' because it doesn't display a TV
+image.  But still it does read in a channel table and tune in the
+respective TV channels when they are selected in the channel table;
+this is required to demonstrate forwarding of VPS/PDC and EPG packets.</p>
+<p>tvsim does not have its own rc/INI file, instead it uses the nxtvepg
+configuration file.  Hence you should configure nxtvepg first before using
+tvsim.  Please refer to the nxtvepg manual, section <em>GETTING STARTED</em>
+for detailed documentation of the initial configuration process.
+tvsim only uses the configuration settings of the <em>TV card input</em>
+and <em>TV app. interaction</em> dialogs, with the exception of the
+TV card index.</p>
+<p>If your TV application's channel table format is not supported by
+nxtvepg and you don't have any of the supported freeware TV applications,
+you can set up a minimal channel table manually.  The simplest format
+is that of the DScaler channel table; so create a file named
+<em>program.txt</em> somewhere with the following format:</p>
+<pre>
+   Name: First Channel
+   Freq2: 2020
+   Name: Second Channel
+   Freq2: 2132</pre>
+<p>where you replace ``First Channel'' etc. with the actual channel names and
+the numbers with the respective TV tuner frequencies in MHz times 16
+(i.e. 2020 means tuner frequency 126.25 MHz). Then open the
+<em>TV app. interaction</em> dialog in nxtvepg, choose TV app. name <em>DScaler</em>
+and specify the path to the channel table you've just creatd. Then quit
+the dialog with Ok and start tvsim (you don't need to quit nxtvepg).
+Your channels should appear in the tvsim channel table.</p>
+<p>
+</p>
+<hr />
+<h1><a name="files">FILES</a></h1>
+<dl>
+<dt><strong><a name="item__home__nxtvepgrc"><strong>$HOME/.nxtvepgrc</strong></a></strong>
+
+<dd>
+<p>Configuration file on UNIX systems. Per default it'is expected in your
+home directory; for more details see below and <a href="#getting_started">GETTING STARTED</a>.</p>
+</dd>
+</li>
+<dt><strong><a name="item_nxtvepg_2eini"><strong>nxtvepg.ini</strong></a></strong>
+
+<dd>
+<p>Windows configuration file from which TV card setup and TV application interaction
+settings are read.  By default it is expected in the working directory,
+but a different path and file name can be specified with the <strong>-rcfile</strong>
+option.  tvsim never writes to this file;  configuration changes have
+to be made with nxtvepg.</p>
+</dd>
+</li>
+</dl>
+<p>
+</p>
+<hr />
+<h1><a name="see_also">SEE ALSO</a></h1>
+<p>Please refer to the manual of <strong>nxtvepg</strong> for information on TV card and
+TV application interaction configuration.  See also the manuals for
+<strong>vbirec</strong> and <strong>vbiplay</strong> for further debugging possibilities.</p>
+<p>Please refer to the homepage of nxtvepg on the Internet for up-to-date
+information which protocols and TV applications are currently supported.
+You'll also find links to the respective applications homepages.  See
+<em>About</em> in the <em>Help</em> menu for a link to the nxtvepg homepage.</p>
+<p>
+</p>
+<hr />
+<h1><a name="known_bugs">KNOWN BUGS</a></h1>
+<p>Under Windows there's a risk of system crash (``blue screen'') when the
+application is terminated by force, e.g. via the task manager. This
+is unavoidable because in this case there's no chance to stop the
+driver and hence the TV card continues to capure data into RAM.
+In normal operation this should be very unlikely because all software
+exceptions (e.g. page faults) and shutdown messages are caught and the
+driver then stopped before the exit.</p>
+<p>
+</p>
+<hr />
+<h1><a name="author">AUTHOR</a></h1>
+<p>Tom Zoerner, Nuremberg, Germany.</p>
+<p>Email: tomzo (at) users (dot) sourceforge (dot) net</p>
+<p>Thanks to <em>e-nek</em> for reviewing the design of the Windows communication
+protocol, alpha testing and most importantly for being the first one to
+implement support specifically for interaction between nxtvepg and a
+TV application (the Xawtv solution predates K!TV, however it was based
+on already existing remote control mechanisms, i.e. no changes were
+made to Xawtv.)</p>
+<p>
+</p>
+<hr />
+<h1><a name="copyright">COPYRIGHT</a></h1>
+<p>Copyright (C) 2002,2004,2005 by T. Zoerner.
+All rights reserved.</p>
+<p>This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License Version 2 as
+published by the Free Software Foundation, e.g. at
+<a href="http://www.fsf.org/">http://www.fsf.org/</a></p>
+<p>This program is distributed in the hope that it will be useful, but
+<strong>WITHOUT ANY WARRANTY</strong>; without even the implied warranty of
+merchantability or fitness for a particular purpose. See the
+file <em>COPYRIGHT</em> for more details.</p>
+
+
+</DIV>
+</BODY>
+</HTML>

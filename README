@@ -1,24 +1,34 @@
 Hi there,
 
-In this software package you find a decoder for Nextview EPG - an Electronic
-TV Programme Guide for the analog domain (as opposed to the various digital
-EPGs that come with most digital broadcasts). It allows you to receive and
-browse TV programme listings for most of the major networks in Germany,
-Austria, France, Belgium and Switzerland.
+This software package supports receiving and browsing Nextview EPG on your
+PC. Nextview is an ETSI standard for transmission of Electronic TV Program
+Guides within (analog) TV broadcasts. Compared to Teletext with its
+pre-formatted schedule tables, Nextview is more flexible due to being based
+on a database, which allows for flexible searches; also the database covers
+schedules of most or all TV networks at once.
 
-As of December 2007 Nextview EPG is transmitted by:
+As of December 2007, this free service was offered by various content
+providers in Germany, Austria, Switzerland, France, Belgium and Turkey:
+
 - in Germany and Austria: Kabel1 (coverage: apx. 32 networks)
 - in Switzerland: SF1, TSR1, TSI1, TV5 (coverage: apx. 37 networks)
 - in France: Canal+, M6, TV5 (coverage: 8 networks)
 - in Belgium: M6, TV5 (coverage: 32 networks)
 - in Turkey: TRT family (coverage: apx. 17 networks)
 
-If you don't receive any of those, then this software unfortunately is
-almost useless to you, except for the possibility to acquire EPG data
-from teletext and external sources via XMLTV (but those are mainly
-designed to accompany Nextview EPG so they won't work very well
-stand-alone.)  For more details on pre-requesites please refer to
-the documentation in the "Help" menus and manual page.
+Together they covered the daily TV schedules of all major networks in these
+countries. However, Nextview EPG is not transmitted via digital TV signals
+(i.e. DVB), as these use a different standard with similar features. That
+standard is not supported by this software. Therefore, as analog TV
+transmission has been stopped by now, the nxtvepg software is mostly of
+historical interest anymore.
+
+Still useful features of this software are the integrated or standalone
+Teletext grabber, which allows extracting TV schedules from programme tables
+in Teletext and browsing them in the nxtvepg GUI, or exporting them to XMLTV
+format for use in another browser. Inversely, nxtvepg can still be used for
+browsing data obtained in XMLTV format from other sources.
+
 
 The Nextview standard was developed by the major European consumer electronics
 manufacturers under the hood of the European Telecommunications Standards

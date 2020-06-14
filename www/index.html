@@ -1,6 +1,6 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/HTMLlat1.ent">
 <HTML lang="en">
-<!-- $Id: index.html,v 1.111 2014/01/19 18:34:03 tom Exp $ -->
+<!-- $Id: index.html,v 1.114 2020/06/14 15:49:20 tom Exp tom $ -->
 <HEAD>
 <TITLE>nxtvepg - nexTView EPG Decoder Software</TITLE>
 <META http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
@@ -23,12 +23,12 @@
 <P>
 <IMG ALT="" SRC="en.png" WIDTH="16" HEIGHT="10"> English<BR>
 <IMG ALT="" SRC="de.png" WIDTH="16" HEIGHT="10"> <A HREF="index-de.html">Deutsch</A><BR>
-<IMG ALT="" SRC="fr.png" WIDTH="16" HEIGHT="10"> <A HREF="index-fr.html">Français</A><BR>
+<IMG ALT="" SRC="fr.png" WIDTH="16" HEIGHT="10"> <SPAN class="navDisabled">Français</SPAN><BR>
 </P>
 
 <H2 class="navhead">News</H2>
 <P>
-Oct/10/2008: <A HREF="index.html#new_2_8_1">Release 2.8.1</A>
+None since 2008 (<A HREF="changelog.html">Release 2.8.1</A>)
 </P>
 
 <H2 class="navhead">Documentation</H2>
@@ -74,14 +74,30 @@ width="125" height="37" alt="SourceForge.net Logo"></a></span></span>
 
 <P>
 Welcome to the homepage of the <I>nxtvepg</I> software package, which
-enables you to receive and browse Nextview EPG on your PC.  Nextview is
-an <A HREF="http://www.etsi.org/">ETSI</A> standard for the broadcast of
-Electronic TV Programme Guides in TV signals, alongside to teletext
-(both analog and digitally via <A HREF="intro.html#DVB">DVB</A>.) This
-free service is offered by several <A HREF="provnets.html">content providers</A>
-in Germany, Austria, Switzerland, France and Belgium. Together they
-cover the daily TV schedules of all major networks in these countries.
+supports receiving and browsing Nextview EPG on your PC.  Nextview is
+an <A HREF="http://www.etsi.org/">ETSI</A> standard for transmission of
+Electronic TV Program Guides within (analog) TV broadcasts. Compared
+to Teletext with its pre-formatted schedule tables, Nextview is more
+flexible due to being based on a database, which allows for flexible
+searches; also the database covers schedules of most or all TV networks
+at once.
+</P><P>
+This free service was offered by several <A HREF="provnets.html">content providers</A>
+in Germany, Austria, Switzerland, France, Belgium and Turkey. Together they
+covered the daily TV schedules of all major networks in these countries.
+However, Nextview EPG is not transmitted via digital TV signals
+(<A HREF="intro.html#DVB">DVB</A>), as DVB uses a different standard
+with similar features. That standard is not supported by this software.
+Therefore, as analog TV transmission has been stopped by now, the nxtvepg
+software is mostly of historical interest anymore.
 <A HREF="intro.html">More...</A>
+</P><P>
+Still useful features of this software are the integrated or standalone
+<A HREF="ttx_grab.html">Teletext grabber</A>,
+which allows extracting TV schedules from programme tables in Teletext and browsing
+them in the nxtvepg GUI, or exporting them to <A HREF="http://xmltv.org/">XMLTV</A>
+format for use in another browser. Inversely, nxtvepg can still be used for
+browsing data obtained in XMLTV format from other sources.
 </P>
 
 <H2>Site navigation</H2>

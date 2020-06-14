@@ -20,7 +20,7 @@
 #  Author: Tom Zoerner (Original)
 #          German translation by Kurt Lettmaier & Olaf Nöhring
 #
-# $Id: nxtvepg-de.pod,v 1.20 2009/09/30 10:00:00 tom Exp tom $
+# $Id: nxtvepg-de.pod,v 1.21 2020/06/15 17:35:09 tom Exp tom $
 # ---------------------------------------------------------------------------
 
 =head1 NAME
@@ -37,7 +37,7 @@ B<nxtvepg> ist eine X11- und Windows-Anwendung zum Empfang, Anzeige und Analyse 
 
 NexTView EPG wurde für den Gebrauch in Fernsehgeräten entwickelt, jedoch können die Daten auch in einem PC empfangen und verwendet werden. Voraussetzung ist lediglich eine Teletext-fähige TV-Tuner-Karte und natürlich der Empfang eines TV-Senders auf dem das EPG ausgestrahlt wird.
 
-B<nxtvepg> ermöglicht den Empfang kostenloser TV-Programmlisten für alle bzw. die meisten überregionalen Fernsehsender in Deutschland, Österreich, Frankreich, Belgien und der Schweiz. Derzeit wird NexTView EPG von folgenden Sendern übertragen (Beachten Sie, dass jeder dieser Anbieter nicht nur (s)ein Programm sondern mehrere abdeckt):
+Bis ca. 2012 ermöglichte B<nxtvepg> den Empfang kostenloser TV-Programmlisten für alle bzw. die meisten überregionalen Fernsehsender in Deutschland, Österreich, Frankreich, Belgien und der Schweiz. Zu seiner Hochzeit wurde NexTView EPG von folgenden Sendern übertragen:
 
 =over 4
 
@@ -63,11 +63,13 @@ In der Türkei: TRT (Abdeckung: ca. 17 Sender)
 
 =back
 
-Aktuelle Informationen zu den Anbietern finden Sie auf der nxtvepg-Homepage im Internet (siehe "About" im Help-Menü). Falls Sie keine der oben genannten Sender empfangen, können Sie nxtvepg benutzen um EPG Dateien im XMLTV Format zu lesen.
+Zusammengenommen deckten diese Anbieter das TV-Programm aller ueberregionalen TV-Sender ab. Nextview wird jedoch nicht ueber DVB ausgestrahlt; daher ist Nextview EPG seit Abschaltung der analogen Uebertragung nicht mehr empfangbar. Der von DVB verwendete EPG Standard wird von nxtvepg bisher nicht unterstuetzt.
 
-Seit Version 2.8.0 erlaubt nxtvepg auch EPG Daten aus dem Teletext auszulesen oder von externen Quellen wie z.B. DVB-EPG zu importieren und diese mit dem Nextview EPG zu vereinigen. Bitte beachten Sie beim Import (genauso wie beim Datenexport) stets die geltenden Copyright-Bestimmungen. Insbesondere ist es in Deutschland nach der aktuellen Gesetzeslage selbst zu privaten Zwecken nicht erlaubt, ohne ausdrückliche Genehmigung Programmdaten von Internet (Web-) Seiten von Online-Programmzeitschriften maschinell auszulesen und weiterzuverarbeiten.
+Unabhaengig von Nextview EPG ermoeglicht nxtvepg auch EPG Daten aus dem Teletext auszulesen oder von externen Quellen im XMLTV Format zu importieren und zu vereinigen. Bitte beachten Sie beim Import (genauso wie beim Datenexport) stets die geltenden Copyright-Bestimmungen. Insbesondere ist es in Deutschland nach der aktuellen Gesetzeslage selbst zu privaten Zwecken nicht erlaubt, ohne ausdrückliche Genehmigung Programmdaten von Internet (Web-) Seiten von Online-Programmzeitschriften maschinell auszulesen und weiterzuverarbeiten.
 
 =head1 OPTIONS
+
+Der I<database> Parameter auf der Kommandozeile kann eine von nxtvepg generierte Datenbankdatei sein, oder eine Datei im XMLTV Format. Die EPG Daten aus der angegebenen Datei werden in der Benutzeroberflaeche angezeigt. (Es kann nur eine Datei angegeben werden; verwenden Sie den "Merge" Konfigurationsdialog um Daten mehrerer Nextview EPG oder XMLTV Anbieter zu vereinigen.)
 
 Zusammenfassung der Befehlszeilen-Optionen:
 
@@ -89,7 +91,7 @@ Spezifiziert die Position des Hauptfensters, z.B. B<-geometry -0+0> um das Haupt
 
 Starte mit dem Hauptfenster als Icon (bzw. minimiert)
 
-Für Windows-Nutzer ist diese Option besonders hilfreich, wenn nxtvepg über die I<Autostart>-Gruppe gestartet wird. Wird "I<Hide on minimize>" benutzt, startet nxtvepg fast unsichtbar im Hintergrund nur mit einem Symbol im Tray der Taskleiste (siehe auch L<"CONFIGURATION: Show/Hide">).
+Für Windows-Nutzer ist diese Option besonders hilfreich, wenn nxtvepg über die I<Autostart>-Gruppe gestartet wird. Wird "I<Hide on minimize>" benutzt, startet nxtvepg fast unsichtbar im Hintergrund nur mit einem Symbol im Tray der Taskleiste (siehe auch L<"CONFIGURATION">, Kapitel "Show/Hide").
 
 =item B<-rcfile> I<path>
 
@@ -97,7 +99,7 @@ Spezifiziert eine alternative Konfigurationsdatei. Vorgabe: auf UNIX $HOME/.nxtv
 
 =item B<-dbdir> I<directory>
 
-Spezifiziert ein alternatives Verzeichnis für die Datenbanken. Vorgabe: Auf UNIX F</usr>, auf Windows das aktuelle Verzeichnis. Achtung: es besteht kein Schutz vor gleichzeitigem Schreiben durch mehrere nxtvepg-Instanzen. Deshalb sollte das Verzeichnis in das home-Verzeichnis des Benutzers gelegt werden falls mehrere TV-Karten im System oder im Netzverbund vorhanden sind.
+Spezifiziert ein alternatives Verzeichnis für die Datenbanken. Vorgabe: Auf UNIX F</var/tmp/nxtvdb>, auf Windows das aktuelle Verzeichnis. Achtung: es besteht kein Schutz vor gleichzeitigem Schreiben durch mehrere nxtvepg-Instanzen. Deshalb sollte das Verzeichnis in das home-Verzeichnis des Benutzers gelegt werden falls mehrere TV-Karten im System oder im Netzverbund vorhanden sind.
 
 Wenn nxtvepg im "Daemon"-Modus benutzt wird, muss der Browser so konfiguriert werden, dass er das gleiche Verzeichnis wie der Daemon-Prozess verwendet. Läuft der Daemon auf einem anderen Host, muss auf das entfernte Verzeichnis z.B. über NFS mount lokal zugegriffen werden.
 
@@ -125,7 +127,7 @@ Starte ohne grafische Oberfläche. Der Prozess wird von der Oberfläche getrennt (
 
 Der Daemon erzeugt immer einen Socket im Verzeichnis I</tmp> (nur UNIX) und optional einen TCP/IP-Socket, um Browserprozessen Verbindungen zu erlauben. Wenn verbunden, empfängt der Browser Updates für die geöffneten NexTView-Datenbanken und berichtet über den Akquisitionsprozess; besteht keine Verbindung, kann es sein, dass die Programmdaten des Browsers unvollständig oder veraltet sind.
 
-Es ist wichtig zu bemerken, dass der Browser das gleiche Verzeichnis I<-dbdir> nutzen B<muss>, weil der Daemon nur Unterschiede an den im selben Verzeichnis gespeicherten Datenbank-Dateien sendet. Weitere Details siehe L<"CONFIGURATION: Client/Server">.
+Es ist wichtig zu bemerken, dass der Browser das gleiche Verzeichnis I<-dbdir> nutzen B<muss>, weil der Daemon nur Unterschiede an den im selben Verzeichnis gespeicherten Datenbank-Dateien sendet. Weitere Details siehe L<"CONFIGURATION">, Kapitel "Client/Server".
 
 UNIX Warnung: Aus Sicherheitsgründen ist davon abzuraten, den Daemon-Prozess mit Administrator-Rechten laufen zu lassen (d.h. als "root"). Nxtvepg wurde nicht auf mögliche Schwachstellen untersucht. Wenn der Daemon schon beim Systemstart geladen werden soll, sollten Sie das "su"-Kommando verwenden. Auch ist zu beachten, dass wahrscheinlich die Option -rcfile angegeben werden muss, da die Umgebungsvariable $HOME möglicherweise noch nicht (korrekt) gesetzt ist. Beispiel:
 
@@ -238,7 +240,7 @@ Dieses Handbuch beschreibt alle Eigenschaften von nxtvepg im Detail. Sie müssen 
 
 =head2 TV card Setup on M$ Windows
 
-Windows-Anwender müssen zuerst den Treiber für ihre TV-Karte im Dialog "TV card input" vom Configure-Menü aus konfigurieren (weitere Informationen siehe auch L<"CONFIGURATION: TV card input">). UNIX-Anwender können diesen Abschnitt überspringen.
+Windows-Anwender müssen zuerst den Treiber für ihre TV-Karte im Dialog "TV card input" vom Configure-Menü aus konfigurieren (weitere Informationen siehe auch L<"CONFIGURATION">, Kapitel "TV card input"). UNIX-Anwender können diesen Abschnitt überspringen.
 
 Zuerst müssen Sie entscheiden welchen Treibertyp Sie verwenden möchten: Für TV-Karten mit Brooktree Bt8x8 oder Philips SAA713x Capture-Chips ist der interne I<dsdrv> Treiber zu empfehlen. Für TV-Karten mit Conexant CX2388x Capture-Chips ist hingegen ein WDM-Treiber zu empfehlen. Generell ist der interne Treiber besser für nxtvepg geeignet da er für Teletext-Datenakquisition optimiert wurde. Die von den Herstellern mitgelieferten WDM Treiber hingegen sind üblicherweise für Video optimiert und unterstützen Teletext oft nur schlecht oder gar nicht.  Allerdings unterstüzt der "dsdrv" Treiber nicht alle TV-Karten; zudem treten speziell bei Karten mit Conexant Chip manchmal Konflikte auf wenn der WDM Treiber auch installiert ist (siehe auch Beschreibung zur Option "Stop conflicting WDM drivers...")
 
@@ -270,7 +272,7 @@ Bei Karten, die mit einem Brooktree-Chip (Bt878 u.a.) ausgestattet sind, muss di
 
 =head2 Video input configuration
 
-Bevor nxtvepg mit der Akquisition von EPG-Daten beginnen kann, muss eingetragen werden, ob das Videosignal vom internen TV-Tuner der TV-Karte (bei Anschluss über Kabel oder terrestrischer Antenne) stammt oder von einer externen Quelle (etwa von einem Satellitenempfänger verbunden über ein Composite- oder S-Video-Kabel). Dies kann im Dialog "I<TV card input>" des Konfigurationsmenüs eingestellt werden (detailliertere Information siehe unter L<"CONFIGURATION: TV card input">).
+Bevor nxtvepg mit der Akquisition von EPG-Daten beginnen kann, muss eingetragen werden, ob das Videosignal vom internen TV-Tuner der TV-Karte (bei Anschluss über Kabel oder terrestrischer Antenne) stammt oder von einer externen Quelle (etwa von einem Satellitenempfänger verbunden über ein Composite- oder S-Video-Kabel). Dies kann im Dialog "I<TV card input>" des Konfigurationsmenüs eingestellt werden (detailliertere Information siehe unter L<"CONFIGURATION">, Kapitel "TV card input").
 
 Normalerweise verwendet nxtvepg den TV-Tuner-Eingang. Das ist die gängige Arbeitsweise, da nxtvepg zwischen Kanälen von verschiedenen NexTView-Anbietern wechseln kann. Bei einer externen Quelle muss zwischen Kanälen jedoch manuell umgeschaltet werden (siehe auch L<"DATA ACQUISITION">). In Frankreich sollte die französische Kanalliste eingesetzt werden (die bereits die Secam-TV-Norm anstatt PAL B/G/I nutzt); diese Information wird im nächsten Schritt angewandt: Der EPG-Suchlauf.
 
@@ -300,7 +302,7 @@ nxtvepg kann wie folgt mit TV-Anwendungen zusammenarbeiten:
 
 =item *
 
-Laden der Kanaltabelle der TV-Anwendung: die Verwendung der TV-Tunerfrequenzen kann die EPG-Suche erheblich beschleunigen (wie oben bereits erwähnt). Die eingelesenen Sendernamen werden vom Dialog "I<Network name>" im Konfigurationsmenü (siehe L<"CONFIGURATION: Network names">) genutzt, um die Sendernamen zwischen nxtvepg und der TV-Anwendung zu synchronisieren.
+Laden der Kanaltabelle der TV-Anwendung: die Verwendung der TV-Tunerfrequenzen kann die EPG-Suche erheblich beschleunigen (wie oben bereits erwähnt). Die eingelesenen Sendernamen werden vom Dialog "I<Network name>" im Konfigurationsmenü (siehe L<"CONFIGURATION">, Kapitel "Network names") genutzt, um die Sendernamen zwischen nxtvepg und der TV-Anwendung zu synchronisieren.
 
 =item *
 
@@ -312,13 +314,13 @@ Das erste Feature ist eine passive Funktion, d.h. nur nxtvepg muss an die entspr
 
 Unter UNIX werden derzeit I<xawtv>, I<xdtv> (früheres I<xawdecode>), I<zapping> und I<tvtime> unterstützt. Mit allen Vieren funktionieren alle genannten Features.
 
-Auf Windows werden verschiedene Freeware TV-Anwendungen im Zusammenhang mit den passiven Features unterstützt; dazu müssen Sie angeben welche Anwendung Sie verwenden. Sollten Sie im Dialog "I<TV card input>" die TV-Karten-Einstellungen einer TV-Anwendung geladen haben, ist der Typ der TV-Anwendung bereits konfiguriert. Ansonsten oder falls Sie eine andere Anwendung als Quelle der Kanaltabelle nutzen wollen, öffnen Sie den Dialog "I<TV app. interaction>" (siehe auch L<"CONFIGURATION: TV application interaction">).
+Auf Windows werden verschiedene Freeware TV-Anwendungen im Zusammenhang mit den passiven Features unterstützt; dazu müssen Sie angeben welche Anwendung Sie verwenden. Sollten Sie im Dialog "I<TV card input>" die TV-Karten-Einstellungen einer TV-Anwendung geladen haben, ist der Typ der TV-Anwendung bereits konfiguriert. Ansonsten oder falls Sie eine andere Anwendung als Quelle der Kanaltabelle nutzen wollen, öffnen Sie den Dialog "I<TV app. interaction>" (siehe auch L<"CONFIGURATION">, Kapitel "TV application interaction").
 
 Betreffend das zweite, aktive Feature: Sie können testen ob nxtvepg mit einer TV-Anwendung interagieren kann, indem Sie beide Programme starten und danach in nxtvepg den Dialog zur "I<TV app. interaction>" im Konfigurationsmenü öffnen. Der Verbindungsstatus ist in der Mitte des Dialogfensters angegeben. Üblicherweise wird nxtvepg unter Windows, falls bereits beim Start eine nicht unterstützte TV-Anwendung läuft, eine Fehlermeldung wie "Capturing is already enabled in the TV card" oder eine andere Treiberfehlermeldung anzeigen. Nur mit kooperierenden TV-Anwendungen ist nxtvepg in der Lage, die Karte auch dann automatisch frei zu geben, wenn die TV-Anwendung bereits gestartet ist (Fernsehen hat immer den Vorrang gegenüber der Akquisition der EPG-Daten).
 
 Wichtig: Unter Windows dürfen Sie nxtvepg nicht mit aktiviertem Empfang parallel zu einer TV-Anwendung starten. Sollte dies dennoch versehentlich passieren, schließen Sie bitte beide Anwendungen sofort. Wenn zwei Programme gleichzeitig auf die TV-Karte zugreifen, kann der entstehende Konflikt das System zum Absturz bringen.
 
-Nach dem Einstellen von TV-Anwendungstyp und -pfad sollten Sie den Konfigurationsdialog "I<Network name>" öffnen, um die Sendernamen zwischen TV-Anwendung und nxtvepg zu synchronisieren. Selbst wenn keine Interaktion möglich ist, wird empfohlen, dieselben Sendernamen in beiden Applikationen zu verwenden. Details sind in L<"CONFIGURATION: Network names"> zu finden.
+Nach dem Einstellen von TV-Anwendungstyp und -pfad sollten Sie den Konfigurationsdialog "I<Network name>" öffnen, um die Sendernamen zwischen TV-Anwendung und nxtvepg zu synchronisieren. Selbst wenn keine Interaktion möglich ist, wird empfohlen, dieselben Sendernamen in beiden Applikationen zu verwenden. Details sind in L<"CONFIGURATION">, Kapitel "Network names" zu finden.
 
 =head1 BASIC BROWSING
 
@@ -336,7 +338,7 @@ Seit Version 2.5.0 bietet nxtvepg zwei Layouts für die TV-Programmübersicht an: 
 
 Wenn Sie die Höhe des Programmfensters verändern, wird das Infotext-Fenster unten entsprechend angepasst. Sie können die Größenverhältnisse zwischen Programmliste und Infotext mit dem dazwischen liegenden Button mit den zwei kleinen auf/ab-Pfeilen anpassen, indem Sie diese mit gedrückt gehaltener Maustaste verschieben.
 
-Nxtvepg kann mit TV-Anwendungen interagieren (z.B. I<xawtv> auf UNIX; erfordert zuvor ein Setup, siehe L<"GETTING STARTED">), um eine Verbindung in beide Richtungen zu gewährleisten: Erstens werden Sie einen "I<Tune TV>"-Button im Hauptfenster unterhalb der Uhr vorfinden. Wenn Sie diesen anklicken, wird der Sender der aktuell gewählten Sendung in der TV-Anwendung aufgerufen. Dies geht auch mit einem Doppelklick auf das Programm oder über das Drücken der ENTER-Taste. Durch einen Klick der rechten Maustaste auf den Button "I<Tune TV>" links können Sie auch ein kleines Menü aufrufen, das eine grundlegende TV-Steuerung bietet. Zweitens wird der Cursor im nxtvepg-Hauptfenster automatisch auf die im aktuellen Sender laufende Sendung springen, wenn Sie den Kanal innerhalb der TV-Anwendung wechseln. Sie können diese Reaktion manuell durch das Drücken der Keyboard-Taste "i" auslösen. Siehe L<"CONFIGURATION: TV application interaction"> für mehr Details.
+Nxtvepg kann mit TV-Anwendungen interagieren (z.B. I<xawtv> auf UNIX; erfordert zuvor ein Setup, siehe L<"GETTING STARTED">), um eine Verbindung in beide Richtungen zu gewährleisten: Erstens werden Sie einen "I<Tune TV>"-Button im Hauptfenster unterhalb der Uhr vorfinden. Wenn Sie diesen anklicken, wird der Sender der aktuell gewählten Sendung in der TV-Anwendung aufgerufen. Dies geht auch mit einem Doppelklick auf das Programm oder über das Drücken der ENTER-Taste. Durch einen Klick der rechten Maustaste auf den Button "I<Tune TV>" links können Sie auch ein kleines Menü aufrufen, das eine grundlegende TV-Steuerung bietet. Zweitens wird der Cursor im nxtvepg-Hauptfenster automatisch auf die im aktuellen Sender laufende Sendung springen, wenn Sie den Kanal innerhalb der TV-Anwendung wechseln. Sie können diese Reaktion manuell durch das Drücken der Keyboard-Taste "i" auslösen. Siehe L<"CONFIGURATION">, Kapitel "TV application interaction" für mehr Details.
 
 Am unteren Rand des Fensters gibt es eine Statuszeile, die über den Status der Datenbank und der Akquisition informiert. Im Prinzip ist es eine stark komprimierte Zusammenfassung des B<Statistics>-Popups des B<Control>-Menüs und besonders nützlich, um über das Alter der Datenbank zu informieren oder bei unterbrochener Akquisition zu warnen.
 
@@ -538,7 +540,7 @@ Wie lange die Akquisition durchgehend für diese Datenbank gelaufen ist. Dieser W
 
 Die Senderkennung welche zuletzt auf dem aktuell eingeschalteten TV-Kanal empfangen wurde. Üblicherweise wird sie dieselbe sein wie die Provider-CNI, die in der Datenbankstatistik ausgegeben wird. Jedoch könnten Sie hier unterschiedliche Werte sehen, wenn Sie manuell über eine externe Applikation in einen anderen Kanal wechseln.
 
-Wurde ein gültiger VPS/PDC-Code (Programme Identification Label, PIL) zusammen mit der CNI empfangen, wird er nach der CNI in dekodiertem Format (z.B. DD.MM HH:MM mit Tag, Monat, Stunde und Minute) angehängt. Die VPS/PDC-Codes dienen dazu den aktuellen Programmtitel zu identifizieren. Sie können sich die Codes für alle in der Datenbank enthaltenen Sendungen anzeigen lassen (wenn Sie diese in L<"CONFIGURATION: Select attributes"> aktivieren) oder einer externen Anwendung übergeben (siehe L<"CONFIGURATION: Context menu configuration">).
+Wurde ein gültiger VPS/PDC-Code (Programme Identification Label, PIL) zusammen mit der CNI empfangen, wird er nach der CNI in dekodiertem Format (z.B. DD.MM HH:MM mit Tag, Monat, Stunde und Minute) angehängt. Die VPS/PDC-Codes dienen dazu den aktuellen Programmtitel zu identifizieren. Sie können sich die Codes für alle in der Datenbank enthaltenen Sendungen anzeigen lassen (wenn Sie diese in L<"CONFIGURATION">, Kapitel "Select attributes" aktivieren) oder einer externen Anwendung übergeben (siehe L<"CONFIGURATION">, Kapitel "Context menu configuration").
 
 =item I<TTX data rate:>
 
@@ -642,7 +644,7 @@ Werden Serien und Themen oder gleichermaßen Serien und Textsuche kombiniert, wer
 
 Beschränkt die Liste der Programme auf einen oder mehrere Sender. Der Filter ist abgeschaltet, wenn alle Kontrollkästchen deaktiviert sind.
 
-B<Tipp:> Die Senderauswahlliste kann permanent im Hauptfenster eingeblendet werden, indem eine der Checkboxen "I<Show networks>" im Untermenü I<Show/Hide> des Konfigurationsmenüs (siehe L<"CONFIGURATION: Show/Hide">) aktiviert wird. Außerdem sind sowohl die Senderreihenfolge als auch die Sendernamen konfigurierbar. Insbesondere können Sie auch uninteressante Sender permanent aus der Liste entfernen.
+B<Tipp:> Die Senderauswahlliste kann permanent im Hauptfenster eingeblendet werden, indem eine der Checkboxen "I<Show networks>" im Untermenü I<Show/Hide> des Konfigurationsmenüs (siehe L<"CONFIGURATION">, Kapitel "Show/Hide") aktiviert wird. Außerdem sind sowohl die Senderreihenfolge als auch die Sendernamen konfigurierbar. Insbesondere können Sie auch uninteressante Sender permanent aus der Liste entfernen.
 
 =item B<Text search>
 
@@ -794,9 +796,9 @@ B<Tipp:> Noch schneller können Sie einen einzelnen Shortcut ändern indem Sie das
 
 Standardmäßig zeigt die Programmliste für jede Sendung eine Auswahl an elementaren Attributen wie Datum, Startzeit, Titel, TV-Sender. Indem Sie die Composite-Attribute verwenden, können Sie die TV-Programmtabelle Ihren persönlichen Vorlieben entsprechend anpassen. Beispielsweise könnten Sie (1) das Anzeigeformat vordefinierter Attribute verändern (z.B. Farben zur Hervorhebung benutzen), (2) neue Attribute hinzufügen, beispielsweise für Bilder als Kennzeichnung bevorzugter Sendungen, und/oder (3) die Anzeige durch die Kombination verschiedener Attribute in ein einziges verdichten.
 
-Zusammengesetzte Attribute ("composite attribute") ersetzen einzelne Attribute in der Anzeige (z.B. nur die Spalte mit den Themenkategorien). Neu erstellte Composite-Attribute werden an die Liste der vordefinierten Attribute angehängt. Sie können dann Ihre Sendungsliste als eine Mischung aus vordefinierten und Composite-Attributen konfigurieren (siehe L<"CONFIGURATION: Select attributes">).
+Zusammengesetzte Attribute ("composite attribute") ersetzen einzelne Attribute in der Anzeige (z.B. nur die Spalte mit den Themenkategorien). Neu erstellte Composite-Attribute werden an die Liste der vordefinierten Attribute angehängt. Sie können dann Ihre Sendungsliste als eine Mischung aus vordefinierten und Composite-Attributen konfigurieren (siehe L<"CONFIGURATION">, Kapitel "Select attributes").
 
-Composite-Attribute werden über den Dialog "I<Attribute composition>" im I<Configure>-Menü erstellt und bearbeitet (siehe L<"CONFIGURATION: Attribute composition">).
+Composite-Attribute werden über den Dialog "I<Attribute composition>" im I<Configure>-Menü erstellt und bearbeitet (siehe L<"CONFIGURATION">, Kapitel "Attribute composition").
 
 Das "Herz" der Attribut-Komposition ist eine Liste von Filter-Shortcuts und Reminder-Gruppen, die Sie als Auswahl Ihrer persönlichen Filter-Shortcuts und/oder Reminder-Gruppen aufbauen (siehe auch L<"FILTER SHORTCUTS"> und L<"REMINDERS">).
 
@@ -880,7 +882,7 @@ Dieser Menüeintrag wird einen Reminder für die aktuell gewählte Sendung hinzufüg
 
 =item B<Benutzerdefinierte Einträge>
 
-Die optionale, vierte Sektion ist standardmäßig leer, kann aber dazu verwendet werden, benutzerdefinierte externe Programme für die selektierte Sendung aufzurufen. Genauer gesagt können Sie auf ihrer Befehlszeile Parameter (wie beispielsweise Titel oder Startzeit) der gewählten Sendung einschließen. Die Befehle können über ein Konfigurationsmenü hinzugefügt werden (siehe L<"CONFIGURATION: Context menu configuration">).
+Die optionale, vierte Sektion ist standardmäßig leer, kann aber dazu verwendet werden, benutzerdefinierte externe Programme für die selektierte Sendung aufzurufen. Genauer gesagt können Sie auf ihrer Befehlszeile Parameter (wie beispielsweise Titel oder Startzeit) der gewählten Sendung einschließen. Die Befehle können über ein Konfigurationsmenü hinzugefügt werden (siehe L<"CONFIGURATION">, Kapitel "Context menu configuration").
 
 =back
 
@@ -898,7 +900,7 @@ UNIX: Wird die Akquisition ausgeschaltet, wird auch das I</dev/vbi> device freig
 
 =head2 Connect to acq. daemon
 
-Starten oder trennen Sie die Verbindung zwischen dem Browser und einem im Hintergrund laufenden Akquisitions-Daemon. Der Daemon kann auf dem gleichen Host oder sonst wo im lokalen Netzwerk laufen. Die Adresse des Daemons und andere Parameter werden im I<Client/Server>-Menü konfiguriert (siehe L<"CONFIGURATION: Client/Server">). Standardmäßig wird der Daemon lokal gestartet. Der Hauptvorteil des Gebrauchs eines Daemon ist, dass Sie die Akquisition permanent im Hintergrund laufen lassen können, auch wenn Sie den Browser (oder auf UNIX den X11-Server, d.h. das "windowing system") beenden. In M$ Windows wird der Daemon beendet, wenn Sie sich ausloggen.
+Starten oder trennen Sie die Verbindung zwischen dem Browser und einem im Hintergrund laufenden Akquisitions-Daemon. Der Daemon kann auf dem gleichen Host oder sonst wo im lokalen Netzwerk laufen. Die Adresse des Daemons und andere Parameter werden im I<Client/Server>-Menü konfiguriert (siehe L<"CONFIGURATION">, Kapitel "Client/Server"). Standardmäßig wird der Daemon lokal gestartet. Der Hauptvorteil des Gebrauchs eines Daemon ist, dass Sie die Akquisition permanent im Hintergrund laufen lassen können, auch wenn Sie den Browser (oder auf UNIX den X11-Server, d.h. das "windowing system") beenden. In M$ Windows wird der Daemon beendet, wenn Sie sich ausloggen.
 
 Wenn Sie versuchen zu verbinden, aber der Daemon läuft noch nicht, wird Ihnen angeboten den Daemon automatisch zu starten, vorausgesetzt Sie haben den Server-Hostnamen I<localhost> konfiguriert. Der Daemon wird mit denselben Datenbank- und rcfile-Pfaden wie der Browser gestartet.
 
@@ -1046,7 +1048,7 @@ Schließt alle Fenster und beendet die Anwendung. Wurde die Akquisition als Daemo
 
 Wird der Dialog mit OK verlassen, wird die ausgewählte Providerdatenbank in den Browser geladen. Wurde die Datenbank über längere Zeit nicht aufgefrischt, kann die Programmliste anfangs leer sein. Wurde der Akquisitionsmodus "Follow-UI" ausgewählt, wird der eingestellte TV-Kanal zum Auffrischen der Datenbank verwendet (Details unter L<"ACQUISITION MODES">).
 
-Um überflüssige NexTView-Provider zu entfernen (z.B. solche, die keinen NexTView-Dienst mehr anbieten oder die nicht mehr empfangen werden), kann eine NexTView-Providersuche im I<refresh>-Modus gestartet werden (siehe L<"CONFIGURATION: Provider scan">). Aktive Provider können nicht entfernt werden, da nxtvepg sie während der nächsten Akquisition automatisch wieder einbinden würde.
+Um überflüssige NexTView-Provider zu entfernen (z.B. solche, die keinen NexTView-Dienst mehr anbieten oder die nicht mehr empfangen werden), kann eine NexTView-Providersuche im I<refresh>-Modus gestartet werden (siehe L<"CONFIGURATION">, Kapitel "Provider scan"). Aktive Provider können nicht entfernt werden, da nxtvepg sie während der nächsten Akquisition automatisch wieder einbinden würde.
 
 =head2 Merge providers
 
@@ -1197,13 +1199,13 @@ Nach einem Kanalwechsel oder dem Wechsel des aktuellen Programmtitels wird die I
 
 Auf UNIX kann das Anzeigeformat durch Auswählen der folgenden Radiobuttons festgelegt werden:
 
-Mit "I<Separate popup>" wird nxtvepg ein kleines Popupfenster erzeugen und es genau neben dem xawtv-Fenster platzieren. Die blaue Fläche in dem kleinen Streifen am oberen Rand gibt an, welcher Anteil der (nominalen) Laufzeit in der Vergangenheit liegt. Mit "I<Video overlay>" wird nxtvepg ein ähnliches Popup generieren, jedoch wird dies über das Videobild gelegt (bitte beachten Sie, dass diese Option nur mit XFree86 Version 4 und der Erweiterung XVideo ordentlich funktioniert; verwenden Sie den Befehl B<xvinfo>, um zu überprüfen, ob Ihr Server dieses Feature unterstützt). Sie können Schriftart und -farbe in diesem Popup über die X Resources ändern (siehe L<"FILES"> für Details). "I<Video overlay, 2 lines>" ist identisch, ausgenommen dass es Laufzeit und Titel auf zwei separate Zeilen verteilt und zusätzlich den Prozentsatz der abgelaufenen Laufzeit angibt. Mit "I<Xawtv window title>" wird die Info an xawtv gesendet und im Fenstertitel dargestellt. Außer für diese letzte Option können Sie die gewünschte Anzeigedauer mit einem Schieberegler am unteren Ende des Dialogs konfigurieren. Eine Dauer von Null bedeutet dass die Anzeige endlos stehen bleibt.  Mit I<Use external application> kann eine beliebige externe Applikation zur Anzeige verwendet werden. Titel und Laufzeit des aktuellen Programms können auf der Kommandozeile übergeben werden. Die Syntax ist dieselbe wie beim Aufruf externer Applikationen im Kontextmenü (siehe L<"CONFIGURATION: Context menu configuration">)
+Mit "I<Separate popup>" wird nxtvepg ein kleines Popupfenster erzeugen und es genau neben dem xawtv-Fenster platzieren. Die blaue Fläche in dem kleinen Streifen am oberen Rand gibt an, welcher Anteil der (nominalen) Laufzeit in der Vergangenheit liegt. Mit "I<Video overlay>" wird nxtvepg ein ähnliches Popup generieren, jedoch wird dies über das Videobild gelegt (bitte beachten Sie, dass diese Option nur mit XFree86 Version 4 und der Erweiterung XVideo ordentlich funktioniert; verwenden Sie den Befehl B<xvinfo>, um zu überprüfen, ob Ihr Server dieses Feature unterstützt). Sie können Schriftart und -farbe in diesem Popup über die X Resources ändern (siehe L<"FILES"> für Details). "I<Video overlay, 2 lines>" ist identisch, ausgenommen dass es Laufzeit und Titel auf zwei separate Zeilen verteilt und zusätzlich den Prozentsatz der abgelaufenen Laufzeit angibt. Mit "I<Xawtv window title>" wird die Info an xawtv gesendet und im Fenstertitel dargestellt. Außer für diese letzte Option können Sie die gewünschte Anzeigedauer mit einem Schieberegler am unteren Ende des Dialogs konfigurieren. Eine Dauer von Null bedeutet dass die Anzeige endlos stehen bleibt.  Mit I<Use external application> kann eine beliebige externe Applikation zur Anzeige verwendet werden. Titel und Laufzeit des aktuellen Programms können auf der Kommandozeile übergeben werden. Die Syntax ist dieselbe wie beim Aufruf externer Applikationen im Kontextmenü (siehe L<"CONFIGURATION">, Kapitel "Context menu configuration")
 
 =back
 
 In der Mitte des Dialogs befindet sich eine Zeile, die den aktuellen Verbindungsstatus der TV-Anwendung anzeigt. Sie enthält den Namen der verbundenen Applikation oder "I<not connected>". Letztere Meldung erscheint wenn keine TV-Anwendung läuft oder eine die nicht mit nxtvepg interagiert (siehe auch L<"GETTING STARTED: Configuring a TV application">). Sie können mit anderen Applikationen als unten konfiguriert Verbindung aufnehmen, sind jedoch die Sendernamen nicht mit nxtvepg synchronisiert, wird die Interaktion nicht optimal funktionieren (d.h. nxtvepg könnte nicht in der Lage dazu sein, alle Sender zu identifizieren, und daher keine Sendungstitel bereitstellen).
 
-Im unteren Teil des Dialogfensters können Sie Typ und (auf Windows) den Installationspfad Ihrer bevorzugten TV-Anwendung konfigurieren. Diese Information wird genutzt, um auf die Kanalliste der TV-Anwendung (d.h. Frequenzen und Stationsnamen des TV-Tuners) während des EPG-Provider-Suchlaufs zuzugreifen (siehe L<"CONFIGURATION: Provider scan">) und im Dialog zur Konfiguration der Sendernamen (siehe L<"CONFIGURATION: Network names">).
+Im unteren Teil des Dialogfensters können Sie Typ und (auf Windows) den Installationspfad Ihrer bevorzugten TV-Anwendung konfigurieren. Diese Information wird genutzt, um auf die Kanalliste der TV-Anwendung (d.h. Frequenzen und Stationsnamen des TV-Tuners) während des EPG-Provider-Suchlaufs zuzugreifen (siehe L<"CONFIGURATION">, Kapitel "Provider scan") und im Dialog zur Konfiguration der Sendernamen (siehe L<"CONFIGURATION">, Kapitel "Network names").
 
 Nachdem Sie die Einstellungen geändert haben, können Sie den Button I<Test> drücken, um zu überprüfen, ob nxtvepg die Kanaltabelle korrekt einlesen kann. Eine Fehlermeldung wird ausgegeben, wenn die Datei oder (auf Windows) der Registry-Schlüssel nicht geöffnet werden kann, oder wenn keine TV-Kanäle gefunden werden. Nachdem der Test erfolgreich abgeschlossen ist, sollten Sie den Dialog zur Konfiguration der Sendernamen öffnen und diese mit nxtvepg synchronisieren.
 
@@ -1217,13 +1219,13 @@ Zu bemerken ist, dass nicht alle TV-Anwendungen, die im Popupmenü aufgelistet we
 
 Das Listenfeld zur Rechten enthält die Typen, die aktuell zur Anzeige ausgewählt sind. Der oberste Eintrag erscheint im "single list"-Layout auf der Linken Seite des Listenfelds; im tabellarischen "grid"-Layout erscheint entsprechend der oberste Eintrag in der ersten Zeile usw.  Drücken Sie I<Apply>, um das Browserlistenfeld mit der neuen Spaltenauswahl aktualisieren zu lassen.
 
-Im "single list"-Layout (siehe L<"CONFIGURATION: List layout">) besitzt jedes Attribut seine eigene Spalte in TV-Programmübersicht und ein damit verbundenes Filtermenü im Button oberhalb der Spalte (vorausgesetzt die Spaltenköpfe wurden nicht deaktiviert, siehe L<"CONFIGURATION: Show/Hide">). Sie können die Breite jeder Spalte ändern, indem Sie den Mauspfeil an die rechte Seite jedes Menüeintrages bewegen bis ein Pfeil an einem senkrechten Strich zu sehen ist und diesen dann mit gedrückter Maustaste an die neue Position ziehen.
+Im "single list"-Layout (siehe L<"CONFIGURATION">, Kapitel "List layout") besitzt jedes Attribut seine eigene Spalte in TV-Programmübersicht und ein damit verbundenes Filtermenü im Button oberhalb der Spalte (vorausgesetzt die Spaltenköpfe wurden nicht deaktiviert, siehe L<"CONFIGURATION">, Kapitel "Show/Hide"). Sie können die Breite jeder Spalte ändern, indem Sie den Mauspfeil an die rechte Seite jedes Menüeintrages bewegen bis ein Pfeil an einem senkrechten Strich zu sehen ist und diesen dann mit gedrückter Maustaste an die neue Position ziehen.
 
 Im "separate network columns"-Layout werden die Attribute untereinander in separaten Zeilen der Spalten des TV-Programmübersicht ausgedruckt, es sei denn Sie wählen "I<No new line after element>" während das jeweilig Attribut im rechten Listenfeld gewählt ist. Leere Zeilen werden automatisch unterdrückt, sodass im Gegensatz zum "single list"-Layout die tatsächlich gezeigte Anzahl an Attributen variieren kann. Dies ist insbesondere bei benutzerdefinierten Attributen nützlich: So könnten Sie z.B. das Attribut so definieren, dass Themen-Kategorien nur für Filme ausgedruckt werden, um die Auflistung kompakter zu halten.
 
 =head2 Attribute composition
 
-Öffnet den Konfigurations-Dialog für "I<composite attributes>", welcher erlaubt, neue Spaltentypen für das "single list"-Layout der TV-Programmübersicht zu erstellen (siehe L<"CONFIGURATION: List layout">) beziehungsweise neue Zeilen im "spearate network columns"-Layout, die danach zusätzlich zu den vorgegebenen Attributtypen gewählt werden können (z.B. "Titel" und "Thema") wie im vorherigen Kapitel beschrieben.
+Öffnet den Konfigurations-Dialog für "I<composite attributes>", welcher erlaubt, neue Spaltentypen für das "single list"-Layout der TV-Programmübersicht zu erstellen (siehe L<"CONFIGURATION">, Kapitel "List layout") beziehungsweise neue Zeilen im "spearate network columns"-Layout, die danach zusätzlich zu den vorgegebenen Attributtypen gewählt werden können (z.B. "Titel" und "Thema") wie im vorherigen Kapitel beschrieben.
 
 Für eine allgemeine Beschreibung von Composite-Attributen siehe L<"COMPOSITE ATTRIBUTES">. Dieses Kapitel beschreibt lediglich den Gebrauch des Konfigurations-Dialoges. Dieses Kapitel geht auch davon aus, dass Sie mit dem Konzept der Filter-Shortcuts (siehe L<"FILTER SHORTCUTS">) und Reminder vertraut sind (siehe L<"REMINDERS">).
 
@@ -1231,7 +1233,7 @@ Der Dialog besteht aus drei Sektionen: ganz oben rechts befindet sich ein Dropdo
 
 Zu bemerken ist, dass es Abhängigkeiten der Sektionen untereinander gibt: wenn Sie mit dem Dropdown-Menü oben zu einer anderen Attribut-Definition wechseln, wird der Rest des Dialogs augenblicklich aktualisiert und zeigt die aktuelle Definition des Composite-Attributs (Sie werden eine Warnung erhalten, sollten Änderungen an der vorherigen Zuordnung noch nicht per "Apply"-Button gespeichert worden sein). Ebenso werden die Anzeigeformat-Optionen zur Rechten aktualisiert, wenn Sie einen Shortcut im Listenfeld wählen.
 
-Um ein neues Composite-Attribut zu erstellen, beginnen Sie mit dem Befehl "I<Create new definition>" im Menü oben rechts im Dialogfenster. Sie sollten dem Attribut möglichst sofort eine Kennung geben, sodass Sie Ihre Definition wieder finden, siehe L<"CONFIGURATION: Select attributes">. Ebenso sollten Sie der Kennung einen Text für den Spaltenkopf zuordnen (nur im "single list"-Layout), der oberhalb der Sendungsliste im Hauptfenster auftauchen wird; wenn möglich sollten Sie hier einen kürzeren Text verwenden als in der Kennung.
+Um ein neues Composite-Attribut zu erstellen, beginnen Sie mit dem Befehl "I<Create new definition>" im Menü oben rechts im Dialogfenster. Sie sollten dem Attribut möglichst sofort eine Kennung geben, sodass Sie Ihre Definition wieder finden, siehe L<"CONFIGURATION">, Kapitel "Select attributes". Ebenso sollten Sie der Kennung einen Text für den Spaltenkopf zuordnen (nur im "single list"-Layout), der oberhalb der Sendungsliste im Hauptfenster auftauchen wird; wenn möglich sollten Sie hier einen kürzeren Text verwenden als in der Kennung.
 
 Danach fügen Sie einen oder mehrere Filter zur Liste hinzu, indem Sie die Dropdown-Menüs "I<Add shortcut>" oder "I<Add reminder>" links des Listenfeldes verwenden. Neue Einträge werden immer an das Ende der Liste angefügt, jedoch können Sie die Sortierreihenfolge mit Hilfe der auf/ab-Pfeil-Buttons verändern. Um einen Shortcut oder eine Reminder-Gruppe aus der Liste zu entfernen, markieren Sie den Eintrag zuerst, dann klicken Sie den Button I<Delete> oder die I<Entf>-Taste. Beachten Sie: die Reihenfolge wird dann relevant, wenn eine Sendung auf mehrere der ausgewählten Shortcuts zutrifft oder wenn Sie Shortcuts mit Reminder-Gruppen mischen.  Denn das Anzeigeformat wird vom ersten zutreffenden Eintrag in der Liste, von oben beginnend, bestimmt (siehe auch Einführung in L<"COMPOSITE ATTRIBUTES">).
 
@@ -1257,7 +1259,7 @@ B<Tipp:> Sie können diesen Dialog (und alle anderen Dialoge mit vergleichbaren L
 
 Öffnet einen Dialog zur Konfiguration der Sendernamen. Dessen Hauptzweck ist, die Sendernamen zwischen nxtvepg und Ihrer TV-Anwendungen zu synchronisieren. Dies ist notwendig, weil der Sendername der Kommunikation dient, wenn Sie die "I<Tune TV>"-Fernbedienung verwenden und ebenso für die Bekanntgaben der Kanalwechsel von Seiten der TV-Anwendungen. Bei vielen Sendern muss nichts verändert werden, bei anderen jedoch bestehen mehrere Varianten, z.B. in Deutschland "Super RTL" versus "S-RTL" oder "MDR3" versus "MDR".
 
-Zuerst sollten Sie auswählen, mit welcher TV-Anwendung Sie synchronisieren wollen und wo sich die Konfigurationsdateien befinden. Dies geschieht über den Dialog "I<TV app. interaction>" im Configure-Menü (siehe L<"CONFIGURATION: TV application interaction">).
+Zuerst sollten Sie auswählen, mit welcher TV-Anwendung Sie synchronisieren wollen und wo sich die Konfigurationsdateien befinden. Dies geschieht über den Dialog "I<TV app. interaction>" im Configure-Menü (siehe L<"CONFIGURATION">, Kapitel "TV application interaction").
 
 Ein weiterer Zweck dieses Dialoges ist es, die Namen der Sender über alle NexTView-Provider hinweg einheitlich zu machen. Die hier angegebenen Namen, werden unabhängig vom Provider, in der Programmübersicht und allen Filter-Menüs verwendet.
 
@@ -1289,7 +1291,7 @@ Im Eingabefeld I<Titel> geben Sie den Namen an, der später im Kontextmenü ersche
 
 =item B<TV application remote command>
 
-Sendet die angegebene Befehlszeile an eine verbundene TV-Anwendung, z.B. um den TV-Sender umzuschalten. Auch hier können sie Parametersubstitution verwenden.  Auf welchem Weg das Kommando zur TV-Anwendung übertragen wird hängt von der Anwendung ab. Wenn keine TV-Anwendung verbunden ist, erscheinen die Einträge dieses Typs ausgegraut (siehe auch L<"CONFIGURATION: TV application interaction">).
+Sendet die angegebene Befehlszeile an eine verbundene TV-Anwendung, z.B. um den TV-Sender umzuschalten. Auch hier können sie Parametersubstitution verwenden.  Auf welchem Weg das Kommando zur TV-Anwendung übertragen wird hängt von der Anwendung ab. Wenn keine TV-Anwendung verbunden ist, erscheinen die Einträge dieses Typs ausgegraut (siehe auch L<"CONFIGURATION">, Kapitel "TV application interaction").
 
 Beispiel:
 
@@ -1399,7 +1401,7 @@ Versteckt oder zeigt das Senderfilter-Listenfeld zwischen Shortcut- und Programm
 
 =item I<Show layout button>
 
-Versteckt oder zeigt die Checkbox "I<Grid layout>" unterhalb Shortcuts- oder Senderliste im Hauptfenster (siehe auch L<"CONFIGURATION: List layout">). Sollten Sie das eine oder das andere Layout permanent verwenden, wollen Sie womöglich diese Box verstecken (sie ist hauptsächlich präsent, um Benutzer, die von älteren Versionen upgraden, von dieser neuen Option wissen zu lassen).
+Versteckt oder zeigt die Checkbox "I<Grid layout>" unterhalb Shortcuts- oder Senderliste im Hauptfenster (siehe auch L<"CONFIGURATION">, Kapitel "List layout"). Sollten Sie das eine oder das andere Layout permanent verwenden, wollen Sie womöglich diese Box verstecken (sie ist hauptsächlich präsent, um Benutzer, die von älteren Versionen upgraden, von dieser neuen Option wissen zu lassen).
 
 =item I<Show status line>
 
@@ -1433,7 +1435,7 @@ Dies ist das Original-Layout (das einzige Layout bis nxtvepg Version 2.4) in dem
 
 In diesem Layout werden die Sendungen immer nach Startzeit sortiert, aber in getrennten Spalten für jeden Sender präsentiert. Die TV-Programme der verschiedenen Sender werden so angeordnet, dass Programme die gleichzeitig laufen, annähernd auf gleicher Höhe stehen.
 
-Sie können über das I<Control>-Menü mehrere Spalten zu einer einzigen verbinden (gedacht für Sender, die sich den selben Kanal teilen; verwenden Sie dies im Zusammenhang mit der "I<air times restriction>" wie in L<"CONFIGURATION: Select networks"> beschrieben). Das Control-Menü ist Teil des Dropdown-Menüs unterhalb des Buttons am oberen Ende der Spalte. Dieses Menü beinhaltet ebenso Befehle, um die Anzahl sichtbarer Spalten zu erhöhen oder zu senken.
+Sie können über das I<Control>-Menü mehrere Spalten zu einer einzigen verbinden (gedacht für Sender, die sich den selben Kanal teilen; verwenden Sie dies im Zusammenhang mit der "I<air times restriction>" wie in L<"CONFIGURATION">, Kapitel "Select networks" beschrieben). Das Control-Menü ist Teil des Dropdown-Menüs unterhalb des Buttons am oberen Ende der Spalte. Dieses Menü beinhaltet ebenso Befehle, um die Anzahl sichtbarer Spalten zu erhöhen oder zu senken.
 
 =back
 
@@ -1449,7 +1451,7 @@ In beiden Layouts können Sie wählen, welche Attributtypen für jeden Sender ausge
 
 Konfigurationsdatei in der alle persönlichen Einstellungen gespeichert werden. Standardmäßig wird diese in Ihrem home-Verzeichnis erstellt, aber es kann ein anderer Pfad und eine andere Datei mit der Option B<-rcfile> spezifiziert werden (siehe L<"OPTIONS">).
 
-=item B</usr/tmp/nxtvdb/nxtvdb-####>
+=item B</var/tmp/nxtvdb/nxtvdb-####>
 
 Verzeichnis, das eine Datei für die Datenbank jedes Providers enthält. Dieser Pfad kann mit der Befehlszeilenoption B<-dbdir> (siehe L<"OPTIONS">) geändert werden. Zu bemerken ist, dass der Pfad während dem Kompilieren der Software konfiguriert werden kann, sodass der Pfad ein anderer sein kann, wenn Sie eine binary-Version dieses Packages herunter geladen haben. Die aktuelle Standardeinstellung ist über den Befehlszeilenschalter B<-help> abfragbar.
 
@@ -1475,7 +1477,7 @@ Alternativ kann man sich zum Mitglied einer Gruppe in F</etc/groups> - die Zugri
 
 In Linux-Kernelserien 2.4 und früher (d.h. vor Revision 2 der video4linux API) werden diese Gerätedateien dazu benutzt, die Input-Quelle (z.B. TV-Tuner oder einen der Composite- oder S-Video-Anschlüsse) und die Tunerfrequenz auszuwählen, solange Sie nicht den passiven Akquisitionsmodus wählen. Der Index kann mit der Befehlszeilenoption B<-card> angegeben werden. Sie müssen Lese- und Schreibrechte für das Gerät haben.
 
-Das Gerät wird nur während der Providersuche geöffnet gehalten (siehe L<"CONFIGURATION: Provider scan">). Ansonsten wird es nur kurzeitig geöffnet, um die Input-Quelle und die Tunerfrequenz zu setzen. Ist das Gerät belegt (z.B. durch eine TV-Anwendung), startet die Akquisition auf dem momentan ausgewählten Kanal und folgt automatisch jeder Kanaländerung (dies wird z.B. in der Statuszeile am unteren Ende des Browserfensters als Akquisitionsmodus "I<forced passive>" gemeldet, siehe L<"STATISTICS: Status line">).
+Das Gerät wird nur während der Providersuche geöffnet gehalten (siehe L<"CONFIGURATION">, Kapitel "Provider scan"). Ansonsten wird es nur kurzeitig geöffnet, um die Input-Quelle und die Tunerfrequenz zu setzen. Ist das Gerät belegt (z.B. durch eine TV-Anwendung), startet die Akquisition auf dem momentan ausgewählten Kanal und folgt automatisch jeder Kanaländerung (dies wird z.B. in der Statuszeile am unteren Ende des Browserfensters als Akquisitionsmodus "I<forced passive>" gemeldet, siehe L<"STATISTICS: Status line">).
 
 Beachten Sie: das Video-Gerät muss zwingend denselben Index wie das VBI-Gerät besitzen. Haben Sie ein Video-Gerät an index 0, das kein Teletext unterstützt (eine Webcam zum Beispiel), kann das zum Video-Gerät 1 gehörende VBI-Gerät an index 0 auftauchen. Sie sollten den Treiber dazu zwingen, das Gerät an index 1 des VBI-Index zu setzen. Auf Linux ist dies mittels der Parameter I<insmod> in I</etc/modules.conf> möglich, z.B. für bttv:
 
@@ -1501,7 +1503,7 @@ Diese nicht-reguläre Datei wird vom Daemon erzeugt, um dem lokalen Client Verbin
 
 =item B<$HOME/.xawtv>
 
-Diese Datei gehört zum TV-Viewer F<xawtv>. Sie wird nicht von nxtvepg benötigt oder erzeugt. Jedoch wird sie, wenn sie existiert, im EPG-Suchlauf verwendet (für einen schnellen Scan-Modus, bei dem nur die in dieser Datei definierten Kanäle überprüft werden) und im Dialog zur Konfiguration der Sendernamen. Siehe auch L<"CONFIGURATION: TV application interaction">.
+Diese Datei gehört zum TV-Viewer F<xawtv>. Sie wird nicht von nxtvepg benötigt oder erzeugt. Jedoch wird sie, wenn sie existiert, im EPG-Suchlauf verwendet (für einen schnellen Scan-Modus, bei dem nur die in dieser Datei definierten Kanäle überprüft werden) und im Dialog zur Konfiguration der Sendernamen. Siehe auch L<"CONFIGURATION">, Kapitel "TV application interaction".
 
 =item B<$HOME/.Xdefaults>
 
@@ -1539,7 +1541,7 @@ Eine Datei pro Datenbank jedes Providers wird im Arbeitsverzeichnis oder dem mit
 
 =item B<vbi_map.dat>
 
-Diese versteckte Datei wird verwendet, um gemeinsam genutzten Arbeitsspeicher einzurichten, der Informationsaustausch zwischen nxtvepg und der angeschlossenen TV-Anwendung erlaubt. Sie wird beim Beenden von nxtvepg automatisch entfernt und es sollte nie mit externen Anwendungen auf sie zugegriffen werden (d.h. indem in sie überschrieben oder gelöscht wird). Die Datei wird nicht erzeugt, wenn die Interaktion mit der TV-Anwendung deaktiviert ist (siehe L<"CONFIGURATION: TV application interaction">).
+Diese versteckte Datei wird verwendet, um gemeinsam genutzten Arbeitsspeicher einzurichten, der Informationsaustausch zwischen nxtvepg und der angeschlossenen TV-Anwendung erlaubt. Sie wird beim Beenden von nxtvepg automatisch entfernt und es sollte nie mit externen Anwendungen auf sie zugegriffen werden (d.h. indem in sie überschrieben oder gelöscht wird). Die Datei wird nicht erzeugt, wenn die Interaktion mit der TV-Anwendung deaktiviert ist (siehe L<"CONFIGURATION">, Kapitel "TV application interaction").
 
 =back
 
@@ -1565,11 +1567,11 @@ C<tomzo (at) users (dot) sourceforge (dot) net>
 Der beste Weg Feedback zu übermitteln, ist über das Diskussionsforum auf der nxtvepg-Homepage.
 
 Vielen Dank
-an Néo für die fortlaufende Bereitstellung der setup.exe für Windows Releases,
+an NE<eacute>o für die fortlaufende Bereitstellung der setup.exe für Windows Releases,
 das K!TV Instellationsmanual und die französische Übersetzung der Web-Seiten;
 an Kurt Lettmaier für seine Bug Reports;
 an Kurt Lettmaier und Olaf Nöhring für die deutsche Übersetzung des Manuals;
-an Thierry Ménétrier und Peter Rolf für ihr wertvolles Feedback und ihre Anregungen;
+an Thierry ME<eacute>nE<eacute>trier und Peter Rolf für ihr wertvolles Feedback und ihre Anregungen;
 an Simon Barner für die FreeBSD-Portierung;
 an Matthieu für die Französische Übersetzung von PDC-Themen-Deskriptoren;
 an E-nek für die DScaler-Treiber-Portierung und seiner Zusammenarbeit bei der Entwicklung der Interaktion mit der TV-Anwendung;
@@ -1584,7 +1586,7 @@ und nicht zuletzt an die Autoren von bttv und v4l für ihre exzellente Arbeit, un
 
 =head1 COPYRIGHT
 
-Copyright (C) 1999 - 2009 by Th. Zörner. Alle Rechte vorbehalten.
+Copyright (C) 1999 - 2009, 2020 by Th. Zörner. Alle Rechte vorbehalten.
 
 Zusätzliche Copyrights gelten für Teile des verwendeten Quelltexts. Bitte in der Datei COPYRIGHT und den Kommentaren im Quelltext nach Details sehen.
 

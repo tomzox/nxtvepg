@@ -1,6 +1,6 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/HTMLlat1.ent">
 <HTML lang="en">
-<!-- $Id: download.html,v 1.30 2008/10/19 16:08:53 tom Exp $ -->
+<!-- $Id: download.html,v 1.33 2020/06/17 08:40:04 tom Exp tom $ -->
 <HEAD>
 <TITLE>Download nxtvepg</TITLE>
 <META http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
@@ -12,7 +12,7 @@
 <META name="robots" content="index, follow">
 <META name="revisit-after" content="01 month">
 <LINK rel="stylesheet" type="text/css" href="nxtvepg.css">
-<LINK rel="alternate" type="text/html" href="download-de.html" hreflang="de" lang="de" title="Nxtvepg Download">
+<!-- <LINK rel="alternate" type="text/html" href="download-de.html" hreflang="de" lang="de" title="Nxtvepg Download"> -->
 <LINK rel="shortcut icon" type="image/x-icon" href="nxtvepg.ico">
 <LINK rel="top" href="http://nxtvepg.sourceforge.net/" title="nxtvepg homepage">
 </HEAD>
@@ -29,7 +29,8 @@
 <H2 class="navhead">Language</H2>
 <P>
 <IMG ALT="" SRC="en.png" WIDTH="16" HEIGHT="10"> English<BR>
-<IMG ALT="" SRC="de.png" WIDTH="16" HEIGHT="10"> <A HREF="download-de.html">German</A><BR>
+<!-- <IMG ALT="" SRC="de.png" WIDTH="16" HEIGHT="10"> <A HREF="download-de.html">German</A><BR> -->
+<IMG ALT="" SRC="de.png" WIDTH="16" HEIGHT="10"> <SPAN class="navDisabled">German</SPAN><BR>
 <IMG ALT="" SRC="fr.png" WIDTH="16" HEIGHT="10"> <SPAN class="navDisabled">Français</SPAN><BR>
 </P>
 
@@ -74,10 +75,8 @@ width="125" height="37" alt="SourceForge.net Logo"></a></span></span>
 
 <H1>Download nxtvepg</H1>
 <P>
-The latest official nxtvepg release is version <B>2.8.1</B>.
-This release fixes several major and many smaller bugs, hence
-all users of 2.8.0 should upgrade.  (See also a list of
-<A HREF="changelog.html#release_2_8_1">all details</A>.)
+The last nxtvepg release is version <B>2.8.1</B>.
+(See also <A HREF="changelog.html">change history</A>.)
 </P>
 <P>
 When upgrading from older releases on Windows, you should keep a copy of your
@@ -104,8 +103,8 @@ change into the source directory, optionally edit paths and settings
 in the Makefile or Makefile.bsd, then compile with "make", install
 with "make install".  If you encounter problems see the README file
 for more detailed instructions.  Of course it's also possible to
-compile the Windows port from these sources; this is also explained
-in the README file.
+compile the Windows port from these sources; this is explained
+in the README file, section "Compilation procedure for Windows".
 </P><P>
 You can build a RPM package from the source tarball simply by running
 <KBD>rpm -ta nxtvepg-2.8.1.tar.gz</KBD> and install it as usual with
@@ -116,9 +115,9 @@ You can build a RPM package from the source tarball simply by running
 <DIV CLASS="box">
 <H3><A NAME="download_unix">Binary distributions for Linux and BSD</A></H3>
 <P>
-Many distributions already include nxtvepg. So you can simply install it by
-selecting it in the package manager, usually in the multimedia section where
-the TV applications live.
+Several Linux distributions used to include nxtvepg. In such a case you could
+simply install it by selecting it in the package manager (usually in the
+multimedia section where the TV applications live).
 </P><P>
 The following is a binary package of the latest release for Debian (and
 Debian compatibles such as Ubuntu):
@@ -132,16 +131,12 @@ Alternatively, pre-compiled packages are provided at the following sites
 (not necessarily the latest version):
 </P>
 <UL>
-<LI>For Linux Red Hat/Fedora Core from
-    <A HREF="http://atrpms.physik.fu-berlin.de/name/nxtvepg/">ATrpms.net</A>,<BR>
-    for Debian from
-    <A HREF="http://packages.debian.org/search?keywords=nxtvepg&amp;searchon=names&amp;suite=all&amp;section=all">debian.org</A>,<BR>
-    for other Linux distributions try
+<LI>For Debian from
+    <A HREF="http://packages.debian.org/search?keywords=nxtvepg&amp;searchon=names&amp;suite=all&amp;section=all">debian.org</A>
+    (no longer includes nxtvepg)
+<LI>For other Linux distributions try
     <A HREF="http://rpmfind.net/linux/rpm2html/search.php?query=nxtvepg">rpmfind.net</A>
-<LI>For NetBSD at
-    <A HREF="ftp://ftp.netbsd.org/pub/NetBSD/packages/pkgsrc/misc/nxtvepg/README.html">netbsd.org</A>
-<LI>For FreeBSD at
-    <A HREF="http://www.freebsd.org/cgi/cvsweb.cgi/ports/multimedia/nxtvepg/">freebsd.org</A>
+    (OpenSuSE still includes nxtvepg-2.8.1 as of 2020)
 </UL>
 <P><SPAN CLASS="anno">Thanks to Uwe Bugla for the Debian package.</SPAN></P>
 </DIV>
@@ -177,8 +172,8 @@ For developers: A demo application for TV application interaction is available
 (see <A HREF="tvsim.html">tvsim</A>,
 <A HREF="vbirec.html">vbirec</A> or
 <A HREF="vbiplay.html">vbiplay</A> manuals, or
-<A HREF="screenshot-tvsim.gif">tvsim &amp; nxtvepg</A> and
-<A HREF="screenshot-vbirec.gif">tvsim &amp; vbirec screenshot</A>)
+<A HREF="screenshot-tvsim.png">tvsim &amp; nxtvepg</A> and
+<A HREF="screenshot-vbirec.png">tvsim &amp; vbirec screenshot</A>)
 </P>
 <P><SPAN class="anno">Thanks to Néo for providing the installer for Windows.</SPAN></P>
 </DIV>

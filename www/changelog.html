@@ -1,6 +1,6 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/HTMLlat1.ent">
 <HTML lang="en">
-<!-- $Id: changelog.html,v 1.69 2008/10/11 20:13:49 tom Exp $ -->
+<!-- $Id: changelog.html,v 1.70 2020/06/14 15:46:39 tom Exp tom $ -->
 <HEAD>
 <TITLE>Change log of nxtvepg releases</TITLE>
 <META http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
@@ -74,10 +74,13 @@ width="125" height="37" alt="SourceForge.net Logo"></a></span></span>
 <P>
 This document contains a list of all major changes between releases
 of <A HREF="http://nxtvepg.sourceforge.net/">nxtvepg</A>.
-For details on work in progress please refer to
-<A HREF="http://sourceforge.net/mailarchive/forum.php?forum_id=14102">mailing list archives</A>.
+<!-- For details on work in progress please refer to
+<A HREF="http://sourceforge.net/mailarchive/forum.php?forum_id=14102">mailing list archives</A>. -->
 </P>
-
+<P>
+Later enhancements are only available in form of
+<A HREF="pre-releases.html">pre-releases</A>.
+</P>
 
 <H2><A NAME="release_2_8_1">From 2.8.0 to 2.8.1 (Oct/10/2008)</A></H2>
 <P>
@@ -150,10 +153,6 @@ in release 2.8.0.
   broadcasts.
   <SPAN class="anno">Thanks to Jürgen (jb) for the feedback.</SPAN>
 </UL>
-<P>
-There'a also a more detailed changelog of all four
-<A HREF="changelog-2.8.0pre.html">2.8.1 pre-releases</A>.
-</P>
 
 <H2><A NAME="release_2_8_0">From 2.7.7 to 2.8.0 (Dec/31/2007)</A></H2>
 <P>
@@ -204,12 +203,8 @@ major new features and improvements.
 <LI>Upgrade of the <A HREF="http://tcl.tk/">Tcl/Tk library</A> from version
   8.3.4 to 8.5.0 (to benefit from this UNIX users must also upgrade their
   installed Tcl/Tk libraries, which is highly recommended due to
-  improvements in <A HREF="screenshot-tcl84-vs-85.png">widget appearances</A>)
+  improvements in the overall look &amp; feel)
 </UL>
-<P>
-There'a also a more detailed changelog of all eighteen
-<A HREF="changelog-2.8.0pre.html">2.8.0 pre-releases</A>.
-</P>
 
 <H2><A NAME="release_2_7_7">From 2.7.6 to 2.7.7 (Jan/21/2007)</A></H2>
 <UL>
@@ -319,13 +314,10 @@ This release is result of a "back-port" of bugfixes made on the
   search ended after 258 characters
 <LI>Added possibility to configure text foreground colors (at least for
   programme list) to support an inverted color scheme (configurable via
-  <A HREF="man.html#files">.Xresources or Nxtvepg.ad</A>, see examples with
-  <A HREF="screenshot-inv-col1.png">inverted color scheme in single column layout</A>,
-  <A HREF="screenshot-inv-col2.png">inverted color scheme in grid layout</A>)
+  <A HREF="man.html#files">.Xresources or Nxtvepg.ad</A>)
 <LI>Added new display format option for
   <A HREF="man.html#composite_attributes">composite attributes</A> (i.e.
   user-defined columns): set foreground color for entire column
-  (see <A HREF="screenshot-inv-col3.png">example</A>)
 <LI>UNIX: added "XdTV" (former xawdecode) to internal list of TV apps
   with which nxtvepg can
   <A HREF="man.html#tv_application_interaction">exchange EPG info</A>
@@ -346,8 +338,6 @@ This release is result of a "back-port" of bugfixes made on the
   commands and EPG OSD infos to a connected TV app (to allow testing
   this feature without nxtvepg)
 </UL>
-There'a also a more detailed change log of all four
-<A HREF="changelog-2.7.0pre.html">2.7.4 pre-releases</A>.
 
 <H2><A NAME="release_2_7_3">From 2.7.2 to 2.7.3 (Sep/5/2004)</A></H2>
 <P>
@@ -437,10 +427,6 @@ This release contains the following feature improvements and bugfixes:
   <A HREF="man.html#select_attributes">attribute</A> in the
   programme list; thanks to everyone who reported this bug in the forum.
 </UL>
-<P>
-There'a also a more detailed change log of all four
-<A HREF="changelog-2.7.0pre.html">2.7.0 and 2.7.1 pre-releases</A>.
-</P>
 
 
 <H2><A NAME="release_2_7_0">From 2.6.0 to 2.7.0 (Apr/02/2004)</A></H2>
@@ -462,8 +448,7 @@ with weak reception: was available since 2.5.2, but had to be selected at
   using user-configured "air times" in network selection configuration dialog
   to determine which network is currently received in case VPS/PDC is not
   available.  Thanks to salokyn for the suggestion.
-  (<A HREF="man.html#select_networks">Read man page</A>,
-  <A HREF="screenshot-shortcuts.gif">see screenshot</A>.)
+  (<A HREF="man.html#select_networks">Read man page</A>.)
 <LI>Added work-around for flip-flopping of program title popups on Arte/Fr5
   in France: appearently Fr5 sends Fr5 PDC code, but Arte VPS. Solved by
   allowing to suppress false EPG popups by means of air times configuration.
@@ -533,10 +518,6 @@ Plus the following fixes:
 <LI>Fixed memory leak in Xawtv window detection (for every newly created
   toplevel with a WM_CLASS property a few bytes were not freed)
 </UL>
-<P>
-There'a also a more detailed change log of all ten
-<A HREF="changelog-2.7.0pre.html">2.7.0 pre-releases</A>.
-</P>
 
 
 <H2><A NAME="release_2_6_0">From 2.5.2 to 2.6.0 (Oct/11/2003)</A></H2>
@@ -594,10 +575,6 @@ Plus the following fixes:
 <LI>Windows: user-configured commands in context menu: omit quotes around
   command substitutions, use escape instead (requested by "progro")
 </UL>
-<P>
-There'a also a more detailed change log of all seven
-<A HREF="changelog-2.6.0pre.html">2.6.0 pre-releases</A>.
-</P>
 
 
 <H2><A NAME="release_2_5_2">From 2.5.1 to 2.5.2 (July/1/2003)</A></H2>
@@ -669,8 +646,8 @@ This release contains two independent new main features:
 <LI>An alternate TV schedule presentation layout with separate columns for
   each TV network, similar to the layout principles used by paper based
   TV magazines.  See a comparison of screenshots of the
-  <A HREF="screenshot-grid1.png">alternate</A> and
-  <A HREF="screenshot-grid2.png">regular</A> layouts.
+  <A HREF="screenshot-grid1.png">alternate</A> 
+  <A HREF="screenshot-274.png">regular</A> layouts.
 <LI>For the Windows version, support for new TV cards with the Philips SAA7134
   and Conexant CX23881 chips and a new TV card configuration dialog with card
   and tuner auto-detection.
