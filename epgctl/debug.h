@@ -23,7 +23,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: debug.h,v 1.18 2004/12/27 14:17:08 tom Exp tom $
+ *  $Id: debug.h,v 1.19 2005/01/01 18:13:33 tom Exp tom $
  */
 
 #ifndef __DEBUG_H
@@ -204,12 +204,14 @@ void DebugSetError( void );
 void * chk_malloc( size_t size, const char * pFileName, int line );
 void chk_free( void * ptr );
 void chk_memleakage( void );
+char * chk_strdup( const char * pSrc, const char * pFileName, int line );
 #define xmalloc(SIZE)  chk_malloc((SIZE),__FILE__,__LINE__)
 #define xfree(PTR)     chk_free(PTR)
+#define xstrdup(PTR)   chk_strdup((PTR),__FILE__,__LINE__)
 #else
-#include <stdlib.h>
 void * xmalloc( size_t size );
 #define xfree(PTR)     free(PTR)
+#define xstrdup(PTR)   strdup(PTR)
 #endif
 
 

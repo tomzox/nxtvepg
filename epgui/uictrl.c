@@ -21,13 +21,14 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: uictrl.c,v 1.45 2004/12/24 10:19:21 tom Exp $
+ *  $Id: uictrl.c,v 1.49 2005/01/08 15:16:51 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
 #define DPRINTF_OFF
 
 #include <stdio.h>
+#include <errno.h>
 #include <time.h>
 #include <string.h>
 
@@ -46,14 +47,20 @@
 #include "epgctl/epgscan.h"
 #include "epgctl/epgacqsrv.h"
 #include "epgctl/epgacqclnt.h"
+#include "epgvbi/syserrmsg.h"
+#include "epgui/daemon.h"
 #include "epgui/epgmain.h"
+#include "epgui/daemon.h"
 #include "epgui/pifilter.h"
 #include "epgui/pibox.h"
 #include "epgui/piremind.h"
 #include "epgui/uictrl.h"
+#include "epgui/epgsetup.h"
 #include "epgui/menucmd.h"
 #include "epgui/statswin.h"
 #include "epgui/timescale.h"
+#include "epgui/cmdline.h"
+#include "epgui/rcfile.h"
 #include "epgctl/epgctxctl.h"
 
 
@@ -401,7 +408,7 @@ void UiControl_AiStateChange( ClientData clientData )
       pUiDbContext = EpgContextCtl_Open(EpgDbContextGetCni(pAcqDbContext), CTX_FAIL_RET_DUMMY, CTX_RELOAD_ERR_ANY);
 
       // update acq CNI list in case follow-ui acq mode is selected
-      SetAcquisitionMode(NETACQ_KEEP);
+      EpgSetup_AcquisitionMode(NETACQ_KEEP);
       // display the data from the new db
       PiBox_Reset();
    }
@@ -478,13 +485,56 @@ void UiControl_AiStateChange( ClientData clientData )
 }
 
 // ----------------------------------------------------------------------------
+// Display error message in a popup message box
+//
+void UiControl_DisplayErrorMessage( char * pMsg )
+{
+   Tcl_DString msg_dstr;
+   Tcl_DString cmd_dstr;
+
+   if (pMsg != NULL)
+   {
+      if (interp != NULL)
+      {
+         if (Tcl_ExternalToUtfDString(NULL, pMsg, -1, &msg_dstr) != NULL)
+         {
+            Tcl_DStringInit(&cmd_dstr);
+
+            if (Tk_GetNumMainWindows() > 0)
+               Tcl_DStringAppend(&cmd_dstr, "tk_messageBox -type ok -icon error -parent . -message ", -1);
+            else
+               Tcl_DStringAppend(&cmd_dstr, "tk_messageBox -type ok -icon error -message ", -1);
+
+            // append message as list element, so that '{' etc. is escaped properly
+            Tcl_DStringAppendElement(&cmd_dstr, Tcl_DStringValue(&msg_dstr));
+
+            eval_check(interp, Tcl_DStringValue(&cmd_dstr));
+
+            Tcl_DStringFree(&msg_dstr);
+            Tcl_DStringFree(&cmd_dstr);
+         }
+         else
+            debug1("UiControl-DisplayErrorMessage: UTF conversion failed for '%s'", pMsg);
+      }
+      else
+      {
+         fprintf(stderr, "nxtvepg: %s\n", pMsg);
+      }
+   }
+   else
+      debug0("UiControl-DisplayErrorMessage: illegal NULL ptr param");
+}
+
+// ----------------------------------------------------------------------------
 // Add or update an EPG provider channel frequency in the rc/ini file
 // - called by acq control when the first AI is received after a provider change
 //
 void UiControlMsg_NewProvFreq( uint cni, uint freq )
 {
-   sprintf(comm, "UpdateProvFrequency {0x%04X %d}\n", cni, freq);
-   eval_check(interp, comm);
+   if ( RcFile_UpdateProvFrequency(cni, freq) )
+   {
+      UpdateRcFile(TRUE);
+   }
 }
 
 // ----------------------------------------------------------------------------
@@ -493,7 +543,7 @@ void UiControlMsg_NewProvFreq( uint cni, uint freq )
 //
 uint UiControlMsg_QueryProvFreq( uint cni )
 {
-   return GetProvFreqForCni(cni);
+   return RcFile_GetProvFreqForCni(cni);
 }
 
 // ----------------------------------------------------------------------------
@@ -880,6 +930,105 @@ bool UiControlMsg_AcqQueueOverflow( bool prepare )
 #endif
 
    return acqWorksOnUi;
+}
+
+// ---------------------------------------------------------------------------
+// Write config data to disk
+//
+void UpdateRcFile( bool immediate )
+{
+   Tcl_DString dstr;
+   char * pErrMsg = NULL;
+   FILE * fp;
+   size_t wlen;
+   bool   writeOk;
+
+   fp = RcFile_WriteCreateFile(mainOpts.rcfile, &pErrMsg);
+   if (fp != NULL)
+   {
+      // write C level sections
+      writeOk = RcFile_WriteOwnSections(fp) && (fflush(fp) == 0);
+
+      if (ferror(fp) && (pErrMsg == NULL))
+      {
+         SystemErrorMessage_Set(&pErrMsg, errno, "Write error in new config file: ", NULL);
+      }
+
+      // write GUI level sections
+      if (Tcl_EvalEx(interp, "GetGuiRcData", -1, TCL_EVAL_GLOBAL) == TCL_OK)
+      {
+         Tcl_UtfToExternalDString(NULL, Tcl_GetStringResult(interp), -1, &dstr);
+         wlen = fprintf(fp, "\n%s", Tcl_DStringValue(&dstr));
+
+         if (wlen != 1 + Tcl_DStringLength(&dstr))
+         {
+            debug2("UpdateRcFile: short write: %d of %d", (int)wlen, 1 + Tcl_DStringLength(&dstr));
+            writeOk = FALSE;
+         }
+         Tcl_DStringFree(&dstr);
+      }
+      else
+      {
+         debugTclErr(interp, "UpdateRcFile: GetGuiRcData");
+         writeOk = FALSE;
+      }
+      Tcl_ResetResult(interp);
+
+      RcFile_WriteCloseFile(fp, writeOk, mainOpts.rcfile, &pErrMsg);
+   }
+   if (pErrMsg != NULL)
+   {
+      UiControl_DisplayErrorMessage(pErrMsg);
+      xfree(pErrMsg);
+   }
+}
+
+// ----------------------------------------------------------------------------
+// Load config data from rc/ini file
+//
+void LoadRcFile( void )
+{
+   Tcl_DString msg_dstr;
+   Tcl_DString cmd_dstr;
+   Tcl_Obj  * pVarObj;
+   bool loadOk;
+   char * pErrMsg = NULL;
+
+   // first load the sections managed at epgui level
+   loadOk = RcFile_Load(mainOpts.rcfile, !mainOpts.isUserRcFile, &pErrMsg);
+
+   if (pErrMsg != NULL)
+   {
+      UiControl_DisplayErrorMessage(pErrMsg);
+      xfree(pErrMsg);
+   }
+
+   // secondly load the sections managed at Tcl level
+   if (loadOk)
+   {
+      if (Tcl_ExternalToUtfDString(NULL, mainOpts.rcfile, -1, &msg_dstr) != NULL)
+      {
+         Tcl_DStringInit(&cmd_dstr);
+         Tcl_DStringAppend(&cmd_dstr, "LoadRcFile", -1);
+         // append file name as list element, so that '{' etc. is escaped properly
+         Tcl_DStringAppendElement(&cmd_dstr, Tcl_DStringValue(&msg_dstr));
+
+         eval_check(interp, Tcl_DStringValue(&cmd_dstr));
+
+         Tcl_DStringFree(&cmd_dstr);
+         Tcl_DStringFree(&msg_dstr);
+
+         pVarObj = Tcl_GetVar2Ex(interp, "rcfileUpgradeStr", NULL, TCL_GLOBAL_ONLY);
+         if (pVarObj != NULL)
+         {
+            Tcl_UtfToExternalDString(NULL, Tcl_GetString(pVarObj), -1, &msg_dstr);
+            RcFile_LoadFromString(Tcl_DStringValue(&msg_dstr));
+            Tcl_DStringFree(&msg_dstr);
+
+            Tcl_UnsetVar(interp, "rcfileUpgradeStr", TCL_GLOBAL_ONLY);
+         }
+      }
+   }
 }
 
 // ----------------------------------------------------------------------------

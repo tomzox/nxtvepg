@@ -15,30 +15,24 @@
 #  Description:
 #
 #    Implements reading and writing the rc (UNIX) or INI (Windows) file.
+#    Since version 2.8.0 this module only manages parameters used by
+#    the GUI.
 #
 #  Author: Tom Zoerner
 #
-#  $Id: rcfile.tcl,v 1.22 2004/09/25 16:23:30 tom Exp tom $
+#  $Id: rcfile.tcl,v 1.25 2005/01/08 15:17:16 tom Exp tom $
 #
-set myrcfile ""
-set is_daemon 0
-# define limit for forwards compatibility
-set nxtvepg_rc_compat 0x0207B2
 
-proc LoadRcFile {filename isDefault isDaemon} {
+proc LoadRcFile {filename } {
    global shortcuts shortcut_tree
-   global prov_selection prov_freqs cfnetwops cfnetnames cfnettimes cfnetjoin
+   global cfnetwops cfnetnames cfnettimes cfnetjoin
    global showNetwopListbox showNetwopListboxLeft showShortcutListbox
    global showLayoutButton showStatusLine showColumnHeader showDateScale
    global hideOnMinimize menuUserLanguage help_winsize
-   global prov_merge_cnis prov_merge_cf
-   global acq_mode acq_mode_cnis netacq_enable
    global pibox_height pilistbox_cols shortinfo_height
    global pibox_type pinetbox_col_count pinetbox_col_width
    global pinetbox_rows pinetbox_rows_nonl
-   global netacqcf xawtvcf wintvcf ctxmencf ctxmencf_wintv_vcr
-   global hwcf_cardidx hwcf_input hwcf_acq_prio hwcf_slicer_type hwcf_wdm_stop tvcardcf
-   global epgscan_opt_ftable
+   global xawtvcf wintvcf ctxmencf ctxmencf_wintv_vcr
    global wintvapp_idx wintvapp_path
    global substr_history
    global dumpdb_filename
@@ -46,42 +40,39 @@ proc LoadRcFile {filename isDefault isDaemon} {
    global dumptabs dumptabs_filename
    global dumphtml_filename dumphtml_file_append dumphtml_file_overwrite
    global dumphtml_sel dumphtml_sel_count dumphtml_type
-   global dumphtml_hyperlinks dumphtml_use_colsel dumphtml_colsel
+   global dumphtml_hyperlinks dumphtml_text_fmt dumphtml_use_colsel dumphtml_colsel
    global dumpxml_filename dumpxml_format
    global colsel_tabs usercols
-   global piexpire_cutoff
    global remgroups remgroup_order reminders rem_msg_cnf_time rem_cmd_cnf_time
    global remlist_winsize rempilist_colsize remsclist_colsize
-   global EPG_VERSION_NO is_unix
-   global myrcfile is_daemon
+   global is_unix
 
-   set myrcfile $filename
-   set is_daemon $isDaemon
    set shortcut_tree {}
    set error 0
-   set ver_check 0
    set line_no 0
+   set skip_sect 1
+
+   set my_sections [list {TV APP INTERACTION} NETWORKS {DATABASE EXPORT} \
+                         GUI REMINDER {FILTER SHORTCUTS}]
 
    if {[catch {set rcfile [open $filename "r"]} errmsg] == 0} {
       while {[gets $rcfile line] >= 0} {
          incr line_no
-         if {([catch $line] != 0) && !$error} {
+         if {[regexp {^\[(.*)\]$} $line foo sect_name]} {
+            # skip sections which are managed by C code
+            set skip_sect [expr [lsearch -exact $my_sections $sect_name] == -1]
+
+         } elseif {[string compare $line "___END___"] == 0} {
+            set skip_sect 1
+
+         } elseif {!$skip_sect && ([catch $line] != 0) && !$error} {
             tk_messageBox -type ok -default ok -icon error -message "Syntax error in rc/ini file, line #$line_no: $line"
             set error 1
 
-         } elseif {$ver_check == 0} {
-            # check if the given rc file is from a newer version
-            if {[info exists rc_compat_version] && [info exists nxtvepg_version_str]} {
-               if {$rc_compat_version > $EPG_VERSION_NO} {
-                  tk_messageBox -type ok -default ok -icon error \
-                     -message "rc/ini file '$myrcfile' is from an incompatible, newer version of nxtvepg ($nxtvepg_version_str) and cannot be loaded. Use -rcfile command line option to specify an alternate file name or use the newer nxtvepg executable."
-
-                  # change name of rc file so that the newer one isn't overwritten
-                  append myrcfile "." $nxtvepg_version_str
-                  # abort loading further data (would overwrite valid defaults)
-                  return
-               }
-               set ver_check 1
+         } elseif $skip_sect {
+            if {[regexp {^set nxtvepg_version (0x[0-9a-zA-Z]+)$} $line foo nxtvepg_version]} {
+               # old-style config file detected
+               set skip_sect 0
             }
          }
       }
@@ -287,17 +278,12 @@ proc LoadRcFile {filename isDefault isDaemon} {
          }
          set ctxmencf $tmpl
       }
-   } elseif {!$isDefault} {
-      # warn if rc/ini file could not be loaded
-      if $is_unix {
-         puts stderr "Warning: reading rc/ini file: $errmsg"
-      } else {
-         after idle [list tk_messageBox -type ok -default ok -icon warning -message "Warning: rcfile: $errmsg"]
+      if {[info exists nxtvepg_version] && ($nxtvepg_version < 0x0207C2)} {
+         ConvertV27RcFile 
       }
    }
 
-   # skip the rest if GUI was not loaded
-   if {$is_daemon == 0} {
+   catch {
 
       # check consistancy of shortcuts
       #set ltmp {}
@@ -382,22 +368,96 @@ proc LoadRcFile {filename isDefault isDaemon} {
 }
 
 ##
+##  Helper procedure to import rc files of version 2.7.x and earlier
+##  - note the format of GUI parameters didn't change, so no conversions is needed
+##  - this function is only used to pass parameters which are now managed at
+##    C level to the C parser function
+##  - params are stored in a global string in the format used by the C parser;
+##    the string is later read and parsed by C level functions
+##
+proc ConvertV27RcFile {} {
+   # the following code executes in the context of the calling procedure
+   # so that it can access it's local variables
+   uplevel 1 {
+      global rcfileUpgradeStr
+      set rcfileUpgradeStr {}
+
+      # dump software version
+      append rcfileUpgradeStr {[VERSION]} "\n"
+      catch {append rcfileUpgradeStr [concat nxtvepg_version = $nxtvepg_version] "\n"}
+      catch {append rcfileUpgradeStr [concat nxtvepg_version_str = $nxtvepg_version_str] "\n"}
+      catch {append rcfileUpgradeStr [concat rc_compat_version = $rc_compat_version] "\n"}
+      catch {append rcfileUpgradeStr [concat rc_timestamp = $rc_timestamp] "\n"}
+      append rcfileUpgradeStr "\n"
+
+      # dump acquisition parameters
+      append rcfileUpgradeStr {[ACQUISITION]} "\n"
+      catch {append rcfileUpgradeStr [concat acq_mode = $acq_mode] "\n"}
+      catch {append rcfileUpgradeStr [concat acq_mode_cnis = $acq_mode_cnis] "\n"}
+      catch {append rcfileUpgradeStr [concat prov_freqs = $prov_freqs] "\n"}
+      catch {append rcfileUpgradeStr [concat epgscan_opt_ftable = $epgscan_opt_ftable] "\n"}
+      append rcfileUpgradeStr "\n"
+
+      # dump provider concat
+      append rcfileUpgradeStr {[DATABASE]} "\n"
+      catch {append rcfileUpgradeStr [concat piexpire_cutoff = $piexpire_cutoff] "\n"}
+      catch {append rcfileUpgradeStr [concat prov_selection = $prov_selection] "\n"}
+      catch {append rcfileUpgradeStr [concat prov_merge_cnis = $prov_merge_cnis] "\n"}
+      if [info exists prov_merge_cf] {
+         foreach {key val} $prov_merge_cf {
+            append rcfileUpgradeStr [concat prov_merge_cf$key = $val] "\n"
+         }
+      }
+      catch {append rcfileUpgradeStr [concat prov_merge_netwops = [lindex $cfnetwops(0x00FF) 0]] "\n"}
+      append rcfileUpgradeStr "\n"
+
+      append rcfileUpgradeStr {[CLIENT SERVER]} "\n"
+      catch {append rcfileUpgradeStr [concat netacq_enable = $netacq_enable] "\n"}
+      catch {
+         foreach {key val} $netacqcf {
+            append rcfileUpgradeStr [concat netacqcf_$key = $val] "\n"
+         }
+      }
+      append rcfileUpgradeStr "\n"
+
+      # dump video input and TV card configuration
+      append rcfileUpgradeStr {[TV CARDS]} "\n"
+      catch {append rcfileUpgradeStr [concat hwcf_cardidx = $hwcf_cardidx] "\n"}
+      catch {append rcfileUpgradeStr [concat hwcf_input = $hwcf_input] "\n"}
+      catch {append rcfileUpgradeStr [concat hwcf_acq_prio = $hwcf_acq_prio] "\n"}
+      catch {append rcfileUpgradeStr [concat hwcf_slicer_type = $hwcf_slicer_type] "\n"}
+      catch {append rcfileUpgradeStr [concat hwcf_wdm_stop = $hwcf_wdm_stop] "\n"}
+      catch {append rcfileUpgradeStr [concat tvcardcf_count = [array size tvcardcf]] "\n"}
+      catch {
+         foreach cardidx [array names tvcardcf] {
+            append rcfileUpgradeStr [concat tvcardcf_$cardidx = $tvcardcf($cardidx)] "\n"
+         }
+      }
+      append rcfileUpgradeStr "\n"
+   }
+}
+
+##
 ##  Write all config variables into the rc/ini file
 ##
 proc UpdateRcFile {} {
+   C_UpdateRcFile
+}
+
+##
+##  Return string with GUI config data
+##  - the string is appended to the rc file by the caller
+##
+proc GetGuiRcData {} {
    global shortcuts shortcut_tree
-   global prov_selection prov_freqs cfnetwops cfnetnames cfnettimes cfnetjoin
+   global cfnetwops cfnetnames cfnettimes cfnetjoin
    global showNetwopListbox showNetwopListboxLeft showShortcutListbox
    global showLayoutButton showStatusLine showColumnHeader showDateScale
    global hideOnMinimize menuUserLanguage help_winsize
-   global prov_merge_cnis prov_merge_cf
-   global acq_mode acq_mode_cnis netacq_enable
    global pibox_height pilistbox_cols shortinfo_height
    global pibox_type pinetbox_col_count pinetbox_col_width
    global pinetbox_rows pinetbox_rows_nonl
-   global netacqcf xawtvcf wintvcf ctxmencf ctxmencf_wintv_vcr
-   global hwcf_cardidx hwcf_input hwcf_acq_prio hwcf_slicer_type hwcf_wdm_stop tvcardcf
-   global epgscan_opt_ftable
+   global xawtvcf wintvcf ctxmencf ctxmencf_wintv_vcr
    global wintvapp_idx wintvapp_path
    global substr_history
    global dumpdb_filename
@@ -405,93 +465,95 @@ proc UpdateRcFile {} {
    global dumptabs dumptabs_filename
    global dumphtml_filename dumphtml_file_append dumphtml_file_overwrite
    global dumphtml_sel dumphtml_sel_count dumphtml_type
-   global dumphtml_hyperlinks dumphtml_use_colsel dumphtml_colsel
+   global dumphtml_hyperlinks dumphtml_text_fmt dumphtml_use_colsel dumphtml_colsel
    global dumpxml_filename dumpxml_format
    global colsel_tabs usercols colsel_ailist_predef
-   global piexpire_cutoff
    global remgroups remgroup_order reminders rem_msg_cnf_time rem_cmd_cnf_time
    global remlist_winsize rempilist_colsize remsclist_colsize
-   global EPG_VERSION EPG_VERSION_NO nxtvepg_rc_compat
-   global myrcfile is_unix is_daemon
+   global EPG_VERSION EPG_VERSION_NO
 
-   if $is_daemon {
-      UpdateDaemonRcFile
-      return
-   }
-   if $is_unix {
-      set tmpfile ${myrcfile}.tmp
-   } else {
-      set tmpfile ${myrcfile}
-   }
+   set rcfile {}
+   #{
+      append rcfile {[TV APP INTERACTION]} "\n"
+      append rcfile [list set wintvapp_path $wintvapp_path] "\n"
+      append rcfile [list set wintvapp_idx $wintvapp_idx] "\n"
+      append rcfile [list set xawtvcf $xawtvcf] "\n"
+      append rcfile [list set wintvcf $wintvcf] "\n"
+      append rcfile [list set ctxmencf_wintv_vcr $ctxmencf_wintv_vcr] "\n"
+      append rcfile "\n"
 
-   if {[catch {set rcfile [open $tmpfile "w"]} errstr] == 0} {
-      puts $rcfile "#"
-      puts $rcfile "# Nextview EPG configuration file"
-      puts $rcfile "#"
-      puts $rcfile "# This file is automatically generated - do not edit"
-      puts $rcfile "# Written at: [clock format [clock seconds] -format %c]"
-      puts $rcfile "#"
-
-      # dump software version
-      puts $rcfile [list set nxtvepg_version $EPG_VERSION_NO]
-      puts $rcfile [list set nxtvepg_version_str $EPG_VERSION]
-      puts $rcfile [list set rc_compat_version $nxtvepg_rc_compat]
-      puts $rcfile [list set rc_timestamp [clock seconds]]
-
-      # dump filter shortcuts
-      foreach index [lsort -integer [array names shortcuts]] {
-         puts $rcfile [list set shortcuts($index) $shortcuts($index)]
-      }
-      puts $rcfile [list set shortcut_tree $shortcut_tree]
-
-      # dump provider selection order
-      puts $rcfile [list set prov_selection $prov_selection]
-
-      # dump provider frequency list
-      puts $rcfile [list set prov_freqs $prov_freqs]
-
+      append rcfile {[NETWORKS]} "\n"
       # dump network selection for all providers
       foreach index [array names cfnetwops] {
-         puts $rcfile [list set cfnetwops($index) $cfnetwops($index)]
+         append rcfile [list set cfnetwops($index) $cfnetwops($index)] "\n"
       }
       # dump network names
       if [array exists cfnetnames] {
-         puts $rcfile [list array set cfnetnames [array get cfnetnames]]
+         append rcfile [list array set cfnetnames [array get cfnetnames]] "\n"
       }
       # dump network air times
       if [array exists cfnettimes] {
-         puts $rcfile [list array set cfnettimes [array get cfnettimes]]
+         append rcfile [list array set cfnettimes [array get cfnettimes]] "\n"
       }
       # dump network join lists
-      puts $rcfile [list set cfnetjoin $cfnetjoin]
+      append rcfile [list set cfnetjoin $cfnetjoin] "\n"
+      append rcfile "\n"
 
+      append rcfile {[DATABASE EXPORT]} "\n"
+      append rcfile [list set dumpdb_filename $dumpdb_filename] "\n"
+      append rcfile [list set dumpdb_pi $dumpdb_pi] "\n"
+      append rcfile [list set dumpdb_xi $dumpdb_xi] "\n"
+      append rcfile [list set dumpdb_ai $dumpdb_ai] "\n"
+      append rcfile [list set dumpdb_ni $dumpdb_ni] "\n"
+      append rcfile [list set dumpdb_oi $dumpdb_oi] "\n"
+      append rcfile [list set dumpdb_mi $dumpdb_mi] "\n"
+      append rcfile [list set dumpdb_li $dumpdb_li] "\n"
+      append rcfile [list set dumpdb_ti $dumpdb_ti] "\n"
+
+      append rcfile [list set dumptabs_filename $dumptabs_filename] "\n"
+      append rcfile [list set dumptabs $dumptabs] "\n"
+
+      append rcfile [list set dumphtml_filename $dumphtml_filename] "\n"
+      append rcfile [list set dumphtml_file_append $dumphtml_file_append] "\n"
+      append rcfile [list set dumphtml_file_overwrite $dumphtml_file_overwrite] "\n"
+      append rcfile [list set dumphtml_sel $dumphtml_sel] "\n"
+      append rcfile [list set dumphtml_sel_count $dumphtml_sel_count] "\n"
+      append rcfile [list set dumphtml_type $dumphtml_type] "\n"
+      append rcfile [list set dumphtml_hyperlinks $dumphtml_hyperlinks] "\n"
+      append rcfile [list set dumphtml_text_fmt $dumphtml_text_fmt] "\n"
+      append rcfile [list set dumphtml_use_colsel $dumphtml_use_colsel] "\n"
+      append rcfile [list set dumphtml_colsel $dumphtml_colsel] "\n"
+
+      append rcfile [list set dumpxml_filename $dumpxml_filename] "\n"
+      append rcfile [list set dumpxml_format $dumpxml_format] "\n"
+      append rcfile "\n"
+
+      append rcfile {[GUI]} "\n"
+      append rcfile [list set nxtvepg_version $EPG_VERSION_NO] "\n"
+      append rcfile [list set nxtvepg_version_str $EPG_VERSION] "\n"
       # dump shortcuts & network listbox visibility
-      puts $rcfile [list set showNetwopListbox $showNetwopListbox]
-      puts $rcfile [list set showNetwopListboxLeft $showNetwopListboxLeft]
-      puts $rcfile [list set showShortcutListbox $showShortcutListbox]
-      puts $rcfile [list set showLayoutButton $showLayoutButton]
-      puts $rcfile [list set showStatusLine $showStatusLine]
-      puts $rcfile [list set showDateScale $showDateScale]
-      puts $rcfile [list set showColumnHeader $showColumnHeader]
-      puts $rcfile [list set hideOnMinimize $hideOnMinimize]
-      puts $rcfile [list set menuUserLanguage $menuUserLanguage]
+      append rcfile [list set showNetwopListbox $showNetwopListbox] "\n"
+      append rcfile [list set showNetwopListboxLeft $showNetwopListboxLeft] "\n"
+      append rcfile [list set showShortcutListbox $showShortcutListbox] "\n"
+      append rcfile [list set showLayoutButton $showLayoutButton] "\n"
+      append rcfile [list set showStatusLine $showStatusLine] "\n"
+      append rcfile [list set showDateScale $showDateScale] "\n"
+      append rcfile [list set showColumnHeader $showColumnHeader] "\n"
+      append rcfile [list set hideOnMinimize $hideOnMinimize] "\n"
+      append rcfile [list set menuUserLanguage $menuUserLanguage] "\n"
 
       # dump size of help window, if modified by the user
-      if {[info exists help_winsize]} {puts $rcfile [list set help_winsize $help_winsize]}
-
-      # dump provider database merge CNIs and configuration
-      if {[info exists prov_merge_cnis]} {puts $rcfile [list set prov_merge_cnis $prov_merge_cnis]}
-      if {[info exists prov_merge_cf]} {puts $rcfile [list set prov_merge_cf $prov_merge_cf]}
+      if {[info exists help_winsize]} {append rcfile [list set help_winsize $help_winsize] "\n"}
 
       # dump browser listbox configuration
-      if {[info exists shortinfo_height]} {puts $rcfile [list set shortinfo_height $shortinfo_height]}
-      if {[info exists pibox_height]} {puts $rcfile [list set pibox_height $pibox_height]}
-      if {[info exists pilistbox_cols]} {puts $rcfile [list set pilistbox_cols $pilistbox_cols]}
-      puts $rcfile [list set pibox_type $pibox_type]
-      puts $rcfile [list set pinetbox_col_count $pinetbox_col_count]
-      puts $rcfile [list set pinetbox_col_width $pinetbox_col_width]
-      puts $rcfile [list set pinetbox_rows $pinetbox_rows]
-      puts $rcfile [list set pinetbox_rows_nonl_l [array names pinetbox_rows_nonl]]
+      if {[info exists shortinfo_height]} {append rcfile [list set shortinfo_height $shortinfo_height] "\n"}
+      if {[info exists pibox_height]} {append rcfile [list set pibox_height $pibox_height] "\n"}
+      if {[info exists pilistbox_cols]} {append rcfile [list set pilistbox_cols $pilistbox_cols] "\n"}
+      append rcfile [list set pibox_type $pibox_type] "\n"
+      append rcfile [list set pinetbox_col_count $pinetbox_col_count] "\n"
+      append rcfile [list set pinetbox_col_width $pinetbox_col_width] "\n"
+      append rcfile [list set pinetbox_rows $pinetbox_rows] "\n"
+      append rcfile [list set pinetbox_rows_nonl_l [array names pinetbox_rows_nonl]] "\n"
 
       # dump browser listbox column widths
       set pilistbox_col_widths {}
@@ -500,259 +562,43 @@ proc UpdateRcFile {} {
             lappend pilistbox_col_widths $col [lindex $colsel_tabs($col) 0]
          }
       }
-      puts $rcfile [list set pilistbox_col_widths $pilistbox_col_widths]
+      append rcfile [list set pilistbox_col_widths $pilistbox_col_widths] "\n"
 
       # dump user-defined columns
       foreach col [array names usercols] {
-         puts $rcfile [list set pilistbox_usercol($col) [list $colsel_tabs(user_def_$col) $usercols($col)]]
+         append rcfile [list set pilistbox_usercol($col) [list $colsel_tabs(user_def_$col) $usercols($col)]] "\n"
       }
 
-      # dump acquisition mode and provider CNIs
-      if {[info exists acq_mode]} { puts $rcfile [list set acq_mode $acq_mode] }
-      if {[info exists acq_mode_cnis]} {puts $rcfile [list set acq_mode_cnis $acq_mode_cnis]}
-      puts $rcfile [list set netacq_enable $netacq_enable]
+      append rcfile [list set ctxmencf $ctxmencf] "\n"
 
-      # dump video input and TV card configuration
-      puts $rcfile [list set hwcf_cardidx $hwcf_cardidx]
-      puts $rcfile [list set hwcf_input $hwcf_input]
-      puts $rcfile [list set hwcf_acq_prio $hwcf_acq_prio]
-      puts $rcfile [list set hwcf_slicer_type $hwcf_slicer_type]
-      puts $rcfile [list set hwcf_wdm_stop $hwcf_wdm_stop]
-      foreach cardidx [array names tvcardcf] {
-         puts $rcfile [list set tvcardcf($cardidx) $tvcardcf($cardidx)]
-      }
-      puts $rcfile [list set wintvapp_path $wintvapp_path]
-      puts $rcfile [list set wintvapp_idx $wintvapp_idx]
-      puts $rcfile [list set epgscan_opt_ftable $epgscan_opt_ftable]
+      if {[info exists substr_history]} {append rcfile [list set substr_history $substr_history] "\n"}
 
-      puts $rcfile [list set netacqcf $netacqcf]
-      puts $rcfile [list set xawtvcf $xawtvcf]
-      puts $rcfile [list set wintvcf $wintvcf]
-      puts $rcfile [list set ctxmencf $ctxmencf]
-      puts $rcfile [list set ctxmencf_wintv_vcr $ctxmencf_wintv_vcr]
+      append rcfile [list set remlist_winsize $remlist_winsize] "\n"
+      append rcfile [list set rempilist_colsize $rempilist_colsize] "\n"
+      append rcfile [list set remsclist_colsize $remsclist_colsize] "\n"
+      append rcfile "\n"
 
-      if {[info exists substr_history]} {puts $rcfile [list set substr_history $substr_history]}
-
-      puts $rcfile [list set dumpdb_filename $dumpdb_filename]
-      puts $rcfile [list set dumpdb_pi $dumpdb_pi]
-      puts $rcfile [list set dumpdb_xi $dumpdb_xi]
-      puts $rcfile [list set dumpdb_ai $dumpdb_ai]
-      puts $rcfile [list set dumpdb_ni $dumpdb_ni]
-      puts $rcfile [list set dumpdb_oi $dumpdb_oi]
-      puts $rcfile [list set dumpdb_mi $dumpdb_mi]
-      puts $rcfile [list set dumpdb_li $dumpdb_li]
-      puts $rcfile [list set dumpdb_ti $dumpdb_ti]
-
-      puts $rcfile [list set dumptabs_filename $dumptabs_filename]
-      puts $rcfile [list set dumptabs $dumptabs]
-
-      puts $rcfile [list set dumphtml_filename $dumphtml_filename]
-      puts $rcfile [list set dumphtml_file_append $dumphtml_file_append]
-      puts $rcfile [list set dumphtml_file_overwrite $dumphtml_file_overwrite]
-      puts $rcfile [list set dumphtml_sel $dumphtml_sel]
-      puts $rcfile [list set dumphtml_sel_count $dumphtml_sel_count]
-      puts $rcfile [list set dumphtml_type $dumphtml_type]
-      puts $rcfile [list set dumphtml_hyperlinks $dumphtml_hyperlinks]
-      puts $rcfile [list set dumphtml_use_colsel $dumphtml_use_colsel]
-      puts $rcfile [list set dumphtml_colsel $dumphtml_colsel]
-
-      puts $rcfile [list set dumpxml_filename $dumpxml_filename]
-      puts $rcfile [list set dumpxml_format $dumpxml_format]
-
-      puts $rcfile [list set piexpire_cutoff $piexpire_cutoff]
-
-      puts $rcfile [list set remlist_winsize $remlist_winsize]
-      puts $rcfile [list set rempilist_colsize $rempilist_colsize]
-      puts $rcfile [list set remsclist_colsize $remsclist_colsize]
+      append rcfile {[REMINDER]} "\n"
       foreach gtag [array names remgroups] {
-         puts $rcfile [list set remgroups($gtag) $remgroups($gtag)]
+         append rcfile [list set remgroups($gtag) $remgroups($gtag)] "\n"
       }
-      puts $rcfile [list set remgroup_order $remgroup_order]
-      puts $rcfile [list set reminders {}]
+      append rcfile [list set remgroup_order $remgroup_order] "\n"
+      append rcfile [list set reminders {}] "\n"
       for {set idx 0} {$idx < [llength $reminders]} {incr idx} {
-         puts $rcfile [list lappend reminders [lindex $reminders $idx]]
+         append rcfile [list lappend reminders [lindex $reminders $idx]] "\n"
       }
-      puts $rcfile [list set rem_msg_cnf_time $rem_msg_cnf_time]
-      puts $rcfile [list set rem_cmd_cnf_time $rem_cmd_cnf_time]
+      append rcfile [list set rem_msg_cnf_time $rem_msg_cnf_time] "\n"
+      append rcfile [list set rem_cmd_cnf_time $rem_cmd_cnf_time] "\n"
+      append rcfile "\n"
 
-      close $rcfile
-
-      # move the new file over the old one
-      # - don't use temp file on win32 because Tcl rename func fails with "file not found"
-      #   (library bug or some obscure working directory problem?)
-      if $is_unix {
-         if {[catch {file rename -force $tmpfile ${myrcfile}} errstr] != 0} {
-
-            tk_messageBox -type ok -default ok -icon error -message "Could not replace rc/ini file $myrcfile\n$errstr"
-         }
+      # dump filter shortcuts
+      append rcfile {[FILTER SHORTCUTS]} "\n"
+      foreach index [lsort -integer [array names shortcuts]] {
+         append rcfile [list set shortcuts($index) $shortcuts($index)] "\n"
       }
-
-   } else {
-      tk_messageBox -type ok -default ok -icon error -message "Could not create temporary rc/ini file $tmpfile\n$errstr"
-   }
-}
-
-##
-##  Daemon RC file update: merge chaned settings into rc/ini file
-##  - daemon must nor use normal update func, because post-processing stage
-##    was skipped during load, i.e. not global variables are initialized
-##  - usefulness of this function is questionable, because the frequency
-##    should be updated only in an EPG scan or if no freq is in the DB yet
-##
-proc UpdateDaemonRcFile {} {
-   global myrcfile is_unix
-
-   if $is_unix {
-      set tmpfile ${myrcfile}.tmp
-   } else {
-      set tmpfile ${myrcfile}
-   }
-   set error 0
-   if {[catch {set new_rcfile [open $tmpfile "w"]}] == 0} {
-
-      # open the old ini file to copy it line by line
-      if {[catch {set rcfile [open $myrcfile "r"]} errmsg] == 0} {
-         while {[gets $rcfile line] >= 0} {
-
-            if {([catch $line] != 0) && !$error} {
-               set error 1
-               break;
-            }
-
-            # eval this line to check if it contains the search variable
-            catch $line
-
-            if [info exists prov_freqs] {
-               # this line contains the variable -> skip it
-               unset prov_freqs
-            } else {
-               # copy this line unchanged from input to output
-               puts $new_rcfile $line
-            }
-         }
-
-         # write the new value (copied from global variable, which must not
-         # be declared global here or it would have been overwritten above)
-         puts $new_rcfile [list set prov_freqs $::prov_freqs]
-
-         close $rcfile
-         close $new_rcfile
-
-         if $is_unix {
-            if {$error == 0} {
-               catch [list file rename -force $tmpfile $myrcfile]
-            } else {
-               catch [list file delete $tmpfile]
-            }
-         }
-      }
-   }
-}
-
-##
-##  Update the provider preference order: move the last selected CNI to the front
-##
-set prov_selection {}
-
-proc UpdateProvSelection {cni} {
-   global prov_selection
-
-   # check if an update is required
-   if {($cni != [lindex $prov_selection 0]) && ($cni != 0)} {
-
-      # delete the cni in the old list
-      set index 0
-      foreach prov $prov_selection {
-         if {$prov == $cni} {
-            set prov_selection [lreplace $prov_selection $index $index]
-            break
-         }
-         incr index
-      }
-      # prepend the cni to the selection list
-      set prov_selection [linsert $prov_selection 0 $cni]
-
-      # save the new list into the ini/rc file
-      UpdateRcFile
-   }
-}
-
-##
-##  Same as above, but with more than one CNI
-##  CNI list taken from the merged db (starting with the special CNI 0x00FF)
-##
-proc UpdateMergedProvSelection {} {
-   global prov_selection
-   global prov_merge_cnis
-
-   set cni_list [concat 0x00FF $prov_merge_cnis]
-   set cni_count [llength $cni_list]
-
-   # compare the given list with the beginning of the old list
-   set index 0
-   foreach cni $cni_list {
-      if {$cni != [lindex $prov_selection $index]} {
-         break
-      }
-      incr index
-   }
-
-   # check if an update is required
-   if {$index < $cni_count} {
-
-      # delete the given CNIs in the old list
-      set new_list {}
-      foreach cni $prov_selection {
-         if {[lsearch -exact $cni_list $cni] == -1} {
-            lappend new_list $cni
-         }
-      }
-
-      # assemble the new provider selection list
-      set prov_selection [concat $cni_list $new_list]
-
-      # save the new list into the ini/rc file
-      UpdateRcFile
-   }
-}
-
-##
-##  Update the frequency for a given provider
-##
-set prov_freqs {}
-
-proc UpdateProvFrequency {cniFreqList} {
-   global prov_freqs
-
-   set modified 0
-
-   foreach {cni freq} $cniFreqList {
-      # search the list for the given CNI
-      set found 0
-      set idx 0
-      foreach {rc_cni rc_freq} $prov_freqs {
-         if {$rc_cni == $cni} {
-            if {$rc_freq != $freq} {
-               # CNI already in the list with a different frequency -> update
-               set prov_freqs [lreplace $prov_freqs $idx [expr $idx + 1] $cni $freq]
-               set modified 1
-            }
-            set found 1
-            break
-         }
-         incr idx 2
-      }
-
-      if {$found == 0} {
-         # not found in the list -> append new pair to the list
-         lappend prov_freqs $cni $freq
-         set modified 1
-      }
-   }
-
-   if $modified {
-      # frequency added or modified -> write the rc/ini file
-      UpdateRcFile
-   }
+      append rcfile [list set shortcut_tree $shortcut_tree] "\n"
+      append rcfile "\n"
+   #}
+   return $rcfile
 }
 

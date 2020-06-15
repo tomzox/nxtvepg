@@ -28,7 +28,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: Makefile,v 1.77 2004/12/18 14:49:26 tom Exp tom $
+#  $Id: Makefile,v 1.80 2005/01/08 15:19:03 tom Exp tom $
 #
 
 ifeq ($(OS),Windows_NT)
@@ -61,10 +61,10 @@ ifeq ($(shell test -d /usr/include/tcl$(TCL_VER) && echo YES),YES)
 INCS   += -I/usr/include/tcl$(TCL_VER)
 endif
 
-LDLIBS  = -ltk$(TCL_VER) -ltcl$(TCL_VER) -L/usr/X11R6/lib -lX11 -lXmu -lm -ldl
+GUILIBS  = -ltk$(TCL_VER) -ltcl$(TCL_VER) -L/usr/X11R6/lib -lX11 -lXmu -ldl
 
 # use static libraries for debugging only
-#LDLIBS += -Ldbglib -static
+#GUILIBS += -Ldbglib -static
 
 INCS   += -I. -I/usr/X11R6/include
 DEFS   += -DX11_APP_DEFAULTS=\"$(resdir)/app-defaults/Nxtvepg\"
@@ -78,8 +78,8 @@ DEFS   += -DTK_LIBRARY_PATH=\"$(TK_LIBRARY_PATH)\"
 DEFS   += -DTCL_LIBRARY_PATH=\"$(TCL_LIBRARY_PATH)\"
 
 # enable use of multi-threading
-DEFS   += -DUSE_THREADS
-LDLIBS += -lpthread
+DEFS    += -DUSE_THREADS
+ACQLIBS += -lpthread
 
 # enable use of daemon and client/server connection
 DEFS   += -DUSE_DAEMON
@@ -92,8 +92,8 @@ DEFS   += -DUSE_DAEMON
 # enable use of VBI proxy via libzvbi (requires proxy branch of libzvbi)
 # (note proxy API is still subject to change as of March-2004)
 #DEFS   += -DUSE_VBI_PROXY
-#LDLIBS += -lzvbi -lpthread -lpng
-#LDLIBS += /tom/work/tv/cvs/x-ssh/vbi/src/.libs/libzvbi.a -lpthread -lpng
+#LACQIBS += -lzvbi -lpthread -lpng
+#LACQIBS += /tom/work/tv/cvs/x-ssh/vbi/src/.libs/libzvbi.a -lpthread -lpng
 
 # enable workarounds for linux saa7134 driver: up to version 0.2.6
 # - change VBI default sampling rate (because the driver doesn't support ioctl VIDIOCGVBIFMT)
@@ -117,9 +117,10 @@ WARN    = -Wall -Wnested-externs -Wstrict-prototypes -Wmissing-prototypes
 #WARN  += -Wpointer-arith -Werror
 CC      = gcc
 # the following flags can be overridden by an environment variable with the same name
-CFLAGS ?= -pipe -O2
+CFLAGS ?= -pipe -g -O2
 CFLAGS += $(WARN) $(INCS) $(DEFS)
-#LDLIBS += -pg
+LDFLAGS += -lm
+#LDFLAGS += -pg
 
 BUILD_DIR  = build-$(shell uname -m | sed -e 's/i.86/i386/' -e 's/ppc/powerpc/')
 INCS      += -I$(BUILD_DIR)
@@ -130,20 +131,23 @@ endif
 
 # ----- don't change anything below ------------------------------------------
 
-CSRC    = epgvbi/btdrv4linux epgvbi/vbidecode epgvbi/zvbidecoder \
+EPGSRC  = epgvbi/btdrv4linux epgvbi/vbidecode epgvbi/zvbidecoder \
           epgvbi/ttxdecode epgvbi/hamming epgvbi/cni_tables epgvbi/tvchan \
           epgvbi/syserrmsg \
-          epgctl/debug epgctl/epgacqctl epgctl/epgscan epgctl/epgctxctl \
-          epgctl/epgctxmerge epgctl/epgacqclnt epgctl/epgacqsrv \
           epgdb/epgstream epgdb/epgdbmerge epgdb/epgdbsav \
           epgdb/epgdbmgmt epgdb/epgdbif epgdb/epgdbfil epgdb/epgblock \
           epgdb/epgnetio epgdb/epgqueue epgdb/epgtscqueue \
-          epgui/pibox epgui/pilistbox epgui/pinetbox epgui/piremind \
+          epgctl/debug epgctl/epgacqctl epgctl/epgscan epgctl/epgctxctl \
+          epgctl/epgctxmerge epgctl/epgacqclnt epgctl/epgacqsrv
+GUISRC  = epgui/pibox epgui/pilistbox epgui/pinetbox epgui/piremind \
           epgui/uictrl epgui/pioutput epgui/pidescr epgui/pifilter \
           epgui/statswin epgui/timescale epgui/pdc_themes epgui/menucmd \
           epgui/epgmain epgui/loadtcl epgui/xawtv epgui/wintvcfg \
           epgui/dumptext epgui/dumpraw epgui/dumphtml epgui/dumpxml \
-          epgui/shellcmd epgui/wmhooks
+          epgui/shellcmd epgui/wmhooks epgui/daemon epgui/epgsetup \
+          epgui/cmdline epgui/rcfile
+CLDSRC  = epgui/daemon_main epgui/daemon epgui/epgsetup \
+          epgui/cmdline epgui/rcfile
 TCLSRC  = epgtcl/mainwin epgtcl/helptexts epgtcl/dlg_hwcfg epgtcl/dlg_xawtvcf \
           epgtcl/dlg_ctxmencf epgtcl/dlg_acqmode epgtcl/dlg_netsel \
           epgtcl/dlg_dump epgtcl/dlg_netname epgtcl/dlg_udefcols \
@@ -153,7 +157,8 @@ TCLSRC  = epgtcl/mainwin epgtcl/helptexts epgtcl/dlg_hwcfg epgtcl/dlg_xawtvcf \
           epgtcl/mclistbox epgtcl/combobox epgtcl/rnotebook epgtcl/htree
 
 TVSIM_CSRC    = tvsim/tvsim_main
-TVSIM_CSRC2   = epgctl/debug epgui/pdc_themes epgvbi/tvchan epgui/wintvcfg
+TVSIM_CSRC2   = epgctl/debug epgui/pdc_themes epgvbi/tvchan epgvbi/syserrmsg \
+                epgui/wintvcfg epgui/rcfile
 TVSIM_TCLSRC  = tvsim/tvsim_gui
 VBIREC_CSRC   = tvsim/vbirec_main
 VBIREC_CSRC2  = epgvbi/btdrv4linux epgvbi/vbidecode epgvbi/zvbidecoder \
@@ -161,24 +166,29 @@ VBIREC_CSRC2  = epgvbi/btdrv4linux epgvbi/vbidecode epgvbi/zvbidecoder \
                 epgvbi/syserrmsg epgctl/debug epgui/xawtv
 VBIREC_TCLSRC = tvsim/vbirec_gui epgtcl/combobox
 
-NXTV_OBJS     = $(addprefix $(BUILD_DIR)/, $(addsuffix .o, $(CSRC) $(TCLSRC)))
+NXTV_OBJS     = $(addprefix $(BUILD_DIR)/, $(addsuffix .o, $(EPGSRC) $(GUISRC) $(TCLSRC)))
+DAEMON_OBJS   = $(addprefix $(BUILD_DIR)/, $(addsuffix .o, $(EPGSRC) $(CLDSRC)))
 TVSIM_OBJS    = $(addprefix $(BUILD_DIR)/, $(addsuffix .o, $(TVSIM_CSRC) $(TVSIM_CSRC2) $(TVSIM_TCLSRC)))
 VBIREC_OBJS   = $(addprefix $(BUILD_DIR)/, $(addsuffix .o, $(VBIREC_CSRC) $(VBIREC_CSRC2) $(VBIREC_TCLSRC)))
 
-.PHONY: devel tvsim tvmans all
+.PHONY: devel daemon tvsim tvmans all
 devel   :: $(BUILD_DIR) tcl_headers $(BUILD_DIR)/nxtvepg nxtvepg.1
+daemon  :: $(BUILD_DIR) tcl_headers $(BUILD_DIR)/nxtvepgd nxtvepg.1 devel
 tvsim   :: $(BUILD_DIR) tcl_headers_tvsim $(BUILD_DIR)/tvsimu $(BUILD_DIR)/vbirec tvmans
 tvmans  :: $(BUILD_DIR) tvsim/tvsim.html tvsim/vbirec.html tvsim/vbiplay.html
-all     :: devel tvsim tvmans
+all     :: devel daemon tvsim tvmans
 
 $(BUILD_DIR)/nxtvepg: $(NXTV_OBJS)
-	$(CC) $(LDFLAGS) -o $@ $(NXTV_OBJS) $(LDLIBS)
+	$(CC) -o $@ $(NXTV_OBJS) $(GUILIBS) $(ACQLIBS) $(LDFLAGS) 
+
+$(BUILD_DIR)/nxtvepgd: $(DAEMON_OBJS)
+	$(CC) -o $@ $(DAEMON_OBJS) $(LDFLAGS) $(ACQLIBS)
 
 $(BUILD_DIR)/tvsimu: $(TVSIM_OBJS)
-	$(CC) $(LDFLAGS) $(TVSIM_OBJS) $(LDLIBS) -o $@
+	$(CC) -o $@ $(TVSIM_OBJS) $(LDFLAGS) $(GUILIBS) $(ACQLIBS)
 
 $(BUILD_DIR)/vbirec: $(VBIREC_OBJS)
-	$(CC) $(LDFLAGS) $(VBIREC_OBJS) $(LDLIBS) -o $@
+	$(CC) -o $@ $(VBIREC_OBJS) $(LDFLAGS) $(GUILIBS) $(ACQLIBS)
 
 .PHONY: install
 install: devel Nxtvepg.ad
@@ -259,7 +269,6 @@ endif
 clean:
 	-rm -rf build-*
 	-rm -f core a.out *.exe *.o
-	-rm -f epgui/tkwinico.res
 
 .PHONY: depend
 depend:
@@ -282,7 +291,7 @@ nxtvepg.1 manual.html: nxtvepg.pod pod2help.pl epgctl/epgversion.h
 	  EPG_VERSION_STR=`egrep '[ \t]*#[ \t]*define[ \t]*EPG_VERSION_STR' epgctl/epgversion.h | head -1 | sed -e 's#.*"\(.*\)".*#\1#'`; \
 	  echo "pod2man nxtvepg.pod > nxtvepg.1"; \
 	  pod2man -date " " -center "Nextview EPG Decoder" -section "1" \
-	          -release "nxtvepg "$$EPG_VERSION_STR" (C) 1999-2004 Tom Zoerner" \
+	          -release "nxtvepg "$$EPG_VERSION_STR" (C) 1999-2005 Tom Zoerner" \
 	     nxtvepg.pod > nxtvepg.1; \
 	  echo "pod2html nxtvepg.pod > manual.html"; \
 	  pod2html nxtvepg.pod | $(PERL) -p -e 's/(HREF=\"#)([^:"]+: |[^_"]+(_[^_"]+)?__)+/$$1/gi;' > manual.html; \

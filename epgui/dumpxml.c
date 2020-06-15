@@ -18,7 +18,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: dumpxml.c,v 1.10 2004/10/31 17:01:13 tom Exp tom $
+ *  $Id: dumpxml.c,v 1.13 2005/01/01 18:18:46 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -67,7 +67,7 @@ static void EpgDumpXml_AppendInfoTextCb( void *vp, const char * pDesc, bool addS
 {
    DUMP_XML_CB_INFO * pCbInfo = vp;
    FILE * fp;
-   char * pNewline;
+   const char * pNewline;
 
    if ((pCbInfo != NULL) && (pCbInfo->fp != NULL) && (pDesc != NULL))
    {
@@ -85,8 +85,7 @@ static void EpgDumpXml_AppendInfoTextCb( void *vp, const char * pDesc, bool addS
       while ( (pNewline = strchr(pDesc, '\n')) != NULL )
       {
          // print text up to (and excluding) the newline
-         *pNewline = 0;  // XXX must not modify const string
-         EpgDumpHtml_WriteString(fp, pDesc);
+         EpgDumpHtml_WriteString(fp, pDesc, pNewline - pDesc);
 
          if ( IS_XML_DTD5(pCbInfo->xmlDtdVersion) )
             fprintf(fp, "\n\n");
@@ -97,7 +96,7 @@ static void EpgDumpXml_AppendInfoTextCb( void *vp, const char * pDesc, bool addS
          pDesc = pNewline + 1;
       }
       // write the segment behind the last newline
-      EpgDumpHtml_WriteString(fp, pDesc);
+      EpgDumpHtml_WriteString(fp, pDesc, -1);
    }
 }
 
@@ -199,7 +198,7 @@ static void EpgDumpXml_WriteHeader( EPGDB_CONTEXT * pDbContext, const AI_BLOCK *
                   "<tv generator-info-name=\"nxtvepg/" EPG_VERSION_STR "\" "
                        "generator-info-url=\"" NXTVEPG_URL "\" "
                        "source-info-name=\"nexTView ");
-      EpgDumpHtml_WriteString(fp, comm);
+      EpgDumpHtml_WriteString(fp, comm, -1);
       fprintf(fp, "\" date=\"%s\">\n", start_str);
    }
    else // XML DTD 6
@@ -211,7 +210,7 @@ static void EpgDumpXml_WriteHeader( EPGDB_CONTEXT * pDbContext, const AI_BLOCK *
                   "\t<copying>\n"
                   "\t\t<p>\n"
                   "Copyright by nexTView EPG content providers: ", start_str);
-      EpgDumpHtml_WriteString(fp, comm);
+      EpgDumpHtml_WriteString(fp, comm, -1);
       fprintf(fp, "\n\t\t</p>\n"
                   "\t</copying>\n"
                   "\t<generator-info>\n"
@@ -256,7 +255,7 @@ static void EpgDumpXml_WriteChannels( EPGDB_CONTEXT * pDbContext, const AI_BLOCK
       }
 
       fprintf(fp, "\t<display-name>");
-      EpgDumpHtml_WriteString(fp, native);
+      EpgDumpHtml_WriteString(fp, native, -1);
       fprintf(fp, "</display-name>\n"
                   "</channel>\n");
 
@@ -320,7 +319,7 @@ static void EpgDumpXml_WriteProgramme( EPGDB_CONTEXT * pDbContext, const AI_BLOC
    // programme title and description (quoting "<", ">" and "&" characters)
    PiOutput_PrintColumnItem(pPiBlock, PIBOX_COL_TITLE, comm, TCL_COMM_BUF_SIZE);
    fprintf(fp, "\t<title>");
-   EpgDumpHtml_WriteString(fp, comm);
+   EpgDumpHtml_WriteString(fp, comm, -1);
    fprintf(fp, "</title>\n");
    if ( PI_HAS_SHORT_INFO(pPiBlock) || PI_HAS_LONG_INFO(pPiBlock) )
    {
@@ -351,7 +350,7 @@ static void EpgDumpXml_WriteProgramme( EPGDB_CONTEXT * pDbContext, const AI_BLOC
 
       pThemeStr = PdcThemeGet(pPiBlock->themes[idx]);
       if (pThemeStr != NULL)
-         EpgDumpHtml_WriteString(fp, pThemeStr);
+         EpgDumpHtml_WriteString(fp, pThemeStr, -1);
 
       fprintf(fp, "</category>\n");
    }
@@ -432,13 +431,31 @@ static void EpgDumpXml_WriteProgramme( EPGDB_CONTEXT * pDbContext, const AI_BLOC
 // ----------------------------------------------------------------------------
 // Dump programme titles and/or descriptions into file in XMLTV format
 //
-void EpgDumpXml_Standalone( EPGDB_CONTEXT * pDbContext, FILE * fp )
+void EpgDumpXml_Standalone( EPGDB_CONTEXT * pDbContext, FILE * fp, DUMP_XML_MODE dumpMode )
 {
    const AI_BLOCK  * pAiBlock;
    const PI_BLOCK  * pPiBlock;
    int   xmlDtdVersion;
 
-   xmlDtdVersion = EpgDumpXml_QueryXmlDtdVersion(interp);
+   switch (dumpMode)
+   {
+      case DUMP_XMLTV_ANY:
+         xmlDtdVersion = EpgDumpXml_QueryXmlDtdVersion(interp);
+         break;
+      case DUMP_XMLTV_DTD_5_GMT:
+         xmlDtdVersion = EPGTCL_XMLTV_DTD_5_GMT;
+         break;
+      case DUMP_XMLTV_DTD_5_LTZ:
+         xmlDtdVersion = EPGTCL_XMLTV_DTD_5_LTZ;
+         break;
+      case DUMP_XMLTV_DTD_6:
+         xmlDtdVersion = EPGTCL_XMLTV_DTD_6;
+         break;
+      default:
+         fatal1("EpgDumpXml-Standalone: invalid mode %d\n", dumpMode);
+         xmlDtdVersion = EPGTCL_XMLTV_DTD_5_GMT;
+         break;
+   }
 
    if (fp != NULL)
    {
@@ -494,7 +511,7 @@ static int EpgDumpXml_DumpDatabase( ClientData ttp, Tcl_Interp *interp,int objc,
       fpDst = fopen(pFileName, "w");
       if (fpDst != NULL)
       {
-         EpgDumpXml_Standalone(pUiDbContext, fpDst);
+         EpgDumpXml_Standalone(pUiDbContext, fpDst, DUMP_XMLTV_ANY);
          fclose(fpDst);
       }
       else

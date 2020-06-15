@@ -18,7 +18,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: dlg_netname.tcl,v 1.4 2003/03/31 19:15:21 tom Exp tom $
+#  $Id: dlg_netname.tcl,v 1.5 2005/01/06 14:05:56 tom Exp tom $
 #
 set netname_popup 0
 
@@ -44,7 +44,7 @@ proc ApplyUserNetnameCfg {name_arr} {
 ##  Configure individual names for networks
 ##
 proc NetworkNamingPopup {} {
-   global cfnetnames prov_selection cfnetwops
+   global cfnetnames cfnetwops
    global netname_ailist netname_names netname_idx netname_xawtv netname_automatch
    global netname_prov_cnis netname_prov_names netname_provnets
    global netname_entry

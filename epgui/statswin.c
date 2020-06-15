@@ -33,7 +33,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: statswin.c,v 1.69 2004/11/01 17:11:50 tom Exp tom $
+ *  $Id: statswin.c,v 1.71 2005/01/06 19:12:45 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -57,7 +57,9 @@
 #include "epgctl/epgctxmerge.h"
 #include "epgctl/epgacqclnt.h"
 #include "epgui/menucmd.h"
+#include "epgui/epgsetup.h"
 #include "epgui/epgmain.h"
+#include "epgui/cmdline.h"
 #include "epgui/uictrl.h"
 #include "epgui/statswin.h"
 
@@ -432,7 +434,7 @@ static void StatsWin_UpdateDbStatsWin( ClientData clientData )
                {
                   strcat(comm, "Acq mode:         forced passive\n");
                   #ifdef WIN32
-                  if (MenuCmd_CheckTvCardConfig() == FALSE)
+                  if (EpgSetup_CheckTvCardConfig() == FALSE)
                   {
                      strcat(comm,    "Passive reason:   TV card not configured");
                   }
@@ -761,7 +763,7 @@ static void StatsWin_UpdateDbStatusLine( ClientData clientData )
          break;
       case ACQDESCR_NO_RECEPTION:
          #ifdef WIN32
-         if (MenuCmd_CheckTvCardConfig() == FALSE)
+         if (EpgSetup_CheckTvCardConfig() == FALSE)
          {
             strcat(comm, "Acquisition: TV card not configured");
          }

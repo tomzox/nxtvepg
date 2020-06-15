@@ -24,10 +24,10 @@
  *    the dynamic part is only loaded when one of it's pre-defined stub
  *    procedures is referenced (usually when a dialog window is opened)
  *
- *    For performance optimization the tool includes a pre-processor which
- *    can replace occurences of global Tcl variables with integer constants.
- *    The constant definitions are also written to a header file to make
- *    them available to all Tcl/Tk and C modules.
+ *    For performance optimization the tool includes a pre-processor
+ *    which can replace occurences of global Tcl variables with integer
+ *    or string constants.  The constant definitions are also written into
+ *    the header file to make them available to other Tcl/Tk and C modules.
  *
  *    Usage:  tcl2c [-d] [-h] [-c] [-p path-prefix] script.tcl
  *
@@ -44,7 +44,7 @@
  *
  *    Completely rewritten and functionality added by Tom Zoerner
  *
- *  $Id: tcl2c.c,v 1.13 2004/05/22 17:07:36 tom Exp tom $
+ *  $Id: tcl2c.c,v 1.14 2005/01/01 18:29:17 tom Exp tom $
  */
 
 #include <stdlib.h>
@@ -125,16 +125,26 @@ static void PrintText( FILE * fp, const char * pLine )
 static void AddSubstitution( char *var_name,  char *subst, FILE * fpH )
 {
     char *p, *s;
+    char isInteger;
     long substIntVal;
+    int  substLen;
 
     if (SubstCount < SUBST_MAX)
     {
-        // make sure substituted value is an integer
-        substIntVal = strtol(subst, &p, 0);
-        if ((*subst == 0) || (*p != 0))
+        // remove double-quotes around strings
+        substLen = strlen(subst);
+        if ((substLen >= 2) && (subst[0] == '"') && (subst[substLen - 1] == '"'))
         {
-            fprintf(stderr, "=CONST= substitution for '%s' is not an integer: '%s'\n", var_name, subst);
-            exit(1);
+           subst[substLen - 1] = 0;
+           subst += 1;
+           isInteger = 0;
+           substIntVal = 0;  // dummy
+        }
+        else
+        {
+           // check if substituted value is an integer
+           substIntVal = strtol(subst, &p, 0);
+           isInteger = ((*subst != 0) && (*p == 0));
         }
 
         strcpy(SubstList[SubstCount].str, var_name);
@@ -167,7 +177,10 @@ static void AddSubstitution( char *var_name,  char *subst, FILE * fpH )
            #endif
 
            // add integer define for use in C modules
-           fprintf(fpH, "#define %s%s %ld\n", SUBST_PREFIX, SubstList[SubstCount].define, substIntVal);
+           if (isInteger)
+           {
+              fprintf(fpH, "#define %s%s %ld\n", SUBST_PREFIX, SubstList[SubstCount].define, substIntVal);
+           }
         }
         SubstCount += 1;
     }

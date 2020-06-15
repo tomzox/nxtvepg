@@ -21,7 +21,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: dumptext.c,v 1.10 2004/10/31 16:47:42 tom Exp tom $
+ *  $Id: dumptext.c,v 1.12 2005/01/01 18:18:23 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -249,22 +249,18 @@ static void DumpText_PdcThemes( FILE *fp )
 // ---------------------------------------------------------------------------
 // Translate string into dump mode
 //
-EPGTAB_DUMP_MODE EpgDumpText_GetMode( const char * pModeStr )
+static DUMP_TEXT_MODE DumpText_GetMode( const char * pModeStr )
 {
-   EPGTAB_DUMP_MODE  mode = EPGTAB_DUMP_COUNT;
+   DUMP_TEXT_MODE  mode = DUMP_TEXT_COUNT;
 
    if (pModeStr != NULL)
    {
       if (strcasecmp("ai", pModeStr) == 0)
-         mode = EPGTAB_DUMP_AI;
+         mode = DUMP_TEXT_AI;
       else if (strcasecmp("pi", pModeStr) == 0)
-         mode = EPGTAB_DUMP_PI;
+         mode = DUMP_TEXT_PI;
       else if (strcasecmp("pdc", pModeStr) == 0)
-         mode = EPGTAB_DUMP_PDC;
-      else if (strcasecmp("xml", pModeStr) == 0)
-         mode = EPGTAB_DUMP_XML;
-      else if (strcasecmp("raw", pModeStr) == 0)
-         mode = EPGTAB_DUMP_DEBUG;
+         mode = DUMP_TEXT_PDC;
       else
          debug1("DumpText-GetMode: unknown mode: %s", pModeStr);
    }
@@ -277,7 +273,7 @@ EPGTAB_DUMP_MODE EpgDumpText_GetMode( const char * pModeStr )
 // ---------------------------------------------------------------------------
 // Export the complete database in "tab-seprarated" format for SQL import
 //
-void EpgDumpText_Standalone( EPGDB_CONTEXT * pDbContext, FILE * fp, EPGTAB_DUMP_MODE mode )
+void EpgDumpText_Standalone( EPGDB_CONTEXT * pDbContext, FILE * fp, DUMP_TEXT_MODE mode )
 {
    const AI_BLOCK * pAi;
    const PI_BLOCK * pPi;
@@ -285,13 +281,13 @@ void EpgDumpText_Standalone( EPGDB_CONTEXT * pDbContext, FILE * fp, EPGTAB_DUMP_
    EpgDbLockDatabase(pDbContext, TRUE);
 
    // Dump PDC theme list
-   if (mode == EPGTAB_DUMP_PDC)
+   if (mode == DUMP_TEXT_PDC)
    {
       DumpText_PdcThemes(fp);
    }
    else
    {
-      if (mode == EPGTAB_DUMP_AI)
+      if (mode == DUMP_TEXT_AI)
       {  // Dump application information block
          pAi = EpgDbGetAi(pDbContext);
          if (pAi != NULL)
@@ -319,7 +315,7 @@ void EpgDumpText_Standalone( EPGDB_CONTEXT * pDbContext, FILE * fp, EPGTAB_DUMP_
 static int EpgDumpText_Database( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
 {
    const char * const pUsage = "Usage: C_DumpTabsDatabase <file-name> <type>";
-   EPGTAB_DUMP_MODE mode;
+   DUMP_TEXT_MODE mode;
    const char * pFileName;
    Tcl_DString ds;
    FILE *fp;
@@ -337,8 +333,8 @@ static int EpgDumpText_Database( ClientData ttp, Tcl_Interp *interp, int objc, T
    }
    else
    {
-      mode = EpgDumpText_GetMode(Tcl_GetString(objv[2]));
-      if (mode != EPGTAB_DUMP_NONE)
+      mode = DumpText_GetMode(Tcl_GetString(objv[2]));
+      if (mode != DUMP_TEXT_COUNT)
       {
          if (Tcl_GetCharLength(objv[1]) > 0)
          {

@@ -20,7 +20,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgacqctl.c,v 1.87 2004/12/24 10:15:56 tom Exp tom $
+ *  $Id: epgacqctl.c,v 1.88 2005/01/01 18:14:36 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGCTL
@@ -77,7 +77,7 @@ typedef struct
    bool           haveWarnedInpSrc;
 } EPGACQCTL_STATE;
 
-static EPGACQCTL_STATE  acqCtl = {ACQSTATE_OFF, ACQMODE_FOLLOW_UI, ACQMODE_FOLLOW_UI};
+static EPGACQCTL_STATE  acqCtl;
 static EPGDB_STATS      acqStats;
 static bool             acqStatsUpdate;
 static bool             acqVpsPdcUpdate[VPSPDC_REQ_COUNT];
@@ -85,7 +85,7 @@ static EPGACQ_DESCR     acqNetDescr;
 static bool             acqContextIsPeek;
 static EPGDB_QUEUE      acqDbQueue;
 static EPGDB_PI_TSC     acqTsc;
-static bool             acqTscEnabled = FALSE;
+static bool             acqTscEnabled;
 
 EPGDB_CONTEXT * pAcqDbContext = NULL;
 
@@ -744,15 +744,6 @@ const char * EpgAcqCtl_GetLastError( void )
 }
 
 // ---------------------------------------------------------------------------
-// Initialize the module for daemon mode
-//
-#ifdef USE_DAEMON
-void EpgAcqCtl_InitDaemon( void )
-{
-}
-#endif
-
-// ---------------------------------------------------------------------------
 // Set input source and tuner frequency for a provider
 // - errors are reported to the user interface
 //
@@ -1078,8 +1069,7 @@ static void EpgAcqCtl_AdvanceCyclePhase( bool forceAdvance )
 
    wrongCni = FALSE;
    if ( !ACQMODE_IS_PASSIVE(acqCtl.mode) && (acqCtl.mode != ACQMODE_EXTERNAL) &&
-        !((acqCtl.mode == ACQMODE_FORCED_PASSIVE) && (acqCtl.passiveReason != ACQPASSIVE_ACCESS_DEVICE)) &&
-        (EpgScan_IsActive() == FALSE) )
+        !((acqCtl.mode == ACQMODE_FORCED_PASSIVE) && (acqCtl.passiveReason != ACQPASSIVE_ACCESS_DEVICE)) )
    {
       cni = EpgAcqCtl_GetProvider();
       if ((cni != 0) && (cni != EpgDbContextGetCni(pAcqDbContext)))
@@ -1091,7 +1081,6 @@ static void EpgAcqCtl_AdvanceCyclePhase( bool forceAdvance )
 
    if ( ((acqCtl.state == ACQSTATE_RUNNING) || forceAdvance) &&
         (wrongCni == FALSE) &&
-        (EpgScan_IsActive() == FALSE) &&
         ( ACQMODE_IS_CYCLIC(acqCtl.mode) ||
           (acqCtl.stopPhase != ACQMODE_PHASE_COUNT) ||
           ((acqCtl.mode == ACQMODE_FORCED_PASSIVE) && ACQMODE_IS_CYCLIC(acqCtl.userMode) && (acqCtl.passiveReason == ACQPASSIVE_ACCESS_DEVICE)) ) &&
@@ -1773,7 +1762,7 @@ bool EpgAcqCtl_ProcessVps( void )
    bool change = FALSE;
    bool update = FALSE;
 
-   if ( (acqCtl.state != ACQSTATE_OFF) && (EpgScan_IsActive() == FALSE) &&
+   if ( (acqCtl.state != ACQSTATE_OFF) &&
         (acqCtl.mode != ACQMODE_NETWORK) )
    {
       if (TtxDecode_GetCniAndPil(&newCni, &newPil, NULL))
@@ -1809,7 +1798,7 @@ void EpgAcqCtl_Idle( void )
 {
    time_t now = time(NULL);
 
-   if ( (acqCtl.state != ACQSTATE_OFF) && (EpgScan_IsActive() == FALSE) &&
+   if ( (acqCtl.state != ACQSTATE_OFF) &&
         (acqCtl.mode != ACQMODE_NETWORK) )
    {
       // periodic db dump
@@ -1870,7 +1859,7 @@ bool EpgAcqCtl_ProcessPackets( void )
    time_t now;
    bool result = FALSE;
 
-   if (pAcqDbContext != NULL)
+   if (acqCtl.state != ACQSTATE_OFF)
    {
       if (acqCtl.mode != ACQMODE_NETWORK)
       {
@@ -1950,8 +1939,9 @@ void EpgAcqCtl_ProcessBlocks( void )
    const EPGDB_BLOCK  * pBlock;
    bool overflow;
 
-   if (pAcqDbContext != NULL)
+   if (acqCtl.state != ACQSTATE_OFF)
    {
+      assert(EpgScan_IsActive() == FALSE);
       assert(EpgDbIsLocked(pAcqDbContext) == FALSE);
       assert(acqStatsUpdate == FALSE);
 
@@ -2040,5 +2030,34 @@ void EpgAcqCtl_ProcessBlocks( void )
       }
       dprintf5("EpgAcqCtl: state=%d, phase=%d, CNI-idx=%d, cyCni=0x%04X, dbCni=0x%04X\n", acqCtl.state, acqCtl.cyclePhase, acqCtl.cycleIdx, acqCtl.cniTab[acqCtl.cycleIdx], EpgDbContextGetCni(pAcqDbContext));
    }
+}
+
+// ---------------------------------------------------------------------------
+// Stop driver and free allocated resources
+// - in emergency mode only the driver is stopped and acq is not shut down
+//   cleanly; intended for irregular termination only (i.e. crash)
+//
+void EpgAcqCtl_Destroy( bool isEmergency )
+{
+   if (isEmergency == FALSE)
+   {
+      EpgAcqCtl_Stop();
+   }
+   BtDriver_Exit();
+}
+
+// ---------------------------------------------------------------------------
+// Initialize the module
+//
+void EpgAcqCtl_Init( void )
+{
+   acqCtl.state     = ACQSTATE_OFF;
+   acqCtl.mode      = ACQMODE_FOLLOW_UI;
+   acqCtl.userMode  = ACQMODE_FOLLOW_UI;
+
+   acqTscEnabled = FALSE;
+   pAcqDbContext = NULL;
+
+   BtDriver_Init();
 }
 

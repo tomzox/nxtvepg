@@ -23,7 +23,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: tvsim_gui.tcl,v 1.12 2004/12/12 14:52:43 tom Exp tom $
+#  $Id: tvsim_gui.tcl,v 1.13 2005/01/08 15:31:57 tom Exp tom $
 #
 
 set program_title {}
@@ -223,7 +223,6 @@ ConnectEpg 0
 
 # read channel table from TV app ini file during startup
 proc LoadChanTable {} {
-   global is_unix tvcardcf hwcf_cardidx
    global chan_table
 
    # clear the listbox
@@ -239,16 +238,6 @@ proc LoadChanTable {} {
       # automatically select the first channel
       .chan.cl selection set 0
       TuneChan
-
-      if {!$is_unix && ![info exists tvcardcf($hwcf_cardidx)] } {
-         # tuner type has not been configured yet -> abort
-         append msg \
-            "You haven't configured the selected TV card. " \
-            "Please do configure your TV card type and parameters " \
-            "in the 'TV card input' dialog of the Configure menu " \
-            "in nxtvepg and make sure to use the same INI file here."
-         tk_messageBox -type ok -icon info -message $msg
-      }
 
    } else {
       # channel table is empty -> issue a warning
@@ -271,7 +260,6 @@ proc UpdateTvappName {} {
 ##  INI file handling
 ##
 proc Tvsim_LoadRcFile {filename} {
-   global tvcardcf hwcf_cardidx hwcf_acq_prio hwcf_wdm_stop
    global wintvapp_path wintvapp_idx
 
    set error 0
@@ -280,7 +268,8 @@ proc Tvsim_LoadRcFile {filename} {
    if {[catch {set rcfile [open $filename "r"]} errmsg] == 0} {
       while {[gets $rcfile line] >= 0} {
          incr line_no
-         if {([catch $line] != 0) && !$error} {
+         if {[regexp {^set wintvapp} $line] && \
+             ([catch $line] != 0) && !$error} {
             tk_messageBox -type ok -default ok -icon error \
                -message "Syntax error in INI file, line #$line_no: $line"
             set error 1

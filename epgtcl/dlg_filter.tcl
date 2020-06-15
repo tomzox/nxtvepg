@@ -18,7 +18,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: dlg_filter.tcl,v 1.14 2004/09/25 16:23:10 tom Exp tom $
+#  $Id: dlg_filter.tcl,v 1.15 2005/01/06 14:05:45 tom Exp tom $
 #
 set progidx_first 0
 set progidx_last  0
@@ -595,7 +595,6 @@ proc UpdateDurationFilter { round {val 0} } {
 proc PopupExpireDelaySelection {} {
    global piexpire_display piexpire_days piexpire_mins
    global piexpire_daystr piexpire_minstr piexpire_lastinput
-   global piexpire_cutoff
    global piexpire_cut_daystr piexpire_cut_hourstr
    global piexpire_popup
 
@@ -657,6 +656,7 @@ proc PopupExpireDelaySelection {} {
       ##
       ##  Tab 2: Cut-off time configuration
       ##
+      set piexpire_cutoff [C_GetPiExpireDelay]
       set piexpire_cut_daystr [expr $piexpire_cutoff / (24*60)]
       set piexpire_cut_hourstr [expr ($piexpire_cutoff % (24*60)) / 60]
 
@@ -780,7 +780,6 @@ proc UpdateExpiryFilter { round {val 0} } {
 
 proc PiExpTime_UpdateCutOff {} {
    global piexpire_cut_daystr piexpire_cut_hourstr
-   global piexpire_cutoff
 
    set ok [ParseExpireDaysValue days $piexpire_cut_daystr "days"]
    if $ok {
@@ -806,13 +805,12 @@ proc PiExpTime_UpdateCutOff {} {
             }
          }
 
-         set piexpire_cutoff $new_cutoff
-         C_UpdatePiExpireDelay
+         C_UpdatePiExpireDelay $new_cutoff
          UpdateRcFile
 
          # update display (including format corrections)
-         set piexpire_cut_daystr [expr $piexpire_cutoff / (24*60)]
-         set piexpire_cut_hourstr [expr ($piexpire_cutoff % (24*60)) / 60]
+         set piexpire_cut_daystr [expr $new_cutoff / (24*60)]
+         set piexpire_cut_hourstr [expr ($new_cutoff % (24*60)) / 60]
       }
    }
 }

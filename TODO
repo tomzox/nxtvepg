@@ -42,7 +42,6 @@ Recently suggested fixes & changes:
 - allow provider channel names at the -prov command line arg
 - HTML dump: allow to specify which column to use for hyperlink?
 - new PI column type which displays full weekday name (Thierry)
-- WIN32: save main window position in INI file (when manually changed; Thierry)
 - graying out filtered programmes instead of removing them
 - marking attributes which match current filter in the description window,
   esp. for text search (Volker Moell)
@@ -71,7 +70,6 @@ Recently suggested fixes & changes:
 - allow user to override provider's network CNIs (e.g. to allow to merge
   different providers' data for MTV, RBB and SW3; suggested by Jörk)
 - free configuration of key and mouse bindings
-- allow to select XML DTD version via command line
 - save system encoding setting at the time of rc writing into rc file
   so that correct conversion is used during reload
 - add "Help" button to error popup messages
@@ -92,9 +90,6 @@ New "NetBox" layout: open issues/known problems:
   + align text: left/center/right
 
 Acquisition daemon:
-- make concurrent updates of shared rc file safe (e.g. daemon writes provider
-  list in follow ui mode) or use a different rc for acq parameters; currently
-  data can be lost
 - when dump is aborted, keep the old modification time on client-side
 - VPS: trigger check device access via remove cmd (upon xawtv start/exit)
 - limit queue max length on server side (e.g. when bandwidth too low
@@ -121,7 +116,7 @@ xawtv TV app interaction:
 WIN32 port fixes:
 - support for Secam/PAL multi-norm TV tuners
   SECAM support for wintvcfg.c channel table parsers
-- use TV app directory in shm for auto-configuration
+- use TV app directory in shared memory for auto-configuration
 - dump stream feature: must use window or file instead of stdout
   note: output to stdout works when started inside a GNU/Cygwin bash
 - need to debug source of main window crash in Windows MessageBox()
@@ -129,6 +124,7 @@ WIN32 port fixes:
 - allow manual horizontal resizing for grid layout
 - menubutton popups does not work when invoked for the 2nd time via
   ALT key binding (Thierry)
+- save main window position in INI file (when manually changed; Thierry)
 - start with main window maximized when requested in Windows shortcut properties
   (requested by Thierry; I've no idea how to query these properties though)
 - systray popup menu should close by any mouse click outside of it
@@ -162,7 +158,6 @@ other required fixes:
 - AdvanceCyclePhase: limit number of tries to update provider (first "if")
 - improve streams decoder hamming error handling: assemble AI block
   from multiple instances if neccessary
-- add decoding error statistics to epgdbacq (e.g. # of dropped packets & blocks)
 - fix: external mode & tuner input source -> nonsense as status output
 - fix: obsolete series codes can not be deleted, because only series which
   have an instance in the db are listed in the series menu

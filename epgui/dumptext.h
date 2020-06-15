@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: dumptext.h,v 1.5 2004/08/29 21:48:55 tom Exp tom $
+ *  $Id: dumptext.h,v 1.7 2005/01/01 18:18:23 tom Exp tom $
  */
 
 #ifndef __DUMPTEXT_H
@@ -25,25 +25,17 @@
 
 typedef enum
 {
-   EPGTAB_DUMP_AI,
-   EPGTAB_DUMP_PI,
-   EPGTAB_DUMP_PDC,
-   EPGTAB_DUMP_XML,
-   EPGTAB_DUMP_DEBUG,
-   EPGTAB_CLOCK_SET,
-   EPGTAB_CLOCK_PRINT,
-   EPGTAB_DUMP_COUNT,
-   EPGTAB_DUMP_NONE = EPGTAB_DUMP_COUNT
-} EPGTAB_DUMP_MODE;
-
-#define IS_CLOCK_MODE(X) (((X)==EPGTAB_CLOCK_SET)||((X)==EPGTAB_CLOCK_PRINT))
+   DUMP_TEXT_PDC,
+   DUMP_TEXT_AI,
+   DUMP_TEXT_PI,
+   DUMP_TEXT_COUNT
+} DUMP_TEXT_MODE;
 
 // ---------------------------------------------------------------------------
 // declaration of service interface functions
 //
 
-EPGTAB_DUMP_MODE EpgDumpText_GetMode( const char * pModeStr );
-void EpgDumpText_Standalone( EPGDB_CONTEXT * pDbContext, FILE * fp, EPGTAB_DUMP_MODE mode );
+void EpgDumpText_Standalone( EPGDB_CONTEXT * pDbContext, FILE * fp, DUMP_TEXT_MODE mode );
 
 void EpgDumpText_Destroy( void );
 void EpgDumpText_Init( void );

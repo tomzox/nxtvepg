@@ -18,17 +18,14 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: dlg_acqmode.tcl,v 1.4 2003/03/31 19:15:21 tom Exp tom $
+#  $Id: dlg_acqmode.tcl,v 1.6 2005/01/06 14:05:31 tom Exp tom $
 #
 set acqmode_popup 0
-set acq_mode "follow-ui"
-
 set netacqcf_popup 0
-set netacqcf {remctl 1 do_tcp_ip 0 host localhost ip {} port 7658 max_conn 10 sysloglev 3 fileloglev 0 logname {}}
+
 set netacqcf_loglev_names {"no logging" error warning notice info}
 set netacqcf_remctl_names {disabled "local only" "from anywhere"}
 set netacqcf_view "both"
-set netacq_enable 0
 
 #=LOAD=PopupAcqMode
 #=LOAD=PopupNetAcqConfig
@@ -42,8 +39,7 @@ proc PopupAcqMode {} {
    global acqmode_popup
    global acqmode_ailist acqmode_selist acqmode_names
    global acqmode_sel
-   global acq_mode acq_mode_cnis
-   global is_unix netacq_enable
+   global is_unix
 
    if {$acqmode_popup == 0} {
 
@@ -67,10 +63,11 @@ proc PopupAcqMode {} {
       set acqmode_ailist [SortProvList $acqmode_ailist]
 
       # initialize popup with current settings
-      set acqmode_sel $acq_mode
+      set tmpl [C_GetAcqConfig]
+      set acqmode_sel [lindex $tmpl 0]
+      set acqmode_selist [lindex $tmpl 1]
 
-      if {[info exists acq_mode_cnis] && ([llength $acq_mode_cnis] > 0)} {
-         set acqmode_selist $acq_mode_cnis
+      if {[llength $acqmode_selist] > 0} {
          RemoveObsoleteCnisFromList acqmode_selist $acqmode_ailist
       } else {
          set acqmode_selist $acqmode_ailist
@@ -143,7 +140,6 @@ proc UpdateAcqModePopup {} {
 proc QuitAcqModePopup {} {
    global acqmode_ailist acqmode_selist acqmode_names
    global acqmode_sel
-   global acq_mode acq_mode_cnis
 
    if {[string compare -length 6 "cyclic" $acqmode_sel] == 0} {
       if {[llength $acqmode_selist] == 0} {
@@ -152,13 +148,12 @@ proc QuitAcqModePopup {} {
       }
       set acq_mode_cnis $acqmode_selist
    }
-   set acq_mode $acqmode_sel
 
+   C_UpdateAcqConfig $acqmode_sel $acqmode_selist
+
+   # free memory
    unset acqmode_ailist acqmode_selist acqmode_sel
    if {[info exists acqmode_names]} {unset acqmode_names}
-
-   C_UpdateAcquisitionMode
-   UpdateRcFile
 
    # close the popup window
    destroy .acqmode
@@ -168,7 +163,7 @@ proc QuitAcqModePopup {} {
 ##  Creates the remote acquisition configuration dialog
 ##
 proc PopupNetAcqConfig {} {
-   global netacqcf netacqcf_tmpcf
+   global netacqcf_tmpcf
    global netacqcf_remctl_names
    global netacqcf_view
    global fileImage font_normal win_frm_fg
@@ -179,9 +174,7 @@ proc PopupNetAcqConfig {} {
       set netacqcf_popup 1
 
       # load configuration into temporary array
-      foreach {opt val} $netacqcf {
-         set netacqcf_tmpcf($opt) $val
-      }
+      C_GetNetAcqConfig netacqcf_tmpcf
 
       frame .netacqcf.view -borderwidth 2 -relief ridge
       label .netacqcf.view.view_lab -text "Enable settings for:"
@@ -292,7 +285,7 @@ proc PopupNetAcqConfig {} {
 
 # callback for "Abort" and "OK" buttons
 proc NetAcqConfigQuit {do_save} {
-   global netacqcf netacqcf_tmpcf
+   global netacqcf_tmpcf
 
    if $do_save {
       # check config for consistancy
@@ -320,17 +313,7 @@ proc NetAcqConfigQuit {do_save} {
       }
 
       # copy temporary variables back into config parameter list
-      set netacqcf [list "remctl" $netacqcf_tmpcf(remctl) \
-                         "do_tcp_ip" $netacqcf_tmpcf(do_tcp_ip) \
-                         "host" $netacqcf_tmpcf(host) \
-                         "port" $netacqcf_tmpcf(port) \
-                         "ip" $netacqcf_tmpcf(ip) \
-                         "logname" $netacqcf_tmpcf(logname) \
-                         "max_conn" $netacqcf_tmpcf(max_conn) \
-                         "fileloglev" $netacqcf_tmpcf(fileloglev) \
-                         "sysloglev" $netacqcf_tmpcf(sysloglev)]
-      UpdateRcFile
-      C_UpdateNetAcqConfig
+      C_UpdateNetAcqConfig [array get netacqcf_tmpcf]
    }
    # close the dialog window
    destroy .netacqcf

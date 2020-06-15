@@ -16,42 +16,22 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: menucmd.h,v 1.23 2004/02/28 21:32:18 tom Exp tom $
+ *  $Id: menucmd.h,v 1.25 2005/01/06 19:12:19 tom Exp tom $
  */
 
 #ifndef __MENUCMD_H
 #define __MENUCMD_H
 
 
-// enum parameter to Set-Acquisition-Mode
-typedef enum
-{
-   NETACQ_DEFAULT,   // set netacq mode if netacq_enable == TRUE
-   NETACQ_INVERT,    // set inverse of netacq_enable
-   NETACQ_YES,       // enable network mode
-   NETACQ_NO,        // disable network mode
-   NETACQ_KEEP       // keep currently active mode if acq running; else netacq_enable
-} NETACQ_SET_MODE;
-
 // ---------------------------------------------------------------------------
 // Interface to main control module und UI control module
 //
 void MenuCmd_Init( bool isDemoMode );
-void OpenInitialDb( uint startUiCni );
-void MenuCmd_SetPiExpireDelay( void );
+
+void AutoStartAcq( void );
+void MenuCmd_AcqStatsUpdate( void );
 
 void SetUserLanguage( Tcl_Interp *interp );
-void SetAcquisitionMode( NETACQ_SET_MODE netAcqSetMode );
-bool SetDaemonAcquisitionMode( uint cmdLineCni, bool forcePassive, int maxPhase );
-int  SetHardwareConfig( Tcl_Interp *interp, int cardIndex );
-void SetNetAcqParams( Tcl_Interp * interp, bool isServer );
-void AutoStartAcq( Tcl_Interp * interp );
-void MenuCmd_AcqStatsUpdate( void );
-uint GetProvFreqForCni( uint provCni );
-EPGDB_CONTEXT * MenuCmd_MergeDatabases( void );
-#ifdef WIN32
-bool MenuCmd_CheckTvCardConfig( void );
-#endif
 
 
 #endif  // __MENUCMD_H

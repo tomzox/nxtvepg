@@ -18,7 +18,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: dumphtml.c,v 1.2 2003/06/28 10:55:08 tom Exp tom $
+ *  $Id: dumphtml.c,v 1.3 2004/12/29 12:04:51 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -53,16 +53,18 @@
 
 // ----------------------------------------------------------------------------
 // Append a text string to the HTML output file, while quoting HTML special chars
+// - string is terminated wither by zero or by strlen parameter;
+//   special value "-1" can be used to ignore strlen
 // - HTML special chars are: < > &  converted to: &lt; &gt; &amp;
 //
-void EpgDumpHtml_WriteString( FILE *fp, const char * pText )
+void EpgDumpHtml_WriteString( FILE *fp, const char * pText, sint strlen )
 {
    char outbuf[256], *po;
    uint outlen;
 
    po = outbuf;
    outlen = sizeof(outbuf);
-   while (*pText)
+   while ((*pText != 0) && (strlen-- != 0))
    {
       if (outlen < 6)
       {  // buffer is almost full -> flush it
@@ -138,7 +140,7 @@ void EpgDumpHtml_RemoveQuotes( const uchar * pStr, uchar * pBuf, uint maxOutLen 
 static void EpgDumpHtml_AppendInfoTextCb( void *vp, const char * pDesc, bool addSeparator )
 {
    FILE * fp = (FILE *) vp;
-   char * pNewline;
+   const char * pNewline;
 
    if ((fp != NULL) && (pDesc != NULL))
    {
@@ -148,14 +150,13 @@ static void EpgDumpHtml_AppendInfoTextCb( void *vp, const char * pDesc, bool add
       while ( (pNewline = strchr(pDesc, '\n')) != NULL )
       {
          // print text up to (and excluding) the newline
-         *pNewline = 0;  // XXX must not modify const string
-         EpgDumpHtml_WriteString(fp, pDesc);
+         EpgDumpHtml_WriteString(fp, pDesc, pNewline - pDesc);
          fprintf(fp, "\n</p><p>\n");
          // skip to text following the newline
          pDesc = pNewline + 1;
       }
       // write the segement behind the last newline
-      EpgDumpHtml_WriteString(fp, pDesc);
+      EpgDumpHtml_WriteString(fp, pDesc, -1);
 
       fprintf(fp, "\n</p>\n</td>\n</tr>\n\n");
    }
@@ -181,7 +182,8 @@ static void EpgDumpHtml_WritePi( FILE *fp, const PI_BLOCK * pPiBlock, const AI_B
 
    // start HTML table for PI and append first row: running time, title, network name
    fprintf(fp, "<A NAME=\"TITLE_%02d_%s\">\n"
-               "<table CLASS=PI COLS=3 WIDTH=\"100%%\">\n"
+               "<table CLASS=PI COLS=3 WIDTH=\"100%%\""
+                      "BORDER=\"1\" FRAME=\"border\" RULES=\"all\">\n"
                "<tr>\n"
                "<td CLASS=\"titlerow\" WIDTH=\"20%%\">\n"
                "%s - %s\n"  // running time
@@ -189,11 +191,11 @@ static void EpgDumpHtml_WritePi( FILE *fp, const PI_BLOCK * pPiBlock, const AI_B
                "<td rowspan=2 CLASS=\"titlerow\">\n",
                pPiBlock->netwop_no, label_str,
                start_str, stop_str);
-   EpgDumpHtml_WriteString(fp, PI_GET_TITLE(pPiBlock));
+   EpgDumpHtml_WriteString(fp, PI_GET_TITLE(pPiBlock), -1);
    fprintf(fp, "\n"
                "</td>\n"
                "<td rowspan=2 CLASS=\"titlerow\" WIDTH=\"20%%\">\n");
-   EpgDumpHtml_WriteString(fp, pCfNetname);
+   EpgDumpHtml_WriteString(fp, pCfNetname, -1);
    fprintf(fp, "\n"
                "</td>\n"
                "</tr>\n"
@@ -210,7 +212,7 @@ static void EpgDumpHtml_WritePi( FILE *fp, const PI_BLOCK * pPiBlock, const AI_B
 
    // append theme list
    PiDescription_AppendCompressedThemes(pPiBlock, comm, TCL_COMM_BUF_SIZE);
-   EpgDumpHtml_WriteString(fp, comm);
+   EpgDumpHtml_WriteString(fp, comm, -1);
 
    // append features list
    strcpy(comm, " (");
@@ -218,7 +220,7 @@ static void EpgDumpHtml_WritePi( FILE *fp, const PI_BLOCK * pPiBlock, const AI_B
    if (comm[2] != 0)
    {
       strcat(comm, ")");
-      EpgDumpHtml_WriteString(fp, comm);
+      EpgDumpHtml_WriteString(fp, comm, -1);
    }
    fprintf(fp, "\n</td>\n</tr>\n\n");
 
@@ -247,7 +249,7 @@ static const uchar * const html_head =
    "<TITLE>Nextview EPG</TITLE>\n"
    "<STYLE type=\"text/css\">\n"
    "   <!--\n"
-   "   TABLE.PI { PADDING: 3; BORDER-STYLE: NONE; MARGIN-BOTTOM: 30pt; }\n"
+   "   TABLE.PI { PADDING: 3; BORDER-WIDTH: 1px; MARGIN-BOTTOM: 30pt; }\n"
    "   TABLE.titlelist { BORDER-STYLE: NONE; }\n"
    "   BODY { FONT-FAMILY: Arial, Helvetica; }\n"
    "   .titlerow { TEXT-ALIGN: CENTER; FONT-WEIGHT: BOLD; BACKGROUND-COLOR: #e2e2e2; }\n"
@@ -448,7 +450,7 @@ static void EpgDumpHtml_Close( FILE * fpSrc, FILE * fpDst, const AI_BLOCK * pAiB
       if (fpSrc == NULL)
       {  // newly created file -> finish HTML page
          fprintf(fpDst, "<P CLASS=\"copyright\">\n&copy; Nextview EPG by ");
-         EpgDumpHtml_WriteString(fpDst, AI_GET_SERVICENAME(pAiBlock));
+         EpgDumpHtml_WriteString(fpDst, AI_GET_SERVICENAME(pAiBlock), -1);
          fprintf(fpDst, "\n</P>\n</BODY>\n</HTML>\n");
 
       }
@@ -463,10 +465,11 @@ static void EpgDumpHtml_Close( FILE * fpSrc, FILE * fpDst, const AI_BLOCK * pAiB
 // ----------------------------------------------------------------------------
 // Dump HTML for one programme column
 // - also supports user-defined columns
+// - XXX TODO: use <SPAN> for colors and add support for all-column fore-/background colors
 //
 static void EpgDumpHtml_Title( FILE * fpDst, const PI_BLOCK * pPiBlock,
                                const PIBOX_COL_CFG * pColTab, uint colCount,
-                               uint hyperlinkColIdx )
+                               uint hyperlinkColIdx, bool optTextFmt )
 {
    PIBOX_COL_TYPES type;
    Tcl_Obj  * pFmtObj;
@@ -474,7 +477,8 @@ static void EpgDumpHtml_Title( FILE * fpDst, const PI_BLOCK * pPiBlock,
    Tcl_Obj  * pImageObj;
    Tcl_Obj ** pImgObjv;
    Tcl_Obj  * pImgSpec;
-   bool  hasBold, hasEm, hasColor;
+   const char * pFmtStr;
+   bool  hasBold, hasEm, hasStrike, hasColor;
    int   fmtObjc;
    int   imgObjc;
    uint  colIdx;
@@ -501,12 +505,15 @@ static void EpgDumpHtml_Title( FILE * fpDst, const PI_BLOCK * pPiBlock,
          type = pColTab[colIdx].type;
          pImageObj = pFmtObj = NULL;
 
-         if (type == PIBOX_COL_USER_DEF)
+         if (type == PIBOX_COL_WEEKCOL)
+            type = PIBOX_COL_WEEKDAY;  // XXX FIXME weekday colors not implemented for HTML yet
+
+         if ((type == PIBOX_COL_USER_DEF) || (type == PIBOX_COL_REMINDER))
          {
             len = PiOutput_MatchUserCol(pPiBlock, &type, pColTab[colIdx].pDefObj,
                                         comm, TCL_COMM_BUF_SIZE, &pImageObj, &pFmtObj);
          }
-         if (type != PIBOX_COL_USER_DEF)
+         if ((type != PIBOX_COL_USER_DEF) && (type != PIBOX_COL_REMINDER) && (type != PIBOX_COL_WEEKCOL))
             len = PiOutput_PrintColumnItem(pPiBlock, type, comm, TCL_COMM_BUF_SIZE);
 
          if (pImageObj != NULL)
@@ -523,35 +530,49 @@ static void EpgDumpHtml_Title( FILE * fpDst, const PI_BLOCK * pPiBlock,
             }
          }
 
-         hasBold = hasEm = hasColor = FALSE;
-         if (pFmtObj != NULL)
+         hasBold = hasEm = hasStrike = hasColor = FALSE;
+         if (optTextFmt && (pFmtObj != NULL))
          {
             Tcl_ListObjGetElements(interp, pFmtObj, &fmtObjc, &pFmtObjv);
             for (fmtIdx=0; fmtIdx < fmtObjc; fmtIdx++)
             {
-               if (strcmp(Tcl_GetString(pFmtObjv[fmtIdx]), "bold") == 0)
+               pFmtStr = Tcl_GetString(pFmtObjv[fmtIdx]);
+
+               if (strcmp(pFmtStr, "bold") == 0)
                {
                   fprintf(fpDst, "<B>");
                   hasBold = TRUE;
                }
-               else if (strcmp(Tcl_GetString(pFmtObjv[fmtIdx]), "underline") == 0)
+               else if (strcmp(pFmtStr, "underline") == 0)
                {
                   fprintf(fpDst, "<EM>");
                   hasEm = TRUE;
                }
-               else
+               else if (strcmp(pFmtStr, "overstrike") == 0)
                {
-                  fprintf(fpDst, "<FONT COLOR=\"%s\">", Tcl_GetString(pFmtObjv[fmtIdx]));
+                  fprintf(fpDst, "<STRIKE>");
+                  hasStrike = TRUE;
+               }
+               else if (strncmp(pFmtStr, "fg_RGB", 6) == 0)
+               {
+                  fprintf(fpDst, "<FONT COLOR=\"#%s\">", pFmtStr + 6);
+                  hasColor = TRUE;
+               }
+               else if (strncmp(pFmtStr, "fg_", 3) == 0)
+               {
+                  fprintf(fpDst, "<FONT COLOR=\"%s\">", pFmtStr + 3);
                   hasColor = TRUE;
                }
             }
          }
 
          if (len > 0)
-            EpgDumpHtml_WriteString(fpDst, comm);
+            EpgDumpHtml_WriteString(fpDst, comm, len);
 
          if (hasColor)
             fprintf(fpDst, "</FONT>");
+         if (hasStrike)
+            fprintf(fpDst, "</STRIKE>");
          if (hasEm)
             fprintf(fpDst, "</EM>");
          if (hasBold)
@@ -571,7 +592,9 @@ static void EpgDumpHtml_Title( FILE * fpDst, const PI_BLOCK * pPiBlock,
 //
 static int EpgDumpHtml_DumpDatabase( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
 {
-   const char * const pUsage = "Usage: C_DumpHtml <file-name> <doTitles=0/1> <doDesc=0/1> <append=0/1> <sel-only=0/1> <max-count> <hyperlink=col-idx/-1> <colsel>";
+   const char * const pUsage = "Usage: C_DumpHtml <file-name> <doTitles=0/1> <doDesc=0/1> "
+                                                 "<append=0/1> <sel-only=0/1> <max-count> "
+                                                 "<hyperlink=col-idx/-1> <text_fmt=0/1> <colsel>";
    const AI_BLOCK *pAiBlock;
    const PI_BLOCK *pPiBlock;
    const char * pFileName;
@@ -580,11 +603,11 @@ static int EpgDumpHtml_DumpDatabase( ClientData ttp, Tcl_Interp *interp, int obj
    Tcl_Obj ** pColObjv;
    FILE *fpSrc, *fpDst;
    sint piIdx;
-   int  doTitles, doDesc, optAppend, optSelOnly, optMaxCount, optHyperlinks;
+   int  doTitles, doDesc, optAppend, optSelOnly, optMaxCount, optHyperlinks, optTextFmt;
    int  colCount;
    int  result;
 
-   if (objc != 1+8)
+   if (objc != 1+9)
    {  // parameter count is invalid
       Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
       result = TCL_ERROR;
@@ -600,7 +623,8 @@ static int EpgDumpHtml_DumpDatabase( ClientData ttp, Tcl_Interp *interp, int obj
              (Tcl_GetBooleanFromObj(interp, objv[5], &optSelOnly) != TCL_OK) ||
              (Tcl_GetIntFromObj    (interp, objv[6], &optMaxCount) != TCL_OK) ||
              (Tcl_GetIntFromObj    (interp, objv[7], &optHyperlinks) != TCL_OK) ||
-             (Tcl_ListObjGetElements(interp, objv[8], &colCount, &pColObjv) != TCL_OK) )
+             (Tcl_GetBooleanFromObj(interp, objv[8], &optTextFmt) != TCL_OK) ||
+             (Tcl_ListObjGetElements(interp, objv[9], &colCount, &pColObjv) != TCL_OK) )
    {  // one of the params is not boolean
       result = TCL_ERROR;
    }
@@ -629,7 +653,7 @@ static int EpgDumpHtml_DumpDatabase( ClientData ttp, Tcl_Interp *interp, int obj
 
                for (piIdx=0; ((piIdx < optMaxCount) || (optMaxCount < 0)) && (pPiBlock != NULL); piIdx++)
                {
-                  EpgDumpHtml_Title(fpDst, pPiBlock, pColTab, colCount, optHyperlinks);
+                  EpgDumpHtml_Title(fpDst, pPiBlock, pColTab, colCount, optHyperlinks, optTextFmt);
 
                   pPiBlock = EpgDbSearchNextPi(pUiDbContext, pPiFilterContext, pPiBlock);
                }

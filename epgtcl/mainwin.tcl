@@ -20,7 +20,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: mainwin.tcl,v 1.244 2004/12/12 17:22:40 tom Exp $
+#  $Id: mainwin.tcl,v 1.246 2005/01/06 14:06:24 tom Exp tom $
 #
 # import constants from other modules
 #=INCLUDE= "epgtcl/shortcuts.h"
@@ -696,7 +696,6 @@ proc CreateMenubar {} {
    .menubar.config add command -label "TV card input..." -command PopupHardwareConfig
    .menubar.config add command -label "TV app. interaction..." -command XawtvConfigPopup
    .menubar.config add command -label "Client/Server..." -command PopupNetAcqConfig
-   #.menubar.config add command -label "Time zone..." -command PopupTimeZone
    .menubar.config add separator
    .menubar.config add command -label "Select attributes..." -command PopupColumnSelection
    .menubar.config add command -label "Attribute composition..." -command PopupUserDefinedColumns
@@ -3427,7 +3426,7 @@ proc CreateAbout {} {
       #label .about.tcl_version -text " Tcl/Tk version $tcl_patchLevel"
       #pack .about.tcl_version -side top
 
-      label .about.copyr1 -text "Copyright © 1999 - 2003 by Tom Zörner"
+      label .about.copyr1 -text "Copyright (C) 1999 - 2005 by Tom Zörner"
       label .about.copyr2 -text $NXTVEPG_MAILTO
       label .about.copyr3 -text $NXTVEPG_URL -font $font_fixed -foreground blue
       pack .about.copyr1 .about.copyr2 -side top
@@ -4318,7 +4317,9 @@ proc ColumnHeaderButtonRel {col} {
 ## Sort a list of provider CNIs according to user preference
 ##
 proc SortProvList {ailist} {
-   global prov_selection sortProvListArr
+   global sortProvListArr
+
+   set prov_selection [C_GetProvSelection]
 
    if {[info exists prov_selection] && ([llength $prov_selection] > 0)} {
       set idx 0
@@ -4399,7 +4400,7 @@ proc PiBox_DisplayErrorMessage {text} {
       $wid insert end "Nextview EPG\n" bold24Tag
       $wid insert end "An Electronic TV Programme Guide for Your PC\n" bold16Tag
       $wid window create end -window ${wid}.nxtvlogo
-      $wid insert end "\n\nCopyright © 1999 - 2003 by Tom Zörner\n" bold12Tag
+      $wid insert end "\n\nCopyright (C) 1999 - 2005 by Tom Zörner\n" bold12Tag
       $wid insert end "tomzo@nefkom.net\n\n" bold12Tag
       $wid tag add centerTag 1.0 {end - 1 lines}
       $wid insert end "This program is free software; you can redistribute it and/or modify it under the terms of the GNU General Public License Version 2 as published by the Free Software Foundation. This program is distributed in the hope that it will be useful, but without any warranty. See the GPL2 for more details.\n\n" wrapTag

@@ -21,7 +21,7 @@
  *  Author:
  *          Tom Zoerner
  *
- *  $Id: epgacqclnt.c,v 1.16 2004/06/20 18:51:00 tom Exp $
+ *  $Id: epgacqclnt.c,v 1.16 2004/06/20 18:51:00 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGCTL

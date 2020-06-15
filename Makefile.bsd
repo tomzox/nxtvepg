@@ -22,7 +22,7 @@
 #    Simon Barner (FreeBSD)
 #    Mario Kemper (NetBSD adaptions)
 #
-#  $Id: Makefile.bsd,v 1.4 2003/10/23 18:29:48 tom Exp tom $
+#  $Id: Makefile.bsd,v 1.5 2005/01/01 18:35:24 tom Exp tom $
 #
 
 # X11BASE, LOCALBASE and PREFIX are variables used by the ports collection
@@ -47,7 +47,7 @@ WANT_USER_DBDIR = 1
 # On FreeBSD there is only a modified tclsh with a message to launch
 # tclsh8.3 or tclsh8.4 , so this is hardcoded here
 TCL_VER         = 8.4
-LDLIBS          = -L$(LOCALBASE)/lib\
+GUILIBS         = -L$(LOCALBASE)/lib\
                   -L$(X11BASE)/lib\
                   -ltk84 -ltcl84 -lX11 -lXmu -lm
 
@@ -83,7 +83,7 @@ endif
 OPTFLAGS = -O -pipe -g
 
 # use static libraries for debugging only
-#LDLIBS += -Ldbglib -static
+#GUILIBS += -Ldbglib -static
 
 INCS   += -I. -I$(X11BASE)/include
 
@@ -100,8 +100,8 @@ DEFS   += -DX11_APP_DEFAULTS=\"$(resdir)/app-defaults/Nxtvepg\"
 
 # enable use of multi-threading
 ifdef WANT_THREADS
-  DEFS   += -DUSE_THREADS
-  LDLIBS += $(PTHREAD)
+  DEFS    += -DUSE_THREADS
+  ACQLIBS += $(PTHREAD)
 endif
 
 # enable use of daemon and client/server connection
@@ -126,7 +126,8 @@ WARN    = -Wall -Wnested-externs -Wstrict-prototypes -Wmissing-prototypes
 # the following flags can be overridden by an environment variable with the same name
 CFLAGS ?= $(OPTFLAGS)
 CFLAGS += $(WARN) $(INCS) $(DEFS)
-#LDLIBS += -pg
+LDFLAGS += -lm
+#LDFLAGS += -pg
 
 
 all :: printconfig

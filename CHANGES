@@ -5,6 +5,16 @@ features).  For patchlevel releases also internal changes might be listed in
 case they may fix bugs (or cause new ones)
 
 
+from 2.7.4 to 2.8.0 (not yet released)
+
+- fixed HTML export (not all text format options were processed,
+  weekday color column was not implemented) and improved layout
+- XML export: format can now be selected via command line options
+- added command line option -outfile <path>
+- added command line option -provscan <country>
+- possibility to compile separate daemon without GUI
+
+
 from 2.7.3 to 2.7.4 (2004-Dec-27)
 
 - bugfix EPG teletext number update in database: after external channel
@@ -45,7 +55,7 @@ from 2.7.3 to 2.7.4 (2004-Dec-27)
   library, esp. to cleanly shut down acquisition.
   On Windows this fixes annoying popup messages when switching desktop
   display to full-screen (e.g. upon start of some game).
-- TV app. interaction developent tool vbirec: added possibility to send
+- TV app. interaction development tool vbirec: added possibility to send
   commands and EPG OSD infos to a connected TV app (to allow testing
   this feature without nxtvepg)
 

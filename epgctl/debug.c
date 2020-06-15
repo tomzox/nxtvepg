@@ -22,7 +22,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: debug.c,v 1.18 2002/11/04 19:04:21 tom Exp tom $
+ *  $Id: debug.c,v 1.19 2005/01/01 18:13:30 tom Exp tom $
  */
 
 #define __DEBUG_C
@@ -292,6 +292,16 @@ void chk_memleakage( void )
 
    //printf("chk-memleakage: no leak, max usage: %ld bytes\n", malPeak);
 }
+
+// ---------------------------------------------------------------------------
+// Wrapper for malloc to check for error return
+//
+char * chk_strdup( const char * pSrc, const char * pFileName, int line )
+{
+   char * pDst = chk_malloc(strlen(pSrc) + 1, pFileName, line);
+   strcpy(pDst, pSrc);
+   return pDst;
+}  
 
 #else //CHK_MALLOC == OFF
 

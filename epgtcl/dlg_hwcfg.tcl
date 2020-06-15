@@ -18,27 +18,21 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: dlg_hwcfg.tcl,v 1.14 2004/04/02 11:30:17 tom Exp $
+#  $Id: dlg_hwcfg.tcl,v 1.15 2005/01/08 13:59:44 tom Exp $
 #
-
-set hwcf_cardidx 0
-set hwcf_input 0
-set hwcf_acq_prio 0
-set hwcf_slicer_type 0
-set hwcf_wdm_stop 0
-set hwcf_dsdrv_log 0
-
 set hwcfg_popup 0
 set tvcard_popup 0
 
-# Windows only: array indices for tvcardcf()
+set hwcf_dsdrv_log 0
+
+# Windows only: array indices for tvcard config list
 #=CONST= ::tvcf_chip_idx         0
 #=CONST= ::tvcf_card_idx         1
 #=CONST= ::tvcf_tuner_idx        2
 #=CONST= ::tvcf_pll_idx          3
 #=CONST= ::tvcf_idx_count        4
 
-# Used for Windows only: PCI chip IDs (stored at $::tvcf_chip_idx in tvcardcf)
+# Used for Windows only: PCI chip IDs (stored at $::tvcf_chip_idx in config list)
 #=CONST= ::pci_id_unknown        0
 #=CONST= ::pci_id_brooktree      0x109e
 #=CONST= ::pci_id_phlips         0x1131
@@ -52,8 +46,9 @@ set tvcard_popup 0
 ##
 proc PopupHardwareConfig {} {
    global is_unix netacq_enable
-   global hwcf_cardidx hwcf_input hwcf_acq_prio hwcf_slicer_type hwcf_dsdrv_log hwcf_wdm_stop
    global hwcfg_cardidx_sel hwcfg_input_sel hwcfg_prio_sel hwcfg_slicer_sel hwcf_wdm_stop_sel
+   global hwcf_wdm_stop_prev
+   global hwcf_dsdrv_log
    global hwcfg_card_list hwcfg_chip_list
    global hwcfg_popup
 
@@ -69,11 +64,15 @@ proc PopupHardwareConfig {} {
       CreateTransientPopup .hwcfg "Video input configuration"
       set hwcfg_popup 1
 
-      set hwcfg_cardidx_sel $hwcf_cardidx
-      set hwcfg_input_sel $hwcf_input
-      set hwcfg_prio_sel $hwcf_acq_prio
-      set hwcfg_slicer_sel $hwcf_slicer_type
-      set hwcf_wdm_stop_sel $hwcf_wdm_stop
+      set hwcfg [C_GetHardwareConfig]
+      set hwcfg_cardidx_sel [lindex $hwcfg 0]
+      set hwcfg_input_sel [lindex $hwcfg 1]
+      set hwcfg_prio_sel [lindex $hwcfg 2]
+      set hwcfg_slicer_sel [lindex $hwcfg 3]
+      set hwcf_wdm_stop_sel [lindex $hwcfg 4]
+
+      set hwcf_wdm_stop_prev $hwcf_wdm_stop_sel
+
       # scan PCI bus an retrieve card names (must be called before other driver queries)
       HardwareConfigLoad 0
 
@@ -183,7 +182,7 @@ proc HardwareConfigLoad {showDrvErr} {
    global is_unix
 
    if $is_unix {
-      set hwcfg_card_list [C_HwCfgGetTvCards $showDrvErr]
+      set hwcfg_card_list [C_HwCfgScanTvCards $showDrvErr]
    } else {
 
       set hwcfg_card_list {}
@@ -191,7 +190,7 @@ proc HardwareConfigLoad {showDrvErr} {
 
       # note: this call loads the driver temporarily for a PCI scan
       # if that fails, card IDs are taken from the config variables, but chip IDs are set to 0
-      foreach {chip name} [C_HwCfgGetTvCards $showDrvErr] {
+      foreach {chip name} [C_HwCfgScanTvCards $showDrvErr] {
          lappend hwcfg_card_list $name
          lappend hwcfg_chip_list $chip
       }
@@ -219,6 +218,11 @@ proc HardwareConfigCard {} {
       .hwcfg.opt2.card.label configure -text "TV card: [lindex $hwcfg_card_list $hwcfg_cardidx_sel]"
 
       # get list of video input names directly from the driver
+      set card_idx 0
+      foreach tmpl [C_HwCfgGetTvCardConfig] {
+         set tvcardcf($card_idx) $tmpl
+         incr card_idx
+      }
       if {!$is_unix && [info exists tvcardcf($hwcfg_cardidx_sel)]} {
          set card_type [lindex $tvcardcf($hwcfg_cardidx_sel) $::tvcf_card_idx]
       } else {
@@ -292,21 +296,22 @@ proc HardwareCreateInputMenu {widget dummy} {
 # Leave popup with OK button
 proc HardwareConfigQuit {is_ok} {
    global is_unix
-   global hwcf_cardidx hwcf_input hwcf_acq_prio hwcf_slicer_type hwcf_dsdrv_log hwcf_wdm_stop
    global hwcfg_cardidx_sel hwcfg_input_sel hwcfg_prio_sel hwcfg_slicer_sel hwcf_wdm_stop_sel
+   global hwcf_wdm_stop_prev
+   global hwcf_dsdrv_log
    global hwcfg_card_list hwcfg_input_list
    global tvcardcf
 
    # Windows only: check if the user selected a card & tuner model
    if { !$is_unix && ![info exists tvcardcf($hwcfg_cardidx_sel)] } {
       set answer [tk_messageBox -type okcancel -default cancel -icon warning -parent .hwcfg \
-                     -message "You haven't configured the selected TV card - acquisition will not be possible!"]
+                     -message "You haven't configured the selected TV card - acquisition won't work properly!"]
    } else {
       set answer "ok"
    }
    # Windows only: warn about WDM stop option
    if {([string compare $answer "ok"] == 0) &&
-       !$is_unix && !$hwcf_wdm_stop && $hwcf_wdm_stop_sel} {
+       !$is_unix && !$hwcf_wdm_stop_prev && $hwcf_wdm_stop_sel} {
       set answer [tk_messageBox -type okcancel -default cancel -icon warning -parent .hwcfg \
                      -message "WARNING: WDM stop is an experimental feature and should only be used as a last resort.  Press 'Cancel' and then 'Help' for details."]
    }
@@ -315,11 +320,6 @@ proc HardwareConfigQuit {is_ok} {
 
       if $is_ok {
          # OK button -> save config into the global variables
-         set hwcf_cardidx $hwcfg_cardidx_sel
-         set hwcf_input $hwcfg_input_sel
-         set hwcf_acq_prio $hwcfg_prio_sel
-         set hwcf_slicer_type $hwcfg_slicer_sel
-         set hwcf_wdm_stop $hwcf_wdm_stop_sel
 
          if {!$is_unix && $hwcf_dsdrv_log} {
             set msg "To produce a driver startup logfile "
@@ -332,13 +332,13 @@ proc HardwareConfigQuit {is_ok} {
             tk_messageBox -type ok -icon info -parent .hwcfg -message $msg
          }
 
-         C_UpdateHardwareConfig
-         UpdateRcFile
+         C_UpdateHardwareConfig $hwcfg_cardidx_sel $hwcfg_input_sel $hwcfg_prio_sel $hwcfg_slicer_sel $hwcf_wdm_stop_sel
       }
 
       # free memory
       unset hwcfg_card_list hwcfg_input_list
       unset hwcfg_cardidx_sel hwcfg_input_sel hwcfg_prio_sel
+      array unset tvcardcf
 
       # close config dialogs
       destroy .hwcfg
@@ -386,7 +386,7 @@ proc PopupTvCardConfig {} {
 
       array unset tvcard_cardtype_names
       set idx 0
-      foreach name [C_HwCfgGetTvCardList $hwcfg_cardidx_sel] {
+      foreach name [C_HwCfgGetTvCardNameList $hwcfg_cardidx_sel] {
          set tvcard_cardtype_names($idx) $name
          incr idx
       }
@@ -527,9 +527,8 @@ proc TvCardConfigQuit {} {
                                              $tvcard_cardtyp_sel \
                                              $tvcard_tuner_sel \
                                              $tvcard_pll_sel]
+      eval C_HwCfgUpdateTvCardConfig $hwcfg_cardidx_sel $tvcardcf($hwcfg_cardidx_sel)
 
-      UpdateRcFile
-      C_UpdateHardwareConfig
       destroy .tvcard
 
       if $hwcfg_popup {
@@ -541,13 +540,15 @@ proc TvCardConfigQuit {} {
 
 # attempt to auto-detect the card & tuner
 proc TvCardConfigAuto {} {
-   global menuStatusStartAcq hwcf_cardidx hwcfg_cardidx_sel
+   global menuStatusStartAcq hwcfg_cardidx_sel
    global tvcard_cardtyp_sel tvcard_tuner_sel tvcard_pll_sel
    global tvcard_cardtype_idxlist tvcard_cardtype_names
    global tvcard_tuner_names
 
+   set cur_cardidx [lindex [C_GetHardwareConfig] 0]
+
    # if acquisition is active for a different card it has to be stopped
-   if {$menuStatusStartAcq && ($hwcfg_cardidx_sel != $hwcf_cardidx)} {
+   if {$menuStatusStartAcq && ($hwcfg_cardidx_sel != $cur_cardidx)} {
       set answer [tk_messageBox -type okcancel -default ok -icon warning -parent .tvcard \
                      -message "Nextview acquisition has to be stopped to allow auto-detection for a different TV card."]
       if {[string compare $answer "ok"] != 0} {

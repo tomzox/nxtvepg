@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgacqctl.h,v 1.43 2004/03/11 22:22:20 tom Exp tom $
+ *  $Id: epgacqctl.h,v 1.44 2005/01/01 18:15:15 tom Exp tom $
  */
 
 #ifndef __EPGACQCTL_H
@@ -212,7 +212,8 @@ typedef enum
 // ---------------------------------------------------------------------------
 // Interface to main control module and user interface
 //
-void EpgAcqCtl_InitDaemon( void );
+void EpgAcqCtl_Init( void );
+void EpgAcqCtl_Destroy( bool isEmergency );
 bool EpgAcqCtl_Start( void );
 void EpgAcqCtl_Stop( void );
 const char * EpgAcqCtl_GetLastError( void );

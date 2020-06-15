@@ -22,7 +22,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: Makefile.win32,v 1.51 2004/12/18 14:51:21 tom Exp tom $
+#  $Id: Makefile.win32,v 1.54 2005/01/08 15:20:57 tom Exp tom $
 #
 
 ifeq ($(OS),Windows_NT)
@@ -60,9 +60,9 @@ INCS   += -I$(TCLDIR)/include
 TCL_V   = 8.3.4
 TCL_L   = 83
 
-LDLIBS += -L$(BUILD_DIR) -ltk$(TCL_L) -ltcl$(TCL_L)
-LDLIBS += -lws2_32
-LDLIBS += -L$(BUILD_DIR)/dsdrv -ltvcard -ldsdrv
+GUILIBS += -L$(BUILD_DIR) -ltk$(TCL_L) -ltcl$(TCL_L)
+ACQLIBS += -lws2_32
+ACQLIBS += -L$(BUILD_DIR)/dsdrv -ltvcard -ldsdrv
 
 # define this if you don't want to load external Tcl/Tk init scripts
 DEFS   += -DUSE_PRECOMPILED_TCL_LIBS
@@ -88,20 +88,23 @@ INCS      += -I$(BUILD_DIR)
 
 # ----- don't change anything below ------------------------------------------
 
-CSRC    = epgvbi/btdrv4win epgvbi/vbidecode epgvbi/zvbidecoder \
+EPGSRC  = epgvbi/btdrv4win epgvbi/vbidecode epgvbi/zvbidecoder \
           epgvbi/ttxdecode epgvbi/hamming epgvbi/cni_tables epgvbi/tvchan \
           epgvbi/syserrmsg epgvbi/winshmsrv \
-          epgctl/debug epgctl/epgacqctl epgctl/epgscan epgctl/epgctxctl \
-          epgctl/epgctxmerge epgctl/epgacqsrv epgctl/epgacqclnt \
           epgdb/epgstream epgdb/epgdbmerge epgdb/epgdbsav \
           epgdb/epgdbmgmt epgdb/epgdbif epgdb/epgdbfil epgdb/epgblock \
-          epgdb/epgqueue epgdb/epgtscqueue epgdb/epgnetio \
-          epgui/uictrl epgui/pibox epgui/pilistbox epgui/pinetbox \
+          epgdb/epgnetio epgdb/epgqueue epgdb/epgtscqueue \
+          epgctl/debug epgctl/epgacqctl epgctl/epgscan epgctl/epgctxctl \
+          epgctl/epgctxmerge epgctl/epgacqclnt epgctl/epgacqsrv
+GUISRC  = epgui/uictrl epgui/pibox epgui/pilistbox epgui/pinetbox \
           epgui/pidescr epgui/pioutput epgui/pifilter epgui/piremind \
           epgui/statswin epgui/timescale epgui/pdc_themes epgui/menucmd \
           epgui/epgmain epgui/loadtcl epgui/wintv epgui/wintvcfg \
           epgui/dumptext epgui/dumpraw epgui/dumphtml epgui/dumpxml \
-          epgui/shellcmd epgui/wmhooks
+          epgui/shellcmd epgui/wmhooks epgui/daemon epgui/epgsetup \
+          epgui/cmdline epgui/rcfile
+CLDSRC  = epgui/daemon_main epgui/daemon epgui/epgsetup \
+          epgui/cmdline epgui/rcfile
 TCLSRC  = epgtcl/mainwin epgtcl/helptexts epgtcl/dlg_hwcfg epgtcl/dlg_xawtvcf \
           epgtcl/dlg_ctxmencf epgtcl/dlg_acqmode epgtcl/dlg_netsel \
           epgtcl/dlg_dump epgtcl/dlg_netname epgtcl/dlg_udefcols \
@@ -117,8 +120,9 @@ TVCARD_CSRC   = dsdrv/bt8x8 dsdrv/bt8x8_i2c dsdrv/bt8x8_typ \
                 dsdrv/cx2388x dsdrv/cx2388x_typ dsdrv/wintuner
 TVSIM_CSRC    = tvsim/tvsim_main tvsim/winshmclnt
 TVSIM_CSRC2   = epgvbi/btdrv4win epgvbi/vbidecode epgvbi/zvbidecoder \
-                epgvbi/ttxdecode epgvbi/hamming epgvbi/cni_tables \
-                epgctl/debug epgui/pdc_themes epgui/wintvcfg
+                epgvbi/tvchan \
+                epgvbi/ttxdecode epgvbi/hamming epgvbi/cni_tables epgvbi/syserrmsg \
+                epgctl/debug epgui/pdc_themes epgui/wintvcfg epgui/rcfile
 TVSIM_TCLSRC  = tvsim/tvsim_gui epgtcl/tcl_libs epgtcl/tk_libs
 VBIREC_CSRC   = tvsim/vbirec_main
 VBIREC_CSRC2  = epgvbi/winshmsrv epgvbi/cni_tables epgvbi/hamming epgctl/debug
@@ -128,7 +132,9 @@ VBIPLAY_CSRC2 = tvsim/winshmclnt epgctl/debug
 
 TCL_TK_LIBS   = $(BUILD_DIR)/libtcl$(TCL_L).a $(BUILD_DIR)/libtk$(TCL_L).a
 
-NXTV_OBJS     = $(addprefix $(BUILD_DIR)/, $(addsuffix .o, $(CSRC)) $(addsuffix .o, $(TCLSRC))) \
+NXTV_OBJS     = $(addprefix $(BUILD_DIR)/, $(addsuffix .o, $(EPGSRC) $(GUISRC) $(TCLSRC))) \
+                $(BUILD_DIR)/epgui/tkwinico.res.o
+DAEMON_OBJS   = $(addprefix $(BUILD_DIR)/, $(addsuffix .o, $(EPGSRC) $(CLDSRC))) \
                 $(BUILD_DIR)/epgui/tkwinico.res.o
 DSDRV_OBJS    = $(addprefix $(BUILD_DIR)/, $(addsuffix .o, $(DSDRV_CSRC)))
 TVCARD_OBJS   = $(addprefix $(BUILD_DIR)/, $(addsuffix .o, $(TVCARD_CSRC)))
@@ -136,23 +142,27 @@ TVSIM_OBJS    = $(addprefix $(BUILD_DIR)/, $(addsuffix .o, $(TVSIM_CSRC) $(TVSIM
 VBIREC_OBJS   = $(addprefix $(BUILD_DIR)/, $(addsuffix .o, $(VBIREC_CSRC) $(VBIREC_CSRC2) $(VBIREC_TCLSRC)))
 VBIPLAY_OBJS  = $(addprefix $(BUILD_DIR)/, $(addsuffix .o, $(VBIPLAY_CSRC) $(VBIPLAY_CSRC2)))
 
-.PHONY: devel tvsim tvmans all
+.PHONY: devel daemon tvsim tvmans all
 devel   :: $(BUILD_DIR) tcl_headers $(BUILD_DIR)/nxtvepg.exe nxtvepg.1
+daemon  :: $(BUILD_DIR) tcl_headers $(BUILD_DIR)/nxtvepgd.exe nxtvepg.1 devel
 tvsim   :: $(BUILD_DIR) tcl_headers_tvsim $(BUILD_DIR)/tvsim.exe $(BUILD_DIR)/vbirec.exe $(BUILD_DIR)/vbiplay.exe tvmans
 tvmans  :: tvsim/tvsim.html tvsim/vbirec.html tvsim/vbiplay.html
-all     :: devel tvsim
+all     :: devel daemon tvsim
 
 $(BUILD_DIR)/nxtvepg.exe: $(BUILD_DIR)/dsdrv/libdsdrv.a $(BUILD_DIR)/dsdrv/libtvcard.a $(NXTV_OBJS) $(TCL_TK_LIBS)
-	$(CC) $(LDFLAGS) $(NXTV_OBJS) $(LDLIBS) -o $@
+	$(CC) $(LDFLAGS) $(NXTV_OBJS) $(GUILIBS) $(ACQLIBS) -o $@
+
+$(BUILD_DIR)/nxtvepgd.exe: $(DAEMON_OBJS)
+	$(CC) $(LDFLAGS) $(DAEMON_OBJS) $(ACQLIBS) -o $@
 
 $(BUILD_DIR)/tvsim.exe: $(BUILD_DIR)/dsdrv/libdsdrv.a $(BUILD_DIR)/dsdrv/libtvcard.a $(TVSIM_OBJS) $(TCL_TK_LIBS)
-	$(CC) $(LDFLAGS) $(TVSIM_OBJS) $(LDLIBS) -o $@
+	$(CC) $(LDFLAGS) $(TVSIM_OBJS) $(GUILIBS) $(ACQLIBS) -o $@
 
 $(BUILD_DIR)/vbirec.exe: $(VBIREC_OBJS) $(TCL_TK_LIBS)
-	$(CC) $(LDFLAGS) $(VBIREC_OBJS) $(LDLIBS) -o $@
+	$(CC) $(LDFLAGS) $(VBIREC_OBJS) $(GUILIBS) $(ACQLIBS) -o $@
 
 $(BUILD_DIR)/vbiplay.exe: $(VBIPLAY_OBJS)
-	$(CC) $(LDFLAGS) $(VBIPLAY_OBJS) $(LDLIBS) -o $@
+	$(CC) $(LDFLAGS) $(VBIPLAY_OBJS) $(GUILIBS) $(ACQLIBS) -o $@
 
 $(BUILD_DIR)/dsdrv/libdsdrv.a: $(DSDRV_OBJS)
 	$(AR) r $(BUILD_DIR)/dsdrv/libdsdrv.a $(DSDRV_OBJS)
@@ -258,7 +268,8 @@ zip: all
 	echo Packing $$ARCHIVE; \
 	rm -f $$ARCHIVE; \
 	strip $(BUILD_DIR)/nxtvepg.exe; \
-	zip -9 -j $$ARCHIVE $(BUILD_DIR)/nxtvepg.exe; \
+	strip $(BUILD_DIR)/nxtvepgd.exe; \
+	zip -9 -j $$ARCHIVE $(BUILD_DIR)/nxtvepg.exe $(BUILD_DIR)/nxtvepgd.exe; \
 	zip -9 $$ARCHIVE tcl$(TCL_L).dll tk$(TCL_L).dll dsdrv4.sys dsdrv4.vxd nxtvepg.ico; \
 	zip -9 $$ARCHIVE -l manual.html Nxtvepg.ad; \
 	for v in TODO README CHANGES COPYRIGHT; do \

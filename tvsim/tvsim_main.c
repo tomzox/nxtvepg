@@ -21,7 +21,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: tvsim_main.c,v 1.27 2004/12/12 14:53:06 tom Exp tom $
+ *  $Id: tvsim_main.c,v 1.28 2005/01/08 15:32:05 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_TVSIM
@@ -57,8 +57,14 @@
 #include "epgvbi/winshm.h"
 #include "epgvbi/ttxdecode.h"
 #include "epgdb/epgblock.h"
+#include "epgdb/epgtscqueue.h"
+#include "epgdb/epgdbmerge.h"
+#include "epgctl/epgacqctl.h"
 #include "epgui/wintvcfg.h"
+#include "epgui/cmdline.h"
+#include "epgui/rcfile.h"
 #include "epgui/pdc_themes.h"
+#include "epgtcl/dlg_hwcfg.h"
 #include "tvsim/winshmclnt.h"
 #include "tvsim/tvsim_gui.h"
 #include "tvsim/tvsim_version.h"
@@ -114,12 +120,8 @@ static bool             haveIdleHandler    = FALSE;
 #define TVSIM_PDC_THEME_LANGUAGE  0
 
 // command line options
-#ifdef WIN32
-static const char * const defaultRcFile = "nxtvepg.ini";
-#else
-static char * defaultRcFile = "~/.nxtvepgrc";
-#endif
 static const char * rcfile = NULL;
+static bool isDefaultRcfile = TRUE;
 static uint videoCardIndex = TVSIM_CARD_IDX;
 static bool startIconified = FALSE;
 
@@ -759,6 +761,14 @@ static void SetWorkingDirectoryFromExe( const char *argv0 )
 }
 #endif  // WIN32
 
+// ----------------------------------------------------------------------------
+// Dummy for rcfile.c
+// - (not needed because tvsim doesn't write rc file anyways)
+// 
+void CmdLine_AddRcFilePostfix( const char * pPostfix )
+{
+}
+
 // ---------------------------------------------------------------------------
 // Print Usage and exit
 //
@@ -791,13 +801,30 @@ static void Usage( const char *argv0, const char *argvn, const char * reason )
 //
 static void ParseArgv( int argc, char * argv[] )
 {
+#ifndef WIN32
+   char * pHome;
+   char * pTmp;
+#endif
    int argIdx = 1;
 
 #ifdef WIN32
    SetWorkingDirectoryFromExe(argv[0]);
 #endif
 
-   rcfile = defaultRcFile;
+#ifndef WIN32
+   pHome = getenv("HOME");
+   if (pHome != NULL)
+   {
+      pTmp = xmalloc(strlen(pHome) + 1 + strlen(".nxtvepgrc") + 1);
+      strcpy(pTmp, pHome);
+      strcat(pTmp, "/.nxtvepgrc");
+      rcfile = pTmp;
+   }
+   else
+      rcfile = xstrdup(".nxtvepgrc");
+#else
+   rcfile = xstrdup("nxtvepg.ini");
+#endif
 
    while (argIdx < argc)
    {
@@ -813,7 +840,9 @@ static void ParseArgv( int argc, char * argv[] )
          {
             if (argIdx + 1 < argc)
             {  // read file name of rc/ini file
-               rcfile = argv[argIdx + 1];
+               xfree((void *) rcfile);
+               rcfile = xstrdup(argv[argIdx + 1]);
+               isDefaultRcfile = FALSE;
                argIdx += 2;
             }
             else
@@ -862,48 +891,36 @@ static void ParseArgv( int argc, char * argv[] )
 // - the parameters must be loaded before from the nxtvepg rc/ini file,
 //   except for the TV card index, which is set by a command line switch only
 //
-static bool SetHardwareConfig( Tcl_Interp *interp, uint cardIdx )
+static bool SetHardwareConfig( uint cardIdx )
 {
-   Tcl_Obj  * pVarObj;
-   #ifdef WIN32
-   Tcl_Obj  * pCardCfList;
-   Tcl_Obj ** pCardCfObjv;
-   char  idx_str[10];
-   int   llen;
-   int   chipType, cardType, tuner, pll, wdmStop;
-   #endif
-   int   prio;
-   bool  result;
+   const RCFILE * pRc = RcFile_Query();
+   uint input, prio, slicer, wdmStop;
+   bool result;
 
-   pVarObj = Tcl_GetVar2Ex(interp, "hwcf_acq_prio", NULL, TCL_GLOBAL_ONLY);
-   if ( (pVarObj == NULL) ||
-        (Tcl_GetIntFromObj(interp, pVarObj, &prio) != TCL_OK) )
-   {
-      prio = 0;
-   }
+   //cardIdx = pRc->tvcard.card_idx;
+   input   = pRc->tvcard.input;
+   prio    = pRc->tvcard.acq_prio;
+   slicer  = pRc->tvcard.slicer_type;
+   wdmStop = pRc->tvcard.wdm_stop;
+
 #ifdef WIN32
-   pVarObj = Tcl_GetVar2Ex(interp, "hwcf_wdm_stop", NULL, TCL_GLOBAL_ONLY);
-   if ( (pVarObj == NULL) ||
-        (Tcl_GetIntFromObj(interp, pVarObj, &wdmStop) != TCL_OK) )
+   if (cardIdx < pRc->tvcard.winsrc_count)
    {
-      wdmStop = 0;
-   }
-   // retrieve card specific parameters
-   sprintf(idx_str, "%d", cardIdx);
-   pCardCfList = Tcl_GetVar2Ex(interp, "tvcardcf", idx_str, TCL_GLOBAL_ONLY);
-   if ( (pCardCfList != NULL) &&
-        (Tcl_ListObjGetElements(interp, pCardCfList, &llen, &pCardCfObjv) == TCL_OK) &&
-        (llen == 4) &&
-        (Tcl_GetIntFromObj(interp, pCardCfObjv[0], &chipType) == TCL_OK) &&
-        (Tcl_GetIntFromObj(interp, pCardCfObjv[1], &cardType) == TCL_OK) &&
-        (Tcl_GetIntFromObj(interp, pCardCfObjv[2], &tuner) == TCL_OK) &&
-        (Tcl_GetIntFromObj(interp, pCardCfObjv[3], &pll) == TCL_OK) )
-   {
+      uint  chipType, cardType, tuner, pll;
+
+      // retrieve card specific parameters
+      chipType = pRc->tvcard.winsrc[cardIdx][EPGTCL_TVCF_CHIP_IDX];
+      cardType = pRc->tvcard.winsrc[cardIdx][EPGTCL_TVCF_CARD_IDX];
+      tuner    = pRc->tvcard.winsrc[cardIdx][EPGTCL_TVCF_TUNER_IDX];
+      pll      = pRc->tvcard.winsrc[cardIdx][EPGTCL_TVCF_PLL_IDX];
+
       // pass the hardware config params to the driver
       result = BtDriver_Configure(cardIdx, prio, chipType, cardType, tuner, pll, wdmStop);
    }
    else
    {
+      dprintf2("SetHardwareConfig: card #%d not configured (have %d)\n", cardIdx, pRc->tvcard.winsrc_count);
+
       MessageBox(NULL, "Failed to load TV card configuration from nxtvepg INI file. "
                  "Configure this card first in nxtvepg's TV card input configuration dialog.",
                  "TV App. Interaction Simulator", MB_ICONSTOP | MB_OK | MB_TASKMODAL | MB_SETFOREGROUND);
@@ -1483,6 +1500,7 @@ int APIENTRY WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdL
 int main( int argc, char *argv[] )
 #endif
 {
+   char * pErrMsg = NULL;
    #ifdef WIN32
    WINSHMCLNT_EVENT  attachEvent;
    int argc;
@@ -1492,6 +1510,11 @@ int main( int argc, char *argv[] )
    SetArgv(&argc, &argv);
    #endif
    ParseArgv(argc, argv);
+
+   RcFile_Init();
+   RcFile_Load(rcfile, !isDefaultRcfile, &pErrMsg);
+   if (pErrMsg != NULL)
+      xfree(pErrMsg);
 
    // mark Tcl/Tk interpreter as uninitialized
    interp = NULL;
@@ -1515,7 +1538,7 @@ int main( int argc, char *argv[] )
       #endif
 
       // pass bt8x8 driver parameters to the driver
-      if (SetHardwareConfig(interp, videoCardIndex))
+      if (SetHardwareConfig(videoCardIndex))
       {
          // select language for PDC theme text output
          PdcThemeSetLanguage(TVSIM_PDC_THEME_LANGUAGE);
@@ -1595,11 +1618,13 @@ int main( int argc, char *argv[] )
    #endif
 
    WintvCfg_Destroy();
+   RcFile_Destroy();
 
    #if CHK_MALLOC == ON
    #ifdef WIN32
    xfree(argv);
    #endif
+   xfree((void *) rcfile);
    // check for allocated memory that was not freed
    chk_memleakage();
    #endif

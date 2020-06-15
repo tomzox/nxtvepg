@@ -51,7 +51,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: dlg_remind.tcl,v 1.18 2004/04/02 11:27:33 tom Exp tom $
+#  $Id: dlg_remind.tcl,v 1.19 2005/01/06 14:06:17 tom Exp tom $
 #
 # import constants from other modules
 #=INCLUDE= "epgtcl/dlg_udefcols.h"
@@ -143,7 +143,6 @@ set rem_col_fmt {{1 circle_red bg_RGBFFD0D0 -1 rgp_all}}
 ##
 proc Reminder_InitData {} {
    global remgroups remgroup_order reminders shortcuts
-   global piexpire_cutoff
 
    # no reminder groups in RC file -> set default group
    if {[array size remgroups] == 0} {

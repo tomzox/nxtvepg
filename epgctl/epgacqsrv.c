@@ -20,7 +20,7 @@
  *  Author:
  *          Tom Zoerner
  *
- *  $Id: epgacqsrv.c,v 1.15 2004/06/19 19:52:26 tom Exp $
+ *  $Id: epgacqsrv.c,v 1.16 2005/01/01 18:17:59 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGCTL
@@ -79,6 +79,7 @@ typedef struct REQUEST_struct
 
    SRV_REQ_STATE   state;
    EPGNETIO_STATE  io;
+   bool            isLocalCon;
    bool            endianSwap;
 
    EPGNETIO_DUMP   dump;
@@ -389,7 +390,7 @@ static void EpgAcqServer_Close( EPGDBSRV_STATE * req, bool closeAll )
 // ----------------------------------------------------------------------------
 // Initialize a request structure for a new client and add it to the list
 //
-static void EpgAcqServer_AddConnection( int listen_fd )
+static void EpgAcqServer_AddConnection( int listen_fd, bool isLocal )
 {
    EPGDBSRV_STATE * req;
    int sock_fd;
@@ -403,6 +404,7 @@ static void EpgAcqServer_AddConnection( int listen_fd )
       memset(req, 0, sizeof(EPGDBSRV_STATE));
 
       req->state         = SRV_STATE_WAIT_CON_REQ;
+      req->isLocalCon    = isLocal;
       req->io.lastIoTime = time(NULL);
       req->io.sock_fd    = sock_fd;
 
@@ -710,13 +712,13 @@ void EpgAcqServer_HandleSockets( fd_set * rd, fd_set * wr )
    // accept new TCP/IP connections
    if ((srvState.tcp_ip_fd != -1) && (FD_ISSET(srvState.tcp_ip_fd, rd)))
    {
-      EpgAcqServer_AddConnection(srvState.tcp_ip_fd);
+      EpgAcqServer_AddConnection(srvState.tcp_ip_fd, FALSE);
    }
 
    // accept new local connections
    if ((srvState.pipe_fd != -1) && (FD_ISSET(srvState.pipe_fd, rd)))
    {
-      EpgAcqServer_AddConnection(srvState.pipe_fd);
+      EpgAcqServer_AddConnection(srvState.pipe_fd, TRUE);
    }
 
    // handle active connections

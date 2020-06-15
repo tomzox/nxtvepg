@@ -44,7 +44,7 @@
  *    NetBSD:  Mario Kemper <magick@bundy.zhadum.de>
  *    FreeBSD: Simon Barner <barner@gmx.de>
  *
- *  $Id: btdrv4linux.c,v 1.61 2004/12/24 11:05:11 tom Exp $
+ *  $Id: btdrv4linux.c,v 1.61 2004/12/24 11:05:11 tom Exp tom $
  */
 
 #if !defined(linux) && !defined(__NetBSD__) && !defined(__FreeBSD__) 
@@ -533,6 +533,13 @@ static void BtDriver_OpenVbi( void )
          services = VBI_SLICED_TELETEXT_B | VBI_SLICED_VPS;
          pZvbiCapt = vbi_capture_v4l_new(pDevName, 0, &services, 0, &pErrStr, ZVBI_TRACE);
       }
+#if (VBI_VERSION_MAJOR>0) || (VBI_VERSION_MINOR>2) || (VBI_VERSION_MICRO >= 6)
+      if (pZvbiCapt == NULL)
+      {
+         services = VBI_SLICED_TELETEXT_B;
+         pZvbiCapt = vbi_capture_dvb_new(pDevName, 0, &services, 0, &pErrStr, ZVBI_TRACE);
+      }
+#endif
 
       if (pZvbiCapt != NULL)
       {

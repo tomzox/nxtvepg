@@ -1,0 +1,1279 @@
+/*
+ *  Reading/writing the .nxtvepgrc / nxtvepg.ini file
+ *
+ *  This program is free software; you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License Version 2 as
+ *  published by the Free Software Foundation. You find a copy of this
+ *  license in the file COPYRIGHT in the root directory of this release.
+ *
+ *  THIS PROGRAM IS DISTRIBUTED IN THE HOPE THAT IT WILL BE USEFUL,
+ *  BUT WITHOUT ANY WARRANTY; WITHOUT EVEN THE IMPLIED WARRANTY OF
+ *  MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *
+ *  Description:
+ *
+ *    This module implements functions to manage reading and writing of
+ *    the parameter configuration file. Parameters are read once during
+ *    start-up into a C structure and can be changed during run-time
+ *    via update functions.  Parameter assignments are split into
+ *    separate sections.  Not all sections are managed here: parameters
+ *    belonging to the GUI are read and written separately; a function
+ *    is provided to copy through foreign sections during updates in case
+ *    the calling application doesn't include the GUI code.
+ *
+ *  Author: Tom Zoerner
+ *
+ *  $Id: rcfile.c,v 1.3 2005/01/08 15:16:43 tom Exp tom $
+ */
+
+#define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
+#define DPRINTF_OFF
+
+#ifndef WIN32
+#include <unistd.h>
+#include <sys/param.h>
+#include <sys/time.h>
+#include <pwd.h>
+#include <signal.h>
+#else
+#include <windows.h>
+#include <io.h>
+#include <direct.h>
+#endif
+#include <stdio.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <stdlib.h>
+#include <string.h>
+#include <ctype.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <time.h>
+
+#include "epgctl/mytypes.h"
+#include "epgctl/epgversion.h"
+#include "epgctl/debug.h"
+
+#include "epgdb/epgblock.h"
+#include "epgdb/epgdbfil.h"
+#include "epgdb/epgdbif.h"
+#include "epgdb/epgdbmgmt.h"
+#include "epgdb/epgdbsav.h"
+#include "epgdb/epgnetio.h"
+#include "epgctl/epgacqctl.h"
+#include "epgctl/epgacqsrv.h"
+#include "epgctl/epgacqclnt.h"
+#include "epgvbi/syserrmsg.h"
+#include "epgui/uictrl.h"
+#include "epgctl/epgctxctl.h"
+#include "epgtcl/dlg_hwcfg.h"
+#include "epgtcl/dlg_acqmode.h"
+#include "epgtcl/rcfile.h"
+
+#include "epgui/cmdline.h"
+#include "epgui/rcfile.h"
+
+
+
+// ----------------------------------------------------------------------------
+// Table describing mapping of config keywords and values to the C struct
+//
+#define RC_OFF(MEMBER) ((size_t) &((RCFILE *)0)->MEMBER)
+#define RC_CNT(X)  (sizeof(mainRc.X)/sizeof(mainRc.X[0]))
+#define RC_ARR_CNT(X)  (sizeof((X))/sizeof((X)[0]))
+
+static RCFILE mainRc;
+
+typedef struct
+{
+   const char *         pKey;
+   uint                 value;
+} RCPARSE_ENUM;
+
+static const RCPARSE_ENUM rcEnum_AcqMode[] =
+{
+   { "passive", ACQMODE_PASSIVE },
+   { "external", ACQMODE_EXTERNAL },
+   { "follow-ui", ACQMODE_FOLLOW_UI },
+   { "cyclic_2", ACQMODE_CYCLIC_2 },
+   { "cyclic_012", ACQMODE_CYCLIC_012 },
+   { "cyclic_02", ACQMODE_CYCLIC_02 },
+   { "cyclic_12", ACQMODE_CYCLIC_12 },
+   { (const char *) NULL, ACQMODE_COUNT }
+};
+
+typedef enum
+{
+   RC_TYPE_INT,
+   RC_TYPE_BOOL,
+   RC_TYPE_STR,
+   RC_TYPE_ENUM
+} RC_VAL_TYPE;
+
+typedef struct
+{
+   RC_VAL_TYPE  type;
+   uint         off;
+   const char * pKey;
+   uint         counterOff;
+   uint         maxCount;
+   const RCPARSE_ENUM * pEnum;
+} RCPARSE_CFG;
+
+#define RCPARSE_IS_LIST(X) ((X)->maxCount != 0)
+
+static const RCPARSE_CFG rcParseCfg_version[] =
+{
+   { RC_TYPE_INT,  RC_OFF(version.rc_nxtvepg_version), "nxtvepg_version", 0 },
+   { RC_TYPE_STR,  RC_OFF(version.rc_nxtvepg_version_str), "nxtvepg_version_str", 0 },
+   { RC_TYPE_INT,  RC_OFF(version.rc_compat_version), "rc_compat_version", 0 },
+};
+static const RCPARSE_CFG rcParseCfg_acq[] =
+{
+   { RC_TYPE_INT,  RC_OFF(acq.prov_freqs), "prov_freqs", RC_OFF(acq.prov_freq_count), RC_CNT(acq.prov_freqs) },
+   { RC_TYPE_INT,  RC_OFF(acq.acq_cnis), "acq_mode_cnis", RC_OFF(acq.acq_cni_count), RC_CNT(acq.acq_cnis) },
+   { RC_TYPE_ENUM, RC_OFF(acq.acq_mode), "acq_mode", 0, 0, rcEnum_AcqMode },
+   { RC_TYPE_INT,  RC_OFF(acq.epgscan_opt_ftable), "epgscan_opt_ftable" },
+};
+static const RCPARSE_CFG rcParseCfg_db[] =
+{
+   { RC_TYPE_INT,  RC_OFF(db.piexpire_cutoff), "piexpire_cutoff" },
+   { RC_TYPE_INT,  RC_OFF(db.prov_selection), "prov_selection", RC_OFF(db.prov_sel_count), RC_CNT(db.prov_selection) },
+
+   { RC_TYPE_INT,  RC_OFF(db.prov_merge_cnis), "prov_merge_cnis", RC_OFF(db.prov_merge_count), RC_CNT(db.prov_merge_cnis) },
+   { RC_TYPE_INT,  RC_OFF(db.prov_merge_netwops), "prov_merge_netwops", RC_OFF(db.prov_merge_net_count), RC_CNT(db.prov_merge_netwops) },
+
+   { RC_TYPE_INT,  RC_OFF(db.prov_merge_opts[MERGE_TYPE_TITLE]), "prov_merge_cftitle", RC_OFF(db.prov_merge_opt_count[MERGE_TYPE_TITLE]), MAX_MERGED_DB_COUNT },
+   { RC_TYPE_INT,  RC_OFF(db.prov_merge_opts[MERGE_TYPE_DESCR]), "prov_merge_cfdescr", RC_OFF(db.prov_merge_opt_count[MERGE_TYPE_DESCR]), MAX_MERGED_DB_COUNT },
+   { RC_TYPE_INT,  RC_OFF(db.prov_merge_opts[MERGE_TYPE_THEMES]), "prov_merge_cfthemes", RC_OFF(db.prov_merge_opt_count[MERGE_TYPE_THEMES]), MAX_MERGED_DB_COUNT },
+   { RC_TYPE_INT,  RC_OFF(db.prov_merge_opts[MERGE_TYPE_SERIES]), "prov_merge_cfseries", RC_OFF(db.prov_merge_opt_count[MERGE_TYPE_SERIES]), MAX_MERGED_DB_COUNT },
+   { RC_TYPE_INT,  RC_OFF(db.prov_merge_opts[MERGE_TYPE_SORTCRIT]), "prov_merge_cfsortcrit", RC_OFF(db.prov_merge_opt_count[MERGE_TYPE_SORTCRIT]), MAX_MERGED_DB_COUNT },
+   { RC_TYPE_INT,  RC_OFF(db.prov_merge_opts[MERGE_TYPE_EDITORIAL]), "prov_merge_cfeditorial", RC_OFF(db.prov_merge_opt_count[MERGE_TYPE_EDITORIAL]), MAX_MERGED_DB_COUNT },
+   { RC_TYPE_INT,  RC_OFF(db.prov_merge_opts[MERGE_TYPE_PARENTAL]), "prov_merge_cfparental", RC_OFF(db.prov_merge_opt_count[MERGE_TYPE_PARENTAL]), MAX_MERGED_DB_COUNT },
+   { RC_TYPE_INT,  RC_OFF(db.prov_merge_opts[MERGE_TYPE_SOUND]), "prov_merge_cfsound", RC_OFF(db.prov_merge_opt_count[MERGE_TYPE_SOUND]), MAX_MERGED_DB_COUNT },
+   { RC_TYPE_INT,  RC_OFF(db.prov_merge_opts[MERGE_TYPE_FORMAT]), "prov_merge_cfformat", RC_OFF(db.prov_merge_opt_count[MERGE_TYPE_FORMAT]), MAX_MERGED_DB_COUNT },
+   { RC_TYPE_INT,  RC_OFF(db.prov_merge_opts[MERGE_TYPE_REPEAT]), "prov_merge_cfrepeat", RC_OFF(db.prov_merge_opt_count[MERGE_TYPE_REPEAT]), MAX_MERGED_DB_COUNT },
+   { RC_TYPE_INT,  RC_OFF(db.prov_merge_opts[MERGE_TYPE_SUBT]), "prov_merge_cfsubt", RC_OFF(db.prov_merge_opt_count[MERGE_TYPE_SUBT]), MAX_MERGED_DB_COUNT },
+   { RC_TYPE_INT,  RC_OFF(db.prov_merge_opts[MERGE_TYPE_OTHERFEAT]), "prov_merge_cfmisc", RC_OFF(db.prov_merge_opt_count[MERGE_TYPE_OTHERFEAT]), MAX_MERGED_DB_COUNT },
+   { RC_TYPE_INT,  RC_OFF(db.prov_merge_opts[MERGE_TYPE_VPS]), "prov_merge_cfvps", RC_OFF(db.prov_merge_opt_count[MERGE_TYPE_VPS]), MAX_MERGED_DB_COUNT },
+};
+static const RCPARSE_CFG rcParseCfg_netacq[] =
+{
+   { RC_TYPE_INT,  RC_OFF(netacq.netacq_enable), "netacq_enable" },
+   { RC_TYPE_INT,  RC_OFF(netacq.remctl), "netacqcf_remctl" },
+   { RC_TYPE_INT,  RC_OFF(netacq.do_tcp_ip), "netacqcf_do_tcp_ip" },
+   { RC_TYPE_STR,  RC_OFF(netacq.pHostName), "netacqcf_host" },
+   { RC_TYPE_STR,  RC_OFF(netacq.pPort), "netacqcf_port" },
+   { RC_TYPE_STR,  RC_OFF(netacq.pIpStr), "netacqcf_ip" },
+   { RC_TYPE_STR,  RC_OFF(netacq.pLogfileName), "netacqcf_logname" },
+   { RC_TYPE_INT,  RC_OFF(netacq.max_conn), "netacqcf_max_conn" },
+   { RC_TYPE_INT,  RC_OFF(netacq.fileloglev), "netacqcf_fileloglev" },
+   { RC_TYPE_INT,  RC_OFF(netacq.sysloglev), "netacqcf_sysloglev" },
+};
+static const RCPARSE_CFG rcParseCfg_tvcard[] =
+{
+   { RC_TYPE_INT,  RC_OFF(tvcard.card_idx), "hwcf_cardidx" },
+   { RC_TYPE_INT,  RC_OFF(tvcard.input), "hwcf_input" },
+   { RC_TYPE_INT,  RC_OFF(tvcard.acq_prio), "hwcf_acq_prio" },
+   { RC_TYPE_INT,  RC_OFF(tvcard.slicer_type), "hwcf_slicer_type" },
+   { RC_TYPE_INT,  RC_OFF(tvcard.wdm_stop), "hwcf_wdm_stop" },
+   // note: following must match RCFILE_MAX_WINSRC_COUNT
+   { RC_TYPE_INT,  RC_OFF(tvcard.winsrc_count), "tvcardcf_count" },
+   { RC_TYPE_INT,  RC_OFF(tvcard.winsrc[0]), "tvcardcf_0", RC_OFF(tvcard.winsrc_param_count[0]), EPGTCL_TVCF_IDX_COUNT },
+   { RC_TYPE_INT,  RC_OFF(tvcard.winsrc[1]), "tvcardcf_1", RC_OFF(tvcard.winsrc_param_count[1]), EPGTCL_TVCF_IDX_COUNT },
+   { RC_TYPE_INT,  RC_OFF(tvcard.winsrc[2]), "tvcardcf_2", RC_OFF(tvcard.winsrc_param_count[2]), EPGTCL_TVCF_IDX_COUNT },
+   { RC_TYPE_INT,  RC_OFF(tvcard.winsrc[3]), "tvcardcf_3", RC_OFF(tvcard.winsrc_param_count[3]), EPGTCL_TVCF_IDX_COUNT },
+   { RC_TYPE_INT,  RC_OFF(tvcard.winsrc[4]), "tvcardcf_4", RC_OFF(tvcard.winsrc_param_count[4]), EPGTCL_TVCF_IDX_COUNT },
+};
+
+typedef struct
+{
+   const char         * pName;
+   const RCPARSE_CFG  * pList;
+   uint                 listLen;
+   bool                 ownedHere;
+   bool                 ignoreUnknown;
+} RCPARSE_SECT;
+
+static const RCPARSE_SECT rcParseCfg[] =
+{
+   { "VERSION", rcParseCfg_version, RC_ARR_CNT(rcParseCfg_version), FALSE, TRUE },
+   { "ACQUISITION", rcParseCfg_acq, RC_ARR_CNT(rcParseCfg_acq), TRUE },
+   { "DATABASE", rcParseCfg_db, RC_ARR_CNT(rcParseCfg_db), TRUE, TRUE },
+   { "CLIENT SERVER", rcParseCfg_netacq, RC_ARR_CNT(rcParseCfg_netacq), TRUE },
+   { "TV CARDS", rcParseCfg_tvcard, RC_ARR_CNT(rcParseCfg_tvcard), TRUE },
+};
+
+// ----------------------------------------------------------------------------
+// Map value to enum index
+// - returns -1 if no
+//
+static int RcFile_MapValueToEnumIdx( const RCPARSE_ENUM * pEnum, int value )
+{
+   int  idx;
+
+   if (pEnum != NULL)
+   {
+      idx = 0;
+      while (pEnum->pKey != NULL)
+      {
+         if (pEnum->value == value)
+         {
+            break;
+         }
+         pEnum++;
+         idx++;
+      }
+      if (pEnum->pKey == NULL)
+         idx = -1;
+   }
+   else
+      idx = -1;
+
+   return idx;
+}
+
+// ----------------------------------------------------------------------------
+// Search given enum keyword in list and return associated value
+// - if string is not in list, returns pre-defined fallback value
+//
+static int RcFile_MapEnumStrToValue( const RCPARSE_ENUM * pEnum, const char * pKey )
+{
+   int value = 0;
+
+   if (pEnum != NULL)
+   {
+      while (pEnum->pKey != NULL)
+      {
+         if (strcmp(pKey, pEnum->pKey) == 0)
+         {
+            value = pEnum->value;
+            break;
+         }
+         pEnum++;
+      }
+      // not found: use fallback value
+      if (pEnum->pKey == NULL)
+         value = pEnum->value;
+   }
+
+   return value;
+}
+
+// ----------------------------------------------------------------------------
+// Create file for writing config values
+// - on UNIX a temporary file is created which is later moved over the old one
+//
+FILE * RcFile_WriteCreateFile( const char * pRcPath, char ** ppErrMsg )
+{
+   char * pTmpRcPath;
+   time_t now;
+   FILE * fp = NULL;
+
+   if (pRcPath != NULL)
+   {
+#ifndef WIN32
+      pTmpRcPath = xmalloc(strlen(pRcPath) + 1+4);
+      strcpy(pTmpRcPath, pRcPath);
+      strcat(pTmpRcPath, ".tmp");
+#else
+      pTmpRcPath = pRcPath;
+#endif
+      fp = fopen(pTmpRcPath, "w");
+      if (fp != NULL)
+      {
+         now = time(NULL);
+         fprintf(fp, "#\n"
+                     "# Nextview EPG configuration file\n"
+                     "#\n"
+                     "# This file is automatically generated - do not edit\n"
+                     "# Written at: %s"
+                     "#\n",
+                     ctime(&now));
+      }
+      else
+      {
+         SystemErrorMessage_Set(ppErrMsg, errno, "Failed to write new config file '", pTmpRcPath, "': ", NULL);
+      }
+#ifndef WIN32
+      xfree(pTmpRcPath);
+#endif
+   }
+   else
+      debug0("RcFile-WriteCreateFile: illegal NULL ptr param");
+
+   return fp;
+}
+
+// ----------------------------------------------------------------------------
+// Close the file for writing
+// - UNIX only: if there was a write error the written file is discarded
+//
+bool RcFile_WriteCloseFile( FILE * fp, bool writeOk, const char * pRcPath, char ** ppErrMsg )
+{
+#ifndef WIN32
+   char * pTmpRcPath;
+#endif
+
+   if (fp != NULL)
+   {
+      if (fclose(fp) != 0)
+      {
+         debug2("RcFile-WriteCloseFile: error on close: %d (%s)", errno, strerror(errno));
+         writeOk = FALSE;
+      }
+#ifndef WIN32
+      pTmpRcPath = xmalloc(strlen(pRcPath) + 1 + 4);
+      strcpy(pTmpRcPath, pRcPath);
+      strcat(pTmpRcPath, ".tmp");
+
+      if (writeOk)
+      {
+         if (rename(pTmpRcPath, pRcPath) != 0)
+         {
+            debug4("RcFile-WriteCloseFile: failed to rename '%s' into '%s': %d (%s)", pTmpRcPath, pRcPath, errno, strerror(errno));
+            if (*ppErrMsg == NULL)
+               SystemErrorMessage_Set(ppErrMsg, errno, "Failed to replace config file '", pRcPath, "': ", NULL);
+         }
+      }
+      else
+         unlink(pTmpRcPath);
+
+      xfree(pTmpRcPath);
+#endif
+   }
+   else
+      debug0("RcFile-WriteCloseFile: illegal NULL ptr param");
+
+   return writeOk;
+}
+
+// ----------------------------------------------------------------------------
+// Write section with version information
+//
+static void RcFile_WriteVersionSection( FILE * fp )
+{
+   if (fp != NULL)
+   {
+      fprintf(fp, "\n[VERSION]\n"
+                  "nxtvepg_version = 0x%X\n"
+                  "nxtvepg_version_str = %s\n"
+                  "rc_compat_version = 0x%X\n"
+                  "rc_timestamp = %d\n",
+                  EPG_VERSION_NO,
+                  EPG_VERSION_STR,
+                  RC_FILE_COMPAT_VERSION,
+                  (int)time(NULL));
+   }
+   else
+      debug0("RcFile-WriteVersionSection: illegal NULL ptr param");
+}
+
+// ----------------------------------------------------------------------------
+// Write sections of config file which are managed by C level
+//
+bool RcFile_WriteOwnSections( FILE * fp )
+{
+   const RCPARSE_CFG * pDesc;
+   uint  listLen;
+   uint  listIdx;
+   uint  sectIdx;
+   uint  elemIdx;
+   int   enumIdx;
+   int   * pInt;
+   bool  * pBool;
+   char  ** pChar;
+
+   RcFile_WriteVersionSection(fp);
+
+   for (sectIdx = 0; sectIdx < RC_ARR_CNT(rcParseCfg); sectIdx++)
+   {
+      if (rcParseCfg[sectIdx].ownedHere)
+      {
+         fprintf(fp, "\n[%s]\n", rcParseCfg[sectIdx].pName);
+
+         pDesc = rcParseCfg[sectIdx].pList;
+         for (elemIdx = 0; elemIdx < rcParseCfg[sectIdx].listLen; elemIdx++, pDesc++)
+         {
+            fprintf(fp, "%s =", pDesc->pKey);
+
+            if (RCPARSE_IS_LIST(pDesc))
+               listLen = *((int *)((long)&mainRc + pDesc->counterOff));
+            else
+               listLen = 1;
+
+            for (listIdx = 0; listIdx < listLen; listIdx++)
+            {
+               switch (pDesc->type)
+               {
+                  case RC_TYPE_INT:
+                     pInt = (int *)((long)&mainRc + pDesc->off);
+                     fprintf(fp, " %d", pInt[listIdx]);
+                     break;
+
+                  case RC_TYPE_BOOL:
+                     pBool = (bool *)((long)&mainRc + pDesc->off);
+                     fprintf(fp, " %d", pBool[listIdx]);
+
+                  case RC_TYPE_STR:
+                     pChar = (char **)((long)&mainRc + pDesc->off);
+                     if (*pChar != NULL)
+                     {
+                        fprintf(fp, " %s", *pChar);
+                     }
+                     break;
+
+                  case RC_TYPE_ENUM:
+                     pInt = (int *)((long)&mainRc + pDesc->off);
+                     enumIdx = RcFile_MapValueToEnumIdx(pDesc->pEnum, pInt[listIdx]);
+                     if (enumIdx >= 0)
+                     {
+                        fprintf(fp, " %s", pDesc->pEnum[enumIdx].pKey);
+                     }
+                  break;
+               }
+            }
+            fprintf(fp, "\n");
+         }
+      }
+   }
+
+   return (ferror(fp) == FALSE);
+}
+
+// ----------------------------------------------------------------------------
+// Read GUI sections into a temporary buffer
+// - memory for the buffer must be freed by caller
+// - returns error code if file exists but there was an error reading it
+//   (caller should not overwrite the file in this case to avoid losing data)
+//
+bool RcFile_CopyForeignSections( const char * pRcPath, char ** ppBuf, uint * pBufLen )
+{
+   struct stat st;
+   FILE * fp;
+   char   sbuf[256];
+   char   key[100];
+   uint   sectIdx;
+   uint   lineLen;
+   uint   bufOff;
+   bool   copySection;
+   bool   partialLine;
+   bool   result = TRUE;
+
+   if ((pRcPath != NULL) && (ppBuf != NULL) && (pBufLen != NULL))
+   {
+      *ppBuf = NULL;
+      *pBufLen = 0;
+
+      if (stat(pRcPath, &st) == 0)
+      {
+         dprintf1("RcFile-CopyForeignSections: allocate buffer for %ld bytes\n", (long)st.st_size);
+         *ppBuf = xmalloc(st.st_size + 1);
+         bufOff = 0;
+
+         fp = fopen(pRcPath, "r");
+         if (fp != NULL)
+         {
+            sectIdx = RC_ARR_CNT(rcParseCfg);
+            copySection = FALSE;
+            partialLine = FALSE;
+
+            while (fgets(sbuf, sizeof(sbuf), fp) != NULL)
+            {
+               if ( (partialLine == FALSE) &&
+                    (sbuf[0] == '[') && (sscanf(sbuf,"[%99[^]]]", key) == 1) )
+               {
+                  for (sectIdx = 0; sectIdx < RC_ARR_CNT(rcParseCfg); sectIdx++)
+                     if (strcmp(rcParseCfg[sectIdx].pName, key) == 0)
+                        break;
+                  copySection = (sectIdx >= RC_ARR_CNT(rcParseCfg));
+               }
+
+               lineLen = strlen(sbuf);
+
+               if (copySection)
+               {
+                  if (bufOff + lineLen < st.st_size)
+                  {
+                     memcpy(*ppBuf + bufOff, sbuf, lineLen);
+                     bufOff += lineLen;
+                  }
+                  else
+                  {  // should never happen (unless fgets() adds characters for some reason)
+                     debug3("RcFile-CopyForeignSections: internal error: buffer overflow: stat size=%ld, read %d+%d", (long)st.st_size, bufOff, lineLen);
+                     result = FALSE;
+                     break;
+                  }
+               }
+               partialLine = ((lineLen > 0) && (sbuf[lineLen - 1] != '\n'));
+            }
+            result &= (ferror(fp) == FALSE);
+            fclose(fp);
+         }
+         else
+         {  // stat OK buf open not (maybe weird file permissions)
+            debug3("RcFile-CopyForeignSections: rc open failed: '%s': %d (%s)", pRcPath, errno, strerror(errno));
+            result = FALSE;
+         }
+
+         // return number of bytes in buffer and append 0-byte
+         *pBufLen = bufOff;
+         if (bufOff < st.st_size)
+            (*ppBuf)[bufOff] = 0;
+      }
+   }
+   else
+      debug0("RcFile-CopyForeignSections: illegal NULL ptr params");
+
+   return result;
+}
+
+// ----------------------------------------------------------------------------
+// Count elements in integer list
+// - elements are separated by blanks
+// - note: only integer lists are supported (which don't have escaped blanks)
+//
+static uint RcFile_ParseTclList( char * pList )
+{
+   char * p;
+   uint  count;
+
+   count = 0;
+   p = pList;
+   while (*p != 0)
+   {
+      // skip leading space
+      while (isspace(*p))
+         p++;
+      if (*p == 0)
+         break;
+      // found an element
+      count += 1;
+      // skip element
+      while ((*p != 0) && !isspace(*p))
+         p++;
+   }
+
+   //dprintf2("LIST len=%d: '%s'\n", count, pList);
+   return count;
+}
+
+// ----------------------------------------------------------------------------
+// Assign a value from the rc/ini file to the config struct
+//
+static bool RcFile_AssignParam( const RCPARSE_CFG * pDesc, char * strval )
+{
+   uint   count;
+   int    scanlen;
+   int    value;
+   int    listIdx;
+   int  * pInt;
+   bool * pBool;
+   char ** pChar;
+   bool   result = TRUE;
+
+   if (RCPARSE_IS_LIST(pDesc))
+   {
+      assert(pDesc->type != RC_TYPE_STR);
+
+      count = RcFile_ParseTclList(strval);
+      if (count > pDesc->maxCount)  // XXX FIXME allocate dynamically
+      {
+         debug3("RcFile-AssignParam: too many elements: %d>%d '%s'", count, pDesc->maxCount, strval);
+         count = pDesc->maxCount;
+      }
+   }
+   else
+      count = 1;
+
+   for (listIdx = 0; (listIdx < count) && result; listIdx++)
+   {
+      scanlen = 0;
+      switch (pDesc->type)
+      {
+         case RC_TYPE_INT:
+            if ( (sscanf(strval, " %i%n", &value, &scanlen) >= 1) &&
+                 ( (strval[scanlen] == 0) || ((strval[scanlen] == ' ') && (listIdx + 1 < count)) ))
+            {
+               //dprintf3("RcFile-AssignParam: %s: idx=%d val=%s\n", pDesc->pKey, listIdx, strval);
+               pInt = (int *)((long)&mainRc + pDesc->off);
+               pInt[listIdx] = value;
+            }
+            else
+            {
+               debug3("RcFile-AssignParam: parse error key %s idx=%d: '%s'", pDesc->pKey, listIdx, strval);
+               result = FALSE;
+            }
+            break;
+
+         case RC_TYPE_BOOL:
+            if ( (sscanf(strval, " %d%n", &value, &scanlen) >= 1) && ((uint)value <= 1) &&
+                 ( (strval[scanlen] == 0) || ((strval[scanlen] == ' ') && (listIdx + 1 < count)) ))
+            {
+               pBool = (bool *)((long)&mainRc + pDesc->off);
+               pBool[listIdx] = (bool) value;
+            }
+            else
+            {
+               debug2("RcFile-AssignParam: parse error key %s: '%s'", pDesc->pKey, strval);
+               result = FALSE;
+            }
+            break;
+
+         case RC_TYPE_STR:
+            pChar = (char **)((long)&mainRc + pDesc->off);
+            if (*pChar != NULL)
+               xfree(*pChar);
+            if (strval[0] != 0)
+               *pChar = xstrdup(strval);
+            else
+               *pChar = NULL;
+            break;
+
+         case RC_TYPE_ENUM:
+            if (pDesc->pEnum != NULL)
+            {
+               value = RcFile_MapEnumStrToValue(pDesc->pEnum, strval);
+               pInt = (int *)((long)&mainRc + pDesc->off);
+               *pInt = value;
+            }
+            else
+            {
+               fatal1("RcFile-AssignParam: enum without description array: %s", pDesc->pKey);
+               result = FALSE;
+            }
+            break;
+
+         default:
+            SHOULD_NOT_BE_REACHED;
+      }
+      strval += scanlen;
+   }
+
+   if (RCPARSE_IS_LIST(pDesc))
+   {
+      pInt = (int *)((long)&mainRc + pDesc->counterOff);
+      *pInt = (result ? count : 0);
+   }
+
+   return result;
+}
+
+// ----------------------------------------------------------------------------
+// Process a single line of the config file
+//
+static bool RcFile_ParseLine( char * sbuf, uint * pSectIdx )
+{
+   const RCPARSE_CFG * pDesc;
+   char   key[100];
+   char * pValStr;
+   uint   elemIdx;
+   uint   scanlen;
+   uint   sectIdx = *pSectIdx;
+   bool   result = TRUE;
+
+   if ((sbuf[0] == '[') && (sscanf(sbuf,"[%99[^]]]", key) == 1))
+   {
+      for (sectIdx = 0; sectIdx < RC_ARR_CNT(rcParseCfg); sectIdx++)
+         if (strcmp(rcParseCfg[sectIdx].pName, key) == 0)
+            break;
+      *pSectIdx = sectIdx;
+   }
+   else if (sectIdx < RC_ARR_CNT(rcParseCfg))
+   {
+      if (sscanf(sbuf, "%99s = %n", key, &scanlen) >= 1)
+      {
+         pValStr = sbuf + scanlen;
+         // search key in the descriptior list of the cirrent section
+         pDesc = rcParseCfg[sectIdx].pList;
+         for (elemIdx = 0; elemIdx < rcParseCfg[sectIdx].listLen; elemIdx++, pDesc++)
+         {
+            if (strcmp(pDesc->pKey, key) == 0)
+            {
+               dprintf3("RC [%s] %s = %s\n", rcParseCfg[sectIdx].pName, key, pValStr);
+               result = RcFile_AssignParam(pDesc, pValStr);
+               break;
+            }
+         }
+         if ( (elemIdx >= rcParseCfg[sectIdx].listLen) &&
+              (rcParseCfg[sectIdx].ignoreUnknown == FALSE) )
+         {
+            debug3("RcFile-Load: [%s] unknown key %s (val '%s')", rcParseCfg[sectIdx].pName, key, pValStr);
+         }
+      }
+      else if (sscanf(sbuf, " %1[^#\n]", key) >= 1)
+      {
+         debug2("RcFile-Load: [%s] parse error: %s", rcParseCfg[sectIdx].pName, sbuf);
+      }
+   }
+   return result;
+}
+
+// ----------------------------------------------------------------------------
+// Read config values from the rc/ini
+// - rc file is split in two parts: first is in Tcl format, which is skipped
+// - 2nd part is simple assignments in the form: "KEY=value"
+//
+bool RcFile_Load( const char * pRcPath, bool isDefault, char ** ppErrMsg )
+{
+   FILE * fp;
+   char   sbuf[512];
+   uint   sectIdx;
+   uint   len;
+   bool   parseError;
+   bool   result = FALSE;
+
+   if (pRcPath != NULL)
+   {
+      fp = fopen(pRcPath, "r");
+      if (fp != NULL)
+      {
+         sectIdx = RC_ARR_CNT(rcParseCfg);
+         parseError = FALSE;
+         result = TRUE;
+
+         while (fgets(sbuf, sizeof(sbuf), fp) != NULL)
+         {
+            // remove newline from the end of the line
+            len = strlen(sbuf);
+            if ((len > 0) && (sbuf[len - 1] == '\n'))
+            {
+               sbuf[len - 1] = 0;
+
+               if ((RcFile_ParseLine(sbuf, &sectIdx) == FALSE) && (parseError == FALSE))
+               {
+                  SystemErrorMessage_Set(ppErrMsg, errno, "Parse error in rc/ini file, section [", rcParseCfg[sectIdx].pName, "]: ", sbuf, NULL);
+               }
+            }
+            else
+            {  // line found which is longer than input buffer - should only occur in foreign sections
+               if (sectIdx < RC_ARR_CNT(rcParseCfg))
+                  debug2("RcFile-Load: [%s] overly long line skipped (%40s...)", rcParseCfg[sectIdx].pName, sbuf);
+
+               // continue reading until end of line if reached
+               while (fgets(sbuf, sizeof(sbuf), fp) != NULL)
+               {
+                  len = strlen(sbuf);
+                  if ((len > 0) && (sbuf[len - 1] == '\n'))
+                     break;
+               }
+            }
+         }
+
+         if (ferror(fp))
+         {
+            SystemErrorMessage_Set(ppErrMsg, errno, "Read error in config file '", pRcPath, "': ", NULL);
+            result = FALSE;
+         }
+         else if ((mainRc.version.rc_compat_version > RC_FILE_COMPAT_VERSION) && result)
+         {
+            SystemErrorMessage_Set(ppErrMsg, errno, "rc/ini file is from incompatible newer version ",
+                                   mainRc.version.rc_nxtvepg_version_str, NULL);
+            // switch to different rc file
+            CmdLine_AddRcFilePostfix(EPG_VERSION_STR);
+            result = FALSE;
+         }
+         fclose(fp);
+      }
+      else
+      {  // failed to open the rc/ini file
+         if ( (errno != EEXIST) || (isDefault == FALSE) )
+         {
+            SystemErrorMessage_Set(ppErrMsg, errno, "Failed to read config file '", pRcPath, "': ", NULL);
+         }
+      }
+   }
+   else
+      debug0("RcFile-Load: illegal NULL ptr param");
+
+   return result;
+}
+
+// ----------------------------------------------------------------------------
+// Read config values from newline-separated string
+//
+bool RcFile_LoadFromString( const char * pRcString )
+{
+   char * pLineEnd;
+   char   sbuf[512];
+   uint   sectIdx;
+   uint   len;
+   bool   result = FALSE;
+
+   sectIdx = RC_ARR_CNT(rcParseCfg);
+   result = TRUE;
+
+   while ((pLineEnd = strchr(pRcString, '\n')) != NULL)
+   {
+      len = pLineEnd - pRcString;
+      if (len < sizeof(sbuf) - 1)
+      {
+         strncpy(sbuf, pRcString, len);
+         sbuf[len] = 0;
+
+         result &= RcFile_ParseLine(sbuf, &sectIdx);
+      }
+      pRcString = pLineEnd + 1;
+   }
+
+   return result;
+}
+
+// ----------------------------------------------------------------------------
+// Free dynamically allocated memory in a section
+//
+static void RcFile_FreeSectionMemory( uint sectIdx )
+{
+   const RCPARSE_CFG * pDesc;
+   uint  elemIdx;
+   char  ** pChar;
+
+   if (sectIdx < RC_ARR_CNT(rcParseCfg))
+   {
+      pDesc = rcParseCfg[sectIdx].pList;
+
+      for (elemIdx = 0; elemIdx < rcParseCfg[sectIdx].listLen; elemIdx++, pDesc++)
+      {
+         if (pDesc->type == RC_TYPE_STR)
+         {
+            pChar = (char **)((long)&mainRc + pDesc->off);
+            if (*pChar != NULL)
+               xfree(*pChar);
+            *pChar = NULL;
+         }
+      }
+   }
+}
+
+// ----------------------------------------------------------------------------
+// Update functions invoked by GUI
+// - CAUTION: caller must not provide copy of earlier query if the section
+//   contains strings, because old string pointers are freed here!
+//
+void RcFile_SetNetAcqEnable( bool isEnabled )
+{
+   mainRc.netacq.netacq_enable = isEnabled;
+}
+
+void RcFile_SetNetAcq( const RCFILE_NETACQ * pRcNetAcq )
+{
+   uint  sectIdx;
+
+   for (sectIdx = 0; sectIdx < RC_ARR_CNT(rcParseCfg); sectIdx++)
+   {
+      if (strcmp("CLIENT SERVER", rcParseCfg[sectIdx].pName) == 0)
+      {
+         RcFile_FreeSectionMemory(sectIdx);
+         break;
+      }
+   }
+   mainRc.netacq = *pRcNetAcq;
+}
+
+void RcFile_SetTvCard( const RCFILE_TVCARD * pRcTvCard )
+{
+   mainRc.tvcard = *pRcTvCard;
+}
+
+void RcFile_SetAcqMode( const char * pAcqModeStr, const uint * pCniList, uint cniCount )
+{
+   uint  mode;
+
+   mode = RcFile_MapEnumStrToValue(rcEnum_AcqMode, pAcqModeStr);
+   if (mode < ACQMODE_COUNT)
+   {
+      mainRc.acq.acq_mode = mode;
+
+      if (cniCount > RC_MAX_ACQ_CNI_PROV)
+         cniCount = RC_MAX_ACQ_CNI_PROV;
+      memcpy(mainRc.acq.acq_cnis, pCniList, cniCount * sizeof(uint));
+      mainRc.acq.acq_cni_count = cniCount;
+   }
+   else
+      debug1("RcFile-SetAcqMode: unknown mode '%s'", pAcqModeStr);
+}
+
+void RcFile_SetAcqScanOpt( uint optFtable )
+{
+   mainRc.acq.epgscan_opt_ftable = optFtable;
+}
+
+void RcFile_SetDbExpireDelay( uint delay )
+{
+   mainRc.db.piexpire_cutoff = delay;
+}
+
+void RcFile_UpdateDbMergeCnis( const uint * pCniList, uint cniCount )
+{
+   if (cniCount > MAX_MERGED_DB_COUNT)
+      cniCount = MAX_MERGED_DB_COUNT;
+
+   memcpy(mainRc.db.prov_merge_cnis, pCniList, cniCount * sizeof(uint));
+   mainRc.db.prov_merge_count = cniCount;
+}
+
+void RcFile_UpdateDbMergeNetwops( const uint * pCniList, uint cniCount )
+{
+   if (cniCount > RC_MAX_DB_NETWWOPS)
+      cniCount = RC_MAX_DB_NETWWOPS;
+
+   memcpy(mainRc.db.prov_merge_netwops, pCniList, cniCount * sizeof(uint));
+   mainRc.db.prov_merge_net_count = cniCount;
+}
+
+void RcFile_UpdateDbMergeOptions( uint type, const uint * pCniList, uint cniCount )
+{
+   if (type < MERGE_TYPE_COUNT)
+   {
+      dprintf3("RcFile-UpdateDbMergeOptions: %d: %d CNIs, first 0x%04X\n", type, cniCount, (((cniCount > 0) && (pCniList != NULL)) ? *pCniList : 0));
+
+      if (cniCount > MAX_MERGED_DB_COUNT)
+         cniCount = MAX_MERGED_DB_COUNT;
+
+      if ((pCniList != NULL) && (cniCount > 0))
+      {
+         memcpy(mainRc.db.prov_merge_opts[type], pCniList, cniCount * sizeof(uint));
+         mainRc.db.prov_merge_opt_count[type] = cniCount;
+      }
+      else
+         mainRc.db.prov_merge_opt_count[type] = 0;
+   }
+   else
+      fatal1("RcFile-UpdateDbMergeOptions: invalid type %d", type);
+}
+
+const char * RcFile_GetAcqModeStr( uint mode )
+{
+   const char * pResult = NULL;
+   int   enumIdx;
+
+   enumIdx = RcFile_MapValueToEnumIdx(rcEnum_AcqMode, mode);
+   if (enumIdx >= 0)
+   {
+      pResult = rcEnum_AcqMode[enumIdx].pKey;
+   }
+   else
+      debug1("RcFile-GetAcqModeStr: invalid mode %d", mode);
+
+   return pResult;
+}
+
+// ----------------------------------------------------------------------------
+// Fetch the frequency for the given provider
+// - used by acquisition, e.g. if the freq. cannot be read from the database
+// - returns 0 if no frequency is known for the given provider
+//
+uint RcFile_GetProvFreqForCni( uint provCni )
+{
+   int   idx;
+   uint  provFreq;
+
+   // list contains pairs of CNI and frequency
+   assert((mainRc.acq.prov_freq_count & 1) == 0);
+
+   provFreq = 0;
+
+   for (idx = 0; idx < mainRc.acq.prov_freq_count; idx += 2)
+   {
+      if (mainRc.acq.prov_freqs[idx] == provCni)
+      {
+         provFreq = mainRc.acq.prov_freqs[idx + 1];
+         break;
+      }
+   }
+   return provFreq;
+}
+
+
+// ----------------------------------------------------------------------------
+//  Update the provider preference order: move the last selected CNI to the front
+//
+bool RcFile_UpdateProvSelection( uint cni )
+{
+   uint prov_sel_count;
+   uint prov_selection[RC_MAX_ACQ_CNI_PROV];
+   uint idx;
+   bool modified;
+
+   // check if an update is required
+   if ( (mainRc.db.prov_sel_count == 0) || (mainRc.db.prov_selection[0] != cni))
+   {
+      dprintf1("RcFile-UpdateProvSelection: CNI 0x%04X\n", cni);
+
+      // place new CNI at first position
+      prov_sel_count = 1;
+      prov_selection[0] = cni;
+
+      // copy the other CNIs behind it (while skipping the new CNI)
+      for (idx = 0; (idx < mainRc.db.prov_sel_count) && (prov_sel_count < RC_MAX_ACQ_CNI_PROV); idx++)
+      {
+         if (mainRc.db.prov_selection[idx] != cni)
+         {
+            prov_selection[prov_sel_count] = mainRc.db.prov_selection[idx];
+            prov_sel_count += 1;
+         }
+      }
+
+      // finally copy the new list into the database
+      memcpy(mainRc.db.prov_selection, prov_selection, sizeof(mainRc.db.prov_selection));
+      mainRc.db.prov_sel_count = prov_sel_count;
+
+      modified = TRUE;
+   }
+   else
+      modified = FALSE;
+
+   return modified;
+}
+
+// ----------------------------------------------------------------------------
+// Same as above, but with more than one CNI, taken from merged database
+// - first CNI 0x00FF is implied
+//
+bool RcFile_UpdateMergedProvSelection( void )
+{
+   uint  prov_sel_count;
+   uint  prov_selection[RC_MAX_ACQ_CNI_PROV];
+   uint  cmpIdx;
+   uint  idx;
+   uint  cni;
+   bool  modified;
+
+   // check if an update is required
+   if ( (mainRc.db.prov_sel_count == mainRc.db.prov_merge_count + 1) &&
+        (mainRc.db.prov_selection[0] == 0x00FF) )
+   {
+      for (cmpIdx = 0; (cmpIdx < mainRc.db.prov_merge_count) &&
+                       (cmpIdx + 1 < mainRc.db.prov_sel_count); cmpIdx++)
+         if (mainRc.db.prov_merge_cnis[cmpIdx] != mainRc.db.prov_selection[cmpIdx + 1])
+            break;
+      modified = (cmpIdx >= mainRc.db.prov_merge_count);
+   }
+   else
+      modified = TRUE;
+
+   if (modified)
+   {
+      // place new CNI at first position
+      prov_sel_count = 1 + mainRc.db.prov_merge_count;
+      prov_selection[0] = 0x00FF;
+
+      memcpy(prov_selection + 1, mainRc.db.prov_merge_cnis,
+                                 mainRc.db.prov_merge_count * sizeof(uint));
+
+      // copy the other CNIs behind it (while skipping the new CNI)
+      for (idx = 0; (idx < mainRc.db.prov_sel_count) &&
+                    (prov_sel_count < RC_MAX_ACQ_CNI_PROV); idx++)
+      {
+         cni = mainRc.db.prov_selection[idx];
+         if ((cni != 0x00FF) && (cni != 0))
+         {
+            for (cmpIdx = 0; cmpIdx < mainRc.db.prov_merge_count; cmpIdx++)
+               if (mainRc.db.prov_merge_cnis[cmpIdx] == cni)
+                  break;
+            if (cmpIdx >= mainRc.db.prov_merge_count)
+            {
+               prov_selection[prov_sel_count] = cni;
+               prov_sel_count += 1;
+            }
+         }
+      }
+
+      // finally copy the new list into the database
+      memcpy(mainRc.db.prov_selection, prov_selection, sizeof(mainRc.db.prov_selection));
+      mainRc.db.prov_sel_count = prov_sel_count;
+
+      modified = TRUE;
+   }
+   else
+      modified = FALSE;
+
+   return modified;
+}
+
+// ----------------------------------------------------------------------------
+// Add or update the frequency for a given provider
+//
+bool RcFile_UpdateProvFrequency( uint cni, uint freq )
+{
+   uint  idx;
+   bool  modified = FALSE;
+
+   // search the list for the given CNI
+   for (idx = 0; idx < mainRc.acq.prov_freq_count; idx += 2)
+   {
+      if (mainRc.acq.prov_freqs[idx] == cni)
+      {
+         // provider is already in the list
+         if (mainRc.acq.prov_freqs[idx + 1] != freq)
+         {
+            dprintf3("RcFile-UpdateProvFrequency: changing freq for 0x%04X from %d to %d\n", cni, mainRc.acq.prov_freqs[idx + 1], freq);
+
+            mainRc.acq.prov_freqs[idx + 1] = freq;
+            modified = TRUE;
+         }
+         break;
+      }
+   }
+
+   if ( (idx >= mainRc.acq.prov_freq_count) &&
+        (mainRc.acq.prov_freq_count < RC_MAX_ACQ_CNI_FREQS) )
+   {
+      dprintf2("RcFile-UpdateProvFrequency: new freq for 0x%04X: %d\n", cni, freq);
+
+      // not found in the list -> append new pair to the list
+      mainRc.acq.prov_freqs[mainRc.acq.prov_freq_count]     = cni;
+      mainRc.acq.prov_freqs[mainRc.acq.prov_freq_count + 1] = freq;
+      mainRc.acq.prov_freq_count += 2;
+      modified = TRUE;
+   }
+   return modified;
+}
+
+// ----------------------------------------------------------------------------
+// Remove provider CNI from all lists
+//
+void RcFile_RemoveProvider( uint cni )
+{
+   uint  tmpl[RC_MAX_ACQ_CNI_FREQS];
+   uint  type;
+   uint  idx;
+   uint  count;
+
+   // remove from frequency list
+   count = 0;
+   for (idx = 0; idx + 1 < mainRc.acq.prov_freq_count; idx += 2)
+   {
+      if (mainRc.acq.prov_freqs[idx] != cni)
+      {
+         tmpl[count]     = mainRc.acq.prov_freqs[idx];
+         tmpl[count + 1] = mainRc.acq.prov_freqs[idx + 1];
+         count += 2;
+      }
+   }
+   memcpy(mainRc.acq.prov_freqs, tmpl, count * sizeof(uint));
+   mainRc.acq.prov_freq_count = count;
+
+   // remove from provider selection
+   count = 0;
+   for (idx = 0; idx < mainRc.db.prov_sel_count; idx++)
+   {
+      if (mainRc.db.prov_selection[idx] != cni)
+      {
+         tmpl[count] = mainRc.db.prov_selection[idx];
+         count += 1;
+      }
+   }
+   memcpy(mainRc.db.prov_selection, tmpl, count * sizeof(uint));
+   mainRc.db.prov_sel_count = count;
+
+   // remove from merge provider list
+   count = 0;
+   for (idx = 0; idx < mainRc.db.prov_merge_count; idx++)
+   {
+      if (mainRc.db.prov_merge_cnis[idx] != cni)
+      {
+         tmpl[count] = mainRc.db.prov_merge_cnis[idx];
+         count += 1;
+      }
+   }
+   memcpy(mainRc.db.prov_merge_cnis, tmpl, count * sizeof(uint));
+   mainRc.db.prov_merge_count = count;
+
+   // remove from all merge options
+   for (type = 0; type < MERGE_TYPE_COUNT; type++)
+   {
+      count = 0;
+      for (idx = 0; idx < mainRc.db.prov_merge_opt_count[type]; idx++)
+         if (mainRc.db.prov_merge_opts[type][idx] != cni)
+            tmpl[count++] = mainRc.db.prov_merge_opts[type][idx];
+
+      memcpy(mainRc.db.prov_merge_opts[type], tmpl, count * sizeof(uint));
+      mainRc.db.prov_merge_opt_count[type] = count;
+   }
+
+   // remove from manual/cyclic acquisition mode provider list
+   count = 0;
+   for (idx = 0; idx < mainRc.acq.acq_cni_count; idx++)
+   {
+      if (mainRc.acq.acq_cnis[idx] != cni)
+      {
+         tmpl[count] = mainRc.acq.acq_cnis[idx];
+         count += 1;
+      }
+   }
+   memcpy(mainRc.acq.acq_cnis, tmpl, count * sizeof(uint));
+   mainRc.acq.acq_cni_count = count;
+
+   // fall back to non-cyclic mode if the list is empty
+   if ((count == 0) && ACQMODE_IS_CYCLIC(mainRc.acq.acq_mode))
+      mainRc.acq.acq_mode = ACQ_DFLT_ACQ_MODE;
+}
+
+// ----------------------------------------------------------------------------
+// Win32: write TV card driver parameters
+//
+void RcFile_UpdateTvCardWinSrc( uint cardIdx, const uint * pParams, uint paramCount )
+{
+   dprintf3("RcFile-UpdateTvCardWinSrc: card %d: %d, ... (%d elems)\n", cardIdx, pParams[0], paramCount);
+
+   if (cardIdx < RCFILE_MAX_WINSRC_COUNT)
+   {
+      if (paramCount == EPGTCL_TVCF_IDX_COUNT)
+      {
+         memcpy(mainRc.tvcard.winsrc[cardIdx], pParams, sizeof(mainRc.tvcard.winsrc[0]));
+         mainRc.tvcard.winsrc_param_count[cardIdx] = EPGTCL_TVCF_IDX_COUNT;
+
+         if (mainRc.tvcard.winsrc_count < cardIdx + 1)
+            mainRc.tvcard.winsrc_count = cardIdx + 1;
+      }
+      else
+         fatal2("RcFile-UpdateTvCardWinSrc: invalid param count %d != %d", paramCount, EPGTCL_TVCF_IDX_COUNT);
+   }
+   else
+      debug2("RcFile-UpdateTvCardWinSrc: too many cards %d >= %d)", cardIdx, RCFILE_MAX_WINSRC_COUNT);
+}
+
+// ----------------------------------------------------------------------------
+// Return pointer to configuration data
+//
+const RCFILE * RcFile_Query( void )
+{
+   return &mainRc;
+}
+
+// ----------------------------------------------------------------------------
+// Free allocated memory in config struct
+//
+void RcFile_Destroy( void )
+{
+   uint  sectIdx;
+
+   for (sectIdx = 0; sectIdx < RC_ARR_CNT(rcParseCfg); sectIdx++)
+   {
+      RcFile_FreeSectionMemory(sectIdx);
+   }
+}
+
+// ----------------------------------------------------------------------------
+// Initialize configuration with default values (same as in GUI)
+//
+void RcFile_Init( void )
+{
+   memset(&mainRc, 0, sizeof(mainRc));
+
+   mainRc.acq.acq_mode = ACQ_DFLT_ACQ_MODE;
+
+   mainRc.netacq.netacq_enable = NETACQ_DFLT_ENABLE;
+   mainRc.netacq.do_tcp_ip = NETACQ_DFLT_DO_TCP_IP;
+   mainRc.netacq.max_conn = NETACQ_DFLT_MAX_CONN;
+   mainRc.netacq.fileloglev = NETACQ_DFLT_FILELOGLEV;
+   mainRc.netacq.sysloglev = NETACQ_DFLT_SYSLOGLEV;
+   mainRc.netacq.pHostName = xstrdup(NETACQ_DFLT_HOSTNAME_STR);
+   mainRc.netacq.pPort = xstrdup(NETACQ_DFLT_PORT_STR);
+
+   mainRc.db.piexpire_cutoff = EPGDBSAV_DEFAULT_EXPIRE_TIME / 60;
+}
+

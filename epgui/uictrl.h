@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: uictrl.h,v 1.14 2003/10/05 19:40:38 tom Exp $
+ *  $Id: uictrl.h,v 1.16 2005/01/08 15:16:51 tom Exp tom $
  */
 
 #ifndef __UICTRL_H
@@ -58,6 +58,7 @@ typedef enum
 void UiControl_AiStateChange( ClientData clientData );
 void UiControl_CheckDbState( void );
 void UiControl_ReloadError( ClientData clientData );
+void UiControl_DisplayErrorMessage( char * pMsg );
 #endif
 
 // Interface to acquisition control
@@ -68,6 +69,8 @@ void UiControlMsg_AcqPassive( void );
 void UiControlMsg_NetAcqError( void );
 void UiControlMsg_NewProvFreq( uint cni, uint freq );
 uint UiControlMsg_QueryProvFreq( uint cni );
+void UpdateRcFile( bool immediate );
+void LoadRcFile( void );
 
 // Interface to context control
 #ifdef __EPGDBSAV_H

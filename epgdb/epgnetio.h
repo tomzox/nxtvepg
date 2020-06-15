@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgnetio.h,v 1.27 2004/09/25 18:38:33 tom Exp $
+ *  $Id: epgnetio.h,v 1.27 2004/09/25 18:38:33 tom Exp tom $
  */
 
 #ifndef __EPGNETIO_H
