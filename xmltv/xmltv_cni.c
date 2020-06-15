@@ -23,7 +23,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: xmltv_cni.c,v 1.7 2009/03/29 18:19:00 tom Exp tom $
+ *  $Id: xmltv_cni.c,v 1.8 2020/06/17 08:27:27 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_XMLTV
@@ -583,7 +583,13 @@ const char * XmltvCni_LookupProviderPath( uint provCni )
 void XmltvCni_Destroy( void )
 {
 #ifndef WIN32
-   xfree(pXmlCniCwd);
+   if (pXmlCniCwd != NULL)
+   {
+      xfree(pXmlCniCwd);
+      pXmlCniCwd = NULL;
+   }
+   else
+      debug0("XmltvCni-Destroy: duplicate call or uninitialized");
 #endif
 }
 
@@ -597,7 +603,7 @@ void XmltvCni_Init( void )
    pXmlCniCwd = xmalloc(10*1024+2);
    if (getcwd(pXmlCniCwd, 10*1024) == NULL)
       *pXmlCniCwd = 0;
-   xrealloc(pXmlCniCwd, strlen(pXmlCniCwd) + 1);
+   pXmlCniCwd = xrealloc(pXmlCniCwd, strlen(pXmlCniCwd) + 1);
    dprintf1("XmltvCni-Init: cwd:%s\n", pXmlCniCwd);
 #endif
 }

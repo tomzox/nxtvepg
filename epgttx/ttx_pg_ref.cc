@@ -14,9 +14,7 @@
  *   You should have received a copy of the GNU General Public License
  *   along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * Copyright 2006-2011 by Tom Zoerner (tomzo at users.sf.net)
- *
- * $Id: ttx_pg_ref.cc,v 1.3 2011/01/06 16:59:34 tom Exp tom $
+ * Copyright 2006-2011,2020 by T. Zoerner (tomzo at users.sf.net)
  */
 
 #include <stdio.h>
@@ -25,12 +23,9 @@
 #include <sstream>
 #include <string>
 #include <map>
-
-#include "boost/regex.h"
-#include "boost/regex.hpp"
+#include <regex>
 
 using namespace std;
-using namespace boost;
 
 #include "ttx_util.h"
 #include "ttx_pg_ref.h"
@@ -52,7 +47,7 @@ const char * T_TRAIL_REF_FMT::print_key() const
 {
    static char buf[100];
    sprintf(buf, "ch1:%c,ch2:%c,spc1:%d,spc2:%d",
-           (m_ch1 > 0)?m_ch1:'X', (m_ch2 > 0)?m_ch2:'X', m_spc_lead, m_spc_trail);
+           (m_ch1 != 0)?m_ch1:'X', (m_ch2 != 0)?m_ch2:'X', m_spc_lead, m_spc_trail);
    return buf;
 }
 
@@ -86,11 +81,19 @@ bool T_TRAIL_REF_FMT::detect_ref_fmt(const string& text)
 void T_TRAIL_REF_FMT::init_expr() const
 {
    ostringstream re;
-   if (m_ch1 > 0) {
+   if (m_ch1 != 0) {
       m_subexp_idx = 2;
-      re << "(\\Q" << string(1, m_ch1) << "\\E*";
-      if (m_ch2 > 0) {
-         re << "\\Q" + string(1, m_ch2) << "\\E{0,4}";
+
+      if (is_regex_special(m_ch1))
+         re << "(\\" << m_ch1 << "*";  // add escape if char is "special" to regex
+      else
+         re << "(" << m_ch1 << "*";
+
+      if (m_ch2 != 0) {
+         if (is_regex_special(m_ch2))
+            re << "\\" + m_ch2 << "{0,4}";
+         else
+            re << m_ch2 << "{0,4}";
       }
       re << "[ \\x00-\\x07\\x1D]{" << m_spc_lead << "}|[ \\x00-\\x07\\x1D]+)";
    }
@@ -100,7 +103,7 @@ void T_TRAIL_REF_FMT::init_expr() const
    }
    re << "([1-8][0-9][0-9])[ \\x00-\\x07\\x1D]{" << m_spc_trail << "}$";
 
-   //if (opt_debug) printf("TTX REF expr '%s'\n", re.str().c_str());
+   //printf("TTX REF expr '%s'\n", re.str().c_str());
 
    m_expr.assign(re.str());
 }
@@ -116,7 +119,8 @@ bool T_TRAIL_REF_FMT::parse_trailing_ttx_ref(string& title, int& ttx_ref) const
    smatch whats;
 
    if (is_valid()) {
-      if (m_expr.empty()) {
+      if (!m_is_initialized) {
+         m_is_initialized = true;
          init_expr();
       }
       if (regex_search(title, whats, m_expr)) {

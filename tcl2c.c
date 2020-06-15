@@ -44,7 +44,7 @@
  *
  *    Completely rewritten and functionality added by Tom Zoerner
  *
- *  $Id: tcl2c.c,v 1.15 2007/02/26 21:12:16 tom Exp tom $
+ *  $Id: tcl2c.c,v 1.16 2020/06/17 08:18:43 tom Exp tom $
  */
 
 #include <stdlib.h>
@@ -637,6 +637,8 @@ int main(int argc, char **argv)
         }
         outNameHtmp[0] = 0;
     }
+    free(outNameC);
+    free(outNameH);
 
     exit(0);
     /*NOTREACHED*/

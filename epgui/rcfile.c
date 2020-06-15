@@ -25,7 +25,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: rcfile.c,v 1.14 2010/03/23 19:42:14 tom Exp tom $
+ *  $Id: rcfile.c,v 1.16 2020/06/17 08:20:10 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -38,6 +38,7 @@
 #include <pwd.h>
 #include <signal.h>
 #else
+#include <winsock2.h>
 #include <windows.h>
 #include <io.h>
 #include <direct.h>
@@ -98,6 +99,7 @@ typedef struct
 #define RC_OFF(MEMBER) ((size_t) &((RCFILE *)0)->MEMBER)
 #define RC_CNT(X)  (sizeof(mainRc.X)/sizeof(mainRc.X[0]))
 #define RC_TOFF(TYPE,MEMBER) ((size_t) &((TYPE *)0)->MEMBER)
+#define RC_NAME_NONE() NULL
 #define RC_OFF_NONE() 0
 #define RC_ARR_CNT(X)  (sizeof((X))/sizeof((X)[0]))
 
@@ -161,112 +163,112 @@ typedef struct
 
 static const RCPARSE_CFG rcParseCfg_version[] =
 {
-   { RC_TYPE_INT,  RC_OFF(version.rc_nxtvepg_version), "nxtvepg_version", 0 },
-   { RC_TYPE_STR,  RC_OFF(version.rc_nxtvepg_version_str), "nxtvepg_version_str", 0 },
-   { RC_TYPE_INT,  RC_OFF(version.rc_compat_version), "rc_compat_version", 0 },
+   { RC_TYPE_INT,  RC_OFF(version.rc_nxtvepg_version), "nxtvepg_version", RC_OFF_NONE(), 0, NULL },
+   { RC_TYPE_STR,  RC_OFF(version.rc_nxtvepg_version_str), "nxtvepg_version_str", RC_OFF_NONE(), 0, NULL },
+   { RC_TYPE_INT,  RC_OFF(version.rc_compat_version), "rc_compat_version", RC_OFF_NONE(), 0, NULL },
 };
 static const RCPARSE_CFG rcParseCfg_acq[] =
 {
-   { RC_TYPE_INT,  RC_OFF(acq.prov_freqs), "prov_freqs", RC_OFF(acq.prov_freq_count), RC_CNT(acq.prov_freqs) },
-   { RC_TYPE_HEX,  RC_OFF(acq.acq_cnis), "acq_mode_cnis", RC_OFF(acq.acq_cni_count), RC_CNT(acq.acq_cnis) },
+   { RC_TYPE_INT,  RC_OFF(acq.prov_freqs), "prov_freqs", RC_OFF(acq.prov_freq_count), RC_CNT(acq.prov_freqs), NULL },
+   { RC_TYPE_HEX,  RC_OFF(acq.acq_cnis), "acq_mode_cnis", RC_OFF(acq.acq_cni_count), RC_CNT(acq.acq_cnis), NULL },
    { RC_TYPE_ENUM, RC_OFF(acq.acq_mode), "acq_mode", RC_OFF_NONE(), 0, rcEnum_AcqMode },
    { RC_TYPE_ENUM, RC_OFF(acq.acq_start), "acq_start", RC_OFF_NONE(), 0, rcEnum_AcqStart },
-   { RC_TYPE_INT,  RC_OFF(acq.epgscan_opt_ftable), "epgscan_opt_ftable" },
+   { RC_TYPE_INT,  RC_OFF(acq.epgscan_opt_ftable), "epgscan_opt_ftable", RC_OFF_NONE(), 0, NULL },
 };
 static const RCPARSE_CFG rcParseCfg_db[] =
 {
-   { RC_TYPE_INT,  RC_OFF(db.piexpire_cutoff), "piexpire_cutoff" },
-   { RC_TYPE_HEX,  RC_OFF(db.prov_selection), "prov_selection", RC_OFF(db.prov_sel_count), RC_CNT(db.prov_selection) },
+   { RC_TYPE_INT,  RC_OFF(db.piexpire_cutoff), "piexpire_cutoff", RC_OFF_NONE(), 0, NULL },
+   { RC_TYPE_HEX,  RC_OFF(db.prov_selection), "prov_selection", RC_OFF(db.prov_sel_count), RC_CNT(db.prov_selection), NULL },
 
-   { RC_TYPE_HEX,  RC_OFF(db.prov_merge_cnis), "prov_merge_cnis", RC_OFF(db.prov_merge_count), RC_CNT(db.prov_merge_cnis) },
-   { RC_TYPE_OBS,  0, "prov_merge_netwops" },
+   { RC_TYPE_HEX,  RC_OFF(db.prov_merge_cnis), "prov_merge_cnis", RC_OFF(db.prov_merge_count), RC_CNT(db.prov_merge_cnis), NULL },
+   { RC_TYPE_OBS,  0, "prov_merge_netwops", RC_OFF_NONE(), 0, NULL },
 
-   { RC_TYPE_HEX,  RC_OFF(db.prov_merge_opts[MERGE_TYPE_TITLE]), "prov_merge_cftitle", RC_OFF(db.prov_merge_opt_count[MERGE_TYPE_TITLE]), MAX_MERGED_DB_COUNT },
-   { RC_TYPE_HEX,  RC_OFF(db.prov_merge_opts[MERGE_TYPE_DESCR]), "prov_merge_cfdescr", RC_OFF(db.prov_merge_opt_count[MERGE_TYPE_DESCR]), MAX_MERGED_DB_COUNT },
-   { RC_TYPE_HEX,  RC_OFF(db.prov_merge_opts[MERGE_TYPE_THEMES]), "prov_merge_cfthemes", RC_OFF(db.prov_merge_opt_count[MERGE_TYPE_THEMES]), MAX_MERGED_DB_COUNT },
-   { RC_TYPE_HEX,  RC_OFF(db.prov_merge_opts[MERGE_TYPE_SERIES]), "prov_merge_cfseries", RC_OFF(db.prov_merge_opt_count[MERGE_TYPE_SERIES]), MAX_MERGED_DB_COUNT },
-   { RC_TYPE_HEX,  RC_OFF(db.prov_merge_opts[MERGE_TYPE_SORTCRIT]), "prov_merge_cfsortcrit", RC_OFF(db.prov_merge_opt_count[MERGE_TYPE_SORTCRIT]), MAX_MERGED_DB_COUNT },
-   { RC_TYPE_HEX,  RC_OFF(db.prov_merge_opts[MERGE_TYPE_EDITORIAL]), "prov_merge_cfeditorial", RC_OFF(db.prov_merge_opt_count[MERGE_TYPE_EDITORIAL]), MAX_MERGED_DB_COUNT },
-   { RC_TYPE_HEX,  RC_OFF(db.prov_merge_opts[MERGE_TYPE_PARENTAL]), "prov_merge_cfparental", RC_OFF(db.prov_merge_opt_count[MERGE_TYPE_PARENTAL]), MAX_MERGED_DB_COUNT },
-   { RC_TYPE_HEX,  RC_OFF(db.prov_merge_opts[MERGE_TYPE_SOUND]), "prov_merge_cfsound", RC_OFF(db.prov_merge_opt_count[MERGE_TYPE_SOUND]), MAX_MERGED_DB_COUNT },
-   { RC_TYPE_HEX,  RC_OFF(db.prov_merge_opts[MERGE_TYPE_FORMAT]), "prov_merge_cfformat", RC_OFF(db.prov_merge_opt_count[MERGE_TYPE_FORMAT]), MAX_MERGED_DB_COUNT },
-   { RC_TYPE_HEX,  RC_OFF(db.prov_merge_opts[MERGE_TYPE_REPEAT]), "prov_merge_cfrepeat", RC_OFF(db.prov_merge_opt_count[MERGE_TYPE_REPEAT]), MAX_MERGED_DB_COUNT },
-   { RC_TYPE_HEX,  RC_OFF(db.prov_merge_opts[MERGE_TYPE_SUBT]), "prov_merge_cfsubt", RC_OFF(db.prov_merge_opt_count[MERGE_TYPE_SUBT]), MAX_MERGED_DB_COUNT },
-   { RC_TYPE_HEX,  RC_OFF(db.prov_merge_opts[MERGE_TYPE_OTHERFEAT]), "prov_merge_cfmisc", RC_OFF(db.prov_merge_opt_count[MERGE_TYPE_OTHERFEAT]), MAX_MERGED_DB_COUNT },
-   { RC_TYPE_HEX,  RC_OFF(db.prov_merge_opts[MERGE_TYPE_VPS]), "prov_merge_cfvps", RC_OFF(db.prov_merge_opt_count[MERGE_TYPE_VPS]), MAX_MERGED_DB_COUNT },
+   { RC_TYPE_HEX,  RC_OFF(db.prov_merge_opts[MERGE_TYPE_TITLE]), "prov_merge_cftitle", RC_OFF(db.prov_merge_opt_count[MERGE_TYPE_TITLE]), MAX_MERGED_DB_COUNT, NULL },
+   { RC_TYPE_HEX,  RC_OFF(db.prov_merge_opts[MERGE_TYPE_DESCR]), "prov_merge_cfdescr", RC_OFF(db.prov_merge_opt_count[MERGE_TYPE_DESCR]), MAX_MERGED_DB_COUNT, NULL },
+   { RC_TYPE_HEX,  RC_OFF(db.prov_merge_opts[MERGE_TYPE_THEMES]), "prov_merge_cfthemes", RC_OFF(db.prov_merge_opt_count[MERGE_TYPE_THEMES]), MAX_MERGED_DB_COUNT, NULL},
+   { RC_TYPE_HEX,  RC_OFF(db.prov_merge_opts[MERGE_TYPE_SERIES]), "prov_merge_cfseries", RC_OFF(db.prov_merge_opt_count[MERGE_TYPE_SERIES]), MAX_MERGED_DB_COUNT, NULL},
+   { RC_TYPE_HEX,  RC_OFF(db.prov_merge_opts[MERGE_TYPE_SORTCRIT]), "prov_merge_cfsortcrit", RC_OFF(db.prov_merge_opt_count[MERGE_TYPE_SORTCRIT]), MAX_MERGED_DB_COUNT, NULL},
+   { RC_TYPE_HEX,  RC_OFF(db.prov_merge_opts[MERGE_TYPE_EDITORIAL]), "prov_merge_cfeditorial", RC_OFF(db.prov_merge_opt_count[MERGE_TYPE_EDITORIAL]), MAX_MERGED_DB_COUNT, NULL},
+   { RC_TYPE_HEX,  RC_OFF(db.prov_merge_opts[MERGE_TYPE_PARENTAL]), "prov_merge_cfparental", RC_OFF(db.prov_merge_opt_count[MERGE_TYPE_PARENTAL]), MAX_MERGED_DB_COUNT, NULL},
+   { RC_TYPE_HEX,  RC_OFF(db.prov_merge_opts[MERGE_TYPE_SOUND]), "prov_merge_cfsound", RC_OFF(db.prov_merge_opt_count[MERGE_TYPE_SOUND]), MAX_MERGED_DB_COUNT, NULL},
+   { RC_TYPE_HEX,  RC_OFF(db.prov_merge_opts[MERGE_TYPE_FORMAT]), "prov_merge_cfformat", RC_OFF(db.prov_merge_opt_count[MERGE_TYPE_FORMAT]), MAX_MERGED_DB_COUNT, NULL},
+   { RC_TYPE_HEX,  RC_OFF(db.prov_merge_opts[MERGE_TYPE_REPEAT]), "prov_merge_cfrepeat", RC_OFF(db.prov_merge_opt_count[MERGE_TYPE_REPEAT]), MAX_MERGED_DB_COUNT, NULL},
+   { RC_TYPE_HEX,  RC_OFF(db.prov_merge_opts[MERGE_TYPE_SUBT]), "prov_merge_cfsubt", RC_OFF(db.prov_merge_opt_count[MERGE_TYPE_SUBT]), MAX_MERGED_DB_COUNT, NULL},
+   { RC_TYPE_HEX,  RC_OFF(db.prov_merge_opts[MERGE_TYPE_OTHERFEAT]), "prov_merge_cfmisc", RC_OFF(db.prov_merge_opt_count[MERGE_TYPE_OTHERFEAT]), MAX_MERGED_DB_COUNT, NULL},
+   { RC_TYPE_HEX,  RC_OFF(db.prov_merge_opts[MERGE_TYPE_VPS]), "prov_merge_cfvps", RC_OFF(db.prov_merge_opt_count[MERGE_TYPE_VPS]), MAX_MERGED_DB_COUNT, NULL},
 };
 static const RCPARSE_CFG rcParseCfg_netacq[] =
 {
-   { RC_TYPE_INT,  RC_OFF(netacq.netacq_enable), "netacq_enable" },
-   { RC_TYPE_INT,  RC_OFF(netacq.remctl), "netacqcf_remctl" },
-   { RC_TYPE_INT,  RC_OFF(netacq.do_tcp_ip), "netacqcf_do_tcp_ip" },
-   { RC_TYPE_STRZ, RC_OFF(netacq.pHostName), "netacqcf_host" },
-   { RC_TYPE_STRZ, RC_OFF(netacq.pPort), "netacqcf_port" },
-   { RC_TYPE_STRZ, RC_OFF(netacq.pIpStr), "netacqcf_ip" },
-   { RC_TYPE_STRZ, RC_OFF(netacq.pLogfileName), "netacqcf_logname" },
-   { RC_TYPE_INT,  RC_OFF(netacq.max_conn), "netacqcf_max_conn" },
-   { RC_TYPE_INT,  RC_OFF(netacq.fileloglev), "netacqcf_fileloglev" },
-   { RC_TYPE_INT,  RC_OFF(netacq.sysloglev), "netacqcf_sysloglev" },
+   { RC_TYPE_INT,  RC_OFF(netacq.netacq_enable), "netacq_enable", RC_OFF_NONE(), 0, NULL },
+   { RC_TYPE_INT,  RC_OFF(netacq.remctl), "netacqcf_remctl", RC_OFF_NONE(), 0, NULL },
+   { RC_TYPE_INT,  RC_OFF(netacq.do_tcp_ip), "netacqcf_do_tcp_ip", RC_OFF_NONE(), 0, NULL },
+   { RC_TYPE_STRZ, RC_OFF(netacq.pHostName), "netacqcf_host", RC_OFF_NONE(), 0, NULL },
+   { RC_TYPE_STRZ, RC_OFF(netacq.pPort), "netacqcf_port", RC_OFF_NONE(), 0, NULL },
+   { RC_TYPE_STRZ, RC_OFF(netacq.pIpStr), "netacqcf_ip", RC_OFF_NONE(), 0, NULL },
+   { RC_TYPE_STRZ, RC_OFF(netacq.pLogfileName), "netacqcf_logname", RC_OFF_NONE(), 0, NULL },
+   { RC_TYPE_INT,  RC_OFF(netacq.max_conn), "netacqcf_max_conn", RC_OFF_NONE(), 0, NULL },
+   { RC_TYPE_INT,  RC_OFF(netacq.fileloglev), "netacqcf_fileloglev", RC_OFF_NONE(), 0, NULL },
+   { RC_TYPE_INT,  RC_OFF(netacq.sysloglev), "netacqcf_sysloglev", RC_OFF_NONE(), 0, NULL },
 };
 static const RCPARSE_CFG rcParseCfg_tvcard[] =
 {
-   { RC_TYPE_INT,  RC_OFF(tvcard.drv_type), "hwcf_drv_type" },
-   { RC_TYPE_INT,  RC_OFF(tvcard.card_idx), "hwcf_cardidx" },
-   { RC_TYPE_INT,  RC_OFF(tvcard.input), "hwcf_input" },
-   { RC_TYPE_INT,  RC_OFF(tvcard.acq_prio), "hwcf_acq_prio" },
-   { RC_TYPE_INT,  RC_OFF(tvcard.slicer_type), "hwcf_slicer_type" },
-   { RC_TYPE_INT,  RC_OFF(tvcard.wdm_stop), "hwcf_wdm_stop" },
+   { RC_TYPE_INT,  RC_OFF(tvcard.drv_type), "hwcf_drv_type", RC_OFF_NONE(), 0, NULL },
+   { RC_TYPE_INT,  RC_OFF(tvcard.card_idx), "hwcf_cardidx", RC_OFF_NONE(), 0, NULL },
+   { RC_TYPE_INT,  RC_OFF(tvcard.input), "hwcf_input", RC_OFF_NONE(), 0, NULL },
+   { RC_TYPE_INT,  RC_OFF(tvcard.acq_prio), "hwcf_acq_prio", RC_OFF_NONE(), 0, NULL },
+   { RC_TYPE_INT,  RC_OFF(tvcard.slicer_type), "hwcf_slicer_type", RC_OFF_NONE(), 0, NULL },
+   { RC_TYPE_INT,  RC_OFF(tvcard.wdm_stop), "hwcf_wdm_stop", RC_OFF_NONE(), 0, NULL },
    // note: following must match RCFILE_MAX_WINSRC_COUNT
-   { RC_TYPE_INT,  RC_OFF(tvcard.winsrc_count), "tvcardcf_count" },
-   { RC_TYPE_INT,  RC_OFF(tvcard.winsrc[0]), "tvcardcf_0", RC_OFF(tvcard.winsrc_param_count[0]), EPGTCL_TVCF_IDX_COUNT },
-   { RC_TYPE_INT,  RC_OFF(tvcard.winsrc[1]), "tvcardcf_1", RC_OFF(tvcard.winsrc_param_count[1]), EPGTCL_TVCF_IDX_COUNT },
-   { RC_TYPE_INT,  RC_OFF(tvcard.winsrc[2]), "tvcardcf_2", RC_OFF(tvcard.winsrc_param_count[2]), EPGTCL_TVCF_IDX_COUNT },
-   { RC_TYPE_INT,  RC_OFF(tvcard.winsrc[3]), "tvcardcf_3", RC_OFF(tvcard.winsrc_param_count[3]), EPGTCL_TVCF_IDX_COUNT },
-   { RC_TYPE_INT,  RC_OFF(tvcard.winsrc[4]), "tvcardcf_4", RC_OFF(tvcard.winsrc_param_count[4]), EPGTCL_TVCF_IDX_COUNT },
+   { RC_TYPE_INT,  RC_OFF(tvcard.winsrc_count), "tvcardcf_count", RC_OFF_NONE(), 0, NULL },
+   { RC_TYPE_INT,  RC_OFF(tvcard.winsrc[0]), "tvcardcf_0", RC_OFF(tvcard.winsrc_param_count[0]), EPGTCL_TVCF_IDX_COUNT, NULL },
+   { RC_TYPE_INT,  RC_OFF(tvcard.winsrc[1]), "tvcardcf_1", RC_OFF(tvcard.winsrc_param_count[1]), EPGTCL_TVCF_IDX_COUNT, NULL },
+   { RC_TYPE_INT,  RC_OFF(tvcard.winsrc[2]), "tvcardcf_2", RC_OFF(tvcard.winsrc_param_count[2]), EPGTCL_TVCF_IDX_COUNT, NULL },
+   { RC_TYPE_INT,  RC_OFF(tvcard.winsrc[3]), "tvcardcf_3", RC_OFF(tvcard.winsrc_param_count[3]), EPGTCL_TVCF_IDX_COUNT, NULL },
+   { RC_TYPE_INT,  RC_OFF(tvcard.winsrc[4]), "tvcardcf_4", RC_OFF(tvcard.winsrc_param_count[4]), EPGTCL_TVCF_IDX_COUNT, NULL },
 };
 static const RCPARSE_CFG rcParseCfg_ttx[] =
 {
-   { RC_TYPE_INT,  RC_OFF(ttx.ttx_enable), "ttx_enable" },
-   { RC_TYPE_INT,  RC_OFF(ttx.ttx_chn_count), "ttx_chn_count" },
-   { RC_TYPE_HEX,  RC_OFF(ttx.ttx_start_pg), "ttx_start_pg" },
-   { RC_TYPE_HEX,  RC_OFF(ttx.ttx_end_pg), "ttx_end_pg" },
-   { RC_TYPE_HEX,  RC_OFF(ttx.ttx_ov_pg), "ttx_ov_pg" },
-   { RC_TYPE_INT,  RC_OFF(ttx.ttx_duration), "ttx_duration" },
-   { RC_TYPE_INT,  RC_OFF(ttx.keep_ttx_data), "keep_ttx_data" },
-   { RC_TYPE_STRZ, RC_OFF(ttx.perl_path_win), "perl_path_win" },
+   { RC_TYPE_INT,  RC_OFF(ttx.ttx_enable), "ttx_enable", RC_OFF_NONE(), 0, NULL },
+   { RC_TYPE_INT,  RC_OFF(ttx.ttx_chn_count), "ttx_chn_count", RC_OFF_NONE(), 0, NULL },
+   { RC_TYPE_HEX,  RC_OFF(ttx.ttx_start_pg), "ttx_start_pg", RC_OFF_NONE(), 0, NULL },
+   { RC_TYPE_HEX,  RC_OFF(ttx.ttx_end_pg), "ttx_end_pg", RC_OFF_NONE(), 0, NULL },
+   { RC_TYPE_HEX,  RC_OFF(ttx.ttx_ov_pg), "ttx_ov_pg", RC_OFF_NONE(), 0, NULL },
+   { RC_TYPE_INT,  RC_OFF(ttx.ttx_duration), "ttx_duration", RC_OFF_NONE(), 0, NULL },
+   { RC_TYPE_INT,  RC_OFF(ttx.keep_ttx_data), "keep_ttx_data", RC_OFF_NONE(), 0, NULL },
+   { RC_TYPE_STRZ, RC_OFF(ttx.perl_path_win), "perl_path_win", RC_OFF_NONE(), 0, NULL },
 };
 static const RCPARSE_CFG rcParseCfg_tvapp[] =
 {
-   { RC_TYPE_INT,  RC_OFF(tvapp.tvapp_win), "tvapp_win" },
-   { RC_TYPE_STRZ, RC_OFF(tvapp.tvpath_win), "tvpath_win" },
-   { RC_TYPE_INT,  RC_OFF(tvapp.tvapp_unix), "tvapp_unix" },
-   { RC_TYPE_STRZ, RC_OFF(tvapp.tvpath_unix), "tvpath_unix" },
+   { RC_TYPE_INT,  RC_OFF(tvapp.tvapp_win), "tvapp_win", RC_OFF_NONE(), 0, NULL },
+   { RC_TYPE_STRZ, RC_OFF(tvapp.tvpath_win), "tvpath_win", RC_OFF_NONE(), 0, NULL },
+   { RC_TYPE_INT,  RC_OFF(tvapp.tvapp_unix), "tvapp_unix", RC_OFF_NONE(), 0, NULL },
+   { RC_TYPE_STRZ, RC_OFF(tvapp.tvpath_unix), "tvpath_unix", RC_OFF_NONE(), 0, NULL },
 };
 
 static const RCPARSE_CFG rcParseCfg_NetOrder[] =
 {
-   { RC_TYPE_HEX,  RC_TOFF(RCFILE_NET_ORDER, prov_cni) },
-   { RC_TYPE_INT,  RC_TOFF(RCFILE_NET_ORDER, add_sub) },
-   { RC_TYPE_HEX,  RC_TOFF(RCFILE_NET_ORDER, net_cnis), NULL, RC_TOFF(RCFILE_NET_ORDER, net_count), RC_MAX_DB_NETWWOPS },
+   { RC_TYPE_HEX,  RC_TOFF(RCFILE_NET_ORDER, prov_cni), RC_NAME_NONE(), RC_OFF_NONE(), 0, NULL },
+   { RC_TYPE_INT,  RC_TOFF(RCFILE_NET_ORDER, add_sub), RC_NAME_NONE(), RC_OFF_NONE(), 0, NULL },
+   { RC_TYPE_HEX,  RC_TOFF(RCFILE_NET_ORDER, net_cnis), RC_NAME_NONE(), RC_TOFF(RCFILE_NET_ORDER, net_count), RC_MAX_DB_NETWWOPS, NULL },
 };
 static const RCPARSE_CFG rcParseCfg_NetNames[] =
 {
-   { RC_TYPE_HEX,  RC_TOFF(RCFILE_NET_NAMES, net_cni) },
-   { RC_TYPE_HEX,  RC_TOFF(RCFILE_NET_NAMES, net_flags) },
-   { RC_TYPE_STR,  RC_TOFF(RCFILE_NET_NAMES, name) },
+   { RC_TYPE_HEX,  RC_TOFF(RCFILE_NET_NAMES, net_cni), RC_NAME_NONE(), RC_OFF_NONE(), 0, NULL },
+   { RC_TYPE_HEX,  RC_TOFF(RCFILE_NET_NAMES, net_flags), RC_NAME_NONE(), RC_OFF_NONE(), 0, NULL },
+   { RC_TYPE_STR,  RC_TOFF(RCFILE_NET_NAMES, name), RC_NAME_NONE(), RC_OFF_NONE(), 0, NULL },
 };
 static const RCPARSE_CFG rcParseCfg_XmltvProv[] =
 {
-   { RC_TYPE_HEX,  RC_TOFF(RCFILE_XMLTV_PROV, prov_cni) },
-   { RC_TYPE_INT,  RC_TOFF(RCFILE_XMLTV_PROV, atime) },
-   { RC_TYPE_INT,  RC_TOFF(RCFILE_XMLTV_PROV, acount) },
-   { RC_TYPE_STR,  RC_TOFF(RCFILE_XMLTV_PROV, path) },
+   { RC_TYPE_HEX,  RC_TOFF(RCFILE_XMLTV_PROV, prov_cni), RC_NAME_NONE(), RC_OFF_NONE(), 0, NULL },
+   { RC_TYPE_INT,  RC_TOFF(RCFILE_XMLTV_PROV, atime), RC_NAME_NONE(), RC_OFF_NONE(), 0, NULL },
+   { RC_TYPE_INT,  RC_TOFF(RCFILE_XMLTV_PROV, acount), RC_NAME_NONE(), RC_OFF_NONE(), 0, NULL },
+   { RC_TYPE_STR,  RC_TOFF(RCFILE_XMLTV_PROV, path), RC_NAME_NONE(), RC_OFF_NONE(), 0, NULL },
 };
 static const RCPARSE_CFG rcParseCfg_XmltvNets[] =
 {
-   { RC_TYPE_HEX,  RC_TOFF(RCFILE_XMLTV_NETS, prov_cni) },
-   { RC_TYPE_HEX,  RC_TOFF(RCFILE_XMLTV_NETS, net_cni) },
-   { RC_TYPE_STR,  RC_TOFF(RCFILE_XMLTV_NETS, chn_id) },
+   { RC_TYPE_HEX,  RC_TOFF(RCFILE_XMLTV_NETS, prov_cni), RC_NAME_NONE(), RC_OFF_NONE(), 0, NULL },
+   { RC_TYPE_HEX,  RC_TOFF(RCFILE_XMLTV_NETS, net_cni), RC_NAME_NONE(), RC_OFF_NONE(), 0, NULL },
+   { RC_TYPE_STR,  RC_TOFF(RCFILE_XMLTV_NETS, chn_id), RC_NAME_NONE(), RC_OFF_NONE(), 0, NULL },
 };
 
 typedef struct
@@ -283,13 +285,13 @@ typedef struct
 static const RCPARSE_SECT rcParseCfg[] =
 {
    // assignment sections
-   { "VERSION", rcParseCfg_version, RC_ARR_CNT(rcParseCfg_version), RCPARSE_EXTERN|RCPARSE_IGNORE_UNKNOWN },
-   { "ACQUISITION", rcParseCfg_acq, RC_ARR_CNT(rcParseCfg_acq) },
-   { "TELETEXT GRABBER", rcParseCfg_ttx, RC_ARR_CNT(rcParseCfg_ttx) },
-   { "DATABASE", rcParseCfg_db, RC_ARR_CNT(rcParseCfg_db), RCPARSE_IGNORE_UNKNOWN },
-   { "CLIENT SERVER", rcParseCfg_netacq, RC_ARR_CNT(rcParseCfg_netacq) },
-   { "TV CARDS", rcParseCfg_tvcard, RC_ARR_CNT(rcParseCfg_tvcard) },
-   { "TV APPLICATION", rcParseCfg_tvapp, RC_ARR_CNT(rcParseCfg_tvapp) },
+   { "VERSION", rcParseCfg_version, RC_ARR_CNT(rcParseCfg_version), RCPARSE_EXTERN|RCPARSE_IGNORE_UNKNOWN, 0,0,0 },
+   { "ACQUISITION", rcParseCfg_acq, RC_ARR_CNT(rcParseCfg_acq), RCPARSE_NO_FLAGS, 0,0,0 },
+   { "TELETEXT GRABBER", rcParseCfg_ttx, RC_ARR_CNT(rcParseCfg_ttx), RCPARSE_NO_FLAGS, 0,0,0 },
+   { "DATABASE", rcParseCfg_db, RC_ARR_CNT(rcParseCfg_db), RCPARSE_IGNORE_UNKNOWN, 0,0,0 },
+   { "CLIENT SERVER", rcParseCfg_netacq, RC_ARR_CNT(rcParseCfg_netacq), RCPARSE_NO_FLAGS, 0,0,0 },
+   { "TV CARDS", rcParseCfg_tvcard, RC_ARR_CNT(rcParseCfg_tvcard), RCPARSE_NO_FLAGS, 0,0,0 },
+   { "TV APPLICATION", rcParseCfg_tvapp, RC_ARR_CNT(rcParseCfg_tvapp), RCPARSE_NO_FLAGS, 0,0,0 },
    // list sections
    { "NETWORK ORDER", rcParseCfg_NetOrder, RC_ARR_CNT(rcParseCfg_NetOrder), RCPARSE_ALLOC, sizeof(RCFILE_NET_ORDER), RC_OFF(net_order), RC_OFF(net_order_count) },
    { "NETWORK NAMES", rcParseCfg_NetNames, RC_ARR_CNT(rcParseCfg_NetNames), RCPARSE_ALLOC, sizeof(RCFILE_NET_NAMES), RC_OFF(net_names), RC_OFF(net_names_count) },

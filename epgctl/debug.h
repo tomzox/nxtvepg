@@ -23,7 +23,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: debug.h,v 1.23 2006/11/12 18:36:54 tom Exp tom $
+ *  $Id: debug.h,v 1.25 2020/06/30 06:32:16 tom Exp tom $
  */
 
 #ifndef __DEBUG_H
@@ -51,6 +51,14 @@
 #else
 #define assert(X)
 #define SHOULD_NOT_BE_REACHED
+#endif
+
+#if defined(__GNUC__)
+#define ATTRIBUTE_USED   __attribute__((used))
+#define ATTRIBUTE_UNUSED __attribute__((unused))
+#else
+#define ATTRIBUTE_USED
+#define ATTRIBUTE_UNUSED
 #endif
 
 // Note:
@@ -109,41 +117,44 @@
 
 // wrapper for debug statements
 #define DBGONLY(X)              X
+// attribute for variables used only in debug statements
+#define __DBGONLY_ATT__
 
 #else  // DEBUG_SWITCH == OFF
-#define debug0(S)
-#define debug1(S,A)
-#define debug2(S,A,B)
-#define debug3(S,A,B,C)
-#define debug4(S,A,B,C,D)
-#define debug5(S,A,B,C,D,E)
-#define debug6(S,A,B,C,D,E,F)
-#define debug7(S,A,B,C,D,E,F,G)
-#define debug8(S,A,B,C,D,E,F,G,H)
-#define debug9(S,A,B,C,D,E,F,G,H,I)
-#define debug10(S,A,B,C,D,E,F,G,H,I,J)
-#define debug11(S,A,B,C,D,E,F,G,H,I,J,K)
-#define ifdebug0(COND,S)
-#define ifdebug1(COND,S,A)
-#define ifdebug2(COND,S,A,B)
-#define ifdebug3(COND,S,A,B,C)
-#define ifdebug4(COND,S,A,B,C,D)
-#define ifdebug5(COND,S,A,B,C,D,E)
-#define ifdebug6(COND,S,A,B,C,D,E,F)
-#define ifdebug7(COND,S,A,B,C,D,E,F,G)
-#define ifdebug8(COND,S,A,B,C,D,E,F,G,H)
-#define ifdebug9(COND,S,A,B,C,D,E,F,G,H,I)
-#define fatal0(S)
-#define fatal1(S,A)
-#define fatal2(S,A,B)
-#define fatal3(S,A,B,C)
-#define fatal4(S,A,B,C,D)
-#define fatal5(S,A,B,C,D,E)
-#define fatal6(S,A,B,C,D,E,F)
-#define fatal7(S,A,B,C,D,E,F,G)
-#define fatal8(S,A,B,C,D,E,F,G,H)
-#define fatal9(S,A,B,C,D,E,F,G,H,I)
+#define debug0(S) do{}while(0)
+#define debug1(S,A) do{}while(0)
+#define debug2(S,A,B) do{}while(0)
+#define debug3(S,A,B,C) do{}while(0)
+#define debug4(S,A,B,C,D) do{}while(0)
+#define debug5(S,A,B,C,D,E) do{}while(0)
+#define debug6(S,A,B,C,D,E,F) do{}while(0)
+#define debug7(S,A,B,C,D,E,F,G) do{}while(0)
+#define debug8(S,A,B,C,D,E,F,G,H) do{}while(0)
+#define debug9(S,A,B,C,D,E,F,G,H,I) do{}while(0)
+#define debug10(S,A,B,C,D,E,F,G,H,I,J) do{}while(0)
+#define debug11(S,A,B,C,D,E,F,G,H,I,J,K) do{}while(0)
+#define ifdebug0(COND,S) do{}while(0)
+#define ifdebug1(COND,S,A) do{}while(0)
+#define ifdebug2(COND,S,A,B) do{}while(0)
+#define ifdebug3(COND,S,A,B,C) do{}while(0)
+#define ifdebug4(COND,S,A,B,C,D) do{}while(0)
+#define ifdebug5(COND,S,A,B,C,D,E) do{}while(0)
+#define ifdebug6(COND,S,A,B,C,D,E,F) do{}while(0)
+#define ifdebug7(COND,S,A,B,C,D,E,F,G) do{}while(0)
+#define ifdebug8(COND,S,A,B,C,D,E,F,G,H) do{}while(0)
+#define ifdebug9(COND,S,A,B,C,D,E,F,G,H,I) do{}while(0)
+#define fatal0(S) do{}while(0)
+#define fatal1(S,A) do{}while(0)
+#define fatal2(S,A,B) do{}while(0)
+#define fatal3(S,A,B,C) do{}while(0)
+#define fatal4(S,A,B,C,D) do{}while(0)
+#define fatal5(S,A,B,C,D,E) do{}while(0)
+#define fatal6(S,A,B,C,D,E,F) do{}while(0)
+#define fatal7(S,A,B,C,D,E,F,G) do{}while(0)
+#define fatal8(S,A,B,C,D,E,F,G,H) do{}while(0)
+#define fatal9(S,A,B,C,D,E,F,G,H,I) do{}while(0)
 #define DBGONLY(X)
+#define __DBGONLY_ATT__ ATTRIBUTE_UNUSED
 #endif
 
 
@@ -176,17 +187,21 @@
 #define dprintf8(S,A,B,C,D,E,F,G,H) do{sprintf(debugStr,S,A,B,C,D,E,F,G,H);OutputDebugString(debugStr);}while(0)
 #define dprintf9(S,A,B,C,D,E,F,G,H,I) do{sprintf(debugStr,S,A,B,C,D,E,F,G,H,I);OutputDebugString(debugStr);}while(0)
 #endif  // WIN32
+// attribute for variables used only in dprintf statements
+#define __DPRINTF_ONLY_ATT__
+
 #else  //DPRINTF_OFF
-#define dprintf0(S)
-#define dprintf1(S,A)
-#define dprintf2(S,A,B)
-#define dprintf3(S,A,B,C)
-#define dprintf4(S,A,B,C,D)
-#define dprintf5(S,A,B,C,D,E)
-#define dprintf6(S,A,B,C,D,E,F)
-#define dprintf7(S,A,B,C,D,E,F,G)
-#define dprintf8(S,A,B,C,D,E,F,G,H)
-#define dprintf9(S,A,B,C,D,E,F,G,H,I)
+#define dprintf0(S) do{}while(0)
+#define dprintf1(S,A) do{}while(0)
+#define dprintf2(S,A,B) do{}while(0)
+#define dprintf3(S,A,B,C) do{}while(0)
+#define dprintf4(S,A,B,C,D) do{}while(0)
+#define dprintf5(S,A,B,C,D,E) do{}while(0)
+#define dprintf6(S,A,B,C,D,E,F) do{}while(0)
+#define dprintf7(S,A,B,C,D,E,F,G) do{}while(0)
+#define dprintf8(S,A,B,C,D,E,F,G,H) do{}while(0)
+#define dprintf9(S,A,B,C,D,E,F,G,H,I) do{}while(0)
+#define __DPRINTF_ONLY_ATT__ ATTRIBUTE_UNUSED
 #endif //DPRINTF_OFF
 
 

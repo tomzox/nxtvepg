@@ -18,7 +18,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: menucmd.c,v 1.135 2011/01/05 19:12:13 tom Exp tom $
+ *  $Id: menucmd.c,v 1.136 2020/06/17 08:19:56 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -333,8 +333,8 @@ static void MenuCmd_StartLocalAcq( Tcl_Interp * interp )
       }
       else
       #endif
-      #ifndef WIN32  //is handled by bt-driver in win32
       {
+      #ifndef WIN32  //is handled by bt-driver in win32
          strcpy(comm, "tk_messageBox -type ok -icon error -parent . -message {Failed to start acquisition: ");
          pErrStr = EpgAcqCtl_GetLastError();
          if (pErrStr != NULL)
@@ -343,10 +343,8 @@ static void MenuCmd_StartLocalAcq( Tcl_Interp * interp )
             strcat(comm, "(Internal error, please report. Try to restart the application.)\n");
          strcat(comm, "}\n");
          eval_check(interp, comm);
-      }
-      #else
-         ;  // required by "else" above (if daemon in use; doesn't harm otherwise)
       #endif
+      }
 
       // operation failed -> keep the old mode
       if (wasNetAcq)

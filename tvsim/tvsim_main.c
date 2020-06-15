@@ -21,7 +21,7 @@
  *
  *  Author: Thorsten Zoerner
  *
- *  $Id: tvsim_main.c,v 1.36 2014/04/23 21:31:44 tom Exp tom $
+ *  $Id: tvsim_main.c,v 1.37 2020/06/15 09:59:03 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_TVSIM
@@ -1410,7 +1410,8 @@ static bool SetHardwareConfig( uint cardIdx )
    const RCFILE * pRc = RcFile_Query();
    uint drvType, prio;
 #ifdef WIN32
-   uint wdmStop, slicer, input;
+   uint wdmStop;
+   //uint slicer, input;
 #endif
    bool result;
 
@@ -1418,8 +1419,8 @@ static bool SetHardwareConfig( uint cardIdx )
    //cardIdx = pRc->tvcard.card_idx;
    prio    = pRc->tvcard.acq_prio;
 #ifdef WIN32
-   input   = pRc->tvcard.input;
-   slicer  = pRc->tvcard.slicer_type;
+   //input   = pRc->tvcard.input;
+   //slicer  = pRc->tvcard.slicer_type;
    wdmStop = pRc->tvcard.wdm_stop;
 
    if ( (drvType == BTDRV_SOURCE_WDM) ||

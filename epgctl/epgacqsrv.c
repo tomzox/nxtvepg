@@ -20,7 +20,7 @@
  *  Author:
  *          Tom Zoerner
  *
- *  $Id: epgacqsrv.c,v 1.23 2014/04/23 21:17:46 tom Exp tom $
+ *  $Id: epgacqsrv.c,v 1.24 2020/06/17 08:19:39 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGCTL
@@ -658,16 +658,17 @@ static bool EpgAcqServer_TakeMessage( EPGDBSRV_STATE *req, EPGDBSRV_MSG_BODY * p
    switch (req->io.readHeader.type)
    {
       case MSG_TYPE_CONNECT_REQ:
-         if (memcmp(pMsg, "ACQSTAT", 7) == 0)
-         {
-            char * pStr = EpgAcqServer_BuildAcqDescrStr();
-            EpgNetIo_WriteMsg(&req->io, MSG_TYPE_CONQUERY_CNF, strlen(pStr), pStr, TRUE);
-            result = TRUE;
-         }
-         else if (memcmp(pMsg, "PID", 3) == 0)
+         // shortest must be checked first to avoid reading beyond end-of-message
+         if (memcmp(pMsg, "PID", 3) == 0)
          {
             char * pStr = xmalloc(20);
             snprintf(pStr, 20, "PID %ld\n", (long) getpid());
+            EpgNetIo_WriteMsg(&req->io, MSG_TYPE_CONQUERY_CNF, strlen(pStr), pStr, TRUE);
+            result = TRUE;
+         }
+         else if (memcmp(pMsg, "ACQSTAT", 7) == 0)
+         {
+            char * pStr = EpgAcqServer_BuildAcqDescrStr();
             EpgNetIo_WriteMsg(&req->io, MSG_TYPE_CONQUERY_CNF, strlen(pStr), pStr, TRUE);
             result = TRUE;
          }

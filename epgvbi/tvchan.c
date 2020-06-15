@@ -28,7 +28,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: tvchan.c,v 1.9 2005/01/16 20:31:52 tom Exp tom $
+ *  $Id: tvchan.c,v 1.10 2020/06/17 10:09:35 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_VBI
@@ -54,7 +54,7 @@ typedef struct
    double  freqOffset;     // freq offset between two channels in this band
    uint    firstChannel;
    uint    lastChannel;
-   const uchar * prefix;   // prefix for the channel name
+   const char * prefix;    // prefix for the channel name
    uint    idxOffset;      // start index of a band namespace
    uint    wdmBaseIdx;     // start index in WDM channel table
 } FREQ_TABLE;

@@ -26,7 +26,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: vbidecode.c,v 1.38 2009/05/02 19:33:51 tom Exp tom $
+ *  $Id: vbidecode.c,v 1.39 2020/06/15 09:57:45 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_VBI
@@ -205,10 +205,12 @@ void VbiDecodeLine(const uchar * lbuf, int line, bool doVps)
             //printf("****** step back by 2\n");
             spos -= 2 * vtstep;
             data[1] = 0xd5;
+            /* fall-through */
          case 0xd5:             /* oops, missed first 1-bit: backup 2 bits */
             //printf("****** step back by 1\n");
             spos -= 2 * vtstep;
             data[1] = 0x55;
+            /* fall-through */
          case 0x55:
             data[2] = vtscan(lbuf, &spos, off);
             switch (data[2])

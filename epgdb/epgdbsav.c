@@ -29,7 +29,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgdbsav.c,v 1.70 2014/04/23 21:36:42 tom Exp tom $
+ *  $Id: epgdbsav.c,v 1.71 2020/06/15 09:58:03 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB
@@ -65,10 +65,6 @@
 #include "epgdb/epgdbif.h"
 #include "epgdb/epgdbsav.h"
 
-
-#ifdef __MINGW32__
-typedef long ssize_t;
-#endif
 
 // internal shortcuts
 typedef const EPGDB_CONTEXT * CPDBC;

@@ -14,9 +14,7 @@
  *   You should have received a copy of the GNU General Public License
  *   along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * Copyright 2006-2011 by Tom Zoerner (tomzo at users.sf.net)
- *
- * $Id: ttx_date.cc,v 1.2 2011/01/06 16:58:44 tom Exp tom $
+ * Copyright 2006-2011,2020 by T. Zoerner (tomzo at users.sf.net)
  */
 
 #include <stdio.h>
@@ -25,12 +23,9 @@
 #include <sstream>
 #include <string>
 #include <algorithm>
-
-#include <boost/regex.h>
-#include <boost/regex.hpp>
+#include <regex>
 
 using namespace std;
-using namespace boost;
 
 #include "ttx_db.h"
 #include "ttx_util.h"
@@ -320,9 +315,11 @@ bool T_PG_DATE::ParseOvDate(int page, int sub, int head)
 
       // [Mo.]13.04.[2006]
       // So,06.01.
+      static bool expr12_init[8];
       static regex expr1[8];
       static regex expr2[8];
-      if (expr1[lang].empty()) {
+      if (!expr12_init[lang]) {
+         expr12_init[lang] = true;
          expr1[lang].assign(string("(^| |(") + wday_abbrv_match + ")(\\.|\\.,|,) ?)(\\d{1,2})\\.(\\d{1,2})\\.(\\d{2}|\\d{4})?([ ,:]|$)", regex::icase);
          expr2[lang].assign(string("(^| |(") + wday_match + ")(, ?| ))(\\d{1,2})\\.(\\d{1,2})\\.(\\d{2}|\\d{4})?([ ,:]|$)", regex::icase);
       }
@@ -335,8 +332,10 @@ bool T_PG_DATE::ParseOvDate(int page, int sub, int head)
          }
       }
       // 13.April [2006]
+      static bool expr3_init[8];
       static regex expr3[8];
-      if (expr3[lang].empty()) {
+      if (!expr3_init[lang]) {
+         expr3_init[lang] = true;
          expr3[lang].assign(string("(^| )(\\d{1,2})\\. ?(") + mname_match + ")( (\\d{2}|\\d{4}))?([ ,:]|$)", regex::icase);
       }
       if (regex_search(text, whats, expr3[lang])) {
@@ -347,9 +346,11 @@ bool T_PG_DATE::ParseOvDate(int page, int sub, int head)
          }
       }
       // Sunday 22 April (i.e. no dot after month)
+      static bool expr45_init[8];
       static regex expr4[8];
       static regex expr5[8];
-      if (expr4[lang].empty()) {
+      if (!expr45_init[lang]) {
+         expr45_init[lang] = true;
          expr4[lang].assign(string("(^| )(") + wday_match + string(")(, ?| )(\\d{1,2})\\.? ?(") + mname_match + ")( (\\d{4}|\\d{2}))?( |,|;|$)", regex::icase);
          expr5[lang].assign(string("(^| )(") + wday_abbrv_match + string(")(\\.,? ?|, ?| )(\\d{1,2})\\.? ?(") + mname_match + ")( (\\d{4}|\\d{2}))?( |,|;|$)", regex::icase);
       }
@@ -366,8 +367,10 @@ bool T_PG_DATE::ParseOvDate(int page, int sub, int head)
 
       // "Do. 21-22 Uhr" (e.g. on VIVA)  --  TODO internationalize "Uhr"
       // "Do  21:00-22:00" (e.g. Tele-5)
+      static bool expr6_init[8];
       static regex expr6[8];
-      if (expr6[lang].empty()) {
+      if (!expr6_init[lang]) {
+         expr6_init[lang] = true;
          expr6[lang].assign(string("(^| )((") + wday_abbrv_match + string(")\\.?|(") + wday_match + ")) *((\\d{1,2}(-| - )\\d{1,2}( +Uhr| ?h|   ))|(\\d{1,2}[\\.:]\\d{2}(-| - )(\\d{1,2}[\\.:]\\d{2})?))( |$)", regex::icase);
       }
       if (regex_search(text, whats, expr6[lang])) {
@@ -385,8 +388,10 @@ bool T_PG_DATE::ParseOvDate(int page, int sub, int head)
       if (prio >= 2) continue;
 
       // monday, tuesday, ... (non-abbreviated only)
+      static bool expr7_init[8];
       static regex expr7[8];
-      if (expr7[lang].empty()) {
+      if (!expr7_init[lang]) {
+         expr7_init[lang] = true;
          expr7[lang].assign(string("(^| )(") + wday_match + ")([ ,:]|$)", regex::icase);
       }
       if (regex_search(text, whats, expr7[lang])) {
@@ -399,8 +404,10 @@ bool T_PG_DATE::ParseOvDate(int page, int sub, int head)
       if (prio >= 1) continue;
 
       // today, tomorrow, ...
+      static bool expr8_init[8];
       static regex expr8[8];
-      if (expr8[lang].empty()) {
+      if (!expr8_init[lang]) {
+         expr8_init[lang] = true;
          expr8[lang].assign(string("(^| )(") + relday_match + ")([ ,:]|$)", regex::icase);
       }
       if (regex_search(text, whats, expr8[lang])) {
@@ -502,8 +509,8 @@ bool T_PG_DATE::ParseDescDate(int page, int sub, time_t ov_start_t, int date_off
    int lyear = -1;
    int lhour = -1;
    int lmin = -1;
-   int lend_hour = -1;
-   int lend_min = -1;
+   //int lend_hour = -1;
+   //int lend_min = -1;
    bool check_time = false;
 
    const TTX_DB_PAGE * pgtext = ttx_db.get_sub_page(page, sub);
@@ -535,9 +542,11 @@ bool T_PG_DATE::ParseDescDate(int page, int sub, time_t ov_start_t, int date_off
          }
          // Fr 14.04 (i.e. no dot after month)
          // here's a risk to match on a time, so we must require a weekday name
+         static bool expr45_init[8];
          static regex expr4[8];
          static regex expr5[8];
-         if (expr4[lang].empty()) {
+         if (!expr45_init[lang]) {
+            expr45_init[lang] = true;
             expr4[lang].assign(string("(^| )(") + wday_match + ")(, ?| | - )"
                                "(\\d{1,2})\\.(\\d{1,2})( |\\.|,|;|$)", regex::icase);
             expr5[lang].assign(string("(^| )(") + wday_abbrv_match + ")(\\.,? ?|, ?| - | )"
@@ -553,8 +562,10 @@ bool T_PG_DATE::ParseDescDate(int page, int sub, time_t ov_start_t, int date_off
             }
          }
          // 14.[ ]April [2006]
+         static bool expr6_init[8];
          static regex expr6[8];
-         if (expr6[lang].empty()) {
+         if (!expr6_init[lang]) {
+            expr6_init[lang] = true;
             expr6[lang].assign(string("(^| )(\\d{1,2})\\.? ?(") + mname_match +
                                ")( (\\d{4}|\\d{2}))?( |,|;|:|$)", regex::icase);
          }
@@ -567,9 +578,11 @@ bool T_PG_DATE::ParseDescDate(int page, int sub, time_t ov_start_t, int date_off
             }
          }
          // Sunday 22 April (i.e. no dot after day)
+         static bool expr78_init[8];
          static regex expr7[8];
          static regex expr8[8];
-         if (expr7[lang].empty()) {
+         if (!expr78_init[lang]) {
+            expr78_init[lang] = true;
             expr7[lang].assign(string("(^| )(") + wday_match +
                                string(")(, ?| - | )(\\d{1,2})\\.? ?(") + mname_match +
                                ")( (\\d{4}|\\d{2}))?( |,|;|:|$)", regex::icase);
@@ -590,9 +603,11 @@ bool T_PG_DATE::ParseDescDate(int page, int sub, time_t ov_start_t, int date_off
 
          // Fr[,] 18:00 [-19:00] [Uhr|h]
          // TODO parse time (i.e. allow omission of "Uhr")
+         static bool expr10_11_init[8];
          static regex expr10[8];
          static regex expr11[8];
-         if (expr10[lang].empty()) {
+         if (!expr10_11_init[lang]) {
+            expr10_11_init[lang] = true;
             expr10[lang].assign(string("(^| )(") + wday_match +
                                 ")(, ?| - | )(\\d{1,2}[\\.:]\\d{2}"
                                 "((-| - )\\d{1,2}[\\.:]\\d{2})?(h| |,|;|:|$))", regex::icase);
@@ -609,8 +624,10 @@ bool T_PG_DATE::ParseDescDate(int page, int sub, time_t ov_start_t, int date_off
             }
          }
          // " ... Sonntag" (HR3) (time sometimes directly below, but not always)
+         static bool expr20_init[8];
          static regex expr20[8];
-         if (expr20[lang].empty()) {
+         if (!expr20_init[lang]) {
+            expr20_init[lang] = true;
             expr20[lang].assign(string("(^| )(") + wday_match + ") *$", regex::icase);
          }
          if (!check_time && regex_search(text, whats, expr20[lang])) {
@@ -657,8 +674,8 @@ bool T_PG_DATE::ParseDescDate(int page, int sub, time_t ov_start_t, int date_off
              (end_hour < 24) && (end_min < 60)) {
             lhour = hour;
             lmin = min;
-            lend_hour = end_hour;
-            lend_min = end_min;
+            //lend_hour = end_hour;
+            //lend_min = end_min;
             check_time = true;
          }
       }
@@ -715,11 +732,11 @@ bool T_PG_DATE::ParseDescDate(int page, int sub, time_t ov_start_t, int date_off
                if (opt_debug) {
                   char t1[100];
                   char t2[100];
-                  strftime(t1, sizeof(t1), "%Y-%M-%D.%H:%M", localtime(&start_t));
-                  strftime(t2, sizeof(t2), "%Y-%M-%D.%H:%M", localtime(&ov_start_t));
+                  strftime(t1, sizeof(t1), "%Y-%m-%d.%H:%M", localtime(&start_t));
+                  strftime(t2, sizeof(t2), "%Y-%m-%d.%H:%M", localtime(&ov_start_t));
                   printf("MISMATCH[date_off:%d+%d]: %s %s\n", m_date_off, date_off, t1, t2);
                }
-               lend_hour = -1;
+               //lend_hour = -1;
                if (new_date) {
                   // date on same line as time: invalidate both upon mismatch
                   lyear = -1;
@@ -803,8 +820,8 @@ string ParseChannelName()
    string mname_match;
    smatch whats;
    int lang = -1;
-   regex expr3[8];
-   regex expr4[8];
+   static regex expr3[8];
+   static regex expr4[8];
 
    for (TTX_DB::const_iterator p = ttx_db.begin(); p != ttx_db.end(); p++) {
       int page = p->first.page();
@@ -828,7 +845,9 @@ string ParseChannelName()
             if (regex_search(hd, whats, expr2)) {
                hd.erase(whats[1].length());
                // remove date: "Sam.12.Jan" OR "12 Sa Jan" (VOX)
-               if (expr3[lang].empty()) {
+               static bool expr34_init[8];
+               if (!expr34_init[lang]) {
+                  expr34_init[lang] = true;
                   expr3[lang].assign(string("(((") + wday_abbrv_match + string(")|(") + wday_match +
                                      string("))(\\, ?|\\. ?|  ?\\-  ?|  ?)?)?\\d{1,2}(\\.\\d{1,2}|[ \\.](") +
                                      mname_match + "))(\\.|[ \\.]\\d{2,4}\\.?)? *$", regex::icase);

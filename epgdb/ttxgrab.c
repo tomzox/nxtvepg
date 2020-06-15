@@ -19,7 +19,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: ttxgrab.c,v 1.16 2011/01/16 20:27:55 tom Exp tom $
+ *  $Id: ttxgrab.c,v 1.17 2020/06/15 09:58:03 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB
@@ -49,9 +49,6 @@
 #define TTX_CAP_FILE_PAT   "ttx-%s.dat"
 #define TTX_CAP_FILE_TMP   "ttx-%s.dat.tmp"
 
-#ifdef __MINGW32__
-typedef long ssize_t;
-#endif
 #ifndef O_BINARY
 #define O_BINARY       0          // for M$-Windows only
 #endif

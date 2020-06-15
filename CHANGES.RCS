@@ -22919,3 +22919,125 @@ provnets-de.html [rev:1.10, 2020-06-16T06:54:54]:
 www/download.html [rev:1.33, 2020-06-17T08:40:04]:
 - adapted HREFs for conversion of two remaining screenshots
   in GIF to PNG fmt (tvsim & vbirec screenshots)
+Makefile [rev:1.110, 2020-06-15T09:55:58]:
+- updated copyright for 2020
+- linker fix: use CPP for linking all executables
+- removed obsolete added -fno-strict-aliasing for rcfile.c
+- removed -lboost_regex for ttx-grabber version 2.1
+Makefile.win32 [rev:1.79, 2020-06-15T09:56:06]:
+- updated for current version of mingw32-gcc: removed -mno-cygwin
+- removed obsolete added -fno-strict-aliasing for rcfile.c;
+- removed -lboost_regex for ttx-grabber version 2.1
+dsdrv/bt8x8_typ.c [rev:1.20, 2020-06-15T09:56:27]:
+- fixed mingw-gcc warnings: commented/attributed unused variables
+dsdrv/wintuner.c [rev:1.31, 2020-06-15T09:56:38]:
+- fixed mingw-gcc warnings: commented/attributed unused variables
+- bugfix memory corruption Tda8275_SetFrequency(): channelBytes too short
+dsdrv/cx2388x_typ.c [rev:1.21, 2020-06-15T09:56:58]:
+- bugfix: CParseValue_GetString() ptr result was compared to '\0':
+    need to consider both ptr==NULL and *ptr=='\0'
+dsdrv/saa7134_typ.c [rev:1.27, 2020-06-15T09:56:58]:
+- bugfix: CParseValue_GetString() ptr result was compared to '\0':
+    need to consider both ptr==NULL and *ptr=='\0'
+epgvbi/syserrmsg.c [rev:1.7, 2020-06-15T09:57:36]:
+- fixed mingw-gcc warnings: include winsock2.h needs to precede windows.h
+epgvbi/vbidecode.c [rev:1.39, 2020-06-15T09:57:45]:
+- fixed compiler warnings -Wextra: missing "fall-through" in switch/cases
+epgvbi/zvbidecoder.c [rev:1.9, 2020-06-15T09:57:45]:
+- fixed compiler warnings -Wextra: missing "fall-through" in switch/cases
+epgdb/epgdbsav.c [rev:1.71, 2020-06-15T09:58:03]:
+- fixed mingw-gcc errors: typedef ssize_t is now duplicate
+epgdb/ttxgrab.c [rev:1.17, 2020-06-15T09:58:03]:
+- fixed mingw-gcc errors: typedef ssize_t is now duplicate
+epgctl/debug.h [rev:1.24, 2020-06-15T09:58:12]:
+- support for avoiding compiler warnings about unused variables:
+    added variable attribute macros __DPRINTF_ONLY_ATT__ and __DBGONLY_ATT__
+- replaced all empty macro definitions with "do{}while(0)":
+    avoids compiler warning when used without braces after if/else
+epgui/wintv.c [rev:1.30, 2020-06-15T09:58:22]:
+- bug-fix based on compiler warning: memset() size incorrect:
+    sizeof() taken on pointer, not pinted-to type;
+    no harm as all struct members assigned in success branch; else unused
+epgtcl/htree.tcl [rev:1.11, 2020-06-15T09:58:34]:
+- Fixed Tcl error during start-up:
+- "clear first end" may be called before element populated, resulting
+    in invalid value "" for end; solved by ignoring the call in that case
+epgtcl/mainwin.tcl [rev:1.267, 2020-06-15T09:58:38]:
+- Updated copyright for 2020
+tvsim/tvsim_main.c [rev:1.37, 2020-06-15T09:59:03]:
+- fixed mingw-gcc warnings: commented/attributed unused variables
+epgui/daemon.c [rev:1.20, 2020-06-15T09:59:15]:
+- fixed mingw-gcc warnings: include winsock2.h needs to precede windows.h
+epgui/epgmain.c [rev:1.167, 2020-06-15T09:59:15]:
+- fixed mingw-gcc warnings: include winsock2.h needs to precede windows.h
+epgui/rcfile.c [rev:1.15, 2020-06-15T09:59:23]:
+- fixed mingw-gcc warnings: include winsock2.h needs to precede windows.h
+tvsim/vbirec.pod [rev:1.12, 2020-06-15T09:59:43]:
+- syntax fix: extranous value following "=back"
+dsdrv/hwmem.c [rev:1.5, 2020-06-15T10:01:11]:
+- fixed mingw-gcc warnings: commented/attributed unused variables
+epgvbi/btdrv4win.c [rev:1.62, 2020-06-15T10:01:39]:
+- fixed mingw-gcc warnings: commented/attributed unused variables
+epgctl/epgacqsrv.h [rev:1.14, 2020-06-15T10:02:34]:
+- fixed mingw-gcc warnings: include winsock2.h needs to precede windows.h
+CHANGES.version [rev:1.19, 2020-06-15T10:31:08]:
+- added section about updating copyright date
+- update release date in "CHANGES" (forgotton in 2.9.0pre4)
+- minor clean-up
+xmltv/xml_cdata.c [rev:1.9, 2020-06-15T15:53:06]:
+- Applied bug-fix provided by "dcb" via SF forum 2014-04-10:
+- xmltv/xml_cdata.c:746: "Logical conjunction always evaluates to false":
+  changed "(c == 0xD7) && (c == 0xF7)" -> "(c == 0xD7) || (c == 0xF7)"
+Makefile [rev:1.111, 2020-06-17T08:17:57]:
+Makefile.win32 [rev:1.80, 2020-06-17T08:17:57]:
+- Enabled gcc warnings -Wextra (but switched off unused-par & sign-cmp)
+tcl2c.c [rev:1.16, 2020-06-17T08:18:43]:
+- Added missing free() upon exit to satisfy ASAN leak check
+dsdrv/bt8x8_typ.c [rev:1.21, 2020-06-17T08:18:57]:
+- Changed card "NumInputs" from int to uint to sync with SAA/CX
+dsdrv/cx2388x_typ.c [rev:1.22, 2020-06-17T08:19:07]:
+- adapted for compiler warning "missing field initializers":
+    added dummies to "unknown" & default card definitions
+- removed comparison of "uint < 0" (covered by "uint > MAX_VAL)
+dsdrv/saa7134_typ.c [rev:1.28, 2020-06-17T08:19:14]:
+- Adapted for compiler warning "missing field initializers":
+- added dummies to "unknown" & default card definitions
+epgctl/epgacqclnt.c [rev:1.28, 2020-06-17T08:19:27]:
+- bug-fix memory corruption, detected by address-sanitizer:
+- memcpy size param was "io.readLen": need - sizeof(EPGNETIO_MSG_HEADER)
+epgctl/epgacqsrv.c [rev:1.24, 2020-06-17T08:19:39]:
+- fixed read beyond buffer end, detected by address-sanitizer:
+- no harm, as message content already checked by other function earlier;
+  thus only changed order to check for shortest message type first
+epgui/daemon_main.c [rev:1.12, 2020-06-17T08:19:50]:
+- Adapted for compilation with address sanitizer:
+- moved free() upon shut-down out of switch CHK_MALLOC
+epgui/menucmd.c [rev:1.136, 2020-06-17T08:19:56]:
+- fixed compiler-warning with WIN32 switch set:
+- removed need for dummy ";" trailing "else" by moving compiler-switch
+epgui/uictrl.c [rev:1.59, 2020-06-17T08:20:03]:
+- fixed compiler warning switch/case: added "fall-through" comment
+epgui/rcfile.c [rev:1.16, 2020-06-17T08:20:10]:
+- Adapted for compiler warning "missing field initializers":
+- filled in omitted RC_OFF_NONE() et.al. in parameter definitions
+xmltv/xmltv_cni.c [rev:1.8, 2020-06-17T08:27:27]:
+- bug-fix "use-after-heap", detected by address sanitizer:
+- missing pointer update after realloc()
+- also added fail-safety for free(): check pointer NULL
+xmltv/xmltv_tags.c [rev:1.13, 2020-06-17T08:27:36]:
+- Adapted for compiler warning "missing field initializers":
+- filled in omitted ".strip = FALSE" in XMLTV_ATTS array init;
+  for readability, replaced use of TRUE with new "XMLTV_ATT_STRIP"
+- also added missing .cb.PostAttr = NULL for XML_TAGDEF
+epgui/wintv.c [rev:1.31, 2020-06-17T08:29:36]:
+- Fix detected by compiler warning "missing field initializers":
+- missing default for last followTvState element (no harm, default is 0)
+xmltv/xmltv_timestamp.c [rev:1.5, 2020-06-17T08:58:09]:
+- Adapted for compiler warning "missing field initializers":
+- replaced dummy hash map entries with new macro TZ_MAP_GAP
+  which contains intializers for both fields
+epgctl/debug.h [rev:1.25, 2020-06-30T06:32:16]:
+epgui/cmdline.c [rev:1.18, 2020-06-30T06:32:28]:
+- Added ATTRIBUTE_USED macro for unused variables holding RCS ID
+epgctl/epgversion.h [rev:1.97, 2020-06-15T13:23:03]:
+- Set version to 2.9.0pre5

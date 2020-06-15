@@ -14,9 +14,7 @@
  *   You should have received a copy of the GNU General Public License
  *   along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * Copyright 2006-2011 by Tom Zoerner (tomzo at users.sf.net)
- *
- * $Id: ttx_scrape.h,v 1.3 2011/01/07 18:37:22 tom Exp $
+ * Copyright 2006-2011,2020 by T. Zoerner (tomzo at users.sf.net)
  */
 #if !defined (__TTX_SCRAPE_H)
 #define __TTX_SCRAPE_H
@@ -25,6 +23,9 @@
 #include "ttx_pg_ref.h"
 #include "ttx_ov_fmt.h"
 #include "ttx_date.h"
+
+#include <list>
+#include <vector>
 
 class T_VPS_TIME
 {
@@ -54,8 +55,11 @@ public:
    void calculate_start_times();
    void extract_ttx_ref(const T_TRAIL_REF_FMT& fmt, map<int,int>& ttx_ref_map);
    void extract_tv(map<int,int>& ttx_ref_map);
-   static list<TV_SLOT> get_ov_slots(vector<OV_PAGE*> ov_pages);
-   static T_TRAIL_REF_FMT detect_ov_ttx_ref_fmt(const vector<OV_PAGE*>& ov_pages);
+   void check_continuity(std::vector<TTX_PG_HANDLE>& pg_list, OV_PAGE * prev);
+
+   static std::list<TV_SLOT> get_ov_slots(std::vector<OV_PAGE*> ov_pages);
+   static T_TRAIL_REF_FMT detect_ov_ttx_ref_fmt(const std::vector<OV_PAGE*>& ov_pages);
+
 private:
    friend class TV_SLOT;
    bool parse_end_time(const string& text, const string& ctrl, int& hour, int& min);
@@ -66,7 +70,7 @@ private:
    int          m_sub_page_skip;
    int          m_head;
    int          m_foot;
-   vector<OV_SLOT*> m_slots;
+   std::vector<OV_SLOT*> m_slots;
 };
 
 class OV_SLOT
@@ -88,7 +92,7 @@ private:
    string       m_vps_date;
    int          m_ttx_ref;
    bool         m_is_tip;
-   vector<string> m_ov_title;
+   std::vector<string> m_ov_title;
 
    string       m_ext_title;
    string       m_ext_subtitle;
@@ -97,7 +101,7 @@ private:
 public:
    void add_title(string ctrl);
    void parse_ttx_ref(const T_TRAIL_REF_FMT& fmt, map<int,int>& ttx_ref_map);
-   void detect_ttx_ref_fmt(vector<T_TRAIL_REF_FMT>& fmt_list);
+   void detect_ttx_ref_fmt(std::vector<T_TRAIL_REF_FMT>& fmt_list);
    void parse_feature_flags();
    void parse_ov_title();
    void parse_desc_page(const T_PG_DATE * pg_date, int ref_count);
@@ -135,7 +139,9 @@ private:
    int          m_slot_idx;
 };
 
-vector<OV_PAGE*> ParseAllOvPages(int ov_start, int ov_end);
-void FilterExpiredSlots(list<TV_SLOT>& Slots, int expire_min);
+std::vector<OV_PAGE*> ParseAllOvPages(int ov_start, int ov_end);
+void ParseAllContent(std::vector<OV_PAGE*>& ov_pages);
+std::vector<TTX_PG_HANDLE> CheckMissingPages(std::vector<OV_PAGE*>& ov_pages);
+void FilterExpiredSlots(std::list<TV_SLOT>& Slots, int expire_min);
 
 #endif // __TTX_SCRAPE_H

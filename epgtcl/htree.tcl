@@ -33,7 +33,7 @@
 #
 # #Revision: 1.7 #
 #
-#  nxtvepg $Id: htree.tcl,v 1.10 2004/12/12 14:48:41 tom Exp tom $
+#  nxtvepg $Id: htree.tcl,v 1.11 2020/06/15 09:58:34 tom Exp tom $
 
 
 
@@ -676,23 +676,25 @@ proc Tree:selection {w cmd {v {}} {v2 {}}} {
     }
     clear {
       set v [Tree:labelat $w $v]
-      if {$v2 == ""} {
-        set vl $v
-      } else {
-        set v2 [Tree:labelat $w $v2]
-        set vl [Tree:lrange $w $v $v2]
-      }
-      set tmpl {}
-      foreach el $Tree($w:selection) {
-        if {[lsearch -exact $vl $el] == -1} {
-          lappend tmpl $el
-        } elseif [info exists Tree($w:$el:tag)] {
-           # undo -selectforeground
-           $w itemconfigure $Tree($w:$el:tag) -fill $Tree($w:foreground)
+      if {$v != ""} {
+        if {$v2 == ""} {
+          set vl $v
+        } else {
+          set v2 [Tree:labelat $w $v2]
+          set vl [Tree:lrange $w $v $v2]
         }
+        set tmpl {}
+        foreach el $Tree($w:selection) {
+          if {[lsearch -exact $vl $el] == -1} {
+            lappend tmpl $el
+          } elseif [info exists Tree($w:$el:tag)] {
+             # undo -selectforeground
+             $w itemconfigure $Tree($w:$el:tag) -fill $Tree($w:foreground)
+          }
+        }
+        set Tree($w:selection) $tmpl
+        Tree:drawselection $w
       }
-      set Tree($w:selection) $tmpl
-      Tree:drawselection $w
     }
     set {
       set v [Tree:labelat $w $v]

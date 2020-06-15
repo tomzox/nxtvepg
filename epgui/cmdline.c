@@ -22,7 +22,7 @@
  *  Author: Tom Zoerner
  *          Win32 SetArgv() function taken from the Tcl/Tk library
  *
- *  $Id: cmdline.c,v 1.17 2009/04/19 18:23:11 tom Exp tom $
+ *  $Id: cmdline.c,v 1.18 2020/06/30 06:32:28 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -69,8 +69,8 @@
 CMDLINE_OPTS mainOpts;
 
 // global strings which hold the version info
-char *epg_version_str = EPG_VERSION_STR;
-char epg_rcs_id_str[] = EPG_VERSION_RCS_ID;
+char *epg_version_str ATTRIBUTE_USED = EPG_VERSION_STR;
+char epg_rcs_id_str[] ATTRIBUTE_USED = EPG_VERSION_RCS_ID;
 
 
 

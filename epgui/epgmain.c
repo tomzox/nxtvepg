@@ -20,7 +20,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgmain.c,v 1.166 2009/05/02 19:51:52 tom Exp tom $
+ *  $Id: epgmain.c,v 1.167 2020/06/15 09:59:15 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -32,8 +32,8 @@
 #include <sys/time.h>
 #include <signal.h>
 #else
-#include <windows.h>
 #include <winsock2.h>
+#include <windows.h>
 #include <io.h>
 #include <direct.h>
 #endif

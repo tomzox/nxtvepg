@@ -14,12 +14,13 @@
  *   You should have received a copy of the GNU General Public License
  *   along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * Copyright 2006-2011 by Tom Zoerner (tomzo at users.sf.net)
- *
- * $Id: ttx_db.h,v 1.5 2011/01/09 18:23:54 tom Exp $
+ * Copyright 2006-2011,2020 by T. Zoerner (tomzo at users.sf.net)
  */
 #if !defined (__TTX_DB_H)
 #define __TTX_DB_H
+
+#include <assert.h>
+#include <map>
 
 #define VT_PKG_RAW_LEN 40
 class TTX_PG_HANDLE
@@ -110,8 +111,8 @@ class TTX_DB
 {
 public:
    ~TTX_DB();
-   typedef map<TTX_PG_HANDLE, TTX_DB_PAGE*>::iterator iterator;
-   typedef map<TTX_PG_HANDLE, TTX_DB_PAGE*>::const_iterator const_iterator;
+   typedef std::map<TTX_PG_HANDLE, TTX_DB_PAGE*>::iterator iterator;
+   typedef std::map<TTX_PG_HANDLE, TTX_DB_PAGE*>::const_iterator const_iterator;
 
    bool sub_page_exists(unsigned page, unsigned sub) const;
    const TTX_DB_PAGE* get_sub_page(unsigned page, unsigned sub) const;
@@ -120,6 +121,7 @@ public:
    const_iterator first_sub_page(unsigned page) const;
    const_iterator& next_sub_page(unsigned page, const_iterator& p) const;
    int last_sub_page_no(unsigned page) const;
+   int get_sub_page_cnt(unsigned page) const;
 
    TTX_DB_PAGE* add_page(unsigned page, unsigned sub, unsigned ctrl, const uint8_t * p_data, time_t ts);
    void add_page_data(unsigned page, unsigned sub, unsigned idx, const uint8_t * p_data);
@@ -130,15 +132,15 @@ public:
    bool page_acceptable(unsigned page) const;
    void flush();
 private:
-   map<TTX_PG_HANDLE, TTX_DB_PAGE*> m_db;
+   std::map<TTX_PG_HANDLE, TTX_DB_PAGE*> m_db;
    TTX_DB_BTT m_btt;
 };
 
 class TTX_CHN_ID
 {
 public:
-   typedef map<int,int>::iterator iterator;
-   typedef map<int,int>::const_iterator const_iterator;
+   typedef std::map<int,int>::iterator iterator;
+   typedef std::map<int,int>::const_iterator const_iterator;
 
    void add_cni(unsigned cni);
    void dump_as_raw(FILE * fp);
@@ -150,7 +152,7 @@ private:
       uint16_t cni;
       const char * const p_name;
    };
-   map<int,int> m_cnis;
+   std::map<int,int> m_cnis;
 
    static const T_CNI_TO_ID_MAP Cni2ChannelId[];
    static const uint16_t NiToPdcCni[];

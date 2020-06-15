@@ -40,7 +40,7 @@
  *  DScaler #Id: TDA8275.cpp,v 1.10 2005/10/04 19:59:48 to_see Exp #
  *  DScaler #Id: TDA8275.h,v 1.6 2005/10/04 19:59:09 to_see Exp #
  *
- *  $Id: wintuner.c,v 1.30 2011/01/05 19:27:05 tom Exp tom $
+ *  $Id: wintuner.c,v 1.31 2020/06/15 09:56:38 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_VBI
@@ -1383,7 +1383,7 @@ static bool Tda8275_SetFrequency(long frequencyHz, eTDA8290Standard standard)
             const tProgramingParam2* row = Tda8275_k_programmingTable2;
             const tProgramingParam2* last = (const tProgramingParam2*)((size_t)row + sizeof(Tda8275_k_programmingTable2)) - 1;
             WORD n11ton0;
-            BYTE channelBytes[2+12];
+            BYTE channelBytes[2+13];
             
             // Find the matching row of the programming table for this frequency.
             for ( ; (row != last) && (freqRFIFHz > row->loMax * 1000000); row++)
@@ -2159,14 +2159,14 @@ static bool MT2050_Initialize( void )
 static int MT2050_SpurCheck(int flos1, int flos2, int fifbw, int fout)
 {
     int n1 = 1, n2, f, nmax = 11;
-    long Band;
+    //long Band;
 
     flos1 = flos1 / 1000;     /* scale to kHz to avoid 32bit overflows */
     flos2 = flos2 / 1000;
     fifbw /= 1000;
     fout /= 1000;
 
-    Band = fout + fifbw / 2;
+    //Band = fout + fifbw / 2;
 
     do {
         n2 = -n1;
@@ -2310,16 +2310,16 @@ static bool MT2050_SetIFFreq(int rfin)
 
     {   //3.5 Allow LO to lock
         int nlock = 0, Status;
-        bool m_Locked;
+        //bool m_Locked;
 
-        m_Locked = FALSE;
+        //m_Locked = FALSE;
         Sleep(50);
         do {
             Status = MT2032_GetRegister(7);
             Status &= 0x88;
             if (Status == 0x88)
             {
-                m_Locked = TRUE;
+                //m_Locked = TRUE;
                 break;
             }
             Sleep(2);
@@ -2468,7 +2468,7 @@ static bool MT2032_ComputeFreq(
                         )   /* all in Hz */
 {
     int fref, lo1, lo1n, lo1a, s, sel;
-    int lo1freq, desired_lo1, desired_lo2, lo2, lo2n, lo2a, lo2num, lo2freq;
+    int lo1freq, desired_lo1, desired_lo2, lo2, lo2n, lo2a, lo2num /*, lo2freq*/;
     int nLO1adjust;
 
     fref = 5250 * 1000; /* 5.25MHz */
@@ -2559,7 +2559,7 @@ static bool MT2032_ComputeFreq(
     lo2n = lo2 / 8;
     lo2a = lo2 - (lo2n * 8);
     lo2num = ((desired_lo2 / 1000) % (fref / 1000)) * 3780 / (fref / 1000); /* scale to fit in 32bit arith */
-    lo2freq = (lo2a + 8 * lo2n) * fref + lo2num * (fref / 1000) / 3780 * 1000;
+    //lo2freq = (lo2a + 8 * lo2n) * fref + lo2num * (fref / 1000) / 3780 * 1000;
 
     if (lo1a < 0 ||  
         lo1a > 7 ||  
@@ -3041,4 +3041,3 @@ bool Tuner_Init( TUNER_TYPE type, TVCARD * pNewTvCardIf )
 
    return result;
 }
-

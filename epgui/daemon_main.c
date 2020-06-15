@@ -20,7 +20,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: daemon_main.c,v 1.11 2009/03/28 21:28:27 tom Exp tom $
+ *  $Id: daemon_main.c,v 1.12 2020/06/17 08:19:50 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -254,12 +254,13 @@ int main( int argc, char *argv[] )
       EpgAcqCtl_Destroy(FALSE);
    }
 
-   #if CHK_MALLOC == ON
    EpgContextCtl_Destroy();
    #ifdef WIN32
    xfree(argv);
    #endif
    CmdLine_Destroy();
+
+   #if CHK_MALLOC == ON
    // check for allocated memory that was not freed
    chk_memleakage();
    #endif

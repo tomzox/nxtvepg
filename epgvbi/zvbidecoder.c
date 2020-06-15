@@ -19,7 +19,7 @@
 
 /* ZVBI #Id: decoder.c,v 1.12 2003/05/17 13:02:04 tomzo Exp # */
 
-/* nxtvepg $Id: zvbidecoder.c,v 1.8 2009/05/02 19:34:00 tom Exp tom $ */
+/* nxtvepg $Id: zvbidecoder.c,v 1.9 2020/06/15 09:57:45 tom Exp tom $ */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_VBI
 #define DPRINTF_OFF
@@ -457,6 +457,7 @@ vbi_bit_slicer_init(vbi_bit_slicer *slicer,
 	switch (modulation) {
 	case VBI_MODULATION_NRZ_MSB:
 		slicer->endian--;
+                /* fall-through */
 	case VBI_MODULATION_NRZ_LSB:
 		slicer->phase_shift = (int)
 			(sampling_rate * 256.0 / cri_rate * .5
@@ -465,6 +466,7 @@ vbi_bit_slicer_init(vbi_bit_slicer *slicer,
 
 	case VBI_MODULATION_BIPHASE_MSB:
 		slicer->endian--;
+                /* fall-through */
 	case VBI_MODULATION_BIPHASE_LSB:
 		/* Phase shift between the NRZ modulated CRI and the rest */
 		slicer->phase_shift = (int)

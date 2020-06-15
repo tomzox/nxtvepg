@@ -21,7 +21,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: wintv.c,v 1.29 2009/05/02 19:52:54 tom Exp tom $
+ *  $Id: wintv.c,v 1.31 2020/06/17 08:29:36 tom Exp tom $
  */
 
 #ifndef WIN32
@@ -96,7 +96,7 @@ static struct
    time_t    lastStartTime;
    uint32_t  chanQueryIdx;
    uint32_t  chanEpgCnt;
-} followTvState = {INVALID_VPS_PIL, 0, FALSE, 0, 0, 0, 0};
+} followTvState = {INVALID_VPS_PIL, 0, FALSE, 0, 0, 0, 0, 0};
 
 // ----------------------------------------------------------------------------
 // Compare given name with all network names
@@ -588,7 +588,7 @@ static int Wintv_ReadConfig( Tcl_Interp *interp, WINTVCF *pNewWintvcf )
    int cfArgc, idx;
    int result = TCL_ERROR;
 
-   memset(pNewWintvcf, 0, sizeof(pNewWintvcf));
+   memset(pNewWintvcf, 0, sizeof(*pNewWintvcf));
 
    pTmpStr = Tcl_GetVar(interp, "wintvcf", TCL_GLOBAL_ONLY|TCL_LEAVE_ERR_MSG);
    if (pTmpStr != NULL)

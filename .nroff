@@ -1,0 +1,13 @@
+:sy region PP       start='^\.PP ' end="$"
+:sy region TP       start='^\.TP ' end="$"
+:sy region SH       start='^\.SH ' end="$"
+:sy region BOLD     start='^\.[BI]' end="$"
+:sy region COMMENT  start='^\.\\"' end="$"
+:set noai nosi
+
+:hi PP       ctermfg=blue
+:hi TP       ctermfg=blue
+:hi SH       ctermfg=red
+:hi BOLD     cterm=bold
+:hi COMMENT  ctermfg=green
+

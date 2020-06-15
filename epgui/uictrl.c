@@ -21,7 +21,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: uictrl.c,v 1.58 2008/10/19 14:25:55 tom Exp tom $
+ *  $Id: uictrl.c,v 1.59 2020/06/17 08:20:03 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -732,6 +732,7 @@ void UiControl_ReloadError( ClientData clientData )
          break;
       default:
          SHOULD_NOT_BE_REACHED;
+         /* fall-through */
       case EPGDB_RELOAD_INTERNAL:
          pReason = "an internal error occurred";
          break;

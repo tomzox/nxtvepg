@@ -14,12 +14,13 @@
  *   You should have received a copy of the GNU General Public License
  *   along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * Copyright 2006-2011 by Tom Zoerner (tomzo at users.sf.net)
- *
- * $Id: ttx_pg_ref.h,v 1.2 2011/01/06 16:59:34 tom Exp tom $
+ * Copyright 2006-2011,2020 by T. Zoerner (tomzo at users.sf.net)
  */
 #if !defined (__TTX_PG_REF_H)
 #define __TTX_PG_REF_H
+
+#include <vector>
+#include <regex>
 
 class T_TRAIL_REF_FMT
 {
@@ -38,8 +39,9 @@ public:
    bool detect_ref_fmt(const string& text);
    bool parse_trailing_ttx_ref(string& text, int& ttx_ref) const;
    bool is_valid() const { return m_spc_trail >= 0; }
-   static T_TRAIL_REF_FMT select_ttx_ref_fmt(const vector<T_TRAIL_REF_FMT>& fmt_list);
+   static T_TRAIL_REF_FMT select_ttx_ref_fmt(const std::vector<T_TRAIL_REF_FMT>& fmt_list);
 private:
+   mutable bool m_is_initialized = false;
    void init_expr() const;
 public:
    char m_ch1;          ///< Leading separator (e.g. "..... 314"), or zero
@@ -47,7 +49,7 @@ public:
    int m_spc_lead;      ///< Number of leading spaces
    int m_spc_trail;     ///< Number of spaces before line end
 
-   mutable regex m_expr;  ///< Regex used for extracting the match
+   mutable std::regex m_expr;  ///< Regex used for extracting the match
    mutable int m_subexp_idx;  ///< Index of TTX page sub-expression in match result
 };
 

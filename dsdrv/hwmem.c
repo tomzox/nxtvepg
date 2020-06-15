@@ -15,7 +15,7 @@
 //  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 //  GNU General Public License for more details
 /////////////////////////////////////////////////////////////////////////////
-// nxtvepg $Id: hwmem.c,v 1.4 2003/02/03 20:03:21 tom Exp tom $
+// nxtvepg $Id: hwmem.c,v 1.5 2020/06/15 10:01:11 tom Exp tom $
 /////////////////////////////////////////////////////////////////////////////
 
 #define WIN32_LEAN_AND_MEAN
@@ -163,11 +163,11 @@ BOOL HwMem_AllocUserMemory( THwMem * pInstance, size_t Bytes )
 
 void HwMem_FreeUserMemory( THwMem * pInstance )
 {
-    DWORD status = ERROR_SUCCESS;
+    //DWORD status = ERROR_SUCCESS;
     if(pInstance->pMemStruct != NULL)
     {
         DWORD dwInParamLength = sizeof(TMemStruct) + pInstance->pMemStruct->dwPages * sizeof(TPageStruct);
-        status = HwDrv_SendCommand(IOCTL_DSDRV_FREEMEMORY, pInstance->pMemStruct, dwInParamLength);
+        /*status =*/ HwDrv_SendCommand(IOCTL_DSDRV_FREEMEMORY, pInstance->pMemStruct, dwInParamLength);
         free(pInstance->pMemStruct);
     }
     if(pInstance->AllocatedBlock != NULL)
@@ -212,11 +212,11 @@ BOOL HwMem_AllocContigMemory( THwMem * pInstance, size_t Bytes )
 
 void HwMem_FreeContigMemory( THwMem * pInstance )
 {
-    DWORD Status = ERROR_SUCCESS;
+    //DWORD Status = ERROR_SUCCESS;
     if(pInstance->pMemStruct != NULL)
     {
         DWORD dwInParamLength = sizeof(TMemStruct) + sizeof(TPageStruct);
-        Status = HwDrv_SendCommand(
+        /*Status =*/ HwDrv_SendCommand(
                                           IOCTL_DSDRV_FREEMEMORY, 
                                           pInstance->pMemStruct, 
                                          dwInParamLength                                       

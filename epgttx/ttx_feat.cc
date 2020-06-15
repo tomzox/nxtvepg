@@ -14,21 +14,17 @@
  *   You should have received a copy of the GNU General Public License
  *   along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * Copyright 2006-2011 by Tom Zoerner (tomzo at users.sf.net)
- *
- * $Id: ttx_feat.cc,v 1.5 2011/01/06 16:59:34 tom Exp tom $
+ * Copyright 2006-2011,2020 by T. Zoerner (tomzo at users.sf.net)
  */
 
 #include <stdio.h>
 #include <string.h>
+#include <assert.h>
 
 #include <string>
-
-#include <boost/regex.h>
-#include <boost/regex.hpp>
+#include <regex>
 
 using namespace std;
-using namespace boost;
 
 #include "ttx_util.h"
 #include "ttx_feat.h"
@@ -56,8 +52,9 @@ using namespace boost;
 
 const TV_FEAT::TV_FEAT_STR TV_FEAT::FeatToFlagMap[] =
 {
+   // ATTENTION: when extending this list, also extend the pattern below!
    { "untertitel", TV_FEAT_SUBTITLES },
-   { "ut", TV_FEAT_SUBTITLES },
+   { "ut", TV_FEAT_SUBTITLES }, // sub-titled (via transparent teletext page)
    { "omu", TV_FEAT_OMU },
    { "sw", TV_FEAT_BW },
    { "s/w", TV_FEAT_BW },
@@ -68,6 +65,7 @@ const TV_FEAT::TV_FEAT_STR TV_FEAT::FeatToFlagMap[] =
    { "oo", TV_FEAT_STEREO },
    { "stereo", TV_FEAT_STEREO },
    { "ad", TV_FEAT_2CHAN }, // accoustic description
+   { "db", TV_FEAT_SUBTITLES },  // sub-titled via DVB(?)
    { "hörfilm", TV_FEAT_2CHAN },
    { "hörfilm°°", TV_FEAT_2CHAN },
    { "hf", TV_FEAT_2CHAN },
@@ -112,9 +110,12 @@ void TV_FEAT::MapTrailingFeat(const char * feat, int len, const string& title)
    if (opt_debug) printf("FEAT dropping \"%s\" on TITLE %s\n", feat, title.c_str());
 }
 
-// note: must correct $n below if () are added to pattern
+// FIXME include wildcard [A-Z]{2} at the end and warn about potentially
+//       new feature flag, at least if following known feature flags
+
+// note: must correct whats[] indices below if "()" are added to pattern
 #define FEAT_PAT_STR "UT(( auf | )?[1-8][0-9][0-9])?|" \
-                     "[Uu]ntertitel|[Hh]örfilm(°°)?|HF|AD|" \
+                     "[Uu]ntertitel|[Hh]örfilm(°°)?|HF|AD|db|" \
                      "s/?w|S/?W|tlw. s/w|oo|°°|°\\*|OmU|" \
                      "4:3|16:9|HD|[Bb]reitbild|" \
                      "2K|2K-Ton|[Mm]ono|[Ss]tereo|[Dd]olby|[Ss]urround|" \

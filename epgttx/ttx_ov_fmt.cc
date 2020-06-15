@@ -14,9 +14,7 @@
  *   You should have received a copy of the GNU General Public License
  *   along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * Copyright 2006-2011 by Tom Zoerner (tomzo at users.sf.net)
- *
- * $Id: ttx_ov_fmt.cc,v 1.4 2011/01/06 16:59:34 tom Exp tom $
+ * Copyright 2006-2011,2020 by T. Zoerner (tomzo at users.sf.net)
  */
 
 #include <stdio.h>
@@ -25,11 +23,9 @@
 #include <string>
 #include <map>
 
-#include "boost/regex.h"
-#include "boost/regex.hpp"
+#include <regex>
 
 using namespace std;
-using namespace boost;
 
 #include "ttx_util.h"
 #include "ttx_db.h"

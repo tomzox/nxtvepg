@@ -21,7 +21,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: xml_cdata.c,v 1.8 2005/12/31 19:30:54 tom Exp tom $
+ *  $Id: xml_cdata.c,v 1.9 2020/06/15 15:53:06 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_XMLTV
@@ -743,7 +743,7 @@ bool XmlCdata_CheckLatin1Name( const char * pStr, bool isNmtoken )
             // [#x00C0-#x00D6] | [#x00D8-#x00F6] | [#x00F8-#x00FF]
             if (code >= 0xc0)
             {
-               if ((code == 0xD7) && (code == 0xF7))
+               if ((code == 0xD7) || (code == 0xF7))
                {
                   result = FALSE;
                   break;

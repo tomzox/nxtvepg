@@ -14,9 +14,7 @@
  *   You should have received a copy of the GNU General Public License
  *   along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * Copyright 2006-2011 by Tom Zoerner (tomzo at users.sf.net)
- *
- * $Id: ttx_scrape.cc,v 1.8 2011/01/08 13:28:24 tom Exp $
+ * Copyright 2006-2011,2020 by T. Zoerner (tomzo at users.sf.net)
  */
 
 #include <stdio.h>
@@ -25,12 +23,9 @@
 #include <sstream>
 #include <string>
 #include <algorithm>
-
-#include <boost/regex.h>
-#include <boost/regex.hpp>
+#include <regex>
 
 using namespace std;
-using namespace boost;
 
 #include "ttx_db.h"
 #include "ttx_util.h"
@@ -422,9 +417,10 @@ int ParseFooterByColor(int page, int sub)
 
    // TODO: merge with other footer function: require TTX ref in every skipped segment with the same bg color
 
-   // ignore last line if completely empty (e.g. ARTE: in-between double-hirhgt footer and FLOF)
+   // ignore last line if completely empty (e.g. ARTE: in-between double-height footer and FLOF)
    int last_line = 23;
-   static const regex expr4("[\\x21-\\xff]");
+   // NOTE regex [\x21-\xFF] traps with "invalid range", hence splitting at \x7F
+   static const regex expr4("[\\x21-\\x7F\\x80-\\xFF]");
    if (!regex_search(pgtext->get_ctrl(last_line), whats, expr4)) {
       --last_line;
    }
@@ -462,7 +458,7 @@ void RemoveTrailingPageFooter(string& text)
    match_results<string::iterator> whati;
 
    // look for a page reference or ">>" at line end
-   static const regex expr1("^(.*[^[:alnum:]])([1-8][0-9][0-9]|>{1,4})[^\\x1D\\x21-\\xFF]*$");
+   static const regex expr1("^(.*[^[:alnum:]])([1-8][0-9][0-9]|>{1,4})[^\\x1D\\x21-\\x7F\\x80-\\xFF]*$");
    if (regex_search(text.begin(), text.end(), whati, expr1)) {
       int ref_off = whati[1].length();
       // check if the background color is changed
@@ -485,7 +481,7 @@ void RemoveTrailingPageFooter(string& text)
                int txt_col = text[whati.position(2)];
                //print "       TXTCOL:$txt_col\n";
                // check if there's any text with this color
-               static const regex expr4("[\\x21-\\xff]");
+               static const regex expr4("[\\x21-\\x7F\\x80-\\xFF]");
                if (regex_search(text.begin() + tmp_off, text.begin() + ref_off, whati, expr4)) {
                   matched = (txt_col != ref_col);
                   txt_off = tmp_off;
@@ -494,7 +490,7 @@ void RemoveTrailingPageFooter(string& text)
          }
          // check for text at the default BG color (unless ref. has default too)
          if (!matched && (ref_col != 7)) {
-            static const regex expr5("[\\x21-\\xff]");
+            static const regex expr5("[\\x21-\\x7F\\x80-\\xFF]");
             matched = regex_search(text.begin(), text.begin() + txt_off, whati, expr5);
             //if (matched) print "       DEFAULT TXTCOL:7\n";
          }
@@ -681,6 +677,34 @@ int CorrelateDescTitles(int page, int sub1, int sub2, int head)
 }
 
 /* ------------------------------------------------------------------------------
+ * Search page index markers in description pages and return the sub-page count
+ * - see next function for details
+ */
+int MatchSubPageCnt(int page, int sub)
+{
+   const TTX_DB_PAGE * pgctrl = ttx_db.get_sub_page(page, sub);
+   smatch whats;
+   int result = -1;
+
+   for (int row = 1; row <= 6; row++) {
+      string ctrl = pgctrl->get_ctrl(row);
+      static const regex expr1("[ \\x00-\\x07\\x1D](\\d+)/(\\d+)[ \\x00-\\x07\\x1D]{0,2}$");
+      if (regex_search(ctrl, whats, expr1)) {
+         int sub_idx = atoi_substr(whats[1]);
+         int sub_cnt = atoi_substr(whats[2]);
+         if ((sub == 0)
+               ? ((sub_idx == 1) && (sub_cnt == 1))
+               : ((sub_idx == sub) && (sub_cnt > 1)) )
+         {
+            result = sub_cnt;
+            break;
+         }
+      }
+   }
+   return result;
+}
+
+/* ------------------------------------------------------------------------------
  * Replace page index markers in description pages with space; the marker
  * is expected at the end of one of the top lines of the page only
  * (e.g. "...     2/2 "). Note currently not handled: providers
@@ -760,23 +784,23 @@ bool DescFormatCastTable(vector<string>& Lines)
       const unsigned spc2 = (tab_max >> 18) & 0x3F;
       const unsigned spc3 = tab_max >> 24;
 
-      regex expr2;
-      if (spc3 == 0x3F) {
-         expr2.assign(string("^") + string(spc0, ' ') +
+      string expr2_str =
+                (spc3 == 0x3F)
+                   ? (string("^") + string(spc0, ' ') +
                       string("([^ ].*?)") + string(spc1, ' ') +
-                      string("(\\.*)") + string(spc2, ' ') + "[^ \\.]$");
-      } else {
-         expr2.assign(string("^(.*?)") + string(spc1, ' ') +
+                      string("(\\.*)") + string(spc2, ' ') + "[^ \\.]$")
+                   : (string("^(.*?)") + string(spc1, ' ') +
                       string("(\\.+)") + string(spc2, ' ') +
                       string("([^ \\.].*?)") + string(spc3, ' ') + "$");
-      }
+      regex expr2(expr2_str);
+
       // Special handling for lines with overlong names on left or right side:
       // only for lines inside of table; accept anything which looks like a separator
       static const regex expr3("^(.*?)\\.\\.+ ?[^ \\.]");
       static const regex expr4("^(.*?[^ ]) \\. [^ \\.]");  // must not match "Mr. X"
 
       if (opt_debug) printf("DESC reformat table into list: %d rows, FMT:%d,%d %d,%d EXPR:%s\n",
-                            Tabs[tab_max], off, spc1, spc2, spc3, expr2.str().c_str());
+                            Tabs[tab_max], off, spc1, spc2, spc3, expr2_str.c_str());
 
       // step #2: find all lines with dots ending at the right column and right amount of spaces
       int first_row = -1;
@@ -786,7 +810,8 @@ bool DescFormatCastTable(vector<string>& Lines)
             //
             // 2nd column is left-aligned
             //
-            if (   (   regex_search(Lines[row].substr(0, off + 1), whats, expr2)
+            const string subs1 = Lines[row].substr(0, off + 1);
+            if (   (   regex_search(subs1, whats, expr2)
                     && ((last_row != -1) || (whats[2].length() > 0)) )
                 || ((last_row != -1) && regex_search(Lines[row], whats, expr3))
                 || ((last_row != -1) && regex_search(Lines[row], whats, expr4)) ) {
@@ -808,7 +833,8 @@ bool DescFormatCastTable(vector<string>& Lines)
             }
             else if (last_row != -1) {
                static const regex expr5("^ +[^ ]$");
-               if (regex_search(Lines[row].substr(0, off + 1), whats, expr5)) {
+               const string subs2 = Lines[row].substr(0, off + 1);
+               if (regex_search(subs2, whats, expr5)) {
                   // right-side table column continues (left side empty)
                   Lines[last_row] = regex_replace(Lines[last_row], regex(",$"), "");
                   string tab2 = regex_replace(Lines[row].substr(off), regex(",? +$"), "");
@@ -871,12 +897,19 @@ string ParseDescContent(int page, int sub, int head, int foot)
 
    const TTX_DB_PAGE * pgctrl = ttx_db.get_sub_page(page, sub);
    bool is_nl = 0;
+   int fg_bg = -1;
    string desc;
 
    for (int idx = head; idx <= foot; idx++) {
       string ctrl = pgctrl->get_ctrl(idx);
 
       // TODO parse features behind date, title or subtitle
+
+      // add paragraph break upon text color change at line start
+      int fg_bg_cur = str_text_fg_bg_col(ctrl);
+      if ((fg_bg != -1) && (fg_bg != fg_bg_cur) && (fg_bg_cur != -1))
+        Lines.push_back("");
+      fg_bg = fg_bg_cur;
 
       // extract and remove VPS labels and all concealed text
       ParseVpsLabel(ctrl, pgctrl->get_ctrl(idx - 1), vps_data, true);
@@ -889,6 +922,12 @@ string ParseDescContent(int page, int sub, int head, int foot)
       static const regex expr4(" +VPS \\d{4} *$");
       ctrl = regex_replace(ctrl, expr3, "");
       ctrl = regex_replace(ctrl, expr4, "");
+
+      // add a paragraph break upon lines starting with "-" and upper-case
+      static const regex expr5a("^ *- [A-Z0-9]");
+      if (regex_search(ctrl, whats, expr5a)) {
+        Lines.push_back("");
+      }
 
       Lines.push_back(ctrl);
    }
@@ -1094,7 +1133,7 @@ bool OV_PAGE::parse_slots(int foot_line, const T_OV_LINE_FMT& pgfmt)
          }
          //ov_slot->m_vps_cni = vps_data.m_vps_cni; // currently unused
 
-         //printf("ADD  %02d.%02d.%d %02d:%02d %s\n", ov_slot->m_mday, ov_slot->m_month, ov_slot->m_year, ov_slot->m_hour, ov_slot->m_min, ov_slot->m_ov_title.c_str());
+         //printf("ADD  %02d:%02d %s\n", ov_slot->m_hour, ov_slot->m_min, ov_slot->m_ov_title.c_str());
       }
       else if (ov_slot != 0) {
          // stop appending subtitles before page footer ads
@@ -1118,6 +1157,7 @@ bool OV_PAGE::parse_slots(int foot_line, const T_OV_LINE_FMT& pgfmt)
                ov_slot->m_vps_date = vps_data.m_vps_date;
                vps_data.m_new_vps_date = false;
             }
+            //printf("CNT        %s\n", ov_slot->m_ov_title.c_str());
          }
          else {
             ov_slot = 0;
@@ -1449,7 +1489,61 @@ void OV_PAGE::extract_tv(map<int,int>& ttx_ref_map)
 }
 
 /* ------------------------------------------------------------------------------
- * Retrieve programme data from an overview page
+ * This function returns a list of likely missing teletext pages for the slots
+ * on the overview page. Additionally the function includes missing overview
+ * pages, if there is a gap in time coverage between the previous and current
+ * overview page.
+ */
+void OV_PAGE::check_continuity(vector<TTX_PG_HANDLE>& pg_list, OV_PAGE * prev)
+{
+   if (prev != 0) {
+      assert(m_slots.size() > 0);
+      assert(prev->m_slots.size() > 0);
+      if (prev->m_slots.back()->m_stop_t < m_slots.front()->m_start_t) {
+         // TODO
+      }
+   }
+   for (unsigned idx = 0; idx < m_slots.size(); idx++) {
+      OV_SLOT * slot = m_slots[idx];
+
+      if (slot->m_ttx_ref != -1) {
+         int page = slot->m_ttx_ref;
+         int last_sub = ttx_db.get_sub_page_cnt(page);
+         if (last_sub < 0) {
+            TTX_DB::const_iterator p = ttx_db.first_sub_page(page);
+            if (p != ttx_db.end()) {
+               last_sub = MatchSubPageCnt(page, p->first.sub());
+               if (last_sub == 1)
+                  last_sub = 0;
+            }
+            else {
+               if (opt_debug) printf("MISSING DESC %03X (for OV %03X.%d)\n", page, m_page, m_sub);
+               pg_list.push_back(TTX_PG_HANDLE(page, 0));
+            }
+         }
+         if (last_sub == 0) {
+            // pages labelled "1/1" may still have sub-pages, hence search for any, not sub-page #0
+            TTX_DB::const_iterator p = ttx_db.first_sub_page(page);
+            if (p == ttx_db.end()) {
+               if (opt_debug) printf("MISSING DESC %03X.0 (for OV %03X.%d)\n", page, m_page, m_sub);
+               pg_list.push_back(TTX_PG_HANDLE(page, 0));
+           }
+         }
+         else if (last_sub > 0) {
+            for (int sub = 1; sub <= last_sub; sub++) {
+               if (!ttx_db.sub_page_exists(page, sub)) {
+                  if (opt_debug) printf("MISSING DESC %03X.%d of %d (for OV %03X.%d)\n",
+                                        page, sub, last_sub, m_page, m_sub);
+                  pg_list.push_back(TTX_PG_HANDLE(page, sub));
+              }
+            }
+         }
+      }
+   }
+}
+
+/* ------------------------------------------------------------------------------
+ * Retrieve programme schedule from all overview pages
  * - 1: compare several overview pages to identify the layout
  * - 2: parse all overview pages, retrieving titles and ttx references
  *   + a: retrieve programme list (i.e. start times and titles)
@@ -1503,30 +1597,55 @@ vector<OV_PAGE*> ParseAllOvPages(int ov_start, int ov_end)
             ov_pages.erase(ov_pages.begin() + idx);
          }
       }
-
-      // guess missing stop times for the current page
-      // (requires start times for the next page)
-      for (unsigned idx = 0; idx < ov_pages.size(); idx++) {
-         OV_PAGE * next = (idx + 1 < ov_pages.size()) ? ov_pages[idx + 1] : 0;
-         ov_pages[idx]->calc_stop_times(next);
-      }
-
-      // retrieve TTX page references
-      T_TRAIL_REF_FMT ttx_ref_fmt = OV_PAGE::detect_ov_ttx_ref_fmt(ov_pages);
-      map<int,int> ttx_ref_map;
-      for (unsigned idx = 0; idx < ov_pages.size(); idx++) {
-         ov_pages[idx]->extract_ttx_ref(ttx_ref_fmt, ttx_ref_map);
-      }
-
-      // retrieve descriptions from referenced teletext pages
-      for (unsigned idx = 0; idx < ov_pages.size(); idx++) {
-         ov_pages[idx]->extract_tv(ttx_ref_map);
-      }
    }
-
    return ov_pages;
 }
 
+/* ------------------------------------------------------------------------------
+ * Function to be called on the page list returned by ParseAllOvPages() for
+ * scraping from referenced description pages.
+ */
+void ParseAllContent(vector<OV_PAGE*>& ov_pages)
+{
+   // guess missing stop times for the current page
+   // (requires start times for the next page)
+   for (unsigned idx = 0; idx < ov_pages.size(); idx++) {
+      OV_PAGE * next = (idx + 1 < ov_pages.size()) ? ov_pages[idx + 1] : 0;
+      ov_pages[idx]->calc_stop_times(next);
+   }
+
+   // retrieve TTX page references
+   T_TRAIL_REF_FMT ttx_ref_fmt = OV_PAGE::detect_ov_ttx_ref_fmt(ov_pages);
+   map<int,int> ttx_ref_map;
+   for (unsigned idx = 0; idx < ov_pages.size(); idx++) {
+      ov_pages[idx]->extract_ttx_ref(ttx_ref_fmt, ttx_ref_map);
+   }
+
+   // retrieve descriptions from referenced teletext pages
+   for (unsigned idx = 0; idx < ov_pages.size(); idx++) {
+      ov_pages[idx]->extract_tv(ttx_ref_map);
+   }
+}
+
+/* ------------------------------------------------------------------------------
+ * This function returns a list of missing overview and description pages
+ */
+vector<TTX_PG_HANDLE> CheckMissingPages(vector<OV_PAGE*>& ov_pages)
+{
+   vector<TTX_PG_HANDLE> pg_list;
+
+   for (unsigned idx = 0; idx < ov_pages.size(); idx++) {
+      OV_PAGE * prev = (idx > 0) ? ov_pages[idx - 1] : 0;
+      ov_pages[idx]->check_continuity(pg_list, prev);
+   }
+   return pg_list;
+}
+
+/* ------------------------------------------------------------------------------
+ * Returns a combined list containing slots on all of the given overview pages.
+ * The result list actually consists of wrapper classes referring to slots on
+ * the given pages.
+ */
 list<TV_SLOT> OV_PAGE::get_ov_slots(vector<OV_PAGE*> ov_pages)
 {
    list<TV_SLOT> tv_slots;
@@ -1569,5 +1688,3 @@ void FilterExpiredSlots(list<TV_SLOT>& Slots, int expire_min)
       }
    }
 }
-
-

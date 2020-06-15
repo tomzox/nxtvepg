@@ -21,7 +21,7 @@
  *  Author:
  *          Tom Zoerner
  *
- *  $Id: epgacqclnt.c,v 1.26 2009/04/19 18:22:18 tom Exp tom $
+ *  $Id: epgacqclnt.c,v 1.28 2020/06/17 08:19:27 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGCTL
@@ -321,7 +321,7 @@ static bool EpgAcqClient_CheckMsg( uint len, EPGNETIO_MSG_HEADER * pHead, EPGDBS
          break;
 
       case MSG_TYPE_DUMP_IND:
-         if (len == sizeof(EPGNETIO_MSG_HEADER) + sizeof(pBody->dump_ind));
+         if (len == sizeof(EPGNETIO_MSG_HEADER) + sizeof(pBody->dump_ind))
          {
             if (clientState.endianSwap)
             {
@@ -1129,9 +1129,10 @@ static char * EpgAcqClient_SimpleQuery( const char * pQueryStr, char ** ppErrorM
             if (clientState.io.readHeader.type == MSG_TYPE_CONQUERY_CNF)
             {
                // make a null-terminated copy of the response text
+               int msgBodyLen = clientState.io.readLen - sizeof(EPGNETIO_MSG_HEADER);
                pMsgBuf = xmalloc(clientState.io.readLen + 1);
-               memcpy(pMsgBuf, clientState.io.pReadBuf, clientState.io.readLen);
-               pMsgBuf[clientState.io.readLen - sizeof(EPGNETIO_MSG_HEADER)] = 0;
+               memcpy(pMsgBuf, clientState.io.pReadBuf, msgBodyLen);
+               pMsgBuf[msgBodyLen] = 0;
             }
             else
             {

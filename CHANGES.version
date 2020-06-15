@@ -1,4 +1,4 @@
-## $Id: CHANGES.version,v 1.18 2007/12/31 20:18:31 tom Exp $ ##
+## $Id: CHANGES.version,v 1.19 2020/06/15 17:56:26 tom Exp tom $ ##
 
 Steps to prepare new distribution:
 
@@ -6,25 +6,34 @@ general:
 - check if all changes for WIN32 are included (or more generally:
   make sure all changes listed in CHANGES made it into the release)
 - check that file permissions are 644/755 (for files copied from NT)
+- update release date in CHANGES document
 
 update web pages:
-- fix intro section in manual.html and tvsim/*.html
-- link to tar ball in index.html and include CHANGES
+- import latest man pages generated from POD into www/ equivalents:
+  man.html, man-de.html, tvsim.html, vbiplay.html, vbirec.html
+- link to tar-ball in index.html and include CHANGES
 
 version no contained in:
 - nxtvepg.spec
 - epgctl/epgversion.h
 - tvsim/tvsim_version.h
 
+copyright date contained in:
+- COPYRIGHT
+- Makefile   [pod2man rules]
+- nxtvepg*.pod
+- epgtcl/mainwin.tcl
+- tvsim/*.pod  [update only when modified]
+- www/index*html
+
 RCS
 - check in all files, including TODO & CHANGES
 - check in epgversion *BEFORE* making the distribution
-  the rest afterwards (to correct possible glitches)
-- tag all archives
+- tag/label all RCS archives
 - after the release: increment version in epgversion.h
 
 Makefile AND Makefile.win
-- remove -Werr
+- remove -Werror
 - set CFLAGS optimization to -O2
 - replace constant assignment to TCL_VER with dynamic query
 - enable USE_THREADS
@@ -36,6 +45,7 @@ adapt epgctl/mytypes.h
   switch DEBUG_SWITCH_STREAM and HALT_ON_FAILED_ASSERTION to OFF
 - production releases: all debug options from ON to OFF
 
-remove CHANGES.version
-remove .nroff .gdbinit
-
+in release package:
+- remove CHANGES.version
+- remove .nroff .gdbinit
+- compare with previous package: double-check added/deleted files

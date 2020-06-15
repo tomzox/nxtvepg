@@ -14,12 +14,12 @@
  *   You should have received a copy of the GNU General Public License
  *   along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * Copyright 2006-2011 by Tom Zoerner (tomzo at users.sf.net)
- *
- * $Id: ttx_ov_fmt.h,v 1.2 2011/01/06 16:59:34 tom Exp tom $
+ * Copyright 2006-2011,2020 by T. Zoerner (tomzo at users.sf.net)
  */
 #if !defined (__TTX_OV_FMT_H)
 #define __TTX_OV_FMT_H
+
+#include <vector>
 
 class T_OV_LINE_FMT
 {
@@ -49,7 +49,7 @@ public:
    bool is_valid() const { return m_time_off >= 0; }
    int get_subt_off() const { return m_subt_off; }
    void set_subt_off(const T_OV_LINE_FMT& v) { m_subt_off = v.m_subt_off; }
-   static T_OV_LINE_FMT select_ov_fmt(vector<T_OV_LINE_FMT>& fmt_list);
+   static T_OV_LINE_FMT select_ov_fmt(std::vector<T_OV_LINE_FMT>& fmt_list);
 private:
    int m_time_off;    ///< Offset to HH:MM or HH.MM
    int m_vps_off;     ///< Offset to HHMM (concealed VPS)

@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgacqsrv.h,v 1.13 2009/03/29 19:16:54 tom Exp tom $
+ *  $Id: epgacqsrv.h,v 1.14 2020/06/15 10:02:34 tom Exp tom $
  */
 
 #ifndef __EPGACQSRV_H
@@ -30,6 +30,7 @@
 
 #ifdef WIN32
 #include <winsock2.h>
+#include <windows.h>
 #endif
 
 // ---------------------------------------------------------------------------

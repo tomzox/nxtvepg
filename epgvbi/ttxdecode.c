@@ -32,7 +32,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: ttxdecode.c,v 1.65 2011/01/09 16:54:09 tom Exp tom $
+ *  $Id: ttxdecode.c,v 1.66 2020/06/17 10:09:35 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_VBI
@@ -162,7 +162,6 @@ void TtxDecode_StopTtxAcq( void )
 void TtxDecode_GetScanResults( uint *pCni, bool *pNiWait, uint *pDataPageCnt, uchar *pDispText, uint textMaxLen )
 {
    CNI_TYPE type;
-   const uchar * p;
    uint     idx;
    uint     cni;
    uint     pageCnt;
@@ -209,7 +208,7 @@ void TtxDecode_GetScanResults( uint *pCni, bool *pNiWait, uint *pDataPageCnt, uc
             if (pVbiBuf->cnis[type].haveText)
             {
                // skip spaces from beginning of string
-               p = (const char *) pVbiBuf->cnis[type].outText;
+               const uint8_t * p = (const uint8_t *) pVbiBuf->cnis[type].outText;
                for (idx=textMaxLen; idx > 0; idx--, p++)
                   if (*p != ' ')
                      break;

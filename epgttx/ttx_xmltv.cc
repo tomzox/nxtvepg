@@ -14,9 +14,7 @@
  *   You should have received a copy of the GNU General Public License
  *   along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * Copyright 2006-2011 by Tom Zoerner (tomzo at users.sf.net)
- *
- * $Id: ttx_xmltv.cc,v 1.5 2011/01/07 18:37:29 tom Exp tom $
+ * Copyright 2006-2011,2020 by T. Zoerner (tomzo at users.sf.net)
  */
 
 #include <stdio.h>
@@ -25,12 +23,9 @@
 
 #include <string>
 #include <algorithm>
-
-#include "boost/regex.h"
-#include "boost/regex.hpp"
+#include <regex>
 
 using namespace std;
-using namespace boost;
 
 #include "ttx_db.h"
 #include "ttx_util.h"
@@ -263,7 +258,7 @@ string GetXmltvTitle(const string& xml)
    smatch whats;
    string title;
 
-   static const regex expr1("<title>(.*)</title>");
+   static const regex expr1("<title>([\\s\\S]*)</title>");
    if (regex_search(xml, whats, expr1)) {
       title.assign(whats[1]);
       XmlToLatin1(title);
@@ -276,7 +271,7 @@ string GetXmltvSubTitle(const string& xml)
    smatch whats;
    string subtitle;
 
-   static const regex expr1("<sub-title>(.*)</sub-title>");
+   static const regex expr1("<sub-title>([\\s\\S]*)</sub-title>");
    if (regex_search(xml, whats, expr1)) {
       subtitle.assign(whats[1]);
       XmlToLatin1(subtitle);
@@ -289,7 +284,8 @@ string GetXmltvDescription(const string& xml)
    smatch whats;
    string desc;
 
-   static const regex expr1("<desc>(.*)</desc>");
+   // Note "[\\s\\S]" is used for matching any char (i.e. including "\n", which "." would not allow)
+   static const regex expr1("<desc>([\\s\\S]*)</desc>");
    if (regex_search(xml, whats, expr1)) {
       desc.assign(whats[1]);
       XmlToLatin1(desc);
@@ -316,31 +312,31 @@ TV_FEAT GetXmltvFeat(const string& xml)
    TV_FEAT feat;
    smatch whats;
 
-   static const regex expr01("<video>.*<colour>no</colour>.*</video>");
+   static const regex expr01("<video>[\\s\\S]*<colour>no</colour>[\\s\\S]*</video>");
    if (regex_search(xml, whats, expr01))
       feat.m_flags |= (1 << TV_FEAT::TV_FEAT_BW);
 
-   static const regex expr02("<video>.*<aspect>16:9</aspect>.*</video>");
+   static const regex expr02("<video>[\\s\\S]*<aspect>16:9</aspect>[\\s\\S]*</video>");
    if (regex_search(xml, whats, expr02))
       feat.m_flags |= (1 << TV_FEAT::TV_FEAT_ASPECT_16_9);
 
-   static const regex expr03("<video>.*<quality>HDTV</quality>.*</video>");
+   static const regex expr03("<video>[\\s\\S]*<quality>HDTV</quality>[\\s\\S]*</video>");
    if (regex_search(xml, whats, expr03))
       feat.m_flags |= (1 << TV_FEAT::TV_FEAT_HD);
 
-   static const regex expr04("<audio>.*<stereo>surround</stereo>.*</audio>");
+   static const regex expr04("<audio>[\\s\\S]*<stereo>surround</stereo>[\\s\\S]*</audio>");
    if (regex_search(xml, whats, expr04))
       feat.m_flags |= (1 << TV_FEAT::TV_FEAT_DOLBY);
 
-   static const regex expr05("<audio>.*<stereo>stereo</stereo>.*</audio>");
+   static const regex expr05("<audio>[\\s\\S]*<stereo>stereo</stereo>[\\s\\S]*</audio>");
    if (regex_search(xml, whats, expr05))
       feat.m_flags |= (1 << TV_FEAT::TV_FEAT_STEREO);
 
-   static const regex expr06("<audio>.*<stereo>mono</stereo>.*</audio>");
+   static const regex expr06("<audio>[\\s\\S]*<stereo>mono</stereo>[\\s\\S]*</audio>");
    if (regex_search(xml, whats, expr06))
       feat.m_flags |= (1 << TV_FEAT::TV_FEAT_MONO);
 
-   static const regex expr07("<audio>.*<stereo>bilingual</stereo>.*</audio>");
+   static const regex expr07("<audio>[\\s\\S]*<stereo>bilingual</stereo>[\\s\\S]*</audio>");
    if (regex_search(xml, whats, expr07))
       feat.m_flags |= (1 << TV_FEAT::TV_FEAT_2CHAN);
 
@@ -434,7 +430,7 @@ void XMLTV::ImportXmltvFile(const char * fname)
                state = STATE_CHN;
             }
             else if (regex_search(buf, what, expr3)) {
-               static const regex expr6("start=\"([^\"]*)\".*channel=\"([^\"]*)\"", regex::icase);
+               static const regex expr6("start=\"([^\"]*)\"[\\s\\S]*channel=\"([^\"]*)\"", regex::icase);
                if (regex_search(buf, what, expr6)) {
                   chn_id.assign(what[2]);
                   start_t = ParseXmltvTimestamp(&what[1].first[0]);
@@ -676,7 +672,7 @@ void XMLTV::ExportXmltv(list<TV_SLOT>& NewSlots, const char * p_file_name,
    }
 
    // print channel table
-   map<string,string>::iterator p_chn = m_merge_chn.find(m_ch_id);
+   //map<string,string>::iterator p_chn = m_merge_chn.find(m_ch_id);
    if (m_merge_chn.find(m_ch_id) == m_merge_chn.end()) {
       fprintf(fp, "<channel id=\"%s\">\n"
                   "\t<display-name>%s</display-name>\n"

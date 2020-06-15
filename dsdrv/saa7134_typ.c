@@ -28,7 +28,7 @@
  *
  *  DScaler #Id: SAA7134Card_Types.cpp,v 1.58 2004/12/16 04:53:51 atnak Exp #
  *
- *  $Id: saa7134_typ.c,v 1.26 2011/01/05 19:26:17 tom Exp tom $
+ *  $Id: saa7134_typ.c,v 1.28 2020/06/17 08:19:14 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_DSDRV
@@ -137,7 +137,7 @@ typedef struct TCardType_struct
 
     char szName[128];
     WORD DeviceId;
-    int NumInputs;
+    uint NumInputs;
     TInputType Inputs[SA_INPUTS_PER_CARD];
     eTunerId TunerId;
     /// The type of clock crystal the card has
@@ -201,35 +201,42 @@ static const TCardType m_SAA7134UnknownCard =
             INPUTTYPE_TUNER,
             VIDEOINPUTSOURCE_PIN1,
             AUDIOINPUTSOURCE_DAC,
+            0, 0
         },
         {
             "Composite",
             INPUTTYPE_COMPOSITE,
             VIDEOINPUTSOURCE_PIN3,
             AUDIOINPUTSOURCE_LINE1,
+            0, 0
         },
         {
             "S-Video",
             INPUTTYPE_SVIDEO,
             VIDEOINPUTSOURCE_PIN0,
             AUDIOINPUTSOURCE_LINE1,
+            0, 0
         },
         {
             "Composite over S-Video",
             INPUTTYPE_COMPOSITE,
             VIDEOINPUTSOURCE_PIN0,
             AUDIOINPUTSOURCE_LINE1,
+            0, 0
         },
     },
     TUNER_ABSENT,
     AUDIOCRYSTAL_32110kHz,
     0,
+    { 0, 0, 0 },
+    FALSE,
+    { {TDA9887_FORMAT_NONE, 0, 0}, }
 };
 
 static const TCardType m_SAA7134CardDefaults =
 {
     NULL, "", 0x0000, 0, { }, TUNER_ABSENT, AUDIOCRYSTAL_NONE, 0,
-    { 0, 0, 0 }, FALSE
+    { 0, 0, 0 }, FALSE, { }
 };
 
 static TCardType * m_SAA713xCards = NULL;
@@ -499,12 +506,18 @@ static bool ReadCardInputInfoProc(int report, const CParseTag* tag, unsigned cha
     // Name
     if (tag == k_parseCardInput + 0)
     {
-        if (CParseValue_GetString(value) == '\0')
+        const char * name = CParseValue_GetString(value);
+        if (name == NULL)
+        {
+            *ppErrMsg = ("input name is not a string");
+            return FALSE;
+        }
+        else if (*name == '\0')
         {
             *ppErrMsg = ("\"\" is not a valid name of an input");
             return FALSE;
         }
-        strncpy(input->szName, CParseValue_GetString(value), sizeof(input->szName) - 1);
+        strncpy(input->szName, name, sizeof(input->szName) - 1);
     }
     // Type
     else if (tag == k_parseCardInput + 1)
@@ -663,7 +676,13 @@ static bool ReadCardInfoProc(int report, const CParseTag* tag, unsigned char dum
     // Name
     if (tag == k_parseCard + 0)
     {
-        if (CParseValue_GetString(value) == '\0')
+        const char * name = CParseValue_GetString(value);
+        if (name == NULL)
+        {
+            *ppErrMsg = ("card name is not a string");
+            return FALSE;
+        }
+        else if (*name == '\0')
         {
             *ppErrMsg = ("\"\" is not a valid name of a card");
             return FALSE;
@@ -671,14 +690,14 @@ static bool ReadCardInfoProc(int report, const CParseTag* tag, unsigned char dum
         pCardList = CList_GetFront(parseInfo->pCardList);
         while (pCardList != NULL)
         {
-            if (stricmp(pCardList->szName, CParseValue_GetString(value)) == 0)
+            if (stricmp(pCardList->szName, name) == 0)
             {
                 *ppErrMsg = ("A card was already specified with this name");
                 return FALSE;
             }
             pCardList = CList_GetNext(pCardList);
         }
-        strncpy(parseInfo->pCurrentCard->szName, CParseValue_GetString(value),
+        strncpy(parseInfo->pCurrentCard->szName, name,
                 sizeof(parseInfo->pCurrentCard->szName) - 1);
     }
     // DeviceID

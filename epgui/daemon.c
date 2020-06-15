@@ -18,7 +18,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: daemon.c,v 1.19 2014/04/23 21:17:46 tom Exp tom $
+ *  $Id: daemon.c,v 1.20 2020/06/15 09:59:15 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -31,8 +31,8 @@
 #include <pwd.h>
 #include <signal.h>
 #else
-#include <windows.h>
 #include <winsock2.h>
+#include <windows.h>
 #include <io.h>
 #include <direct.h>
 #include <pbt.h>

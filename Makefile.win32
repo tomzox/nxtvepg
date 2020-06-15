@@ -22,7 +22,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: Makefile.win32,v 1.78 2011/01/06 11:35:25 tom Exp tom $
+#  $Id: Makefile.win32,v 1.80 2020/06/17 08:17:57 tom Exp tom $
 #
 
 ifeq ($(OS),Windows_NT)
@@ -42,18 +42,18 @@ INCS   += -DNONAMELESSUNION
 INCS   += -I.
 INCS   += -I/usr/i586-mingw32msvc/include
 
-GCC_ROOT = /usr/i586-mingw32msvc
+GCC_ROOT = /usr/i686-w64-mingw32
 AR      = $(GCC_ROOT)/bin/ar
 AS      = $(GCC_ROOT)/bin/as
 NM      = $(GCC_ROOT)/bin/nm
-WINDRES = /usr/bin/i586-mingw32msvc-windres
+WINDRES = i686-w64-mingw32-windres
 DLLTOOL = $(GCC_ROOT)/bin/dlltool
-STRIP   = i586-mingw32msvc-strip
+STRIP   = i686-w64-mingw32-strip
 #ROOT    = $(HOME)/Save/dos
 ROOT    = /home/tom/Save/dos
-CC      = i586-mingw32msvc-gcc
-CPP     = i586-mingw32msvc-g++
-LD      = i586-mingw32msvc-g++
+CC      = i686-w64-mingw32-gcc
+CPP     = i686-w64-mingw32-g++
+LD      = i686-w64-mingw32-g++
 endif
 
 # if you have perl and/or flex set their path here, else just leave them alone
@@ -88,24 +88,24 @@ DEFS   += -DUSE_DAEMON
 DEFS   += -DUSE_XMLTV_IMPORT
 # enable support for teletext EPG grabber (EXPERIMENTAL)
 DEFS    += -DUSE_TTX_GRABBER
-ACQLIBS += -Lboost -lboost_regex-gcc-d-1_42
 
 DEFS   += -DWIN32
 
 WARN    = -Wall -Wpointer-arith -Wnested-externs -Wmissing-prototypes
+WARN   += -Wextra -Wno-sign-compare -Wno-unused-parameter
 WARN   += -Wno-pointer-sign
 WARN   += -Werror
 #WARN  += -Wstrict-prototypes
-CFLAGS  = -pipe $(WARN) $(INCS) $(DEFS) -g -O2 -mno-cygwin
-CPPFLAGS = -pipe $(INCS) $(DEFS) -g -O2 -mno-cygwin
-LDFLAGS = -mwindows -mno-cygwin -Wl,--subsystem,windows
-LDFLAGS_CONSOLE = -mconsole -mno-cygwin -Wl,--subsystem,console
+CFLAGS  = -pipe $(WARN) $(INCS) $(DEFS) -g -O2
+CPPFLAGS = -pipe $(INCS) $(DEFS) -g -O2
+LDFLAGS = -mwindows -Wl,--subsystem,windows
+LDFLAGS_CONSOLE = -mconsole -Wl,--subsystem,console
 
 BUILD_DIR  = build-win32
 INCS      += -I$(BUILD_DIR)
 
-# FIXME required for O2
-$(BUILD_DIR)/epgui/rcfile.o : CFLAGS += -fno-strict-aliasing
+# formerly required for O2
+#$(BUILD_DIR)/epgui/rcfile.o : CFLAGS += -fno-strict-aliasing
 
 # ----- don't change anything below ------------------------------------------
 

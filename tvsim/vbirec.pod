@@ -24,7 +24,7 @@
 #
 #  Author: Tom Zoerner
 #
-# $Id: vbirec.pod,v 1.11 2005/03/06 19:47:18 tom Exp tom $
+# $Id: vbirec.pod,v 1.12 2020/06/15 09:59:43 tom Exp tom $
 # ---------------------------------------------------------------------------
 
 =head1 NAME
@@ -147,7 +147,7 @@ which TV network was tuned by the TV application.
 A human readable network identification derived from the VPS, PDC or
 P8/30/2 CNI codes (in this order, if several alternatives are available).
 
-=back 4
+=back
 
 
 =head1 MONITORING TV APP CONTROLS
@@ -185,7 +185,7 @@ The TV application should grant the tuner when video capturing is
 disabled of the TV window minimized or completely obscured by other
 windows.
 
-=back 4
+=back
 
 
 =head1 TV APP INTERACTION
@@ -214,7 +214,7 @@ they should support command "setstation" with a network name as argument.
 A list of commands which are used by nxtvepg is available in the
 drop-down menu below the command entry field.
 
-=back 4
+=back
 
 
 =head1 EPG RECORDING

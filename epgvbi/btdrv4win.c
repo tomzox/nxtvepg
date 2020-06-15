@@ -42,7 +42,7 @@
  *      Tom Zoerner
  *
  *
- *  $Id: btdrv4win.c,v 1.61 2009/04/19 18:20:44 tom Exp tom $
+ *  $Id: btdrv4win.c,v 1.62 2020/06/15 10:01:39 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_VBI
@@ -289,7 +289,7 @@ static BOOL __stdcall BtDriver_WdmVbiCallback( BYTE * pFieldBuffer, int FrameTyp
 {
    BYTE * pLineData;
    uint FirstField, LastField;
-   uint maxFieldDelta;
+   //uint maxFieldDelta;
    uint field_idx;
    uint line_count;
    uint line_idx;
@@ -299,19 +299,19 @@ static BOOL __stdcall BtDriver_WdmVbiCallback( BYTE * pFieldBuffer, int FrameTyp
       case PROGRESSIVE_FRAME:
          FirstField = 0;
          LastField = 1;
-         maxFieldDelta = 400000 *1.5;  // 25 frames per second
+         //maxFieldDelta = 400000 *1.5;  // 25 frames per second
          break;
       case FIELD_ONE:
          FirstField = LastField = 0;
-         maxFieldDelta = 200000 *1.5;  // 2*25 fields per second
+         //maxFieldDelta = 200000 *1.5;  // 2*25 fields per second
          break;
       case FIELD_TWO:
          FirstField = LastField = 1;
-         maxFieldDelta = 200000 *1.5;
+         //maxFieldDelta = 200000 *1.5;
          break;
       default:
          FirstField = LastField = 0;
-         maxFieldDelta = 0;
+         //maxFieldDelta = 0;
          break;
    }
 

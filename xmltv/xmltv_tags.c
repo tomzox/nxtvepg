@@ -32,7 +32,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: xmltv_tags.c,v 1.12 2011/01/05 19:29:38 tom Exp tom $
+ *  $Id: xmltv_tags.c,v 1.13 2020/06/17 08:27:36 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_XMLTV
@@ -372,51 +372,53 @@ typedef struct
    bool strip;
 } XMLTV_ATTS;
 
+#define XMLTV_ATT_STRIP TRUE
+
 static const XMLTV_ATTS xmltv5_attr_tv[] =
 {
-   { "source-info-name", Xmltv_AboutSetSourceInfoName },
-   { "source-info-url", Xmltv_AboutSetSourceInfoUrl },
-   { "source-data-url", Xmltv_AboutSetSourceDataUrl },
-   { "generator-info-name", Xmltv_AboutSetGenInfoName },
-   { "generator-info-url", Xmltv_AboutSetGenInfoUrl },
-   { "date", NULL }
+   { "source-info-name", Xmltv_AboutSetSourceInfoName, FALSE },
+   { "source-info-url", Xmltv_AboutSetSourceInfoUrl, FALSE },
+   { "source-data-url", Xmltv_AboutSetSourceDataUrl, FALSE },
+   { "generator-info-name", Xmltv_AboutSetGenInfoName, FALSE },
+   { "generator-info-url", Xmltv_AboutSetGenInfoUrl, FALSE },
+   { "date", NULL, FALSE }
 };
 static const XMLTV_ATTS xmltv5_attr_channel[] =
 {
-   { "id", Xmltv_ChannelSetId }
+   { "id", Xmltv_ChannelSetId, FALSE }
 };
 static const XMLTV_ATTS xmltv5_attr_disp_name[] =
 {
-   { "lang", XmltvTags_SetLanguage }
+   { "lang", XmltvTags_SetLanguage, FALSE }
 };
 static const XMLTV_ATTS xmltv5_attr_icon[] =
 {
-   { "src", NULL },
-   { "width", NULL },
-   { "height", NULL }
+   { "src", NULL, FALSE },
+   { "width", NULL, FALSE },
+   { "height", NULL, FALSE }
 };
 static const XMLTV_ATTS xmltv5_attr_prog[] =
 {
-   { "start", Xmltv_TsSetStartTime },
-   { "stop", Xmltv_TsSetStopTime },
-   { "channel", Xmltv_TsSetChannel },
-   { "pdc-start", Xmltv_TsCodeTimeSetPdc },
-   { "vps-start", Xmltv_TsCodeTimeSetVps },
-   { "showview", Xmltv_TsCodeTimeSetSV },
-   { "videoplus", Xmltv_TsCodeTimeSetVP },
-   { "clumpidx", NULL }
+   { "start", Xmltv_TsSetStartTime, FALSE },
+   { "stop", Xmltv_TsSetStopTime, FALSE },
+   { "channel", Xmltv_TsSetChannel, FALSE },
+   { "pdc-start", Xmltv_TsCodeTimeSetPdc, FALSE },
+   { "vps-start", Xmltv_TsCodeTimeSetVps, FALSE },
+   { "showview", Xmltv_TsCodeTimeSetSV, FALSE },
+   { "videoplus", Xmltv_TsCodeTimeSetVP, FALSE },
+   { "clumpidx", NULL, FALSE }
 };
 static const XMLTV_ATTS xmltv5_attr_pi_subt[] =
 {
-   { "type", Xmltv_PiSubtitlesSetType }
+   { "type", Xmltv_PiSubtitlesSetType, FALSE }
 };
 static const XMLTV_ATTS xmltv5_attr_pi_prat[] =
 {
-   { "system", Xmltv_PiRatingSetSystem }
+   { "system", Xmltv_PiRatingSetSystem, FALSE }
 };
 static const XMLTV_ATTS xmltv5_attr_lang_only[] =
 {
-   { "lang", XmltvTags_SetLanguage }
+   { "lang", XmltvTags_SetLanguage, FALSE }
 };
 
 // ----------------------------------------------------------------------------
@@ -424,104 +426,104 @@ static const XMLTV_ATTS xmltv5_attr_lang_only[] =
 //
 static const XMLTV_ATTS xmltv6_attr_tv[] =
 {
-   { "from", NULL },
-   { "until", NULL },
-   { "xml:lang", XmltvTags_SetLanguage }
+   { "from", NULL, FALSE },
+   { "until", NULL, FALSE },
+   { "xml:lang", XmltvTags_SetLanguage, FALSE }
 };
 static const XMLTV_ATTS xmltv6_attr_about[] =
 {
-   { "date", NULL }
+   { "date", NULL, FALSE }
 };
 static const XMLTV_ATTS xmltv6_attr_src_data[] =
 {
-   { "href", Xmltv_AboutSetSourceDataUrl }
+   { "href", Xmltv_AboutSetSourceDataUrl, FALSE }
 };
 static const XMLTV_ATTS xmltv6_attr_channel[] =
 {
-   { "id", Xmltv_ChannelSetId }
+   { "id", Xmltv_ChannelSetId, FALSE }
 };
 static const XMLTV_ATTS xmltv6_attr_ts[] =
 {
-   { "channel", Xmltv_TsSetChannel },
-   { "start", Xmltv_TsSetStartTime },
-   { "stop", Xmltv_TsSetStopTime },
-   { "conditional", NULL, TRUE },
-   { "uncertain", NULL, TRUE },
-   { "liveness", Xmltv_TsSetFeatLive, TRUE },
-   { "encryption", Xmltv_TsSetFeatCrypt }
+   { "channel", Xmltv_TsSetChannel, FALSE },
+   { "start", Xmltv_TsSetStartTime, FALSE },
+   { "stop", Xmltv_TsSetStopTime, FALSE },
+   { "conditional", NULL, XMLTV_ATT_STRIP },
+   { "uncertain", NULL, XMLTV_ATT_STRIP },
+   { "liveness", Xmltv_TsSetFeatLive, XMLTV_ATT_STRIP },
+   { "encryption", Xmltv_TsSetFeatCrypt, FALSE }
 };
 static const XMLTV_ATTS xmltv6_attr_ts_code_time[] =
 {
-   { "system", Xmltv_TsCodeTimeSetSystem },
-   { "start", Xmltv_TsCodeTimeSetStart },
-   { "stop", NULL }
+   { "system", Xmltv_TsCodeTimeSetSystem, FALSE },
+   { "start", Xmltv_TsCodeTimeSetStart, FALSE },
+   { "stop", NULL, FALSE }
 };
 static const XMLTV_ATTS xmltv6_attr_ts_code_num[] =
 {
-   { "system", Xmltv_TsCodeTimeSetSystem },
-   { "num", Xmltv_TsCodeTimeSetStart }
+   { "system", Xmltv_TsCodeTimeSetSystem, FALSE },
+   { "num", Xmltv_TsCodeTimeSetStart, FALSE }
 };
 static const XMLTV_ATTS xmltv6_attr_prog[] =
 {
-   { "newness", NULL, TRUE },
-   { "will-repeat", NULL, TRUE },
-   { "xml:lang", XmltvTags_SetLanguage }
+   { "newness", NULL, XMLTV_ATT_STRIP },
+   { "will-repeat", NULL, XMLTV_ATT_STRIP },
+   { "xml:lang", XmltvTags_SetLanguage, FALSE }
 };
 static const XMLTV_ATTS xmltv6_attr_title[] =
 {
-   { "original", NULL, TRUE },
-   { "xml:lang", XmltvTags_SetLanguage }
+   { "original", NULL, XMLTV_ATT_STRIP },
+   { "xml:lang", XmltvTags_SetLanguage, FALSE }
 };
 static const XMLTV_ATTS xmltv6_attr_desc[] =
 {
-   { "type", NULL, TRUE },
-   { "xml:lang", XmltvTags_SetLanguage }
+   { "type", NULL, XMLTV_ATT_STRIP },
+   { "xml:lang", XmltvTags_SetLanguage, FALSE }
 };
 static const XMLTV_ATTS xmltv6_attr_actor[] =
 {
-   { "guest", NULL, TRUE }
+   { "guest", NULL, XMLTV_ATT_STRIP }
 };
 static const XMLTV_ATTS xmltv6_attr_adaptor_title[] =
 {
-   { "original", NULL, TRUE },
-   { "xml:lang", XmltvTags_SetLanguage }
+   { "original", NULL, XMLTV_ATT_STRIP },
+   { "xml:lang", XmltvTags_SetLanguage, FALSE }
 };
 static const XMLTV_ATTS xmltv6_attr_pi_cat[] =
 {
-   { "type", Xmltv_PiCatSetType, TRUE },
-   { "system", Xmltv_PiCatSetSystem },
-   { "code", Xmltv_PiCatSetCode },
-   { "xml:lang", XmltvTags_SetLanguage }
+   { "type", Xmltv_PiCatSetType, XMLTV_ATT_STRIP },
+   { "system", Xmltv_PiCatSetSystem, FALSE },
+   { "code", Xmltv_PiCatSetCode, FALSE },
+   { "xml:lang", XmltvTags_SetLanguage, FALSE }
 };
 static const XMLTV_ATTS xmltv6_attr_pi_aspect[] =
 {
-   { "x", Xmltv_PiVideoAspectSetX },
-   { "y", Xmltv_PiVideoAspectSetY }
+   { "x", Xmltv_PiVideoAspectSetX, FALSE },
+   { "y", Xmltv_PiVideoAspectSetY, FALSE }
 };
 static const XMLTV_ATTS xmltv6_attr_pi_audio[] =
 {
-   { "channel", NULL }
+   { "channel", NULL, FALSE }
 };
 static const XMLTV_ATTS xmltv6_attr_pi_subt_ttx[] =
 {
-   { "page", Xmltv_PiSubtitlesSetPage }
+   { "page", Xmltv_PiSubtitlesSetPage, FALSE }
 };
 static const XMLTV_ATTS xmltv6_attr_pi_prat[] =
 {
-   { "system", Xmltv_PiRatingSetSystem }
+   { "system", Xmltv_PiRatingSetSystem, FALSE }
 };
 static const XMLTV_ATTS xmltv6_attr_pi_erat[] =
 {
-   { "stars", Xmltv_PiStarRatingSetValue },
-   { "out-of", Xmltv_PiStarRatingSetMax }
+   { "stars", Xmltv_PiStarRatingSetValue, FALSE },
+   { "out-of", Xmltv_PiStarRatingSetMax, FALSE }
 };
 static const XMLTV_ATTS xmltv6_attr_link[] =
 {
-   { "href", Xmltv_LinkHrefSet }
+   { "href", Xmltv_LinkHrefSet, FALSE }
 };
 static const XMLTV_ATTS xmltv6_attr_lang_only[] =
 {
-   { "xml:lang", XmltvTags_SetLanguage }
+   { "xml:lang", XmltvTags_SetLanguage, FALSE }
 };
 
 // ----------------------------------------------------------------------------
@@ -529,15 +531,15 @@ static const XMLTV_ATTS xmltv6_attr_lang_only[] =
 
 static const XMLTV_ATTS xmltv_auto_detect_attr_tv[] =
 {
-   { "source-info-name", XmltvTags_SetVersion5_ByAttr },  // DTD 0.5
-   { "source-info-url", XmltvTags_SetVersion5_ByAttr },
-   { "source-data-url", XmltvTags_SetVersion5_ByAttr },
-   { "generator-info-name", XmltvTags_SetVersion5_ByAttr },
-   { "generator-info-url", XmltvTags_SetVersion5_ByAttr },
-   { "date", XmltvTags_SetVersion5_ByAttr },
-   { "from", XmltvTags_SetVersion6_ByAttr }, // DTD 0.6
-   { "until", XmltvTags_SetVersion6_ByAttr },
-   { "xml:lang", XmltvTags_SetVersion6_ByAttr }
+   { "source-info-name", XmltvTags_SetVersion5_ByAttr, FALSE },  // DTD 0.5
+   { "source-info-url", XmltvTags_SetVersion5_ByAttr, FALSE },
+   { "source-data-url", XmltvTags_SetVersion5_ByAttr, FALSE },
+   { "generator-info-name", XmltvTags_SetVersion5_ByAttr, FALSE },
+   { "generator-info-url", XmltvTags_SetVersion5_ByAttr, FALSE },
+   { "date", XmltvTags_SetVersion5_ByAttr, FALSE },
+   { "from", XmltvTags_SetVersion6_ByAttr, FALSE }, // DTD 0.6
+   { "until", XmltvTags_SetVersion6_ByAttr, FALSE },
+   { "xml:lang", XmltvTags_SetVersion6_ByAttr, FALSE }
 };
 
 // ----------------------------------------------------------------------------
@@ -941,15 +943,15 @@ static const XML_TAGDEF xmltv_tag_def[] =
      XMLTV_ATTR(xmltv_auto_detect_attr_tv)
    },
    { XMLTV_DETECT_PROG, "programme", XML_NO_CHILDS, XML_NO_PCDATA,
-     { XmltvTags_SetVersion5_ByTag, NULL, NULL},
+     { XmltvTags_SetVersion5_ByTag, NULL, NULL, NULL },
      XMLTV_NO_ATTR
    },
    { XMLTV_DETECT_ABOUT, "about", XML_NO_CHILDS, XML_NO_PCDATA,
-     { XmltvTags_SetVersion6_ByTag, NULL, NULL},
+     { XmltvTags_SetVersion6_ByTag, NULL, NULL, NULL },
      XMLTV_NO_ATTR
    },
    { XMLTV_DETECT_TIMESLOT, "timeslot", XML_NO_CHILDS, XML_NO_PCDATA,
-     { XmltvTags_SetVersion6_ByTag, NULL, NULL},
+     { XmltvTags_SetVersion6_ByTag, NULL, NULL, NULL },
      XMLTV_NO_ATTR
    },
    { XMLTV_SKIP, "*skip*", XML_NO_CHILDS, XML_DISCARD_PCDATA,

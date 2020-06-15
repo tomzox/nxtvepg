@@ -28,7 +28,7 @@
  *  DScaler #Id: CX2388xCard_Types.cpp,v 1.31 2004/12/25 22:40:18 to_see Exp #
  *  DScaler #Id: CX2388xCard_Tuner.cpp,v 1.9 2005/12/27 19:29:35 to_see Exp #
  *
- *  $Id: cx2388x_typ.c,v 1.20 2011/01/05 19:26:17 tom Exp tom $
+ *  $Id: cx2388x_typ.c,v 1.22 2020/06/17 08:19:07 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_DSDRV
@@ -93,7 +93,7 @@ typedef struct TCardType_struct   // Defines the specific settings for a given c
 
     char        szName[128];
     eCardMode   CardMode;
-    int         NumInputs;
+    uint        NumInputs;
     TInputType  Inputs[CX_INPUTS_PER_CARD];
     eTunerId    TunerId;
     DWORD       AutoDetectId[CX_AUTODETECT_ID_PER_CARD];
@@ -176,11 +176,12 @@ static const TCardType m_CX2388xUnknownCard =
     TUNER_PHILIPS_NTSC,
     { 0 },
     FALSE,
+    { {TDA9887_FORMAT_NONE, 0, 0}, }
 };
 
 static const TCardType m_CX2388xCardDefaults =
 {
-    NULL, "", MODE_STANDARD, 0, { }, TUNER_ABSENT, { }, FALSE
+    NULL, "", MODE_STANDARD, 0, { }, TUNER_ABSENT, { }, FALSE, { }
 };
 
 static TCardType * m_CX2388xCards = NULL;
@@ -369,12 +370,18 @@ static bool ReadCardInputInfoProc(int report, const CParseTag* tag, unsigned cha
     // Name
     if (tag == k_parseCardInput + 0)
     {
-        if (CParseValue_GetString(value) == '\0')
+        const char * name = CParseValue_GetString(value);
+        if (name == NULL)
+        {
+            *ppErrMsg = ("input name is not a string");
+            return FALSE;
+        }
+        else if (*name == '\0')
         {
             *ppErrMsg = ("\"\" is not a valid name of an input");
             return FALSE;
         }
-        strncpy(input->szName, CParseValue_GetString(value), sizeof(input->szName) - 1);
+        strncpy(input->szName, name, sizeof(input->szName) - 1);
     }
 
     // Input Type
@@ -531,7 +538,13 @@ static bool ReadCardInfoProc(int report, const CParseTag* tag, unsigned char dum
     // Name
     if (tag == k_parseCard + 0)
     {
-        if (CParseValue_GetString(value) == '\0')
+        const char * name = CParseValue_GetString(value);
+        if (name == NULL)
+        {
+            *ppErrMsg = ("card name is not a string");
+            return FALSE;
+        }
+        else if (*name == '\0')
         {
             *ppErrMsg = ("\"\" is not a valid name of a card");
             return FALSE;
@@ -540,7 +553,7 @@ static bool ReadCardInfoProc(int report, const CParseTag* tag, unsigned char dum
         pCardList = CList_GetFront(parseInfo->pCardList);
         while (pCardList != NULL)
         {
-            if (stricmp(pCardList->szName, CParseValue_GetString(value)) == 0)
+            if (stricmp(pCardList->szName, name) == 0)
             {
                 *ppErrMsg = ("A card was already specified with this name");
                 return FALSE;
@@ -548,7 +561,7 @@ static bool ReadCardInfoProc(int report, const CParseTag* tag, unsigned char dum
             pCardList = CList_GetNext(pCardList);
         }
         
-        strncpy(parseInfo->pCurrentCard->szName, CParseValue_GetString(value),
+        strncpy(parseInfo->pCurrentCard->szName, name,
                 sizeof(parseInfo->pCurrentCard->szName) - 1);
     }
 
@@ -1090,7 +1103,7 @@ static void StandardInputSelect( TVCARD * pTvCard, uint nInput)
     if (pCardList != NULL)
     {
         // -1 for finishing clean up
-        if(nInput == -1)
+        if((int)nInput == -1)
         {
             if ((pCardList->NumInputs > 0) &&
                 (pCardList->Inputs[pCardList->NumInputs - 1].InputType == INPUTTYPE_FINAL))
@@ -1106,11 +1119,6 @@ static void StandardInputSelect( TVCARD * pTvCard, uint nInput)
         {
             debug1("Input Select Called for invalid input %d", nInput);
             nInput = pCardList->NumInputs - 1;
-        }
-        if(nInput < 0)
-        {
-            debug1("Input Select Called for invalid input %d", nInput);
-            nInput = 0;
         }
 
         pInput = &pCardList->Inputs[nInput];

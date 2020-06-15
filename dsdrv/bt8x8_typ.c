@@ -28,7 +28,7 @@
  *
  *  DScaler #Id: BT848Card_Types.cpp,v 1.41 2004/01/29 15:14:41 adcockj Exp #
  *
- *  $Id: bt8x8_typ.c,v 1.19 2011/01/05 19:26:17 tom Exp tom $
+ *  $Id: bt8x8_typ.c,v 1.21 2020/06/17 08:18:57 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_VBI
@@ -246,7 +246,7 @@ typedef struct
 typedef struct
 {
     LPCSTR szName;
-    int NumInputs;
+    uint NumInputs;
     TInputType Inputs[INPUTS_PER_CARD];
     ePLLFreq PLLFreq;
     eTunerId TunerId;
@@ -4110,6 +4110,7 @@ static const eTunerId m_Tuners_miro[] =
     TUNER_ABSENT
 };
 
+#if 0  /* unused */
 static const bool m_Tuners_miro_fm[] =
 {
     false   ,false  ,false  ,false  ,
@@ -4121,6 +4122,7 @@ static const bool m_Tuners_miro_fm[] =
     false   ,false  ,false  ,false  ,
     false   ,false  ,false  ,false
 };
+#endif
 
 static const eTunerId m_Tuners_avermedia_0[] =
 {
@@ -4199,7 +4201,7 @@ static uint AutoDetectTuner( TVCARD * pTvCard, uint CardId )
         {
           case TVCARD_LIFETEC:
             {
-                DWORD id;
+                DWORD id __DPRINTF_ONLY_ATT__;
                 WriteDword(BT848_GPIO_OUT_EN,( 0x18e0 )&0x00FFFFFFL);
                 id = ReadDword(BT848_GPIO_DATA);
                 dprintf1("AutoDetectTuner: Lifetec card. ID: %08lx\n", id);
@@ -4212,7 +4214,7 @@ static uint AutoDetectTuner( TVCARD * pTvCard, uint CardId )
             {
                 //Tuner = (eTunerId)(((ReadWord(BT848_GPIO_DATA)>>10)-1)&7);
                 DWORD Id;
-                DWORD Val;
+                DWORD Val __DPRINTF_ONLY_ATT__;
 
                 // Read ID
                 WriteDword(BT848_GPIO_OUT_EN,( 0x0000 )&0x00FFFFFFL);
@@ -4337,13 +4339,13 @@ static uint AutoDetectTuner( TVCARD * pTvCard, uint CardId )
                 BYTE Out[] = { 0xA0 , 0 };
 
                 BYTE tuner_make;
-                BYTE tuner_tv_fm;
+                //BYTE tuner_tv_fm;
                 BYTE tuner_format;
 
                 pTvCard->i2cBus->I2cRead(pTvCard, Out,2,Eeprom,256);
 
                 tuner_make   = (Eeprom[0x41] & 0x7);
-                tuner_tv_fm  = (Eeprom[0x41] & 0x18) >> 3;
+                //tuner_tv_fm  = (Eeprom[0x41] & 0x18) >> 3;
                 tuner_format = (Eeprom[0x42] & 0xf0) >> 4;
 
                 dprintf2("AutoDetectTuner: Avermedia card. Id: 0x%02X 0x%02X\n",Eeprom[0x41],Eeprom[0x42]);
@@ -4368,7 +4370,7 @@ static uint AutoDetectTuner( TVCARD * pTvCard, uint CardId )
             {
                 BYTE Eeprom[256];
                 BYTE Out[] = { 0xA0 , 0 };
-                UINT Id;
+                UINT Id __DPRINTF_ONLY_ATT__;
 
                 pTvCard->i2cBus->I2cRead(pTvCard, Out,2,Eeprom,256);
 

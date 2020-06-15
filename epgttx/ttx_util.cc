@@ -14,9 +14,7 @@
  *   You should have received a copy of the GNU General Public License
  *   along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * Copyright 2006-2011 by Tom Zoerner (tomzo at users.sf.net)
- *
- * $Id: ttx_util.cc,v 1.7 2011/01/06 11:11:07 tom Exp tom $
+ * Copyright 2006-2011,2020 by T. Zoerner (tomzo at users.sf.net)
  */
 
 #include <stdio.h>
@@ -24,12 +22,9 @@
 
 #include <string>
 #include <algorithm>
-
-#include "boost/regex.h"
-#include "boost/regex.hpp"
+#include <regex>
 
 using namespace std;
-using namespace boost;
 
 #include "ttx_util.h"
 
@@ -292,5 +287,63 @@ void str_chomp(string& str)
       begin++;
    }
    str.erase(str.begin(), begin);
+}
+
+#if 0 /* unused code */
+/* Return TRUE if all visible characters have the same foreground color,
+ * else FALSE.
+ */
+bool str_is_single_fg_col(string& str)
+{
+   int text_fg = -1;
+   int next_fg = 7;
+
+   for (string::iterator p = str.begin(); p != str.end(); ++p) {
+      unsigned char c = *p;
+      if (c <= 7) {
+         next_fg = (unsigned int) c;
+      }
+      else if ((c > 0x20) && (c < 0x7F)) {
+        if ((text_fg != -1) && (next_fg != text_fg)) {
+          return false;
+        }
+        text_fg = next_fg;
+      }
+   }
+   return true;
+}
+#endif /* unused code */
+
+/* Returns foreground and background color of visible text, if unchanged for
+ * all text within the line (foreground in low-byte, background in 2nd byte).
+ * Returns -1 else.
+ */
+int str_text_fg_bg_col(string& str)
+{
+   int text_bg = -1;
+   int text_fg = -1;
+   int next_fg = 7;
+   int next_bg = 0;
+
+   for (string::iterator p = str.begin(); p != str.end(); ++p) {
+      unsigned char c = *p;
+      if (c <= 7) {
+         next_fg = (unsigned int) c;
+      }
+      else if (c == 0x1D) {
+         next_bg = next_fg;
+      }
+      else if ((c > 0x20) && (c < 0x7F)) {
+        if ((text_fg != -1) && (next_fg != text_fg)) {
+          return -1;
+        }
+        if ((text_bg != -1) && (next_bg != text_bg)) {
+          return -1;
+        }
+        text_fg = next_fg;
+        text_bg = next_bg;
+      }
+   }
+   return text_fg | (text_bg << 8);
 }
 

@@ -20,15 +20,15 @@
  *  Author:
  *          Tom Zoerner
  *
- *  $Id: syserrmsg.c,v 1.6 2009/04/19 18:21:10 tom Exp tom $
+ *  $Id: syserrmsg.c,v 1.8 2020/06/17 10:09:35 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_VBI
 #define DPRINTF_OFF
 
 #ifdef WIN32
-#include <windows.h>
 #include <winsock2.h>
+#include <windows.h>
 #endif
 #include <stdlib.h>
 #include <stdio.h>
@@ -85,9 +85,9 @@ static void SystemErrorMessage_WinStrError( DWORD errCode, uchar * pBuf, uint ma
 void SystemErrorMessage_Set( char ** ppErrorText, int errCode, const char * pText, ... )
 {
    #ifndef WIN32
-   uchar * sysErrStr = NULL;  // init to avoid compiler warning
+   char * sysErrStr = NULL;  // init to avoid compiler warning
    #else
-   uchar   sysErrStr[160];
+   char   sysErrStr[160];
    #endif
    va_list argl;
    const char *argv[20];

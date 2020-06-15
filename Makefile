@@ -30,7 +30,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: Makefile,v 1.109 2011/01/06 11:35:13 tom Exp tom $
+#  $Id: Makefile,v 1.111 2020/06/17 08:17:57 tom Exp tom $
 #
 
 ifeq ($(OS),Windows_NT)
@@ -98,7 +98,6 @@ DEFS   += -DUSE_XMLTV_IMPORT -DXMLTV_CNI_MAP_PATH=\"$(cfgdir)\"
 # enable support for teletext EPG grabber (EXPERIMENTAL)
 # external grabber script is searched for in $PATH (unless you define an absolute path)
 DEFS    += -DUSE_TTX_GRABBER
-ACQLIBS += -lboost_regex
 
 # enable use of daemon and client/server connection
 DEFS   += -DUSE_DAEMON
@@ -127,6 +126,7 @@ INST_DB_PERM = 0777
 endif
 
 WARN    = -Wall -Wnested-externs -Wstrict-prototypes -Wmissing-prototypes
+WARN   += -Wextra -Wno-sign-compare -Wno-unused-parameter
 WARN   += -Wno-pointer-sign
 WARN   += -Wcast-align -Wpointer-arith -Werror
 #WARN  += -Wcast-qual -Wwrite-strings -Wshadow
@@ -144,8 +144,8 @@ LDFLAGS += -lm
 BUILD_DIR  = build-$(shell uname -m | sed -e 's/i.86/i386/' -e 's/ppc/powerpc/')
 INCS      += -I$(BUILD_DIR)
 
-# FIXME required for O2
-$(BUILD_DIR)/epgui/rcfile.o : CFLAGS += -fno-strict-aliasing
+# formerly required for O2 and Werror
+#$(BUILD_DIR)/epgui/rcfile.o : CFLAGS += -fno-strict-aliasing
 
 # end Linux specific part
 endif
@@ -223,16 +223,16 @@ tvmans  :: build_dir tvsim/tvsim.html tvsim/vbirec.html tvsim/vbiplay.html
 all     :: devel daemon tvsim tvmans verifyxml
 
 $(BUILD_DIR)/nxtvepg: $(NXTV_OBJS)
-	$(CC) -o $@ $(NXTV_OBJS) $(GUILIBS) $(ACQLIBS) $(LDFLAGS) 
+	$(CPP) -o $@ $(NXTV_OBJS) $(GUILIBS) $(ACQLIBS) $(LDFLAGS)
 
 $(BUILD_DIR)/nxtvepgd: $(DAEMON_OBJS)
-	$(CC) -o $@ $(DAEMON_OBJS) $(LDFLAGS) $(ACQLIBS)
+	$(CPP) -o $@ $(DAEMON_OBJS) $(LDFLAGS) $(ACQLIBS)
 
 $(BUILD_DIR)/tvsimu: $(TVSIM_OBJS)
-	$(CC) -o $@ $(TVSIM_OBJS) $(LDFLAGS) $(GUILIBS) $(ACQLIBS)
+	$(CPP) -o $@ $(TVSIM_OBJS) $(LDFLAGS) $(GUILIBS) $(ACQLIBS)
 
 $(BUILD_DIR)/vbirec: $(VBIREC_OBJS)
-	$(CC) -o $@ $(VBIREC_OBJS) $(LDFLAGS) $(GUILIBS) $(ACQLIBS)
+	$(CPP) -o $@ $(VBIREC_OBJS) $(LDFLAGS) $(GUILIBS) $(ACQLIBS)
 
 .PHONY: install
 install: daemon Nxtvepg.ad nxtvepgd.1
@@ -398,7 +398,7 @@ nxtvepg.1 nxtvepgd.1 manual.html: nxtvepg.pod epgctl/epgversion.h
 	  EPG_VERSION_STR=`egrep '[ \t]*#[ \t]*define[ \t]*EPG_VERSION_STR' epgctl/epgversion.h | head -1 | sed -e 's#.*"\(.*\)".*#\1#'`; \
 	  echo "pod2man nxtvepg.pod > nxtvepg.1"; \
 	  pod2man -date " " -center "Nextview EPG Decoder" -section "1" \
-	          -release "nxtvepg "$$EPG_VERSION_STR" (C) 1999-2011 Tom Zoerner" \
+	          -release "nxtvepg "$$EPG_VERSION_STR" (C) 1999-2011, 2020 Tom Zoerner" \
 	     nxtvepg.pod > nxtvepg.1; \
           echo ".so man1/nxtvepg.1" > nxtvepgd.1; \
 	  echo "pod2html nxtvepg.pod > manual.html"; \
