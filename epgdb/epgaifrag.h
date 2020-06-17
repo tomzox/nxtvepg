@@ -16,15 +16,15 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgaifrag.h,v 1.1 2005/12/29 15:42:10 tom Exp tom $
+ *  $Id: epgaifrag.h,v 1.2 2020/06/17 19:33:00 tom Exp tom $
  */
 
 #ifndef __EPGAIFRAG_H
 #define __EPGAIFRAG_H
 
-void EpgAiFragmentsAddPkg( uint stream, uint pkgNo, const char * pData );
+void EpgAiFragmentsAddPkg( uint stream, uint pkgNo, const uchar * pData );
 void EpgAiFragmentsStartPage( uint streamOfPage, uint firstPkg, uint newPkgCount );
-void EpgAiFragmentsBlockStart( const char * pHead, uint blockLen, const char * pData, uint pkgLen );
+void EpgAiFragmentsBlockStart( const uchar * pHead, uint blockLen, const uchar * pData, uint pkgLen );
 void EpgAiFragmentsBreak( uint stream );
 void EpgAiFragmentsRestart( void );
 const uchar * EpgAiFragmentsAssemble( uint * pBlockLen, uint * pParityErrCnt );

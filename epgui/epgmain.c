@@ -20,7 +20,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgmain.c,v 1.167 2020/06/15 09:59:15 tom Exp tom $
+ *  $Id: epgmain.c,v 1.168 2020/06/17 19:34:03 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -1257,11 +1257,11 @@ bool EpgMain_StartDaemon( void )
 {
    STARTUPINFO  startup;
    PROCESS_INFORMATION proc_info;
-   const uchar * pErrMsg;
+   const char * pErrMsg;
    DWORD   errCode;
    DWORD   threadID;
-   uchar   id_buf[20];
-   uchar * pCmdLineStr;
+   char    id_buf[20];
+   char  * pCmdLineStr;
    bool    result = FALSE;
 
    pCmdLineStr = xmalloc(100 + strlen(mainOpts.rcfile) + strlen(mainOpts.dbdir));
@@ -2096,21 +2096,21 @@ static int ui_init( int argc, char **argv, bool withTk )
 
    if (withTk)
    {
-      Tk_DefineBitmap(interp, Tk_GetUid("bitmap_ptr_up"), ptr_up_bits, ptr_up_width, ptr_up_height);
-      Tk_DefineBitmap(interp, Tk_GetUid("bitmap_ptr_down"), ptr_down_bits, ptr_down_width, ptr_down_height);
-      Tk_DefineBitmap(interp, Tk_GetUid("bitmap_ptr_down_right"), ptr_down_right_bits, ptr_down_right_width, ptr_down_right_height);
-      Tk_DefineBitmap(interp, Tk_GetUid("bitmap_ptr_up_left"), ptr_up_left_bits, ptr_up_left_width, ptr_up_left_height);
-      Tk_DefineBitmap(interp, Tk_GetUid("bitmap_pan_updown"), pan_updown_bits, pan_updown_width, pan_updown_height);
-      Tk_DefineBitmap(interp, Tk_GetUid("bitmap_qmark"), qmark_bits, qmark_width, qmark_height);
-      Tk_DefineBitmap(interp, Tk_GetUid("bitmap_zoom_in"), zoom_in_bits, zoom_in_width, zoom_in_height);
-      Tk_DefineBitmap(interp, Tk_GetUid("bitmap_zoom_out"), zoom_out_bits, zoom_out_width, zoom_out_height);
-      Tk_DefineBitmap(interp, Tk_GetUid("bitmap_colsel"), colsel_bits, colsel_width, colsel_height);
-      Tk_DefineBitmap(interp, Tk_GetUid("bitmap_col_plus"), col_plus_bits, col_plus_width, col_plus_height);
-      Tk_DefineBitmap(interp, Tk_GetUid("bitmap_col_minus"), col_minus_bits, col_minus_width, col_minus_height);
-      Tk_DefineBitmap(interp, Tk_GetUid("bitmap_hatch"), hatch_bits, hatch_width, hatch_height);
+      Tk_DefineBitmap(interp, Tk_GetUid("bitmap_ptr_up"), (char*)ptr_up_bits, ptr_up_width, ptr_up_height);
+      Tk_DefineBitmap(interp, Tk_GetUid("bitmap_ptr_down"), (char*)ptr_down_bits, ptr_down_width, ptr_down_height);
+      Tk_DefineBitmap(interp, Tk_GetUid("bitmap_ptr_down_right"), (char*)ptr_down_right_bits, ptr_down_right_width, ptr_down_right_height);
+      Tk_DefineBitmap(interp, Tk_GetUid("bitmap_ptr_up_left"), (char*)ptr_up_left_bits, ptr_up_left_width, ptr_up_left_height);
+      Tk_DefineBitmap(interp, Tk_GetUid("bitmap_pan_updown"), (char*)pan_updown_bits, pan_updown_width, pan_updown_height);
+      Tk_DefineBitmap(interp, Tk_GetUid("bitmap_qmark"), (char*)qmark_bits, qmark_width, qmark_height);
+      Tk_DefineBitmap(interp, Tk_GetUid("bitmap_zoom_in"), (char*)zoom_in_bits, zoom_in_width, zoom_in_height);
+      Tk_DefineBitmap(interp, Tk_GetUid("bitmap_zoom_out"), (char*)zoom_out_bits, zoom_out_width, zoom_out_height);
+      Tk_DefineBitmap(interp, Tk_GetUid("bitmap_colsel"), (char*)colsel_bits, colsel_width, colsel_height);
+      Tk_DefineBitmap(interp, Tk_GetUid("bitmap_col_plus"), (char*)col_plus_bits, col_plus_width, col_plus_height);
+      Tk_DefineBitmap(interp, Tk_GetUid("bitmap_col_minus"), (char*)col_minus_bits, col_minus_width, col_minus_height);
+      Tk_DefineBitmap(interp, Tk_GetUid("bitmap_hatch"), (char*)hatch_bits, hatch_width, hatch_height);
       Tk_DefineBitmap(interp, Tk_GetUid("bitmap_gray"), "\x01\x02", 2, 2);
-      Tk_DefineBitmap(interp, Tk_GetUid("nxtv_logo"), nxtv_logo_bits, nxtv_logo_width, nxtv_logo_height);
-      Tk_DefineBitmap(interp, Tk_GetUid("nxtv_small"), nxtv_small_bits, nxtv_small_width, nxtv_small_height);
+      Tk_DefineBitmap(interp, Tk_GetUid("nxtv_logo"), (char*)nxtv_logo_bits, nxtv_logo_width, nxtv_logo_height);
+      Tk_DefineBitmap(interp, Tk_GetUid("nxtv_small"), (char*)nxtv_small_bits, nxtv_small_width, nxtv_small_height);
 
       #ifdef WIN32
       Tcl_CreateCommand(interp, "C_SystrayIcon", TclCbWinSystrayIcon, (ClientData) NULL, NULL);

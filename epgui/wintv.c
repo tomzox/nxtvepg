@@ -21,7 +21,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: wintv.c,v 1.31 2020/06/17 08:29:36 tom Exp tom $
+ *  $Id: wintv.c,v 1.32 2020/06/17 19:32:20 tom Exp tom $
  */
 
 #ifndef WIN32
@@ -772,7 +772,7 @@ static void Wintv_CbStationSelected( void )
 //
 static void Wintv_CbEpgQuery( void )
 {
-   uint8_t  buf[EPG_CMD_MAX_LEN];
+   char  buf[EPG_CMD_MAX_LEN];
 
    if ( WintvSharedMem_GetEpgQuery(buf, sizeof(buf)) )
    {

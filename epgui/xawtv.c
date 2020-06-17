@@ -31,7 +31,7 @@
  *     Those parts have been adapted for xawtv-remote.c by Gerd Knorr
  *     (kraxel@bytesex.org)  Some functions have been derived from xawtv.
  *
- *  $Id: xawtv.c,v 1.56 2008/01/21 22:42:35 tom Exp tom $
+ *  $Id: xawtv.c,v 1.57 2020/06/17 19:34:45 tom Exp tom $
  */
 
 #ifdef WIN32
@@ -267,13 +267,14 @@ static bool Xawtv_ClassQuery( Display * dpy, Window wid )
    int    format, argc;
    ulong  off;
    ulong  nitems, bytesafter;
-   uchar  *args;
+   char   *args;
    char   *pAtomName;
    uint   tvIdx;
    bool   result = FALSE;
 
    if ( (XGetWindowProperty(dpy, wid, wm_class_atom, 0, 64, False, AnyPropertyType,
-                            &type, &format, &nitems, &bytesafter, &args) == Success) && (args != NULL) )
+                            &type, &format, &nitems, &bytesafter, (uchar**)&args) == Success) &&
+       (args != NULL) )
    {
       if (type == XA_STRING)
       {
@@ -587,7 +588,7 @@ static bool Xawtv_FindWindow( Display * dpy, Atom atom )
    Atom type;
    int format;
    ulong nitems, bytesafter;
-   uchar *args = NULL;
+   char *args = NULL;
 
    if (XQueryTree(dpy, root_wid, &root2, &parent, &kids, &nkids) != 0)
    {
@@ -600,7 +601,7 @@ static bool Xawtv_FindWindow( Display * dpy, Atom atom )
 
             args = NULL;
             if ( (XGetWindowProperty(dpy, w, atom, 0, (65536 / sizeof (long)), False, XA_STRING,
-                                     &type, &format, &nitems, &bytesafter, &args) == Success) && (args != NULL) )
+                                     &type, &format, &nitems, &bytesafter, (uchar**)&args) == Success) && (args != NULL) )
             {
                dprintf1("Found xawtv window 0x%08lx, STATION: ", w);
                DebugDumpProperty(args, nitems);
@@ -642,12 +643,12 @@ static void Xawtv_CheckWindow( Display * dpy )
    Atom type;
    int format;
    ulong nitems, bytesafter;
-   uchar *args = NULL;
+   char *args = NULL;
 
    if (xawtv_wid != None)
    {
       XGetWindowProperty(dpy, xawtv_wid, xawtv_station_atom, 0, (65536 / sizeof (long)), False,
-                         XA_STRING, &type, &format, &nitems, &bytesafter, &args);
+                         XA_STRING, &type, &format, &nitems, &bytesafter, (uchar**)&args);
       if (args != NULL)
       {
          dprintf1("Xawtv-CheckWindow: xawtv alive, window 0x%X, STATION: ", (int)xawtv_wid);
@@ -798,7 +799,7 @@ bool Xawtv_SendCmdArgv( Tcl_Interp *interp, const char * pCmdStr, uint cmdLen )
          {
             // send the string to xawtv
             XChangeProperty(dpy, xawtv_wid, xawtv_remote_atom, XA_STRING, 8*sizeof(char),
-                            PropModeReplace, pCmdStr, cmdLen);
+                            PropModeReplace, (uchar*)pCmdStr, cmdLen);
             result = TRUE;
          }
       }
@@ -833,7 +834,7 @@ static bool Xawtv_QueryRemoteStation( Window wid, char * pBuffer, int bufLen, in
    int format, argc;
    ulong off;
    ulong nitems, bytesafter;
-   uchar *args;
+   char *args;
    bool result = FALSE;
 
    if (wid != None)
@@ -846,7 +847,7 @@ static bool Xawtv_QueryRemoteStation( Window wid, char * pBuffer, int bufLen, in
 
          args = NULL;
          if ( (XGetWindowProperty(dpy, wid, xawtv_station_atom, 0, (65536 / sizeof (long)), False, XA_STRING,
-                                  &type, &format, &nitems, &bytesafter, &args) == Success) && (args != NULL) )
+                                  &type, &format, &nitems, &bytesafter, (uchar**)&args) == Success) && (args != NULL) )
          {
             // argument list is: frequency, channel, name
             for (off=0, argc=0; off < nitems; off += strlen(args + off) + 1, argc++)
@@ -1740,7 +1741,7 @@ static int Xawtv_QueryTvapp( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_O
    Atom   type;
    int    format;
    ulong  nitems, bytesafter;
-   uchar  *args;
+   char  *args;
 
    dpy = Xawtv_GetTvDisplay();
    if (dpy != NULL)
@@ -1769,7 +1770,7 @@ static int Xawtv_QueryTvapp( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_O
          errHandler = Tk_CreateErrorHandler(dpy, -1, -1, -1, (Tk_ErrorProc *) Xawtv_X11ErrorHandler, (ClientData) NULL);
 
          if ( (XGetWindowProperty(dpy, xawtv_wid, wm_class_atom, 0, 64, False, AnyPropertyType,
-                                  &type, &format, &nitems, &bytesafter, &args) == Success) && (args != NULL) )
+                                  &type, &format, &nitems, &bytesafter, (uchar**)&args) == Success) && (args != NULL) )
          {
             if (type == XA_STRING)
             {

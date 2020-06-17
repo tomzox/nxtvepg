@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgacqctl.h,v 1.48 2009/03/29 19:17:16 tom Exp tom $
+ *  $Id: epgacqctl.h,v 1.49 2020/06/17 19:31:21 tom Exp tom $
  */
 
 #ifndef __EPGACQCTL_H
@@ -170,7 +170,7 @@ typedef struct
 typedef struct
 {
    time32_t            acqStartTime;
-   uint8_t             srcName[EPG_TTX_STATS_NAMLEN];
+   char                srcName[EPG_TTX_STATS_NAMLEN];
    int32_t             srcIdx;
    TTX_GRAB_STATS      pkgStats;
 } EPG_TTX_GRAB_STATS;

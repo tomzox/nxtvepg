@@ -30,7 +30,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: Makefile,v 1.111 2020/06/17 08:17:57 tom Exp tom $
+#  $Id: Makefile,v 1.112 2020/06/17 19:29:13 tom Exp tom $
 #
 
 ifeq ($(OS),Windows_NT)
@@ -127,7 +127,6 @@ endif
 
 WARN    = -Wall -Wnested-externs -Wstrict-prototypes -Wmissing-prototypes
 WARN   += -Wextra -Wno-sign-compare -Wno-unused-parameter
-WARN   += -Wno-pointer-sign
 WARN   += -Wcast-align -Wpointer-arith -Werror
 #WARN  += -Wcast-qual -Wwrite-strings -Wshadow
 CC      = gcc

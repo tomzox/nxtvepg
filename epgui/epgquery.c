@@ -19,7 +19,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgquery.c,v 1.3 2010/05/06 19:44:01 tom Exp tom $
+ *  $Id: epgquery.c,v 1.4 2020/06/17 19:33:54 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -443,8 +443,8 @@ static bool EpgQuery_FilterSet( EPGDB_CONTEXT * pDbContext,
                                 const AI_BLOCK * pAiBlock, FILTER_CONTEXT * fc,
                                 uint filtType, const char * pArg, char ** ppErrStr )
 {
-   ulong time1;
-   ulong time2;
+   time_t time1;
+   time_t time2;
    uint  idx;
    uint  int1;
    uint  int2;

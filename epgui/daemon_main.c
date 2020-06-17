@@ -20,7 +20,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: daemon_main.c,v 1.12 2020/06/17 08:19:50 tom Exp tom $
+ *  $Id: daemon_main.c,v 1.13 2020/06/17 19:32:20 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -73,7 +73,7 @@ uint UiControlMsg_QueryProvFreq( uint cni )
 }
 void UiControlMsg_ReloadError( uint cni, EPGDB_RELOAD_RESULT dberr, CONTEXT_RELOAD_ERR_HAND errHand, bool isNewDb )
 {
-   uchar msgBuf[100];
+   char msgBuf[100];
 
    // non-GUI, non-acq background errors are reported only
    // at the first access and if it's not just a missing db
@@ -94,7 +94,7 @@ void UiControlMsg_ReloadError( uint cni, EPGDB_RELOAD_RESULT dberr, CONTEXT_RELO
 }
 void UiControlMsg_MissingTunerFreq( uint cni )
 {
-   uchar msgBuf[100];
+   char msgBuf[100];
 
    sprintf(msgBuf, "cannot tune channel for provider 0x%04X: frequency unknown", cni);
    EpgNetIo_Logger(LOG_NOTICE, -1, 0, msgBuf, NULL);

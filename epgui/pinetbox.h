@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: pinetbox.h,v 1.4 2003/02/09 17:37:03 tom Exp tom $
+ *  $Id: pinetbox.h,v 1.5 2020/06/17 19:32:20 tom Exp tom $
  */
 
 #ifndef __PINETBOX_H
@@ -30,7 +30,7 @@ void PiNetBox_Reset( void );
 void PiNetBox_Refresh( void );
 
 void PiNetBox_AiStateChange( void );
-void PiNetBox_ErrorMessage( const uchar * pMessage );
+void PiNetBox_ErrorMessage( const char * pMessage );
 
 const PI_BLOCK * PiNetBox_GetSelectedPi( void );
 void PiNetBox_GotoPi( const PI_BLOCK * pPiBlock );

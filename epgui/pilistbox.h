@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: pilistbox.h,v 1.16 2003/01/11 19:52:30 tom Exp tom $
+ *  $Id: pilistbox.h,v 1.17 2020/06/17 19:32:20 tom Exp tom $
  */
 
 #ifndef __PILISTBOX_H
@@ -33,7 +33,7 @@ void PiListBox_Refresh( void );
 const PI_BLOCK * PiListBox_GetSelectedPi( void );
 
 // Interface to ui control module
-void PiListBox_ErrorMessage( const uchar * pMessage );
+void PiListBox_ErrorMessage( const char * pMessage );
 void PiListBox_AiStateChange( void );
 
 // interface to TV app interaction module

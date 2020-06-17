@@ -22,7 +22,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: loadtcl.c,v 1.9 2005/07/17 18:28:29 tom Exp tom $
+ *  $Id: loadtcl.c,v 1.10 2020/06/17 19:34:10 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -82,7 +82,7 @@ typedef struct
 {
    const uchar * pStatic;
    const uchar * pDynamic;
-   const uchar * pFileName;
+   const char * pFileName;
 } TCL_LOAD_TAB;
 
 static const TCL_LOAD_TAB pLoadTab[] =
@@ -126,7 +126,7 @@ static int LoadDynamicTclScript( ClientData ttp, Tcl_Interp *interp, int objc, T
    const char * const pUsage = "Usage: C_LoadDynamicTclScript <script-name>";
    const TCL_LOAD_TAB * pModule;
    const char * pScriptName;
-   const char * pScript;
+   const uchar * pScript;
    int  result;
 
    if ( (objc != 2) || ((pScriptName = Tcl_GetString(objv[1])) == NULL) )
@@ -151,7 +151,7 @@ static int LoadDynamicTclScript( ClientData ttp, Tcl_Interp *interp, int objc, T
 
       if (pScript != NULL)
       {
-         if (TCL_EVAL_CONST(interp, pScript) != TCL_OK)
+         if (TCL_EVAL_CONST(interp, (char*)pScript) != TCL_OK)
          {
             debug1("LoadDynamic-TclScript: failed to compile '%s'", pScriptName);
             debugTclErr(interp, "eval");
@@ -172,7 +172,7 @@ void LoadTcl_Init( bool withGui )
    const TCL_LOAD_TAB * pModule;
 
    // the rc/ini file handling is required both for GUI and the daemon
-   if (TCL_EVAL_CONST(interp, rcfile_tcl_static) != TCL_OK)
+   if (TCL_EVAL_CONST(interp, (char*)rcfile_tcl_static) != TCL_OK)
    {
       debugTclErr(interp, "eval rcfile script");
    }
@@ -182,7 +182,7 @@ void LoadTcl_Init( bool withGui )
       // load the static part of all tcl script files
       for (pModule = pLoadTab; pModule->pStatic != NULL; pModule++)
       {
-         if (TCL_EVAL_CONST(interp, pModule->pStatic) != TCL_OK)
+         if (TCL_EVAL_CONST(interp, (char*)pModule->pStatic) != TCL_OK)
          {
             debug1("LoadTcl-Init: failed to compile static script #%d", (uint)(pModule - pLoadTab));
             debugTclErr(interp, "eval");

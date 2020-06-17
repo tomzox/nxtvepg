@@ -21,7 +21,7 @@
  *
  *  Author: Thorsten Zoerner
  *
- *  $Id: tvsim_main.c,v 1.37 2020/06/15 09:59:03 tom Exp tom $
+ *  $Id: tvsim_main.c,v 1.38 2020/06/17 19:39:49 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_TVSIM
@@ -532,13 +532,13 @@ static void TvSimu_IcccmIdleHandler( ClientData clientData )
                Tcl_DeleteTimerHandler(popDownEvent);
             popDownEvent = NULL;
 
-            TvSimu_DisplayPiDescription(args);
+            TvSimu_DisplayPiDescription((char*)args);
 
 #ifndef DPRINTF_OFF
             if (args[0] != 0)
             {
                EPG_PI epg_pi;
-               if (TvSimu_ParsePiDescription(args, &epg_pi))
+               if (TvSimu_ParsePiDescription((char*)args, &epg_pi))
                   dprintf2("TvSimuMsg-IcccmIdleHandler: RECV NETNAME:%s TITLE:%s\n", epg_pi.pNetName, epg_pi.pTitle);
             }
 #endif
@@ -655,7 +655,7 @@ static void TvSim_XawtvSetStation( int freq, const char *channel, const char *na
 
          XChangeProperty(dpy, toplevel_wid, xawtv_station_atom,
                          XA_STRING, 8, PropModeReplace,
-                         line, len);
+                         (uchar*)line, len);
       }
       else
          debug0("TvSim-XawtvSetStation: display not defined");
@@ -1226,7 +1226,7 @@ Tcl_Obj * TranscodeToUtf8( T_EPG_ENCODING enc,
 static int GetPdcString( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
 {  
    const char * const pUsage = "Usage: C_GetPdcString <index>";
-   const uchar * pThemeStr;
+   const char * pThemeStr;
    int index;
    int result; 
    
@@ -2108,12 +2108,12 @@ static int ui_init( int argc, char **argv )
    }
 
    #ifdef USE_PRECOMPILED_TCL_LIBS
-   if (TCL_EVAL_CONST(interp, tcl_libs_tcl_static) != TCL_OK)
+   if (TCL_EVAL_CONST(interp, (char*)tcl_libs_tcl_static) != TCL_OK)
    {
       debug1("tcl_libs_tcl_static error: %s\n", Tcl_GetStringResult(interp));
       debugTclErr(interp, "tcl_libs_tcl_static");
    }
-   if (TCL_EVAL_CONST(interp, tk_libs_tcl_static) != TCL_OK)
+   if (TCL_EVAL_CONST(interp, (char*)tk_libs_tcl_static) != TCL_OK)
    {
       debug1("tk_libs_tcl_static error: %s\n", Tcl_GetStringResult(interp));
       debugTclErr(interp, "tk_libs_tcl_static");
@@ -2143,7 +2143,7 @@ static int ui_init( int argc, char **argv )
    Tcl_CreateObjCommand(interp, "C_ClockFormat", ClockFormat, (ClientData) NULL, NULL);
    Tcl_CreateObjCommand(interp, "C_ClockScanIso", ClockScanIso, (ClientData) NULL, NULL);
 
-   if (TCL_EVAL_CONST(interp, tvsim_gui_tcl_static) != TCL_OK)
+   if (TCL_EVAL_CONST(interp, (char*)tvsim_gui_tcl_static) != TCL_OK)
    {
       debug1("tvsim_gui_tcl_static error: %s\n", Tcl_GetStringResult(interp));
       debugTclErr(interp, "tvsim_gui_tcl_static");

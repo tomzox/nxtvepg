@@ -19,7 +19,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: pinetbox.c,v 1.47 2014/04/23 21:02:36 tom Exp tom $
+ *  $Id: pinetbox.c,v 1.48 2020/06/17 19:32:20 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -447,7 +447,7 @@ static void PiNetBox_RefreshEvent( ClientData clientData )
 // ----------------------------------------------------------------------------
 // Update the listbox state according to database and acq state
 //
-void PiNetBox_ErrorMessage( const uchar * pMessage )
+void PiNetBox_ErrorMessage( const char * pMessage )
 {
    assert(dbc != NULL);
 
@@ -518,7 +518,7 @@ static void PiNetBox_UpdateInfoText( bool keepView )
 static void PiNetBox_UpdateNetwopNames( void )
 {
    const AI_BLOCK * pAiBlock;
-   const uchar  * pCfNetname;
+   const char   * pCfNetname;
    NETBOX_COL   * pCol;
    uint  colIdx;
    uint  netwop;
@@ -1001,8 +1001,8 @@ static void PiNetBox_ShowCursor( void )
          time_t cur_time;
          time_t start_time;
          sint   elemIdx;
-         uchar  start_str[40];
-         uchar  stop_str[40];
+         char   start_str[40];
+         char   stop_str[40];
 
          pCol = netbox.cols + netbox.cur_col;
          netbox.cur_pseudo_row = ((netbox.height > 1) ? (netbox.height / 2 - 1) : 0);
@@ -3856,7 +3856,7 @@ static void PiNetBox_ScrollMoveto( uint newPiOff )
 static int PiNetBox_ScrollVertical( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
 {
    const char * const pUsage = "Usage: C_PiBox_Scroll {moveto <fract>|scroll <delta> {pages|unit}}";
-   uchar * pOption;
+   char  * pOption;
    double  fract;
    int     delta;
    int     result;
@@ -4194,7 +4194,7 @@ static int PiNetBox_ScrollLeft( uint delta )
 static int PiNetBox_ScrollHorizontal( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
 {
    const char * const pUsage = "Usage: C_PiBox_ScrollHorizontal {moveto <fract>|scroll <delta> {pages|unit}}";
-   uchar * pOption;
+   char  * pOption;
    double  fract;
    uint    newOff;
    int     delta;
@@ -4372,7 +4372,7 @@ static int PiNetBox_GetSelectedNetCni( ClientData ttp, Tcl_Interp *interp, int o
    const AI_BLOCK *pAiBlock;
    NETBOX_COL   * pCol;
    NETBOX_ELEM  * pElem;
-   uchar strbuf[16+2+1];
+   char strbuf[16+2+1];
    int result;
 
    if (objc != 1)
@@ -4418,7 +4418,7 @@ static int PiNetBox_GetSelectedNetCni( ClientData ttp, Tcl_Interp *interp, int o
 static int PiNetBox_GotoTime( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
 {
    const PI_BLOCK * pPiBlock;
-   const uchar    * pArg;
+   const char     * pArg;
    EPGDB_TIME_SEARCH_MODE timeMode;
    int    min_start;
    int    param;
@@ -4725,7 +4725,7 @@ static int PiNetBox_GetCniList( ClientData ttp, Tcl_Interp *interp, int objc, Tc
    Tcl_Obj        * pColList;
    uint   netwop;
    uint   colIdx;
-   uchar  strbuf[16+2+1];
+   char   strbuf[16+2+1];
    int    result;
 
    if (objc != 1)
@@ -4775,9 +4775,9 @@ static void PiNetBox_BuildJoinMap( uchar * pMap, const AI_BLOCK * pAiBlock )
    Tcl_Obj   * pJoinVar;
    Tcl_Obj  ** pJoinList;
    Tcl_Obj  ** pCniList;
-   uint  joinCount;
+   int   joinCount;
    uint  joinIdx;
-   uint  cniCount;
+   int   cniCount;
    uint  cniIdx;
    int   cni;
    uchar netwop;

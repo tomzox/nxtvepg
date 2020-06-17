@@ -23,7 +23,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgdbfil.c,v 1.50 2008/01/21 22:50:03 tom Exp tom $
+ *  $Id: epgdbfil.c,v 1.51 2020/06/17 19:30:47 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB
@@ -437,7 +437,7 @@ uchar EpgDbFilterInitThemes( FILTER_CONTEXT *fc, uchar themeClassBitField )
 void EpgDbFilterSetThemes( FILTER_CONTEXT *fc, uchar firstTheme, uchar lastTheme, uchar themeClassBitField )
 {
    uint index;
-   
+
    assert(themeClassBitField != 0);
    assert(firstTheme <= lastTheme);
 
@@ -509,7 +509,7 @@ uchar EpgDbFilterInitSortCrit( FILTER_CONTEXT *fc, uchar sortCritClassBitField )
 void EpgDbFilterSetSortCrit( FILTER_CONTEXT *fc, uchar firstSortCrit, uchar lastSortCrit, uchar sortCritClassBitField )
 {
    uint index;
-   
+
    assert(sortCritClassBitField != 0);
    assert(firstSortCrit <= lastSortCrit);
 
@@ -916,12 +916,13 @@ void EpgDbFilterSetCustom( FILTER_CONTEXT *fc, CUSTOM_FILTER_MATCH * pMatchCb,
                                      //"ÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏÐÑÒÓÔÕÖ×ØÙÚÛÜÝÞß"
 const uchar latin1LowerCaseTable[32] = "àáâãäåæçèéêëìíîïðñòóôõö×øùúûüýþß";
 
-void EpgDbFilterSetSubStr( FILTER_CONTEXT *fc, const uchar *pStr,
+void EpgDbFilterSetSubStr( FILTER_CONTEXT *fc, const char *pStr,
                            bool scopeTitle, bool scopeDesc, bool matchCase, bool matchFull )
 {
    EPGDB_FILT_SUBSTR * pSubStrCtx;
    uint   size;
-   uchar *p, c;
+   char * p;
+   uchar  c;
 
    assert(scopeTitle || scopeDesc);
 
@@ -962,7 +963,7 @@ void EpgDbFilterSetSubStr( FILTER_CONTEXT *fc, const uchar *pStr,
 // ---------------------------------------------------------------------------
 // Make a lower-case copy of a string for case-insensitive comparisons
 //
-static void EpgDbFilter_SubstrToLower( const uchar * src, uchar * dst, uint maxLen )
+static void EpgDbFilter_SubstrToLower( const char * src, char * dst, uint maxLen )
 {
    register uchar c;
    register int  len;
@@ -982,12 +983,12 @@ static void EpgDbFilter_SubstrToLower( const uchar * src, uchar * dst, uint maxL
 }
 
 // ---------------------------------------------------------------------------
-// Compare text with search string accorgind to search parameters
+// Compare text with search string according to search parameters
 // - parameter #1: ignore case
 // - parameter #2: exact => search string must match start and end of text
 //
 static bool xstrcmp( const EPGDB_FILT_SUBSTR *ssc, const char * str,
-                     uchar * pCache, uint cacheSize,  bool * pIsLower )
+                     char * pCache, uint cacheSize,  bool * pIsLower )
 {
    bool match;
 
@@ -1030,12 +1031,12 @@ static bool xstrcmp( const EPGDB_FILT_SUBSTR *ssc, const char * str,
 // - parameter #1: ignore case
 // - parameter #2: exact => search string must match start and end of text
 //
-static bool EpgDbFilter_MatchSubstr( const EPGDB_FILT_SUBSTR *ssc, const uchar * pTitleStr, 
-                                     const uchar * pShortStr,      const uchar * pLongStr )
+static bool EpgDbFilter_MatchSubstr( const EPGDB_FILT_SUBSTR *ssc, const char * pTitleStr,
+                                     const char * pShortStr,       const char * pLongStr )
 {
-   uchar long_info[2048+20];
-   uchar short_info[3*(256+2048+4)]; // XXX FIXME merged db description can be much longer
-   uchar title[255+4];
+   char long_info[2048+20];
+   char short_info[3*(256+2048+4)]; // XXX FIXME merged db description can be much longer
+   char title[255+4];
    bool title_lower;
    bool short_lower;
    bool long_lower;
@@ -1769,7 +1770,7 @@ bool EpgDbFilterMatches( const EPGDB_CONTEXT   * dbc,
 {
    FILTER_CTX_ACT  * fc_act;
    bool  match;
-   
+
    if ((fc != NULL) && (pPi != NULL))
    {
       if (fc->enabledPreFilters & FILTER_NETWOP_PRE2)

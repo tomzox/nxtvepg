@@ -29,7 +29,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgdbsav.c,v 1.71 2020/06/15 09:58:03 tom Exp tom $
+ *  $Id: epgdbsav.c,v 1.72 2020/06/17 19:33:15 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB
@@ -89,7 +89,7 @@ static bool EpgDbDumpHeader( CPDBC dbc, int fd )
    if (dbc->pAiBlock != NULL)
    {
       memset(&header, 0, sizeof(header));
-      strncpy(header.magic, MAGIC_STR, MAGIC_STR_LEN);
+      memcpy(header.magic, MAGIC_STR, MAGIC_STR_LEN);
       header.endianMagic   = ENDIAN_MAGIC;
       header.encoding      = DUMP_ENCODING_SUP;
       header.compatVersion = DUMP_COMPAT;
@@ -223,9 +223,9 @@ static DB_FMT_TYPE EpgDbBuildFileName( uint cni, char * pFilename )
 //
 bool EpgDbDump( PDBC dbc )
 {
-   uchar * pFilename;
+   char * pFilename;
    #ifdef DUMP_NAME_TMP
-   uchar * pTmpname;
+   char * pTmpname;
    #endif
    EPGDB_BLOCK *pWalk;
    BLOCK_TYPE type;
@@ -582,7 +582,7 @@ static EPGDB_RELOAD_RESULT EpgDbReloadHeader( uint cni, int fd, EPGDBSAV_HEADER 
    size = read(fd, (uchar *)pHead, sizeof(*pHead));
    if (size == sizeof(*pHead))
    {
-      if (strncmp(pHead->magic, MAGIC_STR, MAGIC_STR_LEN) == 0)
+      if (memcmp(pHead->magic, MAGIC_STR, MAGIC_STR_LEN) == 0)
       {
          if ( (pHead->endianMagic == ENDIAN_MAGIC) ||
               (pHead->endianMagic == WRONG_ENDIAN) )
@@ -979,7 +979,7 @@ EPGDB_CONTEXT * EpgDbPeek( uint cni, uint expireDelayPi,
    ssize_t readSize;
    int     fd;
    bool    swapEndian;
-   uchar * pFilename;
+   char  * pFilename;
    DB_FMT_TYPE nameFmt;
    EPGDB_RELOAD_RESULT result;
 
@@ -1150,7 +1150,7 @@ void EpgDbReloadScan( void (*pCb)(uint cni, const char * pPath, sint mtime) )
    WIN32_FIND_DATA finddata;
    SYSTEMTIME  systime;
    uint cni;
-   uchar *pDirPath;
+   char *pDirPath;
    struct tm tm;
    bool bMore;
    DB_FMT_TYPE fileFmt;
@@ -1303,7 +1303,7 @@ bool EpgDbDumpCheckFileHeader( const char * pFilename )
       size = read(fd, (uchar *)&head, sizeof(head));
       if (size == sizeof(head))
       {
-         if ( (strncmp(head.magic, MAGIC_STR, MAGIC_STR_LEN) == 0) &&
+         if ( (memcmp(head.magic, MAGIC_STR, MAGIC_STR_LEN) == 0) &&
               ( (head.endianMagic == ENDIAN_MAGIC) ||
                 (head.endianMagic == WRONG_ENDIAN)) )
          {
@@ -1392,7 +1392,7 @@ bool EpgDbDumpUpdateHeader( uint cni, uint freq )
 {
    EPGDBSAV_HEADER head;
    ssize_t  size;
-   uchar  * pFilename;
+   char   * pFilename;
    int      fd;
    uint32_t headCompatVersion;
    uint32_t headCni;
@@ -1406,7 +1406,7 @@ bool EpgDbDumpUpdateHeader( uint cni, uint freq )
       size = read(fd, (uchar *)&head, sizeof(head));
       if (size == sizeof(head))
       {
-         if ( (strncmp(head.magic, MAGIC_STR, MAGIC_STR_LEN) == 0) &&
+         if ( (memcmp(head.magic, MAGIC_STR, MAGIC_STR_LEN) == 0) &&
               ( (head.endianMagic == ENDIAN_MAGIC) ||
                 (head.endianMagic == WRONG_ENDIAN)) )
          {
@@ -1460,7 +1460,7 @@ time_t EpgReadAiUpdateTime( uint cni )
 {
    EPGDBSAV_HEADER head;
    ssize_t size;
-   uchar * pFilename;
+   char  * pFilename;
    int     fd;
    time_t  aiUpdateTime = (time_t) 0;
 
@@ -1472,7 +1472,7 @@ time_t EpgReadAiUpdateTime( uint cni )
       size = read(fd, (uchar *)&head, sizeof(head));
       if (size == sizeof(head))
       {
-         if ( (strncmp(head.magic, MAGIC_STR, MAGIC_STR_LEN) == 0) &&
+         if ( (memcmp(head.magic, MAGIC_STR, MAGIC_STR_LEN) == 0) &&
               ( (head.endianMagic == ENDIAN_MAGIC) ||
                 (head.endianMagic == WRONG_ENDIAN)) )
          {
@@ -1504,7 +1504,7 @@ uint EpgDbReadFreqFromDefective( uint cni )
 {
    EPGDBSAV_HEADER head;
    ssize_t size;
-   uchar * pFilename;
+   char  * pFilename;
    int     fd;
    uint    tunerFreq = 0;
 
@@ -1516,7 +1516,7 @@ uint EpgDbReadFreqFromDefective( uint cni )
       size = read(fd, (uchar *)&head, sizeof(head));
       if (size == sizeof(head))
       {
-         if ( (strncmp(head.magic, MAGIC_STR, MAGIC_STR_LEN) == 0) &&
+         if ( (memcmp(head.magic, MAGIC_STR, MAGIC_STR_LEN) == 0) &&
               ( (head.endianMagic == ENDIAN_MAGIC) ||
                 (head.endianMagic == WRONG_ENDIAN)) )
          {
@@ -1545,7 +1545,7 @@ uint EpgDbReadFreqFromDefective( uint cni )
 //
 uint EpgDbRemoveDatabaseFile( uint cni )
 {
-   uchar * pFilename;
+   char * pFilename;
    uint result;
 
    result = 0;

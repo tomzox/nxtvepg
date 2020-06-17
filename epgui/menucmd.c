@@ -18,7 +18,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: menucmd.c,v 1.136 2020/06/17 08:19:56 tom Exp tom $
+ *  $Id: menucmd.c,v 1.137 2020/06/17 19:34:20 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -840,7 +840,7 @@ static int MenuCmd_GetProvServiceInfos( ClientData ttp, Tcl_Interp *interp, int 
 static int MenuCmd_GetCurrentDatabaseCni( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
 {
    const char * const pUsage = "Usage: C_GetCurrentDatabaseCni";
-   uchar buf[16+2+1];
+   char buf[16+2+1];
    uint dbCni;
    int result;
 
@@ -913,7 +913,7 @@ static int MenuCmd_GetProvCnisAndNames( ClientData ttp, Tcl_Interp *interp, int 
    EPGDB_CONTEXT  * pPeek;
    Tcl_Obj * pResultList;
    const char * pStr;
-   uchar buf[16+2+1];
+   char buf[16+2+1];
    uint idx, cniCount;
    bool nxtv_only;
    int result;
@@ -1048,25 +1048,25 @@ static int MenuCmd_UpdateProvCniConfig( ClientData ttp, Tcl_Interp *interp, int 
    uint idx;
    int result;
 
-   if ((objc != 1+3) || (Tcl_GetIntFromObj(interp, objv[1], &provCni) != TCL_OK))
+   if ((objc != 1+3) || (Tcl_GetIntFromObj(interp, objv[1], (int*)&provCni) != TCL_OK))
    {
       Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
       result = TCL_ERROR;
    }
    else
    {
-      result = Tcl_ListObjGetElements(interp, objv[2], &cniSelCount, &pSelCniObjv);
+      result = Tcl_ListObjGetElements(interp, objv[2], (int*)&cniSelCount, &pSelCniObjv);
       if (result == TCL_OK)
       {
          if (cniSelCount > RC_MAX_DB_NETWWOPS)
             cniSelCount = RC_MAX_DB_NETWWOPS;
          pSelCni = xmalloc(sizeof(*pSelCni) * (cniSelCount + 1));  // +1 to avoid zero-len alloc
          for (idx = 0; (idx < cniSelCount) && (result == TCL_OK); idx++)
-            result = Tcl_GetIntFromObj(interp, pSelCniObjv[idx], &pSelCni[idx]);
+            result = Tcl_GetIntFromObj(interp, pSelCniObjv[idx], (int*)&pSelCni[idx]);
 
          if (result == TCL_OK)
          {
-            result = Tcl_ListObjGetElements(interp, objv[3], &cniSupCount, &pSupCniObjv);
+            result = Tcl_ListObjGetElements(interp, objv[3], (int*)&cniSupCount, &pSupCniObjv);
             if (result == TCL_OK)
             {
                if (cniSupCount > RC_MAX_DB_NETWWOPS)
@@ -1074,7 +1074,7 @@ static int MenuCmd_UpdateProvCniConfig( ClientData ttp, Tcl_Interp *interp, int 
 
                pSupCni = xmalloc(sizeof(*pSupCni) * (cniSupCount + 1));
                for (idx = 0; (idx < cniSupCount) && (result == TCL_OK); idx++)
-                  result = Tcl_GetIntFromObj(interp, pSupCniObjv[idx], &pSupCni[idx]);
+                  result = Tcl_GetIntFromObj(interp, pSupCniObjv[idx], (int*)&pSupCni[idx]);
 
                if (result == TCL_OK)
                {
@@ -1106,7 +1106,7 @@ static void MenuCmd_AppendNetwopList( Tcl_Interp *interp, Tcl_Obj * pList,
    const AI_BLOCK * pAiBlock;
    const AI_NETWOP *pNetwop;
    const char * pCfNetname;
-   uchar strbuf[16+2+1];
+   char strbuf[16+2+1];
    Tcl_Obj * pNetwopObj;
    bool  isFromAi;
    uint  netwop;
@@ -1308,7 +1308,7 @@ static int MenuCmd_UpdateNetwopNames( ClientData ttp, Tcl_Interp *interp, int ob
 {
    const char * const pUsage = "Usage: C_UpdateNetwopNames {<cni> <name> ...}";
    Tcl_Obj ** pObjArgv;
-   uint objCount;
+   int objCount;
    uint * pCniList;
    const char ** pNameList;
    Tcl_DString * pDstrList;
@@ -1336,7 +1336,7 @@ static int MenuCmd_UpdateNetwopNames( ClientData ttp, Tcl_Interp *interp, int ob
             Tcl_UtfToExternalDString(NULL, Tcl_GetString(pObjArgv[idx*2 + 1]), -1, &pDstrList[idx]);
             pNameList[idx] = Tcl_DStringValue(&pDstrList[idx]);
 
-            if (Tcl_GetIntFromObj(interp, pObjArgv[idx*2], &pCniList[idx]) != TCL_OK)
+            if (Tcl_GetIntFromObj(interp, pObjArgv[idx*2], (int*)&pCniList[idx]) != TCL_OK)
             {
                result = TCL_ERROR;
             }
@@ -1372,7 +1372,7 @@ static int MenuCmd_NormalizeCni( ClientData ttp, Tcl_Interp *interp, int objc, T
       Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
       result = TCL_ERROR; 
    }  
-   else if (Tcl_GetIntFromObj(interp, objv[1], &cni) != TCL_OK)
+   else if (Tcl_GetIntFromObj(interp, objv[1], (int*)&cni) != TCL_OK)
    {
       result = TCL_ERROR; 
    }
@@ -1402,7 +1402,7 @@ static int MenuCmd_UpdateMergeOptions( Tcl_Interp *interp, Tcl_Obj * pAttrListOb
    Tcl_Obj       ** pIdxArgv;
    uint cniBuf[MAX_MERGED_DB_COUNT];
    uint cniBufCount;
-   uint attrCount, idxCount, idx, ati, matIdx, cni;
+   int attrCount, idxCount, idx, ati, matIdx, cni;
    int  result;
 
    // note order must match that of enum MERGE_ATTRIB_TYPE
@@ -1983,7 +1983,7 @@ static uint GetProvFreqTab( uint ** ppFreqTab, uint ** ppCniTab )
 //
 static void MenuCmd_AddProvDelButton( uint cni )
 {
-   uchar strbuf[50 + 16+2+1];
+   char strbuf[50 + 16+2+1];
 
    sprintf(strbuf, "EpgScanAddProvDelButton 0x%04X", cni);
    eval_check(interp, comm);
@@ -2042,7 +2042,7 @@ static int MenuCmd_StartEpgScan( ClientData ttp, Tcl_Interp *interp, int objc, T
    char * pErrMsg;
    uint  *freqTab;
    uint  *cniTab;
-   int freqCount;
+   uint freqCount;
    int isOptionSlow, isOptionRefresh, ftableIdx;
    uint rescheduleMs;
    int result;

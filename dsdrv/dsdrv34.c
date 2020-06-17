@@ -17,7 +17,7 @@
 // PCICard.cpp, HardwareDriver.cpp, HardwareMemory is from Dscaler
 // Copyright (c) 2001 John Adcock.  All rights reserved.
 /////////////////////////////////////////////////////////////////////////////
-// nxtvepg $Id: dsdrv34.c,v 1.12 2006/12/21 20:31:47 tom Exp tom $
+// nxtvepg $Id: dsdrv34.c,v 1.13 2020/06/17 19:29:35 tom Exp tom $
 /////////////////////////////////////////////////////////////////////////////
 
 // What's this ?
@@ -77,7 +77,7 @@ static BOOL CheckDriverImagePath( void )
    if (RegOpenKeyEx(HKEY_LOCAL_MACHINE, SERVICE_KEY NT_DRIVER_NAME, 0, KEY_READ, &hKey) == ERROR_SUCCESS)
    {
       dwSize = sizeof(name_buf) - 1;
-      if (RegQueryValueEx(hKey, "ImagePath", 0, &dwType, name_buf, &dwSize) == ERROR_SUCCESS)
+      if (RegQueryValueEx(hKey, "ImagePath", 0, &dwType, (BYTE*)name_buf, &dwSize) == ERROR_SUCCESS)
       {
          if (dwType == REG_EXPAND_SZ)
          {

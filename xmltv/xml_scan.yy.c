@@ -1979,7 +1979,7 @@ static void XmlScan_AddCharRef( XML_STR_BUF * p_buf, char * p_text, int base )
 ** - the function works by reading the input word for word, decoding UTF-16,
 **   re-encoding in UTF-8 and appending the result to the internal input buffer
 */
-static size_t XmlScan_ReadUtf16IntoUtf8Buffer( uchar *ptr, size_t max_size )
+static size_t XmlScan_ReadUtf16IntoUtf8Buffer( char *ptr, size_t max_size )
 {
    uint w1, w2, code;
    int  c1, c2;

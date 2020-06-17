@@ -22,7 +22,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: Makefile.win32,v 1.80 2020/06/17 08:17:57 tom Exp tom $
+#  $Id: Makefile.win32,v 1.81 2020/06/17 19:29:13 tom Exp tom $
 #
 
 ifeq ($(OS),Windows_NT)
@@ -93,7 +93,6 @@ DEFS   += -DWIN32
 
 WARN    = -Wall -Wpointer-arith -Wnested-externs -Wmissing-prototypes
 WARN   += -Wextra -Wno-sign-compare -Wno-unused-parameter
-WARN   += -Wno-pointer-sign
 WARN   += -Werror
 #WARN  += -Wstrict-prototypes
 CFLAGS  = -pipe $(WARN) $(INCS) $(DEFS) -g -O2

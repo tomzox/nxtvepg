@@ -39,7 +39,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: xml_scan.lex,v 1.13 2005/12/31 19:31:17 tom Exp tom $
+ *  $Id: xml_scan.lex,v 1.14 2020/06/17 19:35:00 tom Exp tom $
  */
 
 %{
@@ -213,7 +213,7 @@ static void XmlScan_AddCharRef( XML_STR_BUF * p_buf, char * p_text, int base )
 ** - the function works by reading the input word for word, decoding UTF-16,
 **   re-encoding in UTF-8 and appending the result to the internal input buffer
 */
-static size_t XmlScan_ReadUtf16IntoUtf8Buffer( uchar *ptr, size_t max_size )
+static size_t XmlScan_ReadUtf16IntoUtf8Buffer( char *ptr, size_t max_size )
 {
    uint w1, w2, code;
    int  c1, c2;

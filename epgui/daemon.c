@@ -18,7 +18,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: daemon.c,v 1.20 2020/06/15 09:59:15 tom Exp tom $
+ *  $Id: daemon.c,v 1.21 2020/06/17 19:32:20 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -980,7 +980,7 @@ static void Daemon_TriggerGui( void )
 {
    #ifdef WIN32
    HANDLE  parentEvHd;
-   uchar   id_buf[20];
+   char    id_buf[20];
    #else
    ssize_t wstat;
    #endif

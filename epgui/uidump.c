@@ -21,7 +21,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: uidump.c,v 1.7 2008/10/12 19:57:42 tom Exp tom $
+ *  $Id: uidump.c,v 1.8 2020/06/17 19:32:20 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -363,10 +363,9 @@ static int EpgDump_GetRawPi( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_O
    const PI_BLOCK * pPiBlock;
    const DESCRIPTOR *pDesc;
    const char * pCfNetname;
-   const uchar * pThemeStr;
-   const uchar * pGeneralStr;
-   uchar *p;
-   uchar start_str[50], stop_str[50];
+   const char * pThemeStr;
+   const char * pGeneralStr;
+   char start_str[50], stop_str[50];
    time_t start_time;
    time_t stop_time;
    bool isFromAi;
@@ -430,6 +429,7 @@ static int EpgDump_GetRawPi( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_O
          }
          APPEND_ASCII(comm, len);
 
+         char *p;
          switch(pPiBlock->feature_flags & 0x03)
          {
            case  0: p = "mono"; break;

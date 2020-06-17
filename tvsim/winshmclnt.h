@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: winshmclnt.h,v 1.7 2007/12/31 17:03:12 tom Exp tom $
+ *  $Id: winshmclnt.h,v 1.8 2020/06/17 19:39:40 tom Exp tom $
  */
 
 #ifndef __WINSHMCLNT_H
@@ -59,7 +59,7 @@ typedef struct
 char * WinSharedMemClient_GetProgInfo( void );
 bool WinSharedMemClient_GetCmdArgv( uint * pArgc, uint * pArgLen, char * pCmdBuf, uint cmdMaxLen );
 bool WinSharedMemClient_GetInpFreq( uint * pInputSrc, uint * pFreq, uint * pNorm );
-const uchar * WinSharedMemClient_GetErrorMsg( void );
+const char * WinSharedMemClient_GetErrorMsg( void );
 WINSHMCLNT_EVENT WinSharedMemClient_GetEpgEvent( void );
 
 bool WinSharedMemClient_GrantTuner( bool doGrant );

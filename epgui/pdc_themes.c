@@ -23,7 +23,7 @@
  *
  *    French translation by mat (mat100@ifrance.com) with help of nash bridges.
  *
- *  $Id: pdc_themes.c,v 1.12 2007/01/28 17:43:46 tom Exp tom $
+ *  $Id: pdc_themes.c,v 1.13 2020/06/17 19:32:20 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -34,7 +34,7 @@
 
 #include "epgui/pdc_themes.h"
 
-static const uchar * const pdc_themes_eng[] =
+static const char * const pdc_themes_eng[] =
 {
             0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
    /*0x10*/ "movie",
@@ -126,7 +126,7 @@ static const uchar * const pdc_themes_eng[] =
 };
 
 #ifdef USE_UTF8
-static const uchar * const pdc_themes_ger[] =
+static const char * const pdc_themes_ger[] =
 {
             0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
    /*0x10*/ "Spielfilm",
@@ -217,7 +217,7 @@ static const uchar * const pdc_themes_ger[] =
    /*0x80*/ "Serie",
 };
 #else // !USE_UTF8
-static const uchar * const pdc_themes_ger[] =
+static const char * const pdc_themes_ger[] =
 {
             0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
    /*0x10*/ "Spielfilm",
@@ -310,7 +310,7 @@ static const uchar * const pdc_themes_ger[] =
 #endif // !USE_UTF8
 
 #ifdef USE_UTF8
-static const uchar * const pdc_themes_fra[] =
+static const char * const pdc_themes_fra[] =
 {
             0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
    /*0x10*/ "Film",
@@ -401,7 +401,7 @@ static const uchar * const pdc_themes_fra[] =
    /*0x80*/ "SÃ©ries",
 };
 #else // !USE_UTF8
-static const uchar * const pdc_themes_fra[] =
+static const char * const pdc_themes_fra[] =
 {
             0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
    /*0x10*/ "Film",
@@ -493,13 +493,13 @@ static const uchar * const pdc_themes_fra[] =
 };
 #endif // !USE_UTF8
 
-static const uchar * const pdc_general_eng = " - general";
-static const uchar * const pdc_general_ger = " - allgemein";
-static const uchar * const pdc_general_fra = " - général";
+static const char * const pdc_general_eng = " - general";
+static const char * const pdc_general_ger = " - allgemein";
+static const char * const pdc_general_fra = " - général";
 
-static const uchar * const pdc_undefined_eng = "undefined";
-static const uchar * const pdc_undefined_ger = "unbekannt";
-static const uchar * const pdc_undefined_fra = "non défini";
+static const char * const pdc_undefined_eng = "undefined";
+static const char * const pdc_undefined_ger = "unbekannt";
+static const char * const pdc_undefined_fra = "non défini";
 
 static const uchar pdc_categories[2 * 8] =
 {
@@ -520,9 +520,9 @@ static const uchar pdc_categories[2 * 8] =
    0x70,
 };
 
-static const uchar * const * pdc_themes = pdc_themes_eng;
-static const uchar * pdc_general        = "";
-static const uchar * pdc_undefined      = "";
+static const char * const * pdc_themes = pdc_themes_eng;
+static const char * pdc_general        = "";
+static const char * pdc_undefined      = "";
 
 // ---------------------------------------------------------------------------
 // 
@@ -553,7 +553,7 @@ void PdcThemeSetLanguage( uchar lang )
 // ---------------------------------------------------------------------------
 // Returns predefined text for the given PDC theme index or NULL
 //
-const uchar * PdcThemeGet( uchar theme )
+const char * PdcThemeGet( uchar theme )
 {
    if (theme < 0x80)
       return pdc_themes[theme];
@@ -564,9 +564,9 @@ const uchar * PdcThemeGet( uchar theme )
 // ---------------------------------------------------------------------------
 // Returns predefined text for the given PDC theme index or NULL
 //
-const uchar * PdcThemeGetByLang( uchar theme, uchar lang )
+const char * PdcThemeGetByLang( uchar theme, uchar lang )
 {
-   const uchar * pResult;
+   const char * pResult;
 
    if (theme >= 0x80)
       theme = PDC_THEME_SERIES;
@@ -588,9 +588,9 @@ const uchar * PdcThemeGetByLang( uchar theme, uchar lang )
 // - if there is no text for the given index NULL is returned, or optionally
 //   "undefined"
 //
-const uchar * PdcThemeGetWithGeneral( uchar theme, const uchar ** pGeneralStr, bool withUndef )
+const char * PdcThemeGetWithGeneral( uchar theme, const char ** pGeneralStr, bool withUndef )
 {
-   const uchar * pThemeStr;
+   const char * pThemeStr;
    bool isGeneral;
    uint idx;
 
@@ -659,4 +659,3 @@ uchar PdcThemeGetCategory( uchar theme )
 
    return category;
 }
-

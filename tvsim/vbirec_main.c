@@ -31,7 +31,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: vbirec_main.c,v 1.29 2009/05/02 18:57:11 tom Exp tom $
+ *  $Id: vbirec_main.c,v 1.30 2020/06/17 19:40:07 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_TVSIM
@@ -132,7 +132,7 @@ typedef struct
 {
    uint   cni;
    uint   pil;
-   uchar  text[PDC_TEXT_LEN + 1];
+   char   text[PDC_TEXT_LEN + 1];
 } CNIPIL;
 
 typedef struct
@@ -774,9 +774,9 @@ static void UpdateCniName( volatile CNI_ACQ_STATE * pNew )
 // ---------------------------------------------------------------------------
 // Update teletext header
 //
-static void UpdateTtxHeader( const uchar * pHeaderData )
+static void UpdateTtxHeader( const char * pHeaderData )
 {
-   uchar  headerText[41];
+   char   headerText[41];
    schar  dec;
    uint   textIdx;
    uint   dataIdx;
@@ -784,7 +784,7 @@ static void UpdateTtxHeader( const uchar * pHeaderData )
    textIdx=0;
    for (dataIdx=0; dataIdx < 32; dataIdx++)
    {
-      dec = (schar)parityTab[pHeaderData[dataIdx]];
+      dec = (schar)parityTab[(uchar)pHeaderData[dataIdx]];
       if (dec < 0)
          headerText[textIdx++] = '_';
       else if (dec >= ' ')
@@ -960,7 +960,7 @@ static int TclCb_SendEpgOsd( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_O
       uint  chanQueryIdx;
       uint  epgCnt;
       char  station[50];
-      uchar start_str[40], stop_str[20];
+      char  start_str[40], stop_str[20];
       struct tm *pTm;
       time_t time_ts;
 
@@ -1186,18 +1186,18 @@ static int ui_init( int argc, char **argv )
    }
 
    #ifdef USE_PRECOMPILED_TCL_LIBS
-   if (TCL_EVAL_CONST(interp, tcl_libs_tcl_static) != TCL_OK)
+   if (TCL_EVAL_CONST(interp, (char*)tcl_libs_tcl_static) != TCL_OK)
    {
       debug1("tcl_libs_tcl_static error: %s\n", Tcl_GetStringResult(interp));
       debugTclErr(interp, "tcl_libs_tcl_static");
    }
-   if (TCL_EVAL_CONST(interp, tk_libs_tcl_static) != TCL_OK)
+   if (TCL_EVAL_CONST(interp, (char*)tk_libs_tcl_static) != TCL_OK)
    {
       debug1("tk_libs_tcl_static error: %s\n", Tcl_GetStringResult(interp));
       debugTclErr(interp, "tk_libs_tcl_static");
    }
    #endif
-   if (TCL_EVAL_CONST(interp, combobox_tcl_dynamic) != TCL_OK)
+   if (TCL_EVAL_CONST(interp, (char*)combobox_tcl_dynamic) != TCL_OK)
    {
       debug1("combobox_tcl_dynamic error: %s\n", Tcl_GetStringResult(interp));
       debugTclErr(interp, "combobox_tcl_dynamic");
@@ -1219,7 +1219,7 @@ static int ui_init( int argc, char **argv )
    #endif
    Tcl_CreateObjCommand(interp, "C_SendEpgOsd", TclCb_SendEpgOsd, (ClientData) NULL, NULL);
 
-   if (TCL_EVAL_CONST(interp, vbirec_gui_tcl_static) != TCL_OK)
+   if (TCL_EVAL_CONST(interp, (char*)vbirec_gui_tcl_static) != TCL_OK)
    {
       debug1("vbirec_gui_tcl_static error: %s\n", Tcl_GetStringResult(interp));
       debugTclErr(interp, "vbirec_gui_tcl_static");

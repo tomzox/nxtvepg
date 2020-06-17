@@ -30,7 +30,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgaifrag.c,v 1.3 2008/02/03 15:33:40 tom Exp tom $
+ *  $Id: epgaifrag.c,v 1.4 2020/06/17 19:33:00 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_STREAM
@@ -291,7 +291,7 @@ static void EpgAiFrag_DecodeHeader( void )
 // ----------------------------------------------------------------------------
 // Append incoming control data
 //
-static uint EpgAiFrag_AddControlData( const char * pData, uint pkgLen )
+static uint EpgAiFrag_AddControlData( const uchar * pData, uint pkgLen )
 {
    uchar * pDst;
    schar c1;
@@ -331,7 +331,7 @@ static uint EpgAiFrag_AddControlData( const char * pData, uint pkgLen )
 // ----------------------------------------------------------------------------
 // Append incoming text data
 //
-static uint EpgAiFrag_AddTextData( const char * pData, uint pkgLen )
+static uint EpgAiFrag_AddTextData( const uchar * pData, uint pkgLen )
 {
    uchar * pDst;
    schar  c1;
@@ -372,7 +372,7 @@ static uint EpgAiFrag_AddTextData( const char * pData, uint pkgLen )
 // ----------------------------------------------------------------------------
 // Append incoming data
 //
-static void EpgAiFrag_AddData( const char * pData, uint pkgLen )
+static void EpgAiFrag_AddData( const uchar * pData, uint pkgLen )
 {
    uint headLen;
    uint lineOff = 0;
@@ -423,7 +423,7 @@ static void EpgAiFrag_AddData( const char * pData, uint pkgLen )
 // - note during block assembly its mandatory to advance the buffer offset for
 //   each incoming or missing packet, so that data is copied to the correct place
 //
-void EpgAiFragmentsAddPkg( uint stream, uint pkgNo, const char * pData )
+void EpgAiFragmentsAddPkg( uint stream, uint pkgNo, const uchar * pData )
 {
    schar c1;
    uint  pkgLen;
@@ -502,7 +502,7 @@ void EpgAiFragmentsStartPage( uint stream, uint firstPkg, uint newPkgCount )
 // - called for any type of block except BI, i.e. AI but also all PI, NI etc.
 //   because it's not known yet which type the block will have
 //
-void EpgAiFragmentsBlockStart( const char * pHead, uint blockLen, const char * pData, uint pkgLen )
+void EpgAiFragmentsBlockStart( const uchar * pHead, uint blockLen, const uchar * pData, uint pkgLen )
 {
    if (aifrag.activeBlock)
    {

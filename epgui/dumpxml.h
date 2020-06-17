@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: dumpxml.h,v 1.6 2008/10/12 19:56:11 tom Exp tom $
+ *  $Id: dumpxml.h,v 1.7 2020/06/17 19:36:20 tom Exp tom $
  */
 
 #ifndef __DUMPXML_H
@@ -36,7 +36,7 @@ typedef enum
 // Interface functions declaration
 
 void EpgDumpXml_HtmlWriteString( FILE *fp, const char * pText, sint strlen );
-void EpgDumpXml_HtmlRemoveQuotes( const uchar * pStr, uchar * pBuf, uint maxOutLen );
+void EpgDumpXml_HtmlRemoveQuotes( const char * pStr, char * pBuf, uint maxOutLen );
 
 void EpgDumpXml_Standalone( EPGDB_CONTEXT * pDbContext, FILTER_CONTEXT * fc,
                             FILE * fp, DUMP_XML_MODE dumpMode );

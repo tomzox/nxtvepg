@@ -24,7 +24,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: timescale.c,v 1.18 2014/04/23 19:03:03 tom Exp tom $
+ *  $Id: timescale.c,v 1.19 2020/06/17 19:32:20 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -224,7 +224,7 @@ static void TimeScale_UpdateDateScale( ClientData dummy )
 {
    time_t now = time(NULL);
    Tcl_Obj *objv[5];
-   uchar   str_buf[50];
+   char   str_buf[50];
    time_t toff;
    struct tm * pTm;
    uint   target, idx;

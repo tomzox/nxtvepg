@@ -18,7 +18,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: dumpxml.c,v 1.25 2011/01/12 22:01:56 tom Exp tom $
+ *  $Id: dumpxml.c,v 1.26 2020/06/17 19:32:20 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -121,7 +121,7 @@ void EpgDumpXml_HtmlWriteString( FILE *fp, const char * pText, sint strlen )
 // Copy string with double quotes (") replaced with single quotes (')
 // - for use inside HTML tags, e.g. <META source="...">
 //
-void EpgDumpXml_HtmlRemoveQuotes( const uchar * pStr, uchar * pBuf, uint maxOutLen )
+void EpgDumpXml_HtmlRemoveQuotes( const char * pStr, char * pBuf, uint maxOutLen )
 {
    while ((*pStr != 0) && (maxOutLen > 1))
    {
@@ -241,8 +241,8 @@ static void EpgDumpXml_WriteHeader( EPGDB_CONTEXT * pDbContext,
                                     const AI_BLOCK * pAiBlock, const OI_BLOCK * pOiBlock,
                                     FILE * fp, DUMP_XML_MODE xmlDtdVersion )
 {
-   uchar   src_str[200];
-   uchar   start_str[50];
+   char    src_str[200];
+   char    start_str[50];
    time_t  lastAiUpdate;
 
    // content provider string
@@ -321,7 +321,7 @@ static void EpgDumpXml_WriteHeader( EPGDB_CONTEXT * pDbContext,
 static void EpgDumpXml_WriteChannel( const AI_BLOCK * pAiBlock, const char * pChnId,
                                      uint netwopIdx, FILE * fp, DUMP_XML_MODE xmlDtdVersion )
 {
-   const uchar * pNetname;
+   const char * pNetname;
 
    if (netwopIdx < pAiBlock->netwopCount)
    {
@@ -354,9 +354,9 @@ static void EpgDumpXml_WriteProgramme( EPGDB_CONTEXT * pDbContext, const AI_BLOC
    const char  * pThemeStr;
    struct tm     vpsTime;
    uint  idx;
-   uchar start_str[50];
-   uchar stop_str[50];
-   uchar tmp_str[50];
+   char start_str[50];
+   char stop_str[50];
+   char tmp_str[50];
 
    // start & stop times, channel ID
    EpgDumpXml_PrintTimestamp(start_str, sizeof(start_str), pPiBlock->start_time, xmlDtdVersion);
@@ -582,7 +582,7 @@ void EpgDumpXml_Standalone( EPGDB_CONTEXT * pDbContext, FILTER_CONTEXT * fc,
          for (netwopIdx = 0; netwopIdx < pAiBlock->netwopCount; netwopIdx++)
          {
             // determine the XMLTV channel ID
-            const uchar * pChnId;
+            const char * pChnId;
             uint cni = AI_GET_NET_CNI_N(pAiBlock, netwopIdx);
 #ifdef USE_XMLTV_IMPORT
             pChnId = XmltvCni_MapCni2Ids(&xmlIdMap, cni);

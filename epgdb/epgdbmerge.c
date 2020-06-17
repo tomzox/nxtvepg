@@ -22,7 +22,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgdbmerge.c,v 1.35 2011/01/05 19:07:06 tom Exp tom $
+ *  $Id: epgdbmerge.c,v 1.36 2020/06/17 19:30:47 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB
@@ -178,7 +178,7 @@ static EPGDB_BLOCK * EpgDbMergePiBlocks( PDBC dbc, EPGDB_BLOCK **pFoundBlocks )
    const PI_BLOCK * pOnePi;
    PI_BLOCK       * pPi;
    DESCRIPTOR       piDesc[MAX_MERGED_DB_COUNT];
-   const uchar *pTitle;
+   const char *pTitle;
    uint slInfoLen;
    uint blockSize, off;
    uint dbCount, dbIdx, actIdx;
@@ -498,7 +498,7 @@ static EPGDB_BLOCK * EpgDbMergePiBlocks( PDBC dbc, EPGDB_BLOCK **pFoundBlocks )
 
    // append title
    pPi->off_title = off;
-   strcpy((char*)PI_GET_TITLE(pPi), pTitle);
+   strcpy((char*)PI_GET_TITLE(pPi), pTitle);   // cast to remove "const"
    off += strlen(pTitle) + 1;
 
    // append concatenated short infos, separated by ASCII #12 = form-feed
@@ -563,7 +563,7 @@ static EPGDB_BLOCK * EpgDbMergePiBlocks( PDBC dbc, EPGDB_BLOCK **pFoundBlocks )
 //
 static bool EpgDbMerge_PiMatch( const PI_BLOCK * pRefPi, const PI_BLOCK * pNewPi )
 {
-   const uchar * p1, * p2, *pe, *ps;
+   const char * p1, * p2, *pe, *ps;
    sint ovl, rtmin, rtmax;
    uint rt1, rt2;
    bool result = FALSE;
@@ -1120,13 +1120,13 @@ void EpgDbMerge_ResetPiVersion( PDBC dbc, uint dbIdx )
 // ---------------------------------------------------------------------------
 // Create service name for merged database
 //
-static uchar * EpgDbMergeAiServiceNames( EPGDB_MERGE_CONTEXT * dbmc )
+static char * EpgDbMergeAiServiceNames( EPGDB_MERGE_CONTEXT * dbmc )
 {
-   static const uchar * const mergedServiceName = "Merged EPG providers (";
+   static const char * const mergedServiceName = "Merged EPG providers (";
    AI_BLOCK  * pAi;
    uint dbIdx, len;
-   const uchar *name;
-   uchar *mergeName;
+   const char *name;
+   char *mergeName;
 
    // sum up netwop name lens
    len = strlen(mergedServiceName) + 5;
@@ -1168,7 +1168,7 @@ void EpgDbMergeAiBlocks( PDBC dbc, uint netwopCount, uint * pNetwopList )
    uint netwop, dbIdx, idx;
    uchar netOrigIdx[MAX_NETWOP_COUNT];
    uchar dayCount[MAX_NETWOP_COUNT];
-   uchar * pServiceName;          // temporarily holds merged service name
+   char * pServiceName;           // temporarily holds merged service name
    uint nameLen;                  // sum of netwop name lengths
    uint blockLen;                 // length of composed AI block
    uint dbCount;

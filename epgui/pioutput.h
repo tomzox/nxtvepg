@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: pioutput.h,v 1.19 2008/09/20 19:07:05 tom Exp tom $
+ *  $Id: pioutput.h,v 1.20 2020/06/17 19:32:20 tom Exp tom $
  */
 
 #ifndef __PIOUTPUT_H
@@ -78,10 +78,10 @@ void PiOutput_DescriptionTextClear( void );
 #ifdef _TCL
 PIBOX_COL_TYPES PiOutput_GetPiColumnType( Tcl_Obj * pKeyObj );
 uint PiOutput_MatchUserCol( const PI_BLOCK * pPiBlock, PIBOX_COL_TYPES * pType, Tcl_Obj * pMarkObj,
-                            uchar * pOutBuffer, uint maxLen, uint * pCharLen,
+                            char * pOutBuffer, uint maxLen, int * pCharLen,
                             Tcl_Obj ** ppImageObj, Tcl_Obj ** ppFmtObj );
 uint PiOutput_PrintColumnItem( const PI_BLOCK * pPiBlock, PIBOX_COL_TYPES type,
-                               uchar * pOutBuffer, uint maxLen, uint * pCharLen );
+                               char * pOutBuffer, uint maxLen, int * pCharLen );
 const PIBOX_COL_CFG * PiOutput_CfgColumnsCache( uint colCount, Tcl_Obj ** pColObjv );
 void PiOutput_CfgColumnsClear( const PIBOX_COL_CFG * pColTab, uint colCount );
 #endif

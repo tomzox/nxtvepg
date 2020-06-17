@@ -21,7 +21,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: shellcmd.c,v 1.19 2014/04/23 21:25:35 tom Exp tom $
+ *  $Id: shellcmd.c,v 1.20 2020/06/17 19:34:27 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -719,7 +719,7 @@ Tcl_Obj * PiOutput_ParseScript( Tcl_Interp *interp, Tcl_Obj * pCmdObj,
       Tcl_DStringFree(&ds);
 
       Tcl_ListObjAppendElement(interp, pResultList,
-                               Tcl_NewByteArrayObj(cmdbuf.strbuf, cmdbuf.off));
+                               Tcl_NewByteArrayObj((uchar*)cmdbuf.strbuf, cmdbuf.off));
    }
    xfree(cmdbuf.strbuf);
 
@@ -741,7 +741,7 @@ static int PiOutput_ExecParsedScript( Tcl_Interp *interp, Tcl_Obj * pTypeObj, Tc
 #endif
 
    if ( (Tcl_GetIndexFromObj(interp, pTypeObj, pCtxMenuTypeKeywords, "keyword", TCL_EXACT, &ctrl) != TCL_OK) ||
-        ((pCmdStr = Tcl_GetByteArrayFromObj(pCmdObj, &cmdLen)) == NULL) )
+        ((pCmdStr = (char*)Tcl_GetByteArrayFromObj(pCmdObj, &cmdLen)) == NULL) )
    {
       result = TCL_ERROR; 
    }  

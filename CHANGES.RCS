@@ -23041,3 +23041,131 @@ epgui/cmdline.c [rev:1.18, 2020-06-30T06:32:28]:
 - Added ATTRIBUTE_USED macro for unused variables holding RCS ID
 epgctl/epgversion.h [rev:1.97, 2020-06-15T13:23:03]:
 - Set version to 2.9.0pre5
+# commit: Compile-fixes for enabling -Wpointer-sign
+Makefile [rev:1.112, 2020-06-17T19:29:13]:
+- Removed -Wno-pointer-sign
+Makefile.win32 [rev:1.81, 2020-06-17T19:29:13]:
+- Removed -Wno-pointer-sign
+dsdrv/dsdrv34.c [rev:1.13, 2020-06-17T19:29:35]:
+- Fixed compiler warnings for -Wpointer-sign
+- added (BYTE*) cast when passing string pointer to RegQueryValueEx()
+epgui/wintvcfg.c [rev:1.30, 2020-06-17T19:29:50]:
+- Fixed compiler warnings for -Wpointer-sign
+- added (BYTE*) cast when passing string pointer to RegQueryValueEx()
+epgvbi/btdrv4linux.c [rev:1.78, 2020-06-17T19:30:01]:
+- Fixed compiler warnings for -Wpointer-sign
+- added (char*) cast when passing v4l2 API "u8" arrays to strcpy
+epgvbi/ttxdecode.c [rev:1.67, 2020-06-17T19:30:22]:
+- Fixed compiler warnings for -Wpointer-sign
+  - replaced "uchar" with "char" for text-string data
+epgvbi/ttxdecode.h [rev:1.33, 2020-06-17T19:30:22]:
+- Fixed compiler warnings for -Wpointer-sign
+  - TtxDecode_GetPageHeader() return "uchar*" to match internal type
+epgvbi/syserrmsg.c [rev:1.9, 2020-06-17T19:30:22]:
+epgvbi/tvchan.c [rev:1.11, 2020-06-17T19:30:22]:
+epgvbi/tvchan.h [rev:1.8, 2020-06-17T19:30:22]:
+epgvbi/winshmsrv.c [rev:1.13, 2020-06-17T19:30:22]:
+epgvbi/winshmsrv.h [rev:1.6, 2020-06-17T19:30:22]:
+epgdb/epgblock.c [rev:1.64, 2020-06-17T19:30:47]:
+epgdb/epgdbfil.c [rev:1.51, 2020-06-17T19:30:47]:
+epgdb/epgdbfil.h [rev:1.31, 2020-06-17T19:30:47]:
+epgdb/epgdbmerge.c [rev:1.36, 2020-06-17T19:30:47]:
+epgctl/epgacqctl.h [rev:1.49, 2020-06-17T19:31:21]:
+epgctl/epgscan.c [rev:1.51, 2020-06-17T19:31:21]:
+epgui/daemon.c [rev:1.21, 2020-06-17T19:32:20]:
+epgui/daemon_main.c [rev:1.13, 2020-06-17T19:32:20]:
+epgui/dumphtml.c [rev:1.13, 2020-06-17T19:32:20]:
+epgui/dumpraw.c [rev:1.35, 2020-06-17T19:32:20]:
+epgui/dumptext.c [rev:1.21, 2020-06-17T19:32:20]:
+epgui/dumpxml.c [rev:1.26, 2020-06-17T19:32:20]:
+epgui/dumpxml.h [rev:1.7, 2020-06-17T19:36:20]:
+epgui/pdc_themes.c [rev:1.13, 2020-06-17T19:32:20]:
+epgui/pdc_themes.h [rev:1.6, 2020-06-17T19:32:20]:
+epgui/pibox.c [rev:1.5, 2020-06-17T19:32:20]:
+epgui/pibox.h [rev:1.2, 2020-06-17T19:32:20]:
+epgui/pidescr.c [rev:1.13, 2020-06-17T19:32:20]:
+epgui/pilistbox.c [rev:1.99, 2020-06-17T19:32:20]:
+epgui/pilistbox.h [rev:1.17, 2020-06-17T19:32:20]:
+epgui/pinetbox.c [rev:1.48, 2020-06-17T19:32:20]:
+epgui/pinetbox.h [rev:1.5, 2020-06-17T19:32:20]:
+epgui/pioutput.c [rev:1.63, 2020-06-17T19:32:20]:
+epgui/pioutput.h [rev:1.20, 2020-06-17T19:32:20]:
+epgui/piremind.c [rev:1.22, 2020-06-17T19:32:20]:
+epgui/statswin.c [rev:1.80, 2020-06-17T19:32:20]:
+epgui/timescale.c [rev:1.19, 2020-06-17T19:32:20]:
+epgui/uictrl.c [rev:1.60, 2020-06-17T19:32:20]:
+epgui/uidump.c [rev:1.8, 2020-06-17T19:32:20]:
+epgui/wintv.c [rev:1.32, 2020-06-17T19:32:20]:
+xmltv/xmltv_main.c [rev:1.7, 2020-06-17T19:32:50]:
+- Fixed compiler warnings for -Wpointer-sign
+  - replaced "uchar" with "char" for text-string data
+epgdb/epgaifrag.c [rev:1.4, 2020-06-17T19:33:00]:
+epgdb/epgaifrag.h [rev:1.2, 2020-06-17T19:33:00]:
+- Fixed compiler warnings for -Wpointer-sign
+  - replaced "char" with "uchar" in func.par. for compat. with epgstream
+epgdb/epgblock.h [rev:1.58, 2020-06-17T19:33:08]:
+- Fixed compiler warnings for -Wpointer-sign
+  - replaced "uchar" with "char" for text-string data
+    esp. in interface macros PI_GET_LONG_INFO() et.al.
+epgdb/epgdbsav.c [rev:1.72, 2020-06-17T19:33:15]:
+- Fixed compiler warnings for -Wpointer-sign
+  - replaced use of strncmp() with memcpy() for DB header string (uchar)
+  - replaced "uchar" with "char" for file name string
+epgdb/epgnetio.c [rev:1.44, 2020-06-17T19:33:22]:
+- Fixed compiler warnings for -Wpointer-sign
+  - replaced "uchar" with "char" for text-string data
+  - replaced "uint" with "socklen_t" (or "int" for WIN32)
+epgdb/ttxgrab.c [rev:1.18, 2020-06-17T19:33:29]:
+- Fixed compiler warnings for -Wpointer-sign
+  - stick with "uchar" for compat with ttxdecode -> added some casts to char
+epgui/epgquery.c [rev:1.4, 2020-06-17T19:33:54]:
+- Fixed compiler warnings for -Wpointer-sign
+  - replaced "ulong" with "time_t": possible bug for 32-bit platform
+epgui/epgmain.c [rev:1.168, 2020-06-17T19:34:03]:
+- Fixed compiler warnings for -Wpointer-sign
+  - replaced "uchar" with "char" for text-string data
+  - added (char*) casts when passing XBM bitmap (uchar array)
+epgui/loadtcl.c [rev:1.10, 2020-06-17T19:34:10]:
+- Fixed compiler warnings for -Wpointer-sign
+  - added (char*) casts when passing generated script array (uchar)
+epgui/menucmd.c [rev:1.137, 2020-06-17T19:34:20]:
+- Fixed compiler warnings for -Wpointer-sign
+  - replaced "uchar" with "char" for text-string data
+  - resolved conflict "int" (Tcl interface) vs. local "uint"
+epgui/pifilter.c [rev:1.96, 2020-06-17T19:34:20]:
+- Fixed compiler warnings for -Wpointer-sign
+  - replaced "uchar" with "char" for text-string data
+  - resolved conflict "int" (Tcl interface) vs. local "uint"
+epgui/shellcmd.c [rev:1.20, 2020-06-17T19:34:27]:
+- Fixed compiler warnings for -Wpointer-sign
+  - added (uchar*) cast for Tcl "ByteArray" interfaces vs. local char*
+epgui/wintvui.c [rev:1.6, 2020-06-17T19:34:34]:
+- Fixed compiler warnings for -Wpointer-sign
+  - interface mismatch wintvcfg.h: uint*
+epgui/xawtv.c [rev:1.57, 2020-06-17T19:34:45]:
+- Fixed compiler warnings for -Wpointer-sign
+  - added (ucar*) cast for X11 property "args" param vs. local char*
+epgui/xiccc.c [rev:1.4, 2020-06-17T19:34:45]:
+- Fixed compiler warnings for -Wpointer-sign
+  - added (ucar*) cast for X11 property "args" param vs. local char*
+xmltv/xml_scan.lex [rev:1.14, 2020-06-17T19:35:00]:
+- Fixed compiler warnings for -Wpointer-sign
+  - interface mismatch XmlScan_ReadUtf16IntoUtf8Buffer(): char*
+  - NOTE: patched xml_scan.yy.c accordingly instead of generating,
+    as result crashes (independent of change)
+tvsim/winshmclnt.c [rev:1.12, 2020-06-17T19:39:40]:
+tvsim/winshmclnt.h [rev:1.8, 2020-06-17T19:39:40]:
+- Fixed compiler warnings for -Wpointer-sign
+  - replaced "uchar" with "char" for text-string data
+tvsim/tvsim_main.c [rev:1.38, 2020-06-17T19:39:49]:
+- Fixed compiler warnings for -Wpointer-sign
+  - replaced "uchar" with "char" for text-string data
+  - added (ucar*) cast for X11 property "args" param vs. local char*
+  - added (char*) casts when passing generated Tcl script array (uchar)
+tvsim/vbiplay.c [rev:1.10, 2020-06-17T19:39:59]:
+- Fixed compiler warnings for -Wpointer-sign
+  - corrected "size_t" to "ssize_t" for read() result
+tvsim/vbirec_main.c [rev:1.30, 2020-06-17T19:40:07]:
+- Fixed compiler warnings for -Wpointer-sign
+  - replaced "uchar" with "char" for text-string data
+  - added (char*) casts when passing generated Tcl script array (uchar)

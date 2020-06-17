@@ -32,7 +32,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: ttxdecode.c,v 1.66 2020/06/17 10:09:35 tom Exp tom $
+ *  $Id: ttxdecode.c,v 1.66 2020/06/17 19:57:29 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_VBI
@@ -159,7 +159,7 @@ void TtxDecode_StopTtxAcq( void )
 // - result values are not invalidized, b/c the caller will change the
 //   channel after a value was read anyways
 //
-void TtxDecode_GetScanResults( uint *pCni, bool *pNiWait, uint *pDataPageCnt, uchar *pDispText, uint textMaxLen )
+void TtxDecode_GetScanResults( uint *pCni, bool *pNiWait, uint *pDataPageCnt, char *pDispText, uint textMaxLen )
 {
    CNI_TYPE type;
    uint     idx;
@@ -939,7 +939,7 @@ static void TtxDecode_AddPageHeader( uint pageNo, uint ctrl, const uchar * data 
 // Retrieve last page header
 // - the buffer must have space fo 40 bytes
 //
-bool TtxDecode_GetPageHeader( char * pBuf, uint * pPgNum, uint pkgOff )
+bool TtxDecode_GetPageHeader( uchar * pBuf, uint * pPgNum, uint pkgOff )
 {
    uint idx;
    bool result = FALSE;

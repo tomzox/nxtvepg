@@ -19,7 +19,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: ttxgrab.c,v 1.17 2020/06/15 09:58:03 tom Exp tom $
+ *  $Id: ttxgrab.c,v 1.18 2020/06/17 19:33:29 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB
@@ -126,7 +126,7 @@ static sint TtxGrab_SearchPageNoPos( const uchar * pHeader, uint pageNo )
    uint  idx;
    sint  pos = -1;
 
-   sprintf(buf, "%03X", ((pageNo < 0x100) ? (pageNo + 0x800) : pageNo));
+   sprintf((char*)buf, "%03X", ((pageNo < 0x100) ? (pageNo + 0x800) : pageNo));
 
    for (idx = 0; idx < HEADER_CHECK_LEN - 2; idx++)
    {
@@ -351,7 +351,7 @@ bool TtxGrab_ProcessPackets( void )
       // make sure to check at least one page header for channel changes
       // (i.e. even if no page in the requested range was found in this interval)
       {
-         char buf[40];
+         uchar buf[40];
          uint pgNum;
          pkgOff = 0;
          while (TtxDecode_GetPageHeader(buf, &pgNum, pkgOff))

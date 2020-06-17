@@ -21,7 +21,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: uictrl.c,v 1.59 2020/06/17 08:20:03 tom Exp tom $
+ *  $Id: uictrl.c,v 1.60 2020/06/17 19:32:20 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -103,9 +103,9 @@ static bool uiControlInitialized = FALSE;
 // ---------------------------------------------------------------------------
 // Generate a help message for an db error state
 //
-static const uchar * UiControl_GetDbStateMsg( EPGDB_STATE state )
+static const char * UiControl_GetDbStateMsg( EPGDB_STATE state )
 {
-   const uchar * pMsg;
+   const char * pMsg;
 
    switch (state)
    {
@@ -807,8 +807,8 @@ void UiControl_ReloadError( ClientData clientData )
 //
 void UiControlMsg_ReloadError( uint cni, EPGDB_RELOAD_RESULT dberr, CONTEXT_RELOAD_ERR_HAND errHand, bool isNewDb )
 {
-   const uchar * pTmpStr;
-   uchar       * pSavedResult;
+   const char * pTmpStr;
+   char       * pSavedResult;
    MSG_RELOAD_ERR * pMsg;
 
    if (errHand != CTX_RELOAD_ERR_NONE)

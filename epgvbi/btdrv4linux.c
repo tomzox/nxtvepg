@@ -44,7 +44,7 @@
  *    NetBSD:  Mario Kemper <magick@bundy.zhadum.de>
  *    FreeBSD: Simon Barner <barner@gmx.de>
  *
- *  $Id: btdrv4linux.c,v 1.77 2009/05/02 19:26:37 tom Exp tom $
+ *  $Id: btdrv4linux.c,v 1.78 2020/06/17 19:30:01 tom Exp tom $
  */
 
 #if !defined(linux) && !defined(__NetBSD__) && !defined(__FreeBSD__) 
@@ -547,7 +547,7 @@ static void BtDriver_OpenVbi( void )
    FILE *fp;
 #ifdef USE_LIBZVBI
    char * pErrStr;
-   int services;
+   unsigned services;
 #endif
 
    vbiCardIndex = pVbiBuf->cardIndex;
@@ -1626,7 +1626,7 @@ const char * BtDriver_GetCardName( uint cardIndex )
       memset(&v4l2_cap, 0, sizeof(v4l2_cap));
       if (IOCTL(video_fd, VIDIOC_QUERYCAP, &v4l2_cap) == 0)
       {
-         strncpy(name, v4l2_cap.card, MAX_CARD_NAME_LEN);
+         strncpy(name, (char*)v4l2_cap.card, MAX_CARD_NAME_LEN);
          name[MAX_CARD_NAME_LEN - 1] = 0;
          pName = (const char *) name;
       }
@@ -1710,7 +1710,7 @@ const char * BtDriver_GetInputName( uint cardIndex, uint cardType, uint drvType,
          v4l2_inp.index = inputIdx;
          if (IOCTL(video_fd, VIDIOC_ENUMINPUT, &v4l2_inp) == 0)
          {
-            strncpy(name, v4l2_inp.name, MAX_INPUT_NAME_LEN);
+            strncpy(name, (char*)v4l2_inp.name, MAX_INPUT_NAME_LEN);
             name[MAX_INPUT_NAME_LEN - 1] = 0;
             pName = (const char *) name;
          }

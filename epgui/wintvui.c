@@ -23,7 +23,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: wintvui.c,v 1.5 2008/08/10 19:26:23 tom Exp tom $
+ *  $Id: wintvui.c,v 1.6 2020/06/17 19:34:34 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -458,7 +458,8 @@ static int WintvUi_TestChanTab( ClientData ttp, Tcl_Interp *interp, int objc, Tc
             if (pChanTabPath != NULL)
             {
                pErrMsg = NULL;
-               if (WintvCfg_GetChanTab(newAppIdx, pChanTabPath, (showErr ? &pErrMsg : NULL), NULL, NULL, &chnCount))
+               if (WintvCfg_GetChanTab(newAppIdx, pChanTabPath, (showErr ? &pErrMsg : NULL),
+                                       NULL, NULL, (uint*)&chnCount))
                {
                   // sucessfully opened: return number of found names
                }

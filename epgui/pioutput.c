@@ -20,7 +20,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: pioutput.c,v 1.62 2010/03/23 20:15:47 tom Exp tom $
+ *  $Id: pioutput.c,v 1.63 2020/06/17 19:32:20 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -167,7 +167,7 @@ PIBOX_COL_TYPES PiOutput_GetPiColumnType( Tcl_Obj * pKeyObj )
 // - also returns a list object with formatting options
 //
 uint PiOutput_MatchUserCol( const PI_BLOCK * pPiBlock, PIBOX_COL_TYPES * pType, Tcl_Obj * pMarkObj,
-                            uchar * pOutBuffer, uint maxLen, uint * pCharLen,
+                            char * pOutBuffer, uint maxLen, int * pCharLen,
                             Tcl_Obj ** ppImageObj, Tcl_Obj ** ppFmtObj )
 {
    Tcl_Obj ** pFiltObjv;
@@ -251,9 +251,9 @@ uint PiOutput_MatchUserCol( const PI_BLOCK * pPiBlock, PIBOX_COL_TYPES * pType, 
 // Print PI listing table element into string
 //
 uint PiOutput_PrintColumnItem( const PI_BLOCK * pPiBlock, PIBOX_COL_TYPES type,
-                               uchar * pOutBuffer, uint maxLen, uint * pCharLen )
+                               char * pOutBuffer, uint maxLen, int * pCharLen )
 {
-   const uchar * pResult;
+   const char * pResult;
    const AI_BLOCK *pAiBlock;
    char str_buf[64];
    time_t start_time;
@@ -710,7 +710,7 @@ void PiOutput_PiListboxInsert( const PI_BLOCK *pPiBlock, uint textrow )
    PIBOX_TCLOBJ    timeTag;
    PIBOX_COL_TYPES type;
    bool  isBoldFont;
-   uint  dummy;
+   int   dummy;
    uint  maxRowLen;
    uint  textcol;
    uint  len, off, maxlen;
@@ -1331,7 +1331,7 @@ void PiOutput_DescriptionTextUpdate( const PI_BLOCK * pPiBlock, bool keepView )
 {
    Tcl_Obj * pYviewObj = NULL;
    const AI_BLOCK *pAiBlock;
-   const uchar *pCfNetname;
+   const char *pCfNetname;
    time_t start_time;
    time_t stop_time;
    bool isFromAi;

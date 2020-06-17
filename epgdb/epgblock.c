@@ -20,7 +20,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgblock.c,v 1.63 2008/10/12 16:00:47 tom Exp tom $
+ *  $Id: epgblock.c,v 1.64 2020/06/17 19:30:47 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB
@@ -321,7 +321,7 @@ static const uint natOptChars[][16] =
 #define MAX_DIACRIT_CHARS 26  // must include +1 for terminating 0
 typedef struct
 {
-   uchar        g0[MAX_DIACRIT_CHARS];
+   char         g0[MAX_DIACRIT_CHARS];
    uint         iso[MAX_DIACRIT_CHARS];
 } DIACRIT;
 
@@ -627,7 +627,7 @@ static uint GetG0Char( uchar val, uchar alphabeth )
 // Encode the given Unicode character in UTF8 and append it to the string
 //
 #ifdef USE_UTF8
-static uint InsertUtf8( uchar * pDest, uint charCode )
+static uint InsertUtf8( char * pDest, uint charCode )
 {
    uint charLen;
 
@@ -650,7 +650,7 @@ static uint InsertUtf8( uchar * pDest, uint charCode )
 #define MAX_UTF8_LEN 2
 
 #else /* !USE_UTF8 */
-static uint InsertUtf8( uchar * pDest, uint charCode )
+static uint InsertUtf8( char * pDest, uint charCode )
 {
    pDest[0] = charCode;
    return 1;
@@ -666,9 +666,9 @@ static uint InsertUtf8( uchar * pDest, uint charCode )
 // - newline (explicit and implicit) is also replaced by blank, except for two
 //   subsequent newlines or a completely empty line (indicates paragraph break)
 //
-static uchar * ApplyEscapes(const uchar *pText, uint textLen, const uchar *pEscapes, uchar escCount, uchar netwop)
+static char * ApplyEscapes(const uchar *pText, uint textLen, const uchar *pEscapes, uchar escCount, uchar netwop)
 {
-   uchar *pout, *po;
+   char *pout, *po;
    uint  escIdx, nextEsc;
    uint  i, linePos, strLen, charLen;
    bool  lastWhite;
@@ -685,7 +685,7 @@ static uchar * ApplyEscapes(const uchar *pText, uint textLen, const uchar *pEsca
    // -> reserve extra space for estimated worst-case
    strLen = textLen + (escCount * MAX_UTF8_LEN) + 20;
 
-   pout = (uchar *) xmalloc(strLen + 1);
+   pout = (char *) xmalloc(strLen + 1);
    if (pout != NULL)
    {
       po = pout;
@@ -933,7 +933,7 @@ EPGDB_BLOCK * EpgBlockConvertPi(const uchar *pCtrl, uint ctrlLen, uint strLen)
    DESCRIPTOR *pDescriptors;
    const uchar *psd;
    int titleLen, shortInfoLen, longInfoLen;
-   uchar *pTitle, *pShortInfo, *pLongInfo;
+   char *pTitle, *pShortInfo, *pLongInfo;
    uchar long_info_type;
    uint piLen, idx;
 #ifdef DEBUG_SWITCH_LTO
@@ -1317,12 +1317,12 @@ static bool EpgBlockCheckAi( EPGDB_BLOCK * pBlock )
 {
    const AI_BLOCK  * pAi;
    const AI_NETWOP * pNetwop;
-   const uchar *pBlockEnd, *pName, *pPrevName;
+   const char *pBlockEnd, *pName, *pPrevName;
    uchar netwop;
    bool result = FALSE;
 
    pAi       = &pBlock->blk.ai;
-   pBlockEnd = (uchar *) pBlock + pBlock->size + BLK_UNION_OFF;
+   pBlockEnd = (char *) pBlock + pBlock->size + BLK_UNION_OFF;
 
    if ((pAi->netwopCount == 0) || (pAi->netwopCount > MAX_NETWOP_COUNT))
    {
@@ -1429,7 +1429,7 @@ EPGDB_BLOCK * EpgBlockConvertOi(const uchar *pCtrl, uint ctrlLen, uint strLen)
    OI_BLOCK oi, *pOi;
    DESCRIPTOR *pDescriptors;
    const uchar *psd, *pst;
-   uchar *pHeader, *pMessage;
+   char *pHeader, *pMessage;
    uint msgLen, headerLen, blockLen;
  
    psd = pCtrl;
@@ -1570,11 +1570,11 @@ EPGDB_BLOCK * EpgBlockConvertNi(const uchar *pCtrl, uint ctrlLen, uint strLen)
    EPGDB_BLOCK *pBlk;
    NI_BLOCK ni;
    const NI_BLOCK *pNi;
-   uchar *tmp_evstr[NI_MAX_EVENT_COUNT];
+   char *tmp_evstr[NI_MAX_EVENT_COUNT];
    DESCRIPTOR *pDescriptors;
    EVENT_ATTRIB ev[NI_MAX_EVENT_COUNT];
    const uchar *psd, *pStr;
-   uchar *pHeader;
+   char *pHeader;
    uint i, j, len, blockLen;
 
    psd = pCtrl;
@@ -1706,11 +1706,11 @@ static bool EpgBlockCheckNi( EPGDB_BLOCK * pBlock )
    bool result = FALSE;
    const NI_BLOCK * pNi;
    const EVENT_ATTRIB * pEv;
-   const uchar * pBlockEnd;
+   const char * pBlockEnd;
    uint  ev_idx;
 
    pNi       = &pBlock->blk.ni;
-   pBlockEnd = (uchar *) pBlock + pBlock->size + BLK_UNION_OFF;
+   pBlockEnd = (char *) pBlock + pBlock->size + BLK_UNION_OFF;
 
    if (pNi->no_events > NI_MAX_EVENT_COUNT)
    {
@@ -1718,7 +1718,7 @@ static bool EpgBlockCheckNi( EPGDB_BLOCK * pBlock )
    }
    else if ( (pNi->no_events != 0) && 
              ( (pNi->off_events == 0) ||
-               (((uchar *)&NI_GET_EVENTS(pNi)[pNi->no_events]) > pBlockEnd) ))
+               (((char *)&NI_GET_EVENTS(pNi)[pNi->no_events]) > pBlockEnd) ))
    {
       debug3("EpgBlock-CheckNi: events array missing (expected %d) or exceeds block size: off=%d, size=%d", pNi->no_events, pNi->off_events, pBlock->size + BLK_UNION_OFF);
    }
@@ -1728,7 +1728,7 @@ static bool EpgBlockCheckNi( EPGDB_BLOCK * pBlock )
    }
    else if ( (pNi->no_descriptors > 0) &&
              ( (pNi->off_descriptors == 0) ||
-               (((uchar *)&NI_GET_DESCRIPTORS(pNi)[pNi->no_descriptors]) > pBlockEnd) ))
+               (((char *)&NI_GET_DESCRIPTORS(pNi)[pNi->no_descriptors]) > pBlockEnd) ))
    {
       debug3("EpgBlock-CheckNi: descriptor count %d exceeds block length: off=%d, size=%d", pNi->no_descriptors, pNi->off_descriptors, pBlock->size + BLK_UNION_OFF);
    }
@@ -1825,7 +1825,7 @@ EPGDB_BLOCK * EpgBlockConvertMi(const uchar *pCtrl, uint ctrlLen, uint strLen)
    const MI_BLOCK *pMi;
    DESCRIPTOR *pDescriptors;
    const uchar *psd, *pStr;
-   uchar *pMessage;
+   char *pMessage;
    uint  len, blockLen;
 
    psd = pCtrl;

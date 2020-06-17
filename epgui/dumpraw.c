@@ -21,7 +21,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: dumpraw.c,v 1.34 2008/10/12 19:55:39 tom Exp tom $
+ *  $Id: dumpraw.c,v 1.35 2020/06/17 19:32:20 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -57,7 +57,7 @@ static const char * const pDumpRawHeader = "Nextview ASCII Dump\n";
 // ----------------------------------------------------------------------------
 // Decode PIL code into date and time of day
 //
-static char * GetPiPilStr( const PI_BLOCK * pPi, uchar * pOutStr, uint maxlen )
+static char * GetPiPilStr( const PI_BLOCK * pPi, char * pOutStr, uint maxlen )
 {
    struct tm vpsTime;
 
@@ -76,12 +76,12 @@ static char * GetPiPilStr( const PI_BLOCK * pPi, uchar * pOutStr, uint maxlen )
 
 static void EpgDumpRaw_Pi( FILE *fp, const PI_BLOCK * pPi, uchar stream, uchar version, const AI_BLOCK * pAi )
 {
-   const uchar * pThemeStr;
-   const uchar * pGeneralStr;
-   uchar start_str[40], stop_str[20];
-   uchar pilStr[50];
-   uchar netname[NETNAME_LENGTH+1];
-   uchar *pStrSoundFormat;
+   const char * pThemeStr;
+   const char * pGeneralStr;
+   char start_str[40], stop_str[20];
+   char pilStr[50];
+   char netname[NETNAME_LENGTH+1];
+   char *pStrSoundFormat;
    time_t start_time;
    time_t stop_time;
 
@@ -107,7 +107,7 @@ static void EpgDumpRaw_Pi( FILE *fp, const PI_BLOCK * pPi, uchar stream, uchar v
                   netname,
                   start_str,
                   stop_str,
-                  ((pPi->off_title != 0) ? PI_GET_TITLE(pPi) : (uchar *) "NULL")
+                  ((pPi->off_title != 0) ? PI_GET_TITLE(pPi) : "NULL")
       );
 
       switch(pPi->feature_flags & 0x03)
@@ -210,7 +210,7 @@ static void EpgDumpRaw_Oi( FILE *fp, const OI_BLOCK * pOi, uchar stream )
                   pOi->msg_size + 1,
                   pOi->msg_attrib,
                   pOi->no_descriptors,
-                  ((pOi->off_header != 0) ? OI_GET_HEADER(pOi) : (uchar *) "")
+                  ((pOi->off_header != 0) ? OI_GET_HEADER(pOi) : "")
       );
 
       if (pOi->off_message != 0)
@@ -224,7 +224,8 @@ static void EpgDumpRaw_Oi( FILE *fp, const OI_BLOCK * pOi, uchar stream )
 static void EpgDumpRaw_Ni( FILE *fp, const NI_BLOCK * pNi, uchar stream )
 {
    const EVENT_ATTRIB *pEv;
-   uchar off, pAts[400];
+   uchar off;
+   char pAts[400];
    uint i, j;
 
    if (pNi != NULL)
@@ -236,7 +237,7 @@ static void EpgDumpRaw_Ni( FILE *fp, const NI_BLOCK * pNi, uchar stream )
                   pNi->msg_size + 1,
                   pNi->msg_attrib,
                   pNi->no_descriptors,
-                  ((pNi->off_header != 0) ? NI_GET_HEADER(pNi) : (uchar *) "")
+                  ((pNi->off_header != 0) ? NI_GET_HEADER(pNi) : "")
              );
 
       pEv = NI_GET_EVENTS(pNi);
@@ -307,7 +308,7 @@ static void EpgDumpRaw_Ni( FILE *fp, const NI_BLOCK * pNi, uchar stream )
                      ((pEv[i].next_type == 1) ? "NI" : "OI"),
                      pEv[i].next_id,
                      pEv[i].no_attribs,
-                     ((pEv[i].off_evstr != 0) ? NI_GET_EVENT_STR(pNi, &pEv[i]) : (uchar*)"NULL"),
+                     ((pEv[i].off_evstr != 0) ? NI_GET_EVENT_STR(pNi, &pEv[i]) : "NULL"),
                      pAts
                 );
       }
@@ -325,7 +326,7 @@ static void EpgDumpRaw_Mi( FILE *fp, const MI_BLOCK * pMi, uchar stream )
                   stream + 1,
                   pMi->block_no,
                   pMi->no_descriptors,
-                  ((pMi->off_message != 0) ? MI_GET_MESSAGE(pMi) : (uchar *) "")
+                  ((pMi->off_message != 0) ? MI_GET_MESSAGE(pMi) : "")
              );
    }
 }

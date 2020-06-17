@@ -34,7 +34,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgscan.c,v 1.50 2009/03/29 19:17:29 tom Exp tom $
+ *  $Id: epgscan.c,v 1.51 2020/06/17 19:31:21 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGCTL
@@ -144,7 +144,7 @@ static bool EpgScan_AiCallback( const AI_BLOCK *pNewAi )
    uint curTunerFreq;
    uint curPageNo;
    uint curAppId;
-   uchar msgbuf[80];
+   char msgbuf[80];
    bool isNew;
    bool accept = FALSE;
 
@@ -298,7 +298,7 @@ uint EpgScan_EvHandler( void )
    const AI_BLOCK * pAi;
    const char * pName, * pCountry;
    time_t now = time(NULL);
-   uchar chanName[10], msgbuf[300], dispText[PDC_TEXT_LEN + 1];
+   char chanName[10], msgbuf[300], dispText[PDC_TEXT_LEN + 1];
    uint  freq;
    TTX_DEC_STATS ttxStats;
    time_t ttxStart;
@@ -697,7 +697,7 @@ static void MenuCmd_ScanMissingFreq( void )
 {
    EPGDB_CONTEXT  * pDbContext;
    const AI_BLOCK * pAi;
-   uchar msgbuf[300];
+   char  msgbuf[300];
    bool  isDefective = TRUE;
    uint  *freqTab;
    uint  *cniTab;
@@ -764,7 +764,7 @@ EPGSCAN_START_RESULT EpgScan_Start( int inputSource, bool doSlow, bool useXawtv,
    uint  freq;
    bool  isTuner;
    EPGSCAN_START_RESULT result;
-   uchar chanName[10], msgbuf[300];
+   char chanName[10], msgbuf[300];
    uint rescheduleMs;
 
    scanCtl.inputSrc      = inputSource;

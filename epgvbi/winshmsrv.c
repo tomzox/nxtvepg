@@ -19,7 +19,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: winshmsrv.c,v 1.12 2009/05/02 19:26:13 tom Exp tom $
+ *  $Id: winshmsrv.c,v 1.13 2020/06/17 19:30:22 tom Exp tom $
  */
 
 #ifndef WIN32
@@ -58,7 +58,7 @@ static HANDLE shmMutexHandle = NULL;
 static HANDLE msgThreadHandle = NULL;
 static bool   msgThreadWaitsOnGui = FALSE;
 static bool   stopMsgThread;
-static uchar * pLastErrorText = NULL;
+static char * pLastErrorText = NULL;
 static uint winShmAppType;
 
 
@@ -159,9 +159,9 @@ static void WinSharedMem_SetErrorText( DWORD errCode, const char * pText, ... )
 // - this function should always be called when an error is indicated
 // - the caller must free the allocated memory!
 //
-const uchar * WinSharedMem_GetErrorMsg( void )
+const char * WinSharedMem_GetErrorMsg( void )
 {
-   const uchar * pErrMsg = pLastErrorText;
+   const char * pErrMsg = pLastErrorText;
 
    // clear the error message
    if (pLastErrorText != NULL)

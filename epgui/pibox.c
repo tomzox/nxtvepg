@@ -21,7 +21,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: pibox.c,v 1.4 2005/01/10 14:43:30 tom Exp tom $
+ *  $Id: pibox.c,v 1.5 2020/06/17 19:32:20 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -148,7 +148,7 @@ void PiBox_AiStateChange( void )
 // ----------------------------------------------------------------------------
 // Update the listbox state according to database and acq state
 //
-void PiBox_ErrorMessage( const uchar * pMessage )
+void PiBox_ErrorMessage( const char * pMessage )
 {
    switch (pibox_type)
    {

@@ -33,7 +33,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: statswin.c,v 1.79 2009/03/29 19:15:11 tom Exp tom $
+ *  $Id: statswin.c,v 1.80 2020/06/17 19:32:20 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -146,7 +146,7 @@ static void StatsWin_PrintDbStats( EPGDB_CONTEXT * dbc, EPGDB_BLOCK_COUNT * coun
 {
    const AI_BLOCK *pAi;
    time_t lastAiUpdate;
-   uchar netname[30+1], datestr[25+1];
+   char  netname[30+1], datestr[25+1];
    uchar version, versionSwo;
    uint  total, allVersionsCount, curVersionCount, obsolete;
    Tcl_DString cmd_dstr;

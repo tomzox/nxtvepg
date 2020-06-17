@@ -22,7 +22,7 @@
  *  Author:
  *          Tom Zoerner
  *
- *  $Id: epgnetio.c,v 1.43 2009/05/02 19:09:07 tom Exp tom $
+ *  $Id: epgnetio.c,v 1.44 2020/06/17 19:33:22 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB
@@ -108,7 +108,7 @@ static EPGNETIO_LOGCF epgNetIoLogCf =
 #define EVLOG_REGKEY_NAME "SYSTEM\\CurrentControlSet\\Services\\EventLog\\Application\\" EVLOG_APPNAME
 #define EVLOG_MSGFILE     "%SystemRoot%\\System32\\netmsg.dll"
 #define EVLOG_ERRNO       3299
-static const uchar * const pEvlogMsgFile = EVLOG_MSGFILE;
+static const char * const pEvlogMsgFile = EVLOG_MSGFILE;
 static HANDLE hEventSource = NULL;
 #endif
 
@@ -118,7 +118,7 @@ static HANDLE hEventSource = NULL;
 #if defined(WIN32) && (DEBUG_SWITCH == ON)
 static const char * WinSocketStrError( DWORD errCode )
 {
-   static uchar msg[300];
+   static char msg[300];
 
    // translate the error code into a human readable text
    if (FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM, NULL, errCode, LANG_USER_DEFAULT,
@@ -169,7 +169,7 @@ static void EpgNetIo_Win32SyslogOpen( void )
 void EpgNetIo_Logger( int level, int clnt_fd, int errCode, const char * pText, ... )
 {
    #ifdef WIN32
-   uchar   sysErrStr[160];
+   char   sysErrStr[160];
    uint    evType;
    #endif
    va_list argl;
@@ -1254,9 +1254,12 @@ int EpgNetIo_AcceptConnection( int listen_fd )
 {
    #ifndef WIN32
    struct hostent * hent;
+   socklen_t length;
+   #else
+   int   length;
    #endif
+   size_t  maxLength;
    char  hname_buf[129];
-   uint  length, maxLength;
    struct {  // allocate enough room for all possible types of socket address structs
       struct sockaddr  sa;
       char             padding[64];
@@ -1264,7 +1267,7 @@ int EpgNetIo_AcceptConnection( int listen_fd )
    int   sock_fd;
    bool  result = FALSE;
 
-   maxLength = length = sizeof(peerAddr);
+   length = maxLength = sizeof(peerAddr);
    sock_fd = accept(listen_fd, &peerAddr.sa, &length);
    if (sock_fd != -1)
    {
@@ -1333,7 +1336,7 @@ int EpgNetIo_AcceptConnection( int listen_fd )
       }
       else
       {  // socket address buffer too small: internal error
-         sprintf(hname_buf, "need %d, have %d", length, maxLength);
+         sprintf(hname_buf, "need %d, have %d", (int)length, (int)maxLength);
          EpgNetIo_Logger(LOG_WARNING, -1, 0, "new connection: saddr buffer too small: ", hname_buf, NULL);
       }
 
@@ -1568,9 +1571,9 @@ bool EpgNetIo_FinishConnect( int sock_fd, char ** ppErrorText )
 {
    bool result = FALSE;
 #ifndef WIN32
-   int  sockerr, sockerrlen;
+   int  sockerr;
+   socklen_t sockerrlen = sizeof(sockerr);
 
-   sockerrlen = sizeof(sockerr);
    if (getsockopt(sock_fd, SOL_SOCKET, SO_ERROR, (void *)&sockerr, &sockerrlen) == 0)
    {
       if (sockerr == 0)

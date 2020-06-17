@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: pibox.h,v 1.1 2003/02/09 17:34:56 tom Exp tom $
+ *  $Id: pibox.h,v 1.2 2020/06/17 19:32:20 tom Exp tom $
  */
 
 #ifndef __PIBOX_H
@@ -31,7 +31,7 @@ void PiBox_Destroy( void );
 void PiBox_Reset( void );
 void PiBox_Refresh( void );
 void PiBox_AiStateChange( void );
-void PiBox_ErrorMessage( const uchar * pMessage );
+void PiBox_ErrorMessage( const char * pMessage );
 const PI_BLOCK * PiBox_GetSelectedPi( void );
 
 // interface to TV app interaction module

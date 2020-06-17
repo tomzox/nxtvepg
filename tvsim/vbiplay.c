@@ -20,7 +20,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: vbiplay.c,v 1.9 2007/12/31 18:47:28 tom Exp tom $
+ *  $Id: vbiplay.c,v 1.10 2020/06/17 19:39:59 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_TVSIM
@@ -67,7 +67,7 @@ static void EpgAttach( bool attach )
 //
 static void EpgError( void )
 {
-   const uchar * pErrMsg;
+   const char * pErrMsg;
 
    pErrMsg = WinSharedMemClient_GetErrorMsg();
    fprintf(stderr, "%s", ((pErrMsg != NULL) ? (char*)pErrMsg : "EPG client init failed"));
@@ -154,7 +154,7 @@ static const WINSHMCLNT_TVAPP_INFO tvSimuInfo =
 static void PlaybackVbi( int fdTtxFile )
 {
    VBI_LINE * vbl;
-   size_t rstat;
+   ssize_t rstat;
    bool doSleep;
 
    while (1)

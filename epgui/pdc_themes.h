@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: pdc_themes.h,v 1.5 2002/07/20 16:28:14 tom Exp tom $
+ *  $Id: pdc_themes.h,v 1.6 2020/06/17 19:32:20 tom Exp tom $
  */
 
 #ifndef __PDC_THEMES_H
@@ -29,9 +29,9 @@
 // Declaration of service interface functions
 //
 void PdcThemeSetLanguage( uchar lang );
-const uchar * PdcThemeGet( uchar theme );
-const uchar * PdcThemeGetByLang( uchar theme, uchar lang );
-const uchar * PdcThemeGetWithGeneral( uchar theme, const uchar ** pGeneralStr, bool withUndef );
+const char * PdcThemeGet( uchar theme );
+const char * PdcThemeGetByLang( uchar theme, uchar lang );
+const char * PdcThemeGetWithGeneral( uchar theme, const char ** pGeneralStr, bool withUndef );
 bool PdcThemeIsDefined( uchar theme );
 uchar PdcThemeGetCategory( uchar theme );
 

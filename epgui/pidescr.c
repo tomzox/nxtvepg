@@ -20,7 +20,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: pidescr.c,v 1.12 2010/03/23 20:15:41 tom Exp tom $
+ *  $Id: pidescr.c,v 1.13 2020/06/17 19:32:20 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -73,13 +73,13 @@ const schar alphaNumTab[256] =
 //
 const char * PiDescription_RemoveSeriesIndex( const char * pTitle, char * outbuf, uint maxLen )
 {
-   uchar * pe;
+   char * pe;
    uint  len;
 
    len = strlen(pTitle);
    if ((len >= 5) && (len < 100) && (*(pTitle + len - 1) == ')'))
    {  // found closing brace at end of string -> check for preceeding decimal number
-      pe = (uchar *)pTitle + len - 1 - 1;
+      pe = (char *)pTitle + len - 1 - 1;  // cast to remove "const"
       len -= 1;
       if (isdigit(*pe))
       {  // at least one digit found
@@ -113,7 +113,6 @@ const char * PiDescription_RemoveSeriesIndex( const char * pTitle, char * outbuf
 //
 const char * PiDescription_DictifyTitle( const char * pTitle, uchar lang, char * outbuf, uint maxLen )
 {
-   uchar *pe;
    uint cut, len;
 
    // remove appended series counter from title string
@@ -204,7 +203,8 @@ const char * PiDescription_DictifyTitle( const char * pTitle, uchar lang, char *
       else
       {  // title was already modified for brace removal -> is already copied in the output buffer
          // title string has to be modified "in-place"
-         uchar buf[10];
+         char buf[10];
+         char *pe;
 
          // save the attrib sub-string into a temporary buffer
          strncpy(buf, outbuf, cut);
@@ -247,11 +247,11 @@ const char * PiDescription_DictifyTitle( const char * pTitle, uchar lang, char *
 //   This applies to the Germany provider RTL2 (they don't insert paragraph breaks
 //   before the description text in short-info)
 //
-static sint PiDescription_SearchLongInfo( const uchar * pShort, uint shortInfoLen,
-                                          const uchar * pLong,  uint longInfoLen )
+static sint PiDescription_SearchLongInfo( const char * pShort, uint shortInfoLen,
+                                          const char * pLong,  uint longInfoLen )
 {
-   const uchar * pNewline;
-   const uchar * pt;
+   const char * pNewline;
+   const char * pt;
    uint  len;
    uchar c;
    sint  result = shortInfoLen;
@@ -330,14 +330,14 @@ found_match:
 // - the invoked compare function then compares the short-info paragraph separately
 //   with each long-info paragraph
 //
-static uchar * PiDescription_UnifyShortLong( const uchar * pShort, uint shortInfoLen,
-                                             const uchar * pLong,  uint longInfoLen )
+static char * PiDescription_UnifyShortLong( const char * pShort, uint shortInfoLen,
+                                            const char * pLong,  uint longInfoLen )
 {
-   const uchar * pNewline;
+   const char * pNewline;
    sint  outlen;
    sint  len;
    sint  nonRedLen;
-   uchar * pOut = NULL;
+   char * pOut = NULL;
 
    if ((pShort != NULL) && (pLong != NULL))
    {
@@ -412,18 +412,18 @@ static uchar * PiDescription_UnifyShortLong( const uchar * pShort, uint shortInf
 // ----------------------------------------------------------------------------
 // Remove descriptions that are substrings of other info strings in the given list
 //
-static uint PiDescription_UnifyMergedInfo( uchar ** infoStrTab, uint infoCount )
+static uint PiDescription_UnifyMergedInfo( char ** infoStrTab, uint infoCount )
 {
    register uchar c1, c2;
    register schar ia1, ia2;
-   uchar *pidx, *pcmp, *p1, *p2;
+   char *pidx, *pcmp, *p1, *p2;
    uint idx, cmpidx;
    int len, cmplen;
 
    for (idx = 0; idx < infoCount; idx++)
    {
       pidx = infoStrTab[idx];
-      while ( (*pidx != 0) && (alphaNumTab[*pidx] == ALNUM_NONE) )
+      while ( (*pidx != 0) && (alphaNumTab[(uchar)*pidx] == ALNUM_NONE) )
          pidx += 1;
       len = strlen(pidx);
 
@@ -432,7 +432,7 @@ static uint PiDescription_UnifyMergedInfo( uchar ** infoStrTab, uint infoCount )
          if ((idx != cmpidx) && (infoStrTab[cmpidx] != NULL))
          {
             pcmp = infoStrTab[cmpidx];
-            while ( (alphaNumTab[*pcmp] != 0) && (alphaNumTab[*pcmp] == ALNUM_NONE) )
+            while ( (*pcmp != 0) && (alphaNumTab[(uchar)*pcmp] == ALNUM_NONE) )
                pcmp += 1;
             cmplen = strlen(pcmp);
             if (cmplen >= len)
@@ -499,7 +499,7 @@ static uint PiDescription_UnifyMergedInfo( uchar ** infoStrTab, uint infoCount )
 // - Returns the number of separate strings and puts their pointers into the array.
 //   The caller must free the separated strings.
 //
-static uint PiDescription_SeparateMergedInfo( const PI_BLOCK * pPiBlock, uchar ** infoStrTab )
+static uint PiDescription_SeparateMergedInfo( const PI_BLOCK * pPiBlock, char ** infoStrTab )
 {
    const char *p, *ps, *pl;
    int   shortInfoLen, longInfoLen;
@@ -561,9 +561,9 @@ void PiDescription_AppendShortAndLongInfoText( const PI_BLOCK * pPiBlock,
 {
    if ( PI_HAS_SHORT_INFO(pPiBlock) && PI_HAS_LONG_INFO(pPiBlock) )
    {
-      const uchar * pShortInfo = PI_GET_SHORT_INFO(pPiBlock);
-      const uchar * pLongInfo  = PI_GET_LONG_INFO(pPiBlock);
-      uchar * pConcat;
+      const char * pShortInfo = PI_GET_SHORT_INFO(pPiBlock);
+      const char * pLongInfo  = PI_GET_LONG_INFO(pPiBlock);
+      char * pConcat;
 
       pConcat = PiDescription_UnifyShortLong(pShortInfo, strlen(pShortInfo), pLongInfo, strlen(pLongInfo));
       AppendInfoTextCb(fp, pConcat, FALSE);
@@ -573,7 +573,7 @@ void PiDescription_AppendShortAndLongInfoText( const PI_BLOCK * pPiBlock,
    {
       if (isMerged)
       {
-         uchar *infoStrTab[MAX_MERGED_DB_COUNT];
+         char *infoStrTab[MAX_MERGED_DB_COUNT];
          uint infoCount, idx, added;
 
          // Merged database -> for presentation the usual short/long info

@@ -25,7 +25,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgblock.h,v 1.57 2011/01/22 21:49:00 tom Exp tom $
+ *  $Id: epgblock.h,v 1.58 2020/06/17 19:33:08 tom Exp tom $
  */
 
 #ifndef __EPGBLOCK_H
@@ -89,9 +89,9 @@ typedef struct
 
 #define AI_GET_NETWOPS(X)       ((const AI_NETWOP *)((uint16_t *)(X)+(X)->off_netwops/sizeof(uint16_t)))
 #define AI_GET_NETWOP_N(X,N)    (&((const AI_NETWOP *)((uint16_t *)(X)+(X)->off_netwops/sizeof(uint16_t)))[N])
-#define AI_GET_SERVICENAME(X)   ((const uchar *)(X)+(X)->off_serviceNameStr)
-#define AI_GET_STR_BY_OFF(X,O)  ((const uchar *)(X)+(O))
-#define AI_GET_NETWOP_NAME(X,N) ((const uchar *)(X)+AI_GET_NETWOPS(X)[N].off_name)
+#define AI_GET_SERVICENAME(X)   ((const char *)(X)+(X)->off_serviceNameStr)
+#define AI_GET_STR_BY_OFF(X,O)  ((const char *)(X)+(O))
+#define AI_GET_NETWOP_NAME(X,N) ((const char *)(X)+AI_GET_NETWOPS(X)[N].off_name)
 #define AI_GET_NET_CNI(N)       ((uint)((N)->netCni) | ((uint)((N)->netCniMSB)<<16))
 #define AI_GET_NET_CNI_N(X,N)   AI_GET_NET_CNI(AI_GET_NETWOP_N((X),(N)))
 // note: "thisNetwop" is only meaningful for Nextview EPG databases
@@ -218,12 +218,12 @@ typedef struct
   uint16_t  off_descriptors;
 } PI_BLOCK;
 
-#define PI_GET_TITLE(X)        ((const uchar*)(X)+((X)->off_title))
+#define PI_GET_TITLE(X)        ((const char*)(X)+((X)->off_title))
 #define PI_HAS_SHORT_INFO(X)   ((bool)((X)->off_short_info != 0))
-#define PI_GET_SHORT_INFO(X)   ((const uchar*)(X)+((X)->off_short_info))
+#define PI_GET_SHORT_INFO(X)   ((const char*)(X)+((X)->off_short_info))
 #define PI_HAS_LONG_INFO(X)    ((bool)((X)->off_long_info != 0))
-#define PI_GET_LONG_INFO(X)    ((const uchar*)(X)+((X)->off_long_info))
-#define PI_GET_STR_BY_OFF(X,O) ((const uchar*)(X)+(O))
+#define PI_GET_LONG_INFO(X)    ((const char*)(X)+((X)->off_long_info))
+#define PI_GET_STR_BY_OFF(X,O) ((const char*)(X)+(O))
 #define PI_GET_DESCRIPTORS(X)  ((const DESCRIPTOR*)((uchar*)(X)+((X)->off_descriptors)))
 
 
@@ -306,10 +306,10 @@ typedef struct
    uint16_t  off_descriptors;
 } NI_BLOCK;
 
-#define NI_GET_HEADER(X)       ((const uchar*)(X)+((X)->off_header))
+#define NI_GET_HEADER(X)       ((const char*)(X)+((X)->off_header))
 #define NI_HAS_HEADER(X)       ((bool)(((X)->off_header) != 0))
 #define NI_GET_EVENTS(X)       ((const EVENT_ATTRIB*)((uchar*)(X)+((X)->off_events)))
-#define NI_GET_EVENT_STR(X,Y)  ((const uchar*)(X)+((Y)->off_evstr))
+#define NI_GET_EVENT_STR(X,Y)  ((const char*)(X)+((Y)->off_evstr))
 #define NI_GET_DESCRIPTORS(X)  ((const DESCRIPTOR*)((uint8_t*)(X)+((X)->off_descriptors)))
 
 // ---------------------------------------------------------------------------
@@ -334,7 +334,7 @@ typedef struct
    uint16_t  off_descriptors;
 } MI_BLOCK;
 
-#define MI_GET_MESSAGE(X)      ((const uchar*)(X)+((X)->off_message))
+#define MI_GET_MESSAGE(X)      ((const char*)(X)+((X)->off_message))
 #define MI_HAS_MESSAGE(X)      ((bool)((X)->off_message != 0))
 #define MI_GET_DESCRIPTORS(X)  ((const DESCRIPTOR*)((uint8_t*)(X)+((X)->off_descriptors)))
 
@@ -371,9 +371,9 @@ typedef struct
    uint16_t  off_descriptors;
 } OI_BLOCK;
 
-#define OI_GET_HEADER(X)       ((const uchar*)(X)+((X)->off_header))
+#define OI_GET_HEADER(X)       ((const char*)(X)+((X)->off_header))
 #define OI_HAS_HEADER(X)       ((bool)((X)->off_header != 0))
-#define OI_GET_MESSAGE(X)      ((const uchar*)(X)+((X)->off_message))
+#define OI_GET_MESSAGE(X)      ((const char*)(X)+((X)->off_message))
 #define OI_HAS_MESSAGE(X)      ((bool)((X)->off_message != 0))
 #define OI_GET_DESCRIPTORS(X)  ((const DESCRIPTOR*)((uint8_t*)(X)+((X)->off_descriptors)))
 
@@ -401,7 +401,7 @@ typedef struct
    uint16_t  off_desc;
 } LI_BLOCK;
 
-#define LI_GET_DESC(X)       ((const LI_DESC*)((uchar*)(X)+((X)->off_desc)))
+#define LI_GET_DESC(X)       ((const LI_DESC*)((char*)(X)+((X)->off_desc)))
 
 // ---------------------------------------------------------------------------
 //    TI Block

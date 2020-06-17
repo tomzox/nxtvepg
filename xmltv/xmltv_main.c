@@ -26,7 +26,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: xmltv_main.c,v 1.6 2007/12/30 15:47:46 tom Exp tom $
+ *  $Id: xmltv_main.c,v 1.7 2020/06/17 19:32:50 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_XMLTV
@@ -300,7 +300,7 @@ void Xmltv_ScanDir( const char * pDirPath, const char * pExtension,
    HANDLE hFind;
    WIN32_FIND_DATA finddata;
    SYSTEMTIME  systime;
-   uchar *pDirPattern;
+   char *pDirPattern;
    struct tm tm;
    bool bMore;
    uint flen;

@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: winshmsrv.h,v 1.5 2007/12/31 16:34:02 tom Exp tom $
+ *  $Id: winshmsrv.h,v 1.6 2020/06/17 19:30:22 tom Exp tom $
  */
 
 #ifndef __WINSHMSRV_H
@@ -42,7 +42,7 @@ void WintvSharedMem_Exit( void );
 void WintvSharedMem_SetCallbacks( const WINSHMSRV_CB * pCb );
 
 // interface to message handler on GUI level
-const uchar * WinSharedMem_GetErrorMsg( void );
+const char * WinSharedMem_GetErrorMsg( void );
 bool WintvSharedMem_GetCniAndPil( uint * pCni, uint * pPil );
 bool WintvSharedMem_IsConnected( char * pAppName, uint maxNameLen, uint * pFeatures );
 bool WintvSharedMem_SetEpgCommand( uint argc, const char * pArgStr, uint cmdlen );

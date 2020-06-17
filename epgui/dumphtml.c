@@ -18,7 +18,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: dumphtml.c,v 1.12 2014/04/23 21:10:51 tom Exp tom $
+ *  $Id: dumphtml.c,v 1.13 2020/06/17 19:32:20 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -93,8 +93,8 @@ static void EpgDumpHtml_AppendInfoTextCb( void *vp, const char * pDesc, bool add
 //
 static void EpgDumpHtml_WritePi( FILE *fp, const PI_BLOCK * pPiBlock, const AI_BLOCK * pAiBlock )
 {
-   uchar date_str[20], start_str[20], stop_str[20], label_str[50];
-   const uchar *pCfNetname;
+   char date_str[20], start_str[20], stop_str[20], label_str[50];
+   const char *pCfNetname;
    time_t start_time;
    time_t stop_time;
    bool isFromAi;
@@ -175,7 +175,7 @@ static void EpgDumpHtml_WritePi( FILE *fp, const PI_BLOCK * pPiBlock, const AI_B
 // ----------------------------------------------------------------------------
 // HTML page templates
 //
-static const uchar * const html_head =
+static const char * const html_head =
    "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\" \"http://www.w3.org/TR/html4/loose.dtd\">\n"
    "<HTML>\n"
    "<!--\n"
@@ -205,9 +205,9 @@ static const uchar * const html_head =
    "</HEAD>\n"
    "<BODY BGCOLOR=\"#f8f8f8\">\n\n";
 
-static const uchar * const html_marker_cont_title =
+static const char * const html_marker_cont_title =
    "<!-- APPEND LIST HERE / DO NOT DELETE THIS LINE -->\n";
-static const uchar * const html_marker_cont_desc =
+static const char * const html_marker_cont_desc =
    "<!-- APPEND PROGRAMMES HERE / DO NOT DELETE THIS LINE -->\n";
 
 
@@ -461,7 +461,7 @@ static void EpgDumpHtml_Title( FILE * fpDst, const PI_BLOCK * pPiBlock,
 
          if (colIdx == hyperlinkColIdx)
          {  // if requested add hyperlink to the description on this column
-            uchar label_str[50];
+            char label_str[50];
             time_t start_time = pPiBlock->start_time;
             strftime(label_str, sizeof(label_str), "%Y%m%d%H%M", localtime(&start_time));
             fprintf(fpDst, "<A HREF=\"#TITLE_%02d_%s\">\n", pPiBlock->netwop_no, label_str);

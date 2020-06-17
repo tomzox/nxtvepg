@@ -24,7 +24,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: piremind.c,v 1.21 2008/09/20 20:24:49 tom Exp tom $
+ *  $Id: piremind.c,v 1.22 2020/06/17 19:32:20 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -764,7 +764,7 @@ static int PiRemind_AddReminder( const PI_BLOCK * pPiBlock, int groupTag, int co
    const AI_BLOCK * pAiBlock;
    Tcl_Obj  * pRemListObj;
    Tcl_Obj  * pNewRem;
-   uchar strbuf[16+2+1];
+   char  strbuf[16+2+1];
    int   newIdx;
 
    newIdx = -1;
@@ -1331,9 +1331,9 @@ static int PiRemind_SetReminderMenuStates( ClientData ttp, Tcl_Interp *interp, i
 {
    const char * const pUsage = "Usage: C_SetReminderMenuStates";
    const PI_BLOCK * pPiBlock;
-   const uchar * pConf1;
-   const uchar * pConf2;
-   const uchar * pConf3;
+   const char * pConf1;
+   const char * pConf2;
+   const char * pConf3;
    sint  remIdx;
    int   result;
 

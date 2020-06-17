@@ -24,7 +24,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: pilistbox.c,v 1.98 2007/12/29 20:19:10 tom Exp tom $
+ *  $Id: pilistbox.c,v 1.99 2020/06/17 19:32:20 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -186,7 +186,7 @@ static bool PiListBox_ConsistancyCheck( void )
 // ----------------------------------------------------------------------------
 // Update the listbox state according to database and acq state
 //
-void PiListBox_ErrorMessage( const uchar * pMessage )
+void PiListBox_ErrorMessage( const char * pMessage )
 {
    assert(dbc != NULL);
 
@@ -1005,7 +1005,7 @@ static void PiListBox_ScrollLineUp( int delta )
 static int PiListBox_Scroll( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
 {  
    const char * const pUsage = "Usage: C_PiBox_Scroll {moveto <fract>|scroll <delta> {pages|unit}}";
-   uchar * pOption;
+   char  * pOption;
    double  fract;
    int     delta;
    int     result;
@@ -1156,7 +1156,7 @@ static int PiListBox_Dummy( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Ob
 static int PiListBox_GotoTime( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
 {
    const PI_BLOCK *pPiBlock;
-   const uchar * pArg;
+   const char * pArg;
    EPGDB_TIME_SEARCH_MODE timeMode;
    time_t startTime;
    int min_start;
@@ -1888,7 +1888,7 @@ static int PiListBox_GetSelectedNetCni( ClientData ttp, Tcl_Interp *interp, int 
 {
    const char * const pUsage = "Usage: C_PiBox_GetSelectedNetCni";
    const AI_BLOCK *pAiBlock;
-   uchar strbuf[16+2+1];
+   char strbuf[16+2+1];
    uchar netwop;
    int result;
 

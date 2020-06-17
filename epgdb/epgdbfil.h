@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgdbfil.h,v 1.30 2003/09/28 17:10:49 tom Exp tom $
+ *  $Id: epgdbfil.h,v 1.31 2020/06/17 19:30:47 tom Exp tom $
  */
 
 #ifndef __EPGDBFIL_H
@@ -100,7 +100,7 @@ typedef struct EPGDB_FILT_SUBSTR_struct
    bool   strMatchCase;
    bool   strMatchFull;
 
-   uchar  str[1];
+   char   str[1];
 } EPGDB_FILT_SUBSTR;
 
 typedef struct EPGDB_FILT_SUBCTX_GENERIC_struct
@@ -234,7 +234,7 @@ void   EpgDbFilterInitSubtDescr( FILTER_CONTEXT *fc );
 void   EpgDbFilterSetSubtDescr( const EPGDB_CONTEXT *dbc, FILTER_CONTEXT *fc, const uchar *lg );
 void   EpgDbFilterSetProgIdx( FILTER_CONTEXT *fc, uchar firstProgIdx, uchar lastProgIdx );
 void   EpgDbFilterSetVpsPdcMode( FILTER_CONTEXT *fc, uint mode );
-void   EpgDbFilterSetSubStr( FILTER_CONTEXT *fc, const uchar *pStr,
+void   EpgDbFilterSetSubStr( FILTER_CONTEXT *fc, const char *pStr,
                              bool scopeTitle, bool scopeDesc, bool matchCase, bool matchFull );
 void   EpgDbFilterSetCustom( FILTER_CONTEXT *fc, CUSTOM_FILTER_MATCH * pMatchCb,
                              CUSTOM_FILTER_FREE * pFreeCb, void * pArg );

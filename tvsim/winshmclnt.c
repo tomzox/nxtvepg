@@ -45,7 +45,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: winshmclnt.c,v 1.11 2007/12/31 17:03:12 tom Exp tom $
+ *  $Id: winshmclnt.c,v 1.12 2020/06/17 19:39:40 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_TVSIM
@@ -103,7 +103,7 @@ static volatile bool StopMsgThread;
 static volatile bool epgTriggerReceived;
 
 // error message of last request or background operation
-static uchar * pLastErrorText = NULL;
+static char * pLastErrorText = NULL;
 
 // application parameters, passed down during initialization
 static const WINSHMCLNT_TVAPP_INFO * pTvAppInfo;
@@ -211,9 +211,9 @@ static void WinSharedMemClient_SetErrorText( DWORD errCode, const char * pText, 
 // - this function should always be called when an error is indicated
 // - the caller must free the allocated memory!
 //
-const uchar * WinSharedMemClient_GetErrorMsg( void )
+const char * WinSharedMemClient_GetErrorMsg( void )
 {
-   const uchar * pErrMsg = pLastErrorText;
+   const char * pErrMsg = pLastErrorText;
 
    // clear the error message
    if (pLastErrorText != NULL)

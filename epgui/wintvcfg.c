@@ -29,7 +29,7 @@
  *    so their respective copyright applies too. Please see the notes in
  *    functions headers below.
  *
- *  $Id: wintvcfg.c,v 1.29 2008/01/12 18:45:01 tom Exp tom $
+ *  $Id: wintvcfg.c,v 1.30 2020/06/17 19:29:50 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -496,12 +496,12 @@ static bool WintvCfg_GetMoretvChanTab( TV_CHNTAB_BUF * pChanTab, const char * pC
 
          sprintf(keyValStr, "%02dFrequenz", idx);
          dwSize = sizeof(freq);
-         if ( (RegQueryValueEx(hKey, keyValStr, 0, &dwType, (char *) &freq, &dwSize) == ERROR_SUCCESS) &&
+         if ( (RegQueryValueEx(hKey, keyValStr, 0, &dwType, (BYTE*) &freq, &dwSize) == ERROR_SUCCESS) &&
               (dwType == REG_DWORD) && (dwSize == sizeof(freq)) )
          {
             sprintf(keyValStr, "%02dSendername", idx);
             dwSize = sizeof(name_buf) - 1;
-            if ( (RegQueryValueEx(hKey, keyValStr, 0, &dwType, name_buf, &dwSize) == ERROR_SUCCESS) && (dwType == REG_SZ) )
+            if ( (RegQueryValueEx(hKey, keyValStr, 0, &dwType, (BYTE*)name_buf, &dwSize) == ERROR_SUCCESS) && (dwType == REG_SZ) )
             {
                WintvCfg_ChanTabItemOpen(pChanTab);
 
@@ -553,7 +553,7 @@ static bool WintvCfg_GetFreetvChanTab( TV_CHNTAB_BUF * pChanTab, const char * pC
    if (RegOpenKeyEx(HKEY_CURRENT_USER, REG_KEY_FREETV_CHANTAB, 0, KEY_READ, &hKey) == ERROR_SUCCESS)
    {
       dwSize = sizeof(chanCount);
-      if ( (RegQueryValueEx(hKey, "Count", 0, &dwType, (char *) &chanCount, &dwSize) == ERROR_SUCCESS) &&
+      if ( (RegQueryValueEx(hKey, "Count", 0, &dwType, (BYTE*) &chanCount, &dwSize) == ERROR_SUCCESS) &&
            (dwType == REG_DWORD) && (dwSize == sizeof(chanCount)) )
       {
          for (chanIdx = 1; chanIdx <= chanCount; chanIdx++)
@@ -563,7 +563,7 @@ static bool WintvCfg_GetFreetvChanTab( TV_CHNTAB_BUF * pChanTab, const char * pC
             sprintf(keyValStr, "Frequency%d", chanIdx);
 
             dwSize = sizeof(freq);
-            if ( (RegQueryValueEx(hKey, keyValStr, 0, &dwType, (char *) &freq, &dwSize) == ERROR_SUCCESS) &&
+            if ( (RegQueryValueEx(hKey, keyValStr, 0, &dwType, (BYTE*) &freq, &dwSize) == ERROR_SUCCESS) &&
                  (dwType == REG_DWORD) && (dwSize == sizeof(freq)) )
             {
                WintvCfg_ChanTabAddFreq(pChanTab, (freq * 2) / 125);
@@ -572,7 +572,7 @@ static bool WintvCfg_GetFreetvChanTab( TV_CHNTAB_BUF * pChanTab, const char * pC
             sprintf(keyValStr, "Name%d", chanIdx);
 
             dwSize = sizeof(name_buf) - 1;
-            if ( (RegQueryValueEx(hKey, keyValStr, 0, &dwType, name_buf, &dwSize) == ERROR_SUCCESS) && (dwType == REG_SZ) )
+            if ( (RegQueryValueEx(hKey, keyValStr, 0, &dwType, (BYTE*) name_buf, &dwSize) == ERROR_SUCCESS) && (dwType == REG_SZ) )
             {
                if (dwSize == 0)
                {  // empty channel name - set to NULL string

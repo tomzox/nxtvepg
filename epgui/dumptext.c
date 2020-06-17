@@ -21,7 +21,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: dumptext.c,v 1.20 2014/04/23 21:10:51 tom Exp tom $
+ *  $Id: dumptext.c,v 1.21 2020/06/17 19:32:20 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -82,12 +82,12 @@ static void DumpText_PiInfoTextCb( void * vp, const char * pDesc, bool addSepara
 //
 static void DumpText_Pi( PI_DESCR_BUF * pb, const PI_BLOCK * pPi, const EPGDB_CONTEXT * pDbContext )
 {
-   //const uchar * pShort;
-   //const uchar * pLong;
+   //const char * pShort;
+   //const char * pLong;
    uchar hour, minute, day, month;
    uint  year;
-   uchar str_buf[128];
-   uchar *pStrSoundFormat;
+   char  str_buf[128];
+   char *pStrSoundFormat;
    struct tm *pTm;
    time_t start_time;
    time_t stop_time;
@@ -186,8 +186,8 @@ static void DumpText_Pi( PI_DESCR_BUF * pb, const PI_BLOCK * pPi, const EPGDB_CO
 static void DumpText_Ai( PI_DESCR_BUF * pb, const AI_BLOCK * pAi )
 {
    const AI_NETWOP *pNetwop;
-   const uchar * pNetname;
-   uchar str_buf[128];
+   const char * pNetname;
+   char str_buf[128];
    uint netwop;
    uint len;
 
@@ -222,10 +222,10 @@ static void DumpText_Ai( PI_DESCR_BUF * pb, const AI_BLOCK * pAi )
 //
 static void DumpText_PdcThemes( PI_DESCR_BUF * pb )
 {
-   const uchar * pThemeStr_eng;
-   const uchar * pThemeStr_ger;
-   const uchar * pThemeStr_fra;
-   uchar str_buf[128];
+   const char * pThemeStr_eng;
+   const char * pThemeStr_ger;
+   const char * pThemeStr_fra;
+   char  str_buf[128];
    uint  idx;
    uint  len;
 
@@ -259,7 +259,7 @@ static void DumpText_PdcThemes( PI_DESCR_BUF * pb )
 bool EpgDumpText_Single( EPGDB_CONTEXT * pDbContext, const PI_BLOCK * pPi, PI_DESCR_BUF * pb )
 {
    const AI_BLOCK * pAi;
-   const uchar * pNetname;
+   const char * pNetname;
    bool  result = FALSE;
 
    EpgDbIsLocked(pDbContext);

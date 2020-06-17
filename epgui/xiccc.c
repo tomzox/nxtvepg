@@ -20,7 +20,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: xiccc.c,v 1.3 2014/04/23 21:05:15 tom Exp tom $
+ *  $Id: xiccc.c,v 1.4 2020/06/17 19:34:45 tom Exp tom $
  */
 
 #ifdef WIN32
@@ -484,7 +484,7 @@ bool Xiccc_SplitArgv( Display * dpy, Window wid, Atom property, char *** ppArgv,
    int   format;
    ulong nitems, bytesafter;
    uchar * args;
-   uchar * pStr;
+   char * pStr;
    uint idx;
    uint argc;
    bool result = FALSE;
@@ -649,7 +649,7 @@ bool Xiccc_SendReply( XICCC_STATE * pXi, const char * pStr, int strLen,
          strLen = strlen(pStr);
 
       XChangeProperty(pXi->dpy, pReq->requestor, property, XA_STRING, 8*sizeof(char),
-                      PropModeReplace, pStr, strLen);
+                      PropModeReplace, (uchar*)pStr, strLen);
 
       memset(&ev,0,sizeof(ev));
       ev.xselection.type = SelectionNotify;
@@ -687,7 +687,7 @@ bool Xiccc_SendQuery( XICCC_STATE * pXi, const char * pCmd, sint cmdLen,
          cmdLen = strlen(pCmd);
 
       XChangeProperty(pXi->dpy, pXi->manager_wid, target, XA_STRING, 8, PropModeReplace,
-                      pCmd, cmdLen);
+                      (uchar*)pCmd, cmdLen);
 
       memset(&ev,0,sizeof(ev));
       ev.xselectionrequest.type = SelectionRequest;
@@ -850,7 +850,8 @@ bool Xiccc_Initialize( XICCC_STATE * pXi, Display * dpy,
 
          // protocol version and client info
          XChangeProperty(dpy, pXi->manager_wid, pXi->manager_atom,
-                         XA_STRING, 8*sizeof(char), PropModeReplace, pIdArgv, idLen);
+                         XA_STRING, 8*sizeof(char), PropModeReplace,
+                         (uchar*)pIdArgv, idLen);
 
          pXi->manager_state = XICCC_PASSIVE;
 

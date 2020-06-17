@@ -28,7 +28,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: tvchan.c,v 1.10 2020/06/17 10:09:35 tom Exp tom $
+ *  $Id: tvchan.c,v 1.10 2020/06/17 19:59:13 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_VBI
@@ -144,11 +144,11 @@ uint TvChannels_NameToFreq( const char * pName )
 // ---------------------------------------------------------------------------
 // Builds the name for a given channel number
 //
-void TvChannels_GetName( uint channel, uchar * pName, uint maxNameLen )
+void TvChannels_GetName( uint channel, char * pName, uint maxNameLen )
 {
-   const uchar *prefix;
+   const char *prefix;
    const FREQ_TABLE *ft;
-   uchar buf[20];
+   char buf[20];
 
    prefix = "";
    ft = freqTableList[freqTabIdx];

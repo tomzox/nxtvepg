@@ -20,7 +20,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: pifilter.c,v 1.95 2008/10/25 20:12:36 tom Exp tom $
+ *  $Id: pifilter.c,v 1.96 2020/06/17 19:34:20 tom Exp tom $
  */
 
 #define __PIFILTER_C
@@ -993,8 +993,8 @@ static int PiFilter_ContextCacheCtl( ClientData ttp, Tcl_Interp *interp, int obj
 static int GetPdcString( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
 {  
    const char * const pUsage = "Usage: C_GetPdcString <index>";
-   const uchar * pGeneralStr;
-   const uchar * pThemeStr;
+   const char * pGeneralStr;
+   const char * pThemeStr;
    Tcl_Obj * pTmpObj;
    int index;
    int result; 
@@ -1151,7 +1151,7 @@ static int GetNetwopSeriesList( ClientData ttp, Tcl_Interp *interp, int objc, Tc
       Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
       result = TCL_ERROR; 
    }  
-   else if (Tcl_GetIntFromObj(interp, objv[1], &cni) != TCL_OK)
+   else if (Tcl_GetIntFromObj(interp, objv[1], (int*)&cni) != TCL_OK)
    {
       result = TCL_ERROR; 
    }
@@ -1415,7 +1415,7 @@ static int GetNetwopFilterList( ClientData ttp, Tcl_Interp *interp, int objc, Tc
    const char * const pUsage = "Usage: C_GetNetwopFilterList";
    const AI_BLOCK *pAiBlock;
    Tcl_Obj * pResultList;
-   uchar strbuf[16+2+1];
+   char strbuf[16+2+1];
    uchar netwop;
    int result;
 
@@ -1711,7 +1711,7 @@ static int CreateNi( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONS
             }
 
             // get pointer to descriptive text for this event
-            evName = ((pEv[i].off_evstr != 0) ? NI_GET_EVENT_STR(pNiBlock, &pEv[i]) : (uchar *)"?");
+            evName = ((pEv[i].off_evstr != 0) ? NI_GET_EVENT_STR(pNiBlock, &pEv[i]) : "?");
             Tcl_ListObjAppendElement(interp, pResultList, TranscodeToUtf8(EPG_ENC_NXTVEPG, NULL, evName, NULL));
          }
       }
@@ -1807,7 +1807,7 @@ void PiFilter_UpdateAirTime( void )
    const AI_BLOCK  * pAiBlock;
    const AI_NETWOP * pNetwop;
    const char  * pTmpStr;
-   uchar strbuf[16+2+1];
+   char  strbuf[16+2+1];
    uint  startMoD, stopMoD;
    uint  netwop;
 
@@ -1885,8 +1885,8 @@ static int PiFilter_ContextMenuUndoFilter( ClientData ttp, Tcl_Interp *interp, i
    const char * const pUsage = "Usage: C_PiFilter_ContextMenuUndoFilter";
    const AI_BLOCK * pAiBlock;
    const PI_BLOCK * pPiBlock;
-   const uchar * pThemeStr;
-   const uchar * pCfNetname;
+   const char * pThemeStr;
+   const char * pCfNetname;
    uint  idx;
    uchar theme, netwop;
    Tcl_Obj * pResultList;
@@ -2160,8 +2160,8 @@ static int PiFilter_ContextMenuAddFilter( ClientData ttp, Tcl_Interp *interp, in
    const char * const pUsage = "Usage: C_PiFilter_ContextMenuAddFilter";
    const AI_BLOCK * pAiBlock;
    const PI_BLOCK * pPiBlock;
-   const uchar * pThemeStr;
-   const uchar * pCfNetname;
+   const char * pThemeStr;
+   const char * pCfNetname;
    bool  isFromAi;
    uint  idx;
    uchar theme, themeCat, netwop;
@@ -2193,7 +2193,7 @@ static int PiFilter_ContextMenuAddFilter( ClientData ttp, Tcl_Interp *interp, in
             if (EpgDbFilterIsEnabled(pPiFilterContext, FILTER_SUBSTR) == FALSE)
             {
                const char * pTitle;
-               uchar subStr[50];
+               char subStr[50];
 
                pTitle = PiDescription_RemoveSeriesIndex(PI_GET_TITLE(pPiBlock), subStr, sizeof(subStr));
                if (pTitle[0] != 0)

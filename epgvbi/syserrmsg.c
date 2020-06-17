@@ -20,7 +20,7 @@
  *  Author:
  *          Tom Zoerner
  *
- *  $Id: syserrmsg.c,v 1.8 2020/06/17 10:09:35 tom Exp tom $
+ *  $Id: syserrmsg.c,v 1.8 2020/06/17 19:52:15 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_VBI
@@ -46,7 +46,7 @@
 // WIN32: Generate a human readable error message from an error code
 //
 #ifdef WIN32
-static void SystemErrorMessage_WinStrError( DWORD errCode, uchar * pBuf, uint maxLen )
+static void SystemErrorMessage_WinStrError( DWORD errCode, char * pBuf, uint maxLen )
 {
    // first try the regular message generator
    if (FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM, NULL, errCode, LANG_USER_DEFAULT,
