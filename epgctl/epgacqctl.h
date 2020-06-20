@@ -204,7 +204,8 @@ void EpgAcqCtl_Stop( void );
 const char * EpgAcqCtl_GetLastError( void );
 bool EpgAcqCtl_SelectMode( EPGACQ_MODE newAcqMode, EPGACQ_PHASE maxPhase,
                            uint cniCount, const uint * pCniTab,
-                           uint ttxSrcCount, const char * pTtxNames, const uint * pTtxFreqs );
+                           uint ttxSrcCount, const char * pTtxNames,
+                           const EPGACQ_TUNER_PAR * pTtxFreqs );
 bool EpgAcqCtl_SetInputSource( uint inputIdx, uint slicerType );
 bool EpgAcqCtl_CheckDeviceAccess( void );
 void EpgAcqCtl_DescribeAcqState( EPGACQ_DESCR * pAcqState );
@@ -217,7 +218,7 @@ bool EpgAcqCtl_IsActive( void );
 void EpgAcqCtl_UpdateProvList( uint cniCount, const uint * pCniTab );
 
 // interface to sub-modules
-bool EpgAcqCtl_TuneProvider( bool isTtx, uint freq, uint cni, EPGACQ_PASSIVE * pMode );
+bool EpgAcqCtl_TuneProvider( bool isTtx, const EPGACQ_TUNER_PAR * par, uint cni, EPGACQ_PASSIVE * pMode );
 
 // timer events used during acquisition
 bool EpgAcqCtl_ProcessPackets( void );

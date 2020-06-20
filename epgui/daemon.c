@@ -123,7 +123,11 @@ void Daemon_SystemClockCmd( EPG_CLOCK_CTRL_MODE clockMode, uint cni )
       else
          freq = 0;
 
-      if ( BtDriver_TuneChannel(RcFile_Query()->tvcard.input, freq, FALSE, &isTuner) )
+      EPGACQ_TUNER_PAR par;
+      par.freq = EPGDB_TUNER_GET_FREQ(freq);
+      par.norm = EPGDB_TUNER_GET_NORM(freq);
+
+      if ( BtDriver_TuneChannel(RcFile_Query()->tvcard.input, &par, FALSE, &isTuner) )
       {
          if ( isTuner && (freq == 0) && (cni != 0) )
          {
@@ -314,7 +318,7 @@ static bool Daemon_ProvScanSetup( void )
 
    scanResult = EpgScan_Start(RcFile_Query()->tvcard.input,
                               FALSE, FALSE, FALSE,
-                              NULL, NULL, 0, &rescheduleMs,
+                              NULL, NULL, NULL, 0, &rescheduleMs,
                               &Daemon_ProvScanAddMsg, &Daemon_ProvScanAddProvDelButton);
    switch (scanResult)
    {

@@ -559,8 +559,25 @@ proc EpgScan_Start {} {
 
    if {[C_IsNetAcqActive clear_errors]} {
       # acquisition is not running local -> abort
-      tk_messageBox -type ok -icon info -message "EPG scan cannot be started while in client/server mode."
+      tk_messageBox -type ok -icon info -parent .epgscan -message "EPG scan cannot be started while in client/server mode."
       return
+   }
+
+   if {$epgscan_opt_ftable != 0} {
+      # check $::hwcf_ret_drvsrc_idx for BTDRV_SOURCE_DVB
+      set hwcfg [C_GetHardwareConfig]
+      if {[lindex $hwcfg 2] == 1} {
+         if {![C_Tvapp_Enabled]} {
+            set answer [tk_messageBox -type okcancel -icon error -parent .epgscan -message "Scanning physical frequencies is not supported for Digital TV-cards. Please use \"Select TV app\" for configuring a channel table before starting the EPG scan."]
+            if {[string compare $answer ok] == 0} {
+               XawtvConfigPopup
+            }
+            return
+         } else {
+            tk_messageBox -type ok -icon error -parent .epgscan -message "Scanning physical frequencies is not supported for Digital TV-cards. Please check option \"Load from TV app\"."
+         }
+         return
+      }
    }
 
    # clear the message window, including "provider remove" buttons

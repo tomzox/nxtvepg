@@ -174,8 +174,7 @@ proc XawtvConfigPopup {} {
       pack   .xawtvcf.tvapp.apptype.load -side right -padx 10 -fill x -expand 1
       pack   .xawtvcf.tvapp.apptype -side top -fill x
 
-      # WIN32: create entry field and command button to configure TV app directory
-      # (note: created on UNIX too, but not displayed)
+      # create entry field and command button to configure TV app directory
       frame  .xawtvcf.tvapp.name
       label  .xawtvcf.tvapp.name.prompt -text "Path:"
       pack   .xawtvcf.tvapp.name.prompt -side left -anchor w
@@ -192,9 +191,8 @@ proc XawtvConfigPopup {} {
          unset tmp
       }
       pack   .xawtvcf.tvapp.name.dlgbut -side left -padx 5
-      if {!$is_unix} {
-         pack   .xawtvcf.tvapp.name -side top -padx 5 -pady 5 -anchor w -fill x -expand 1
-      }
+      pack   .xawtvcf.tvapp.name -side top -padx 5 -pady 5 -anchor w -fill x -expand 1
+
       # set state and text of the entry field and button
       XawtvConfigSetTvapp
 

@@ -592,7 +592,10 @@ static bool EpgAcqNxtv_TuneProvider( uint freq, uint cni, bool * pInputChanged )
    // remember time of channel change
    acqCtl.chanChangeTime = time(NULL);
 
-   result = EpgAcqCtl_TuneProvider(FALSE, freq, cni, &acqCtl.passiveReason);
+   EPGACQ_TUNER_PAR par;
+   par.norm = EPGDB_TUNER_GET_NORM(freq);
+   par.freq = EPGDB_TUNER_GET_FREQ(freq);
+   result = EpgAcqCtl_TuneProvider(FALSE, &par, cni, &acqCtl.passiveReason);
 
    *pInputChanged = ( (acqCtl.passiveReason == ACQPASSIVE_NONE) ||
                       (acqCtl.passiveReason != ACQPASSIVE_ACCESS_DEVICE) );
@@ -764,14 +767,16 @@ static bool EpgAcqNxtv_AiCallback( const AI_BLOCK *pNewAi )
          // store the tuner frequency if none is known yet
          if (acqCtl.pAcqDbContext->tunerFreq == 0)
          {
-            uint  freq, chan;
+            EPGACQ_TUNER_PAR par;
+            uint  chan;
             bool  isTuner;
             // try to obtain the frequency from the driver (not supported by all drivers)
-            if ( BtDriver_QueryChannel(&freq, &chan, &isTuner) && (isTuner) && (freq != 0) )
+            if ( BtDriver_QueryChannel(&par, &chan, &isTuner) && (isTuner) && (par.freq != 0) )
             {  // store the provider channel frequency in the rc/ini file
-               debug2("EpgAcqCtl: setting current tuner frequency %.2f for CNI 0x%04X", (double)(freq & 0xffffff)/16, ai_cni);
-               acqCtl.pAcqDbContext->tunerFreq = freq;
-               UiControlMsg_NewProvFreq(ai_cni, freq);
+               debug2("EpgAcqCtl: setting current tuner frequency %.2f for CNI 0x%04X", (double)par.freq/16, ai_cni);
+               uint nxtvFreq = EPGDB_TUNER_FREQ_DEF(par.freq, par.norm);
+               acqCtl.pAcqDbContext->tunerFreq = nxtvFreq;
+               UiControlMsg_NewProvFreq(ai_cni, nxtvFreq);
             }
          }
 
@@ -867,14 +872,15 @@ static bool EpgAcqNxtv_AiCallback( const AI_BLOCK *pNewAi )
               (oldState == ACQSTATE_WAIT_AI) && (accept) &&
               (acqCtl.state == ACQSTATE_RUNNING) )
          {
-            uint  freq, chan;
+            EPGACQ_TUNER_PAR par;
+            uint  chan;
             bool  isTuner;
             // try to obtain the frequency from the driver (not supported by all drivers)
-            if ( BtDriver_QueryChannel(&freq, &chan, &isTuner) && (isTuner) && (freq != 0) )
+            if ( BtDriver_QueryChannel(&par, &chan, &isTuner) && (isTuner) && (par.freq != 0) )
             {  // store the provider channel frequency in the rc/ini file
-               debug2("EpgAcqCtl: setting current tuner frequency %.2f for CNI 0x%04X", (double)(freq & 0xffffff)/16, ai_cni);
-               acqCtl.pAcqDbContext->tunerFreq = freq;
-               UiControlMsg_NewProvFreq(ai_cni, freq);
+               debug2("EpgAcqCtl: setting current tuner frequency %.2f for CNI 0x%04X", (double)(par.freq & 0xffffff)/16, ai_cni);
+               acqCtl.pAcqDbContext->tunerFreq = par.freq;
+               UiControlMsg_NewProvFreq(ai_cni, par.freq);
             }
          }
       }

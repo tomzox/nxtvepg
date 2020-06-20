@@ -81,7 +81,6 @@ typedef struct
    const char * rcfile;
    const char * dbdir;
    int          videoCardIndex;
-   int          dvbPid;
    bool         disableAcq;
    EPG_DAEMON_MODE optDaemonMode;
    EPG_DUMP_MODE optDumpMode;

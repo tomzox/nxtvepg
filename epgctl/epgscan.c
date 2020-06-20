@@ -14,11 +14,7 @@
  *
  *  Description:
  *
- *    The purpose of the EPG scan is to find out the tuner frequencies of all
- *    EPG providers. This would not be needed it the Nextview decoder was
- *    integrated into a TV application. But as a separate application, there
- *    is no other way to find out the frequencies, since /dev/video can not
- *    be opened twice, not even to only query the actual tuner frequency.
+ *    The purpose of the EPG scan is to find all Nextview EPG providers.
  *   
  *    The scan is designed to perform as fast as possible. We stay max. 2 secs
  *    on each channel. If a CNI is found and it's a known and loaded provider,
@@ -88,7 +84,8 @@ typedef struct
    bool             doRefresh;        // user option: check already known providers only
    bool             useXawtv;         // user option: work on predefined channel list
    uint             provFreqCount;    // number of known frequencies (xawtv and refresh mode)
-   uint           * provFreqTab;      // list of known frequencies (xawtv and refresh mode)
+   char           * chnNames;         // table of channel names (xawtv mode), or NULL
+   EPGACQ_TUNER_PAR * provFreqTab;    // list of known frequencies (xawtv and refresh mode)
    uint           * provCniTab;       // list of known provider CNIs (refresh mode)
    EPGDB_CONTEXT  * pDbContext;       // database context for BI/AI search and reload
    EPGDB_QUEUE      dbQueue;          // queue for incoming EPG blocks
@@ -110,7 +107,7 @@ static const EPGDB_ADD_CB epgScanCb =
 // ----------------------------------------------------------------------------
 // Tune the next channel
 //
-static bool EpgScan_NextChannel( uint * pFreq )
+static bool EpgScan_NextChannel( EPGACQ_TUNER_PAR * pFreq )
 {
    bool result = FALSE;
 
@@ -126,8 +123,13 @@ static bool EpgScan_NextChannel( uint * pFreq )
    }
    else
    {
-      if (TvChannels_GetNext(&scanCtl.channel, pFreq))
+      uint freq = 0;
+
+      if (TvChannels_GetNext(&scanCtl.channel, &freq))
       {
+         pFreq->freq = EPGDB_TUNER_GET_FREQ(freq);
+         pFreq->norm = EPGDB_TUNER_GET_NORM(freq);
+
          scanCtl.channelIdx += 1;
          result = TRUE;
       }
@@ -135,6 +137,27 @@ static bool EpgScan_NextChannel( uint * pFreq )
    return result;
 }
 
+// ---------------------------------------------------------------------------
+// Helper function which looks up a channel's name
+// - name table is available only when freq table was loaded from TV-app
+// - name table is a concatenation of zero-terminated strings
+//
+static const char * EpgAcqTtx_GetChannelName( uint channelIdx )
+{
+   const char * pNames = NULL;
+   assert(scanCtl.chnNames != NULL);  // to be checked by caller
+
+   if (channelIdx <= scanCtl.provFreqCount)
+   {
+      pNames = scanCtl.chnNames;
+      for (uint idx = 0; idx < channelIdx; idx++)
+         pNames += strlen(pNames) + 1;
+   }
+   else
+      debug1("EpgScan-GetChannelName: invalid idx:%d", channelIdx);
+
+   return pNames;
+}
 // ---------------------------------------------------------------------------
 // AI callback: invoked before a new AI block is inserted into the database
 //
@@ -298,8 +321,8 @@ uint EpgScan_EvHandler( void )
    const AI_BLOCK * pAi;
    const char * pName, * pCountry;
    time_t now = time(NULL);
-   char chanName[10], msgbuf[300], dispText[PDC_TEXT_LEN + 1];
-   uint  freq;
+   char chanName[64], msgbuf[300], dispText[PDC_TEXT_LEN + 1];
+   EPGACQ_TUNER_PAR freq;
    TTX_DEC_STATS ttxStats;
    time_t ttxStart;
    uint cni, dataPageCnt;
@@ -419,8 +442,11 @@ uint EpgScan_EvHandler( void )
             // determine channel name (e.g. "SE10")
             if (scanCtl.provFreqCount == 0)
                TvChannels_GetName(scanCtl.channel, chanName, sizeof(chanName));
+            else if (scanCtl.chnNames != NULL)
+               snprintf(chanName, sizeof(chanName), "#%d (\"%.40s\")", scanCtl.channel, EpgAcqTtx_GetChannelName(scanCtl.channel - 1));
             else
-               sprintf(chanName, "#%d", scanCtl.channel);
+               snprintf(chanName, sizeof(chanName), "#%d", scanCtl.channel);
+            chanName[sizeof(chanName) - 1] = 0;
             if (pName != NULL)
             {
                sprintf(msgbuf, "Channel %s: CNI 0x%04X %s", chanName, cni, pName);
@@ -485,8 +511,11 @@ uint EpgScan_EvHandler( void )
             {  // CNI not known -> prepend message with channel info
                if (scanCtl.provFreqCount == 0)
                   TvChannels_GetName(scanCtl.channel, chanName, sizeof(chanName));
+               else if (scanCtl.chnNames != NULL)
+                  snprintf(chanName, sizeof(chanName), "#%d (\"%.40s\")", scanCtl.channel, EpgAcqTtx_GetChannelName(scanCtl.channel - 1));
                else
-                  sprintf(chanName, "#%d", scanCtl.channel);
+                  snprintf(chanName, sizeof(chanName), "#%d", scanCtl.channel);
+               chanName[sizeof(chanName) - 1] = 0;
                sprintf(msgbuf, "Channel %s: found some kind of data transmission", chanName);
             }
             else
@@ -545,15 +574,18 @@ uint EpgScan_EvHandler( void )
          }
          else if ( (scanCtl.useXawtv || scanCtl.doRefresh) &&
                    (scanCtl.state <= SCAN_STATE_WAIT_NI) )
-         {  // no CNI found one a predefined channel -> inform user
+         {  // no CNI found on a predefined channel -> inform user
             if (scanCtl.provFreqCount == 0)
                TvChannels_GetName(scanCtl.channel, chanName, sizeof(chanName));
+            else if (scanCtl.chnNames != NULL)
+               sprintf(chanName, "#%d (\"%.40s\")", scanCtl.channel, EpgAcqTtx_GetChannelName(scanCtl.channel - 1));
             else
                sprintf(chanName, "#%d", scanCtl.channel);
+            chanName[sizeof(chanName) - 1] = 0;
             if (dispText[0] != 0)
                sprintf(msgbuf, "Channel %s: CNI 0x0000 \"%s\"", chanName, dispText);
             else
-               sprintf(msgbuf, "Channel %s: no CNI received - skipping", chanName);
+               sprintf(msgbuf, "Channel %s: no network ID received - skipping", chanName);
             scanCtl.MsgCallback(msgbuf, FALSE);
          }
 
@@ -589,14 +621,14 @@ uint EpgScan_EvHandler( void )
 
          if ( EpgScan_NextChannel(&freq) )
          {
-            if ( BtDriver_TuneChannel(scanCtl.inputSrc, freq, TRUE, &isTuner) )
+            if ( BtDriver_TuneChannel(scanCtl.inputSrc, &freq, TRUE, &isTuner) )
             {
                // automatically dump db if provider was found, then free resources
                assert((scanCtl.pDbContext->pAiBlock == NULL) || (scanCtl.pDbContext->tunerFreq != 0));
                EpgContextCtl_Close(scanCtl.pDbContext);
 
                scanCtl.pDbContext = EpgContextCtl_OpenDummy();
-               scanCtl.pDbContext->tunerFreq = freq;
+               scanCtl.pDbContext->tunerFreq = EPGDB_TUNER_FREQ_DEF(freq.freq, freq.norm);
                scanCtl.pDbContext->pageNo    = EPG_DEFAULT_PAGENO;
 
                EpgStreamClear();
@@ -758,10 +790,11 @@ static void MenuCmd_ScanMissingFreq( void )
 //   doRefresh: work only on freqs of already known providers
 //
 EPGSCAN_START_RESULT EpgScan_Start( int inputSource, bool doSlow, bool useXawtv, bool doRefresh,
-                                    uint *cniTab, uint *freqTab, uint freqCount, uint * pRescheduleMs,
+                                    uint *cniTab, char * chnNames, EPGACQ_TUNER_PAR *freqTab,
+                                    uint freqCount, uint * pRescheduleMs,
                                     EPGSCAN_MSGCB * pMsgCallback, EPGSCAN_DELCB * pProvDelCallback  )
 {
-   uint  freq;
+   EPGACQ_TUNER_PAR  freq;
    bool  isTuner;
    EPGSCAN_START_RESULT result;
    char chanName[10], msgbuf[300];
@@ -774,6 +807,7 @@ EPGSCAN_START_RESULT EpgScan_Start( int inputSource, bool doSlow, bool useXawtv,
    scanCtl.acqWasEnabled = EpgAcqCtl_IsActive();
    scanCtl.provFreqCount = freqCount;
    scanCtl.provFreqTab   = freqTab;
+   scanCtl.chnNames      = chnNames;
    scanCtl.provCniTab    = cniTab;
    scanCtl.MsgCallback   = pMsgCallback;
    scanCtl.DelCallback   = pProvDelCallback;
@@ -820,11 +854,11 @@ EPGSCAN_START_RESULT EpgScan_Start( int inputSource, bool doSlow, bool useXawtv,
          BtDriver_SetChannelProfile(VBI_CHANNEL_PRIO_INTERACTIVE, 0, 0, 0);
          BtDriver_SelectSlicer(VBI_SLICER_ZVBI);
 
-         if ( BtDriver_TuneChannel(scanCtl.inputSrc, freq, TRUE, &isTuner) )
+         if ( BtDriver_TuneChannel(scanCtl.inputSrc, &freq, TRUE, &isTuner) )
          {
             if (isTuner)
             {
-               scanCtl.pDbContext->tunerFreq = freq;
+               scanCtl.pDbContext->tunerFreq = EPGDB_TUNER_FREQ_DEF(freq.freq, freq.norm);
                scanCtl.pDbContext->pageNo    = EPG_DEFAULT_PAGENO;
 
                EpgStreamInit(&scanCtl.dbQueue, TRUE, EPG_DEFAULT_APPID, EPG_DEFAULT_PAGENO);
@@ -913,6 +947,11 @@ EPGSCAN_START_RESULT EpgScan_Start( int inputSource, bool doSlow, bool useXawtv,
          xfree(scanCtl.provCniTab);
          scanCtl.provCniTab = NULL;
       }
+      if (scanCtl.chnNames != NULL)
+      {
+         xfree(scanCtl.chnNames);
+         scanCtl.chnNames = NULL;
+      }
    }
 
    if (pRescheduleMs != NULL)
@@ -942,6 +981,11 @@ void EpgScan_Stop( void )
       {
          xfree(scanCtl.provCniTab);
          scanCtl.provCniTab = NULL;
+      }
+      if (scanCtl.chnNames != NULL)
+      {
+         xfree(scanCtl.chnNames);
+         scanCtl.chnNames = NULL;
       }
       scanCtl.state = SCAN_STATE_OFF;
 
@@ -996,4 +1040,3 @@ bool EpgScan_IsActive( void )
 {
    return (scanCtl.state != SCAN_STATE_OFF);
 }
-

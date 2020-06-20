@@ -47,6 +47,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <string.h>
+#include <ctype.h>
 #include <time.h>
 
 #include "epgctl/mytypes.h"
@@ -75,7 +76,7 @@
 
 typedef struct
 {
-   uint         freq;
+   EPGACQ_TUNER_PAR freq;
    uint         strOff;
    uint         sortIdx;
 } TV_CHNTAB_ITEM;
@@ -90,7 +91,7 @@ typedef struct
    uint      strBufOff;
 } TV_CHNTAB_BUF;
 
-#define CHNTAB_MISSING_FREQ    (~0u)
+#define CHNTAB_MISSING_FREQ    EPGACQ_TUNER_NORM_COUNT
 #define CHNTAB_MISSING_NAME    (~0u)
 
 // ----------------------------------------------------------------------------
@@ -301,12 +302,12 @@ static void WintvCfg_ChanTabItemOpen( TV_CHNTAB_BUF * pChanTab )
    }
 
    // initialize the new item
-   pChanTab->pData[pChanTab->itemCount].freq   = CHNTAB_MISSING_FREQ;
+   pChanTab->pData[pChanTab->itemCount].freq.norm = CHNTAB_MISSING_FREQ;
    pChanTab->pData[pChanTab->itemCount].strOff = CHNTAB_MISSING_NAME;
    pChanTab->pData[pChanTab->itemCount].sortIdx = pChanTab->itemCount;
 }
 
-#ifndef WIN32 // currently not used for WIN32 TV apps - only tp avoid compiler warning
+#ifndef WIN32 // currently not used for WIN32 TV apps - only to avoid compiler warning
 // ----------------------------------------------------------------------------
 // Append a sorting index to the current item in the channel buffer
 //
@@ -321,17 +322,35 @@ static void WintvCfg_ChanTabAddSortIdx( TV_CHNTAB_BUF * pChanTab, uint sortIdx )
 // ----------------------------------------------------------------------------
 // Append a frequency value to the current item in the channel buffer
 //
-static void WintvCfg_ChanTabAddFreq( TV_CHNTAB_BUF * pChanTab, uint freq )
+static void WintvCfg_ChanTabAddFreq( TV_CHNTAB_BUF * pChanTab, uint freq, EPGACQ_TUNER_NORM norm )
 {
    // open call must precede addition, hence there must be at least one free slot left
    assert(pChanTab->itemCount < pChanTab->maxItemCount);
-   assert(pChanTab->pData[pChanTab->itemCount].freq == CHNTAB_MISSING_FREQ);
+   assert(pChanTab->pData[pChanTab->itemCount].freq.norm == CHNTAB_MISSING_FREQ);
 
-   if ((freq != CHNTAB_MISSING_FREQ) && (freq != 0))
+   if (freq != 0)
    {
-      pChanTab->pData[pChanTab->itemCount].freq = freq;
+      pChanTab->pData[pChanTab->itemCount].freq.freq = freq;
+      pChanTab->pData[pChanTab->itemCount].freq.norm = norm;
+   }
+   else
+   {
+      pChanTab->pData[pChanTab->itemCount].freq.freq = 0;
+      pChanTab->pData[pChanTab->itemCount].freq.norm = EPGACQ_TUNER_EXTERNAL;
    }
 }
+
+#ifndef WIN32 // currently not used for WIN32 TV apps - only to avoid compiler warning
+static void WintvCfg_ChanTabAddDvbFreq( TV_CHNTAB_BUF * pChanTab, const EPGACQ_TUNER_PAR *  freq )
+{
+   // open call must precede addition, hence there must be at least one free slot left
+   assert(pChanTab->itemCount < pChanTab->maxItemCount);
+   assert(pChanTab->pData[pChanTab->itemCount].freq.norm == CHNTAB_MISSING_FREQ);
+   assert(freq->norm == EPGACQ_TUNER_NORM_DVB);
+
+   pChanTab->pData[pChanTab->itemCount].freq = *freq;
+}
+#endif // WIN32
 
 // ----------------------------------------------------------------------------
 // Append a channel name to the current item in the channel buffer
@@ -400,13 +419,13 @@ static void WintvCfg_ChanTabItemClose( TV_CHNTAB_BUF * pChanTab )
       assert(pChanTab->itemCount < pChanTab->maxItemCount);
 
       // discard the item if not both frequency and name were added
-      if ( (pChanTab->pData[pChanTab->itemCount].freq   != CHNTAB_MISSING_FREQ) &&
+      if ( (pChanTab->pData[pChanTab->itemCount].freq.norm != CHNTAB_MISSING_FREQ) &&
            (pChanTab->pData[pChanTab->itemCount].strOff != CHNTAB_MISSING_NAME) )
       {
          // replace missing data with default values: invalid frequency / empty name
-         if (pChanTab->pData[pChanTab->itemCount].freq   == CHNTAB_MISSING_FREQ)
+         if (pChanTab->pData[pChanTab->itemCount].freq.norm == CHNTAB_MISSING_FREQ)
          {
-            WintvCfg_ChanTabAddFreq(pChanTab, 0);
+            WintvCfg_ChanTabAddFreq(pChanTab, 0, EPGACQ_TUNER_EXTERNAL);
          }
          if (pChanTab->pData[pChanTab->itemCount].strOff == CHNTAB_MISSING_NAME)
          {
@@ -426,7 +445,7 @@ static void WintvCfg_ChanTabItemClose( TV_CHNTAB_BUF * pChanTab )
    }
 }
 
-#ifndef WIN32 // currently not used for WIN32 TV apps - only tp avoid compiler warning
+#ifndef WIN32 // currently not used for WIN32 TV apps - only to avoid compiler warning
 // ---------------------------------------------------------------------------
 // Sort the channel table
 //
@@ -505,7 +524,7 @@ static bool WintvCfg_GetMoretvChanTab( TV_CHNTAB_BUF * pChanTab, const char * pC
             {
                WintvCfg_ChanTabItemOpen(pChanTab);
 
-               WintvCfg_ChanTabAddFreq(pChanTab, (freq * 4) / 25);
+               WintvCfg_ChanTabAddFreq(pChanTab, (freq * 4) / 25, EPGACQ_TUNER_NORM_PAL);
 
                if ((dwSize == 0) || (strcmp(name_buf, "---") == 0))
                {  // empty channel name - set to NULL string
@@ -566,7 +585,7 @@ static bool WintvCfg_GetFreetvChanTab( TV_CHNTAB_BUF * pChanTab, const char * pC
             if ( (RegQueryValueEx(hKey, keyValStr, 0, &dwType, (BYTE*) &freq, &dwSize) == ERROR_SUCCESS) &&
                  (dwType == REG_DWORD) && (dwSize == sizeof(freq)) )
             {
-               WintvCfg_ChanTabAddFreq(pChanTab, (freq * 2) / 125);
+               WintvCfg_ChanTabAddFreq(pChanTab, (freq * 2) / 125, EPGACQ_TUNER_NORM_PAL);
             }
 
             sprintf(keyValStr, "Name%d", chanIdx);
@@ -716,7 +735,7 @@ static bool WintvCfg_GetMultidecChanTab( TV_CHNTAB_BUF * pChanTab, const char * 
                while (read(fd, &Programm, sizeof(Programm)) == sizeof(Programm))
                {
                   WintvCfg_ChanTabItemOpen(pChanTab);
-                  WintvCfg_ChanTabAddFreq(pChanTab, Programm.freq * 2 / 125);
+                  WintvCfg_ChanTabAddFreq(pChanTab, Programm.freq * 2 / 125, EPGACQ_TUNER_NORM_PAL);
 
                   Programm.Name[sizeof(Programm.Name) - 1] = 0;
                   WintvCfg_ChanTabAddName(pChanTab, Programm.Name);
@@ -729,7 +748,7 @@ static bool WintvCfg_GetMultidecChanTab( TV_CHNTAB_BUF * pChanTab, const char * 
                while (read(fd, &ProgrammAlt, sizeof(ProgrammAlt)) == sizeof(ProgrammAlt))
                {
                   WintvCfg_ChanTabItemOpen(pChanTab);
-                  WintvCfg_ChanTabAddFreq(pChanTab, ProgrammAlt.freq * 2 / 125);
+                  WintvCfg_ChanTabAddFreq(pChanTab, ProgrammAlt.freq * 2 / 125, EPGACQ_TUNER_NORM_PAL);
 
                   Programm.Name[sizeof(Programm.Name) - 1] = 0;
                   WintvCfg_ChanTabAddName(pChanTab, Programm.Name);
@@ -783,7 +802,7 @@ static bool WintvCfg_GetKtvChanTab( TV_CHNTAB_BUF * pChanTab, const char * pChan
             {
                if (isOpen)
                {
-                  WintvCfg_ChanTabAddFreq(pChanTab, freq * 2 / 125);
+                  WintvCfg_ChanTabAddFreq(pChanTab, freq * 2 / 125, EPGACQ_TUNER_NORM_PAL);
                }
             }
             // K!TV version 2
@@ -792,7 +811,7 @@ static bool WintvCfg_GetKtvChanTab( TV_CHNTAB_BUF * pChanTab, const char * pChan
                if (isOpen)
                {
                   freq /= 1000;
-                  WintvCfg_ChanTabAddFreq(pChanTab, freq * 2 / 125);
+                  WintvCfg_ChanTabAddFreq(pChanTab, freq * 2 / 125, EPGACQ_TUNER_NORM_PAL);
                }
             }
             else if (sscanf(sbuf, "name %*[=:] %99[^\n]", value) >= 1)
@@ -884,12 +903,12 @@ static bool WintvCfg_GetDscalerChanTab( TV_CHNTAB_BUF * pChanTab, const char * p
                {
                   freq = (uint) atol(sbuf + 5);
                   freq = (freq * 16) / 1000;  // MulDiv WTF!?
-                  WintvCfg_ChanTabAddFreq(pChanTab, freq);
+                  WintvCfg_ChanTabAddFreq(pChanTab, freq, EPGACQ_TUNER_NORM_PAL);
                }
                else if (strnicmp(sbuf, "Freq2:", 6) == 0)
                {
                   freq = atol(sbuf + 6);
-                  WintvCfg_ChanTabAddFreq(pChanTab, freq);
+                  WintvCfg_ChanTabAddFreq(pChanTab, freq, EPGACQ_TUNER_NORM_PAL);
                }
             }
          }
@@ -914,6 +933,171 @@ static bool WintvCfg_GetDscalerChanTab( TV_CHNTAB_BUF * pChanTab, const char * p
 #else  // not WIN32
 
 // ----------------------------------------------------------------------------
+// Extract all channels from VDR "channels.conf" table
+// - Format: http://www.vdr-wiki.de/wiki/index.php/Channels.conf
+// - List is a colon-separated table with one line per channel; each line contains:
+//   name:freq:param:signal source:symbol rate:VPID:APID:TPID:CAID:SID:NID:TID:RID
+//
+#include <linux/dvb/frontend.h>  // for QUAM
+
+static bool WintvCfg_GetVdrChanTab( TV_CHNTAB_BUF * pChanTab, const char * pChanTabPath, char ** ppErrMsg )
+{
+   char sbuf[2048];
+   FILE * fp;
+   const int field_cnt = 13;
+   char * fields[field_cnt];
+   int field_idx;
+   char * sep_ptr;
+   bool result = FALSE;
+
+   if (pChanTabPath != NULL)
+   {
+      fp = fopen(pChanTabPath, "r");
+      if (fp != NULL)
+      {
+         while (feof(fp) == FALSE)
+         {
+            sbuf[0] = '\0';
+
+            if (fgets(sbuf, 2048-1, fp) != NULL)
+            {
+               sep_ptr = sbuf;
+               fields[0] = sbuf;
+               for (field_idx = 1; field_idx < field_cnt; ++field_idx)
+               {
+                  sep_ptr = strchr(sep_ptr, ':');
+                  if (sep_ptr == NULL)
+                     break;
+                  *(sep_ptr++) = 0;
+                  fields[field_idx] = sep_ptr;
+               }
+
+               if (field_idx == field_cnt)
+               {
+                  // strip bouquet name from network name
+                  char * p1 = strchr(fields[0], ';');
+                  if (p1 != NULL)
+                     *p1 = 0;
+                  // trim trailing newline char from last field
+                  char *p2 = fields[field_cnt - 1];
+                  p1 += strlen(p2) - 1;
+                  while ((p1 >= p2) && isspace(*p1))
+                     *(p1--) = 0;
+
+                  EPGACQ_TUNER_PAR par;
+                  memset(&par, 0, sizeof(par));
+
+                  par.norm = EPGACQ_TUNER_NORM_DVB;
+                  par.freq = atol(fields[1]);
+                  while (par.freq <= 1000000)
+                     par.freq *= 1000;
+
+                  par.symbolRate = atol(fields[4]) * 1000;
+                  par.ttxPid = atol(fields[7]);  // implicitly ignore ";" and following
+                  par.modulation = QAM_AUTO;
+
+                  // skip radio channels etc.
+                  if (par.ttxPid != 0)
+                  {
+                     char * field_par = fields[2];
+                     char * end = field_par + strlen(field_par);
+                     while (field_par < end)
+                     {
+                        char op = *(field_par++);
+                        char * ends;
+                        long val;
+
+                        switch (op)
+                        {
+                           // specifiers that are followed by a decimal value
+                           case 'I':
+                           case 'C':
+                           case 'D':
+                           case 'M':
+                           case 'B':
+                           case 'T':
+                           case 'G':
+                           case 'Y':
+                              if (field_par < end)
+                              {
+                                 val = strtol(field_par, &ends, 10);
+                                 field_par = ends;
+                                 if (op == 'M')
+                                 {
+                                    switch (val)
+                                    {
+                                       case 0:  par.modulation = QPSK; break;
+                                       case 16:  par.modulation = QAM_16; break;
+                                       case 32:  par.modulation = QAM_32; break;
+                                       case 64:  par.modulation = QAM_64; break;
+                                       case 128:  par.modulation = QAM_128; break;
+                                       case 256:  par.modulation = QAM_256; break;
+                                       default:
+                                          fprintf(stderr, "WARNING: invalid Modulation value %ld in VDR: %s", val, sbuf);
+                                    }
+                                 }
+                                 else if (op == 'B')
+                                 {
+                                    // TODO bandwidth DVB-T
+                                 }
+                                 else if (op == 'I')
+                                 {
+                                    // TODO inversion bandwidth DVB-T, DVB-C
+                                 }
+                              }
+                              else
+                              {
+                                 fprintf(stderr, "WARNING: missing value for param '%c' in VDR: %s", op, sbuf);
+                              }
+                              break;
+
+                           // parameters that are not followed by value
+                           case 'H':
+                           case 'V':
+                           case 'R':
+                           case 'L':
+                              break;
+
+                           // ignore whitespace
+                           case ' ':
+                           case '\t':
+                              break;
+                           default:
+                              fprintf(stderr, "WARNING: invalid param '%c' in VDR: %s", op, sbuf);
+                              break;
+                        }
+                     }
+
+                     WintvCfg_ChanTabItemOpen(pChanTab);
+                     WintvCfg_ChanTabAddName(pChanTab, fields[0]);
+                     WintvCfg_ChanTabAddDvbFreq(pChanTab, &par);
+                     WintvCfg_ChanTabItemClose(pChanTab);
+                  }
+               }
+               else
+               {
+                  fprintf(stderr, "WARNING: Malformed channel table entry skipped: %s\n", sbuf);
+               }
+            }
+            else
+               break;
+         }
+         fclose(fp);
+
+         result = TRUE;
+      }
+      else
+      {  // file open failed -> warn the user
+         if (ppErrMsg != NULL)
+            SystemErrorMessage_Set(ppErrMsg, errno,
+                                   "Check your settings in the TV interaction configuration dialog. "
+                                   "Could not open channel table \"", pChanTabPath, "\": ", NULL);
+      }
+   }
+   return result;
+}
+
+// ----------------------------------------------------------------------------
 // Extract all TV frequencies & norms from $HOME/.xawtv for the EPG scan
 // - the parsing pattern used here is lifted directly from xawtv-3.41
 // - station names are defined on single lines in brackets, e.g. [ARD]
@@ -921,7 +1105,7 @@ static bool WintvCfg_GetDscalerChanTab( TV_CHNTAB_BUF * pChanTab, const char * p
 static bool WintvCfg_GetXawtvChanTab( TV_CHNTAB_BUF * pChanTab, const char * pChanTabPath, char ** ppErrMsg )
 {
    char line[256], tag[64], value[192];
-   uint defaultNorm, attrNorm;
+   EPGACQ_TUNER_NORM defaultNorm, attrNorm;
    sint defaultFine, attrFine;
    bool defaultIsTvInput, isTvInput;
    bool isOpen;
@@ -955,7 +1139,7 @@ static bool WintvCfg_GetXawtvChanTab( TV_CHNTAB_BUF * pChanTab, const char * pCh
                   if ((freq != 0) && isTvInput)
                   {
                      dprintf4("Xawtv channel: freq=%d fine=%d norm=%d, isTvInput=%d\n", freq, attrFine, attrNorm, isTvInput);
-                     WintvCfg_ChanTabAddFreq(pChanTab, (attrNorm << 24) | (freq + attrFine));
+                     WintvCfg_ChanTabAddFreq(pChanTab, freq + attrFine, attrNorm);
                   }
                   WintvCfg_ChanTabItemClose(pChanTab);
                }
@@ -1026,7 +1210,7 @@ static bool WintvCfg_GetXawtvChanTab( TV_CHNTAB_BUF * pChanTab, const char * pCh
             if ((freq != 0) && isTvInput)
             {
                dprintf4("Xawtv channel: freq=%d fine=%d norm=%d, isTvInput=%d\n", freq, attrFine, attrNorm, isTvInput);
-               WintvCfg_ChanTabAddFreq(pChanTab, (attrNorm << 24) | (freq + attrFine));
+               WintvCfg_ChanTabAddFreq(pChanTab, freq + attrFine, attrNorm);
             }
             WintvCfg_ChanTabItemClose(pChanTab);
          }
@@ -1120,7 +1304,7 @@ static void WintvCfg_ParseZappingConf( FILE * fp, TV_CHNTAB_BUF * pChanTab )
          if ( (subTreeLevel == 1) && (freq != 0) )
          {
             dprintf2("Zapping channel: freq=%ld norm=%ld\n", freq, norm);
-            WintvCfg_ChanTabAddFreq(pChanTab, (norm << 24) | (freq * 16/1000));
+            WintvCfg_ChanTabAddFreq(pChanTab, freq * 16/1000, norm);
             WintvCfg_ChanTabItemClose(pChanTab);
          }
          else if (subTreeLevel == 0)
@@ -1321,7 +1505,7 @@ static void WintvCfg_ParseTvtimeStations( FILE * fp, TV_CHNTAB_BUF * pChanTab, c
          {
             WintvCfg_ChanTabItemOpen(pChanTab);
             WintvCfg_ChanTabAddName(pChanTab, tag);
-            WintvCfg_ChanTabAddFreq(pChanTab, (norm << 24) | (freq + fine));
+            WintvCfg_ChanTabAddFreq(pChanTab, freq + fine, norm);
             WintvCfg_ChanTabAddSortIdx(pChanTab, position);
             WintvCfg_ChanTabItemClose(pChanTab);
          }
@@ -1455,6 +1639,7 @@ static const TVAPP_LIST tvAppList[TVAPP_COUNT] =
    { "MoreTV",   FALSE, WintvCfg_GetMoretvChanTab,   "" },
    { "FreeTV",   FALSE, WintvCfg_GetFreetvChanTab,   "" },
 #else
+   { "VDR",      TRUE,  WintvCfg_GetVdrChanTab,      "channels.conf" },
    { "Xawtv",    FALSE, WintvCfg_GetXawtvChanTab,    ".xawtv" },
    { "XawDecode",FALSE, WintvCfg_GetXawtvChanTab,    ".xawdecode/xawdecoderc" },
    { "XdTV",     FALSE, WintvCfg_GetXawtvChanTab,    ".xdtv/xdtvrc" },
@@ -1500,7 +1685,7 @@ const char * WintvCfg_GetName( void )
 // - only used in the TV application interaction configuration dialog
 //
 bool WintvCfg_GetChanTab( uint appIdx, const char * pChanTabPath, char ** ppErrMsg,
-                          char ** ppNameTab, uint ** ppFreqTab, uint * pCount )
+                          char ** ppNameTab, EPGACQ_TUNER_PAR ** ppFreqTab, uint * pCount )
 {
    TV_CHNTAB_BUF chanTab;
    uint chanIdx;
@@ -1528,15 +1713,12 @@ bool WintvCfg_GetChanTab( uint appIdx, const char * pChanTabPath, char ** ppErrM
 
          if (ppFreqTab != NULL)
          {
-            *ppFreqTab = xmalloc(chanTab.itemCount * sizeof(uint));
+            *ppFreqTab = xmalloc(chanTab.itemCount * sizeof(EPGACQ_TUNER_PAR));
 
             // copy the frequencies into a scalar array
             for (chanIdx = 0; chanIdx < chanTab.itemCount; chanIdx++)
             {
-               if (chanTab.pData[chanIdx].freq != 0)
-               {
-                  (*ppFreqTab)[chanIdx] = chanTab.pData[chanIdx].freq;
-               }
+               (*ppFreqTab)[chanIdx] = chanTab.pData[chanIdx].freq;
             }
          }
 
@@ -1558,7 +1740,7 @@ bool WintvCfg_GetChanTab( uint appIdx, const char * pChanTabPath, char ** ppErrM
 // ----------------------------------------------------------------------------
 // Get TV channel names and frequencies
 //
-bool WintvCfg_GetFreqTab( char ** ppNameTab, uint ** ppFreqTab, uint * pCount, char ** ppErrMsg )
+bool WintvCfg_GetFreqTab( char ** ppNameTab, EPGACQ_TUNER_PAR ** ppFreqTab, uint * pCount, char ** ppErrMsg )
 {
    const char * pTvAppPath;
    const char * pChanTabPath;
@@ -1568,6 +1750,7 @@ bool WintvCfg_GetFreqTab( char ** ppNameTab, uint ** ppFreqTab, uint * pCount, c
    appIdx = WintvCfg_GetAppIdx();
    if (appIdx != TVAPP_NONE)
    {
+      // keep WIN and UNIX paths separate to support use of multi-boot
 #ifdef WIN32
       pTvAppPath = RcFile_Query()->tvapp.tvpath_win;
 #else

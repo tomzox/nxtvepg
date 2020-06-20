@@ -92,15 +92,18 @@ typedef enum
    VBI_CHANNEL_PRIO_INTERACTIVE
 } VBI_CHANNEL_PRIO_TYPE;
 
-#ifdef WIN32
 typedef enum
 {
+#ifdef WIN32
    BTDRV_SOURCE_WDM = 0,
    BTDRV_SOURCE_PCI = 1,
+#else
+   BTDRV_SOURCE_ANALOG = 0,
+   BTDRV_SOURCE_DVB = 1,
+#endif
    BTDRV_SOURCE_NONE = -1,
    BTDRV_SOURCE_UNDEF = -2
 } BTDRV_SOURCE_TYPE;
-#endif
 
 
 // enable dump of all incoming TTX packets
@@ -231,17 +234,30 @@ typedef struct
 
 
 // ---------------------------------------------------------------------------
-// Video norm
-// - encoded in the upper-most 8 bit of the frequency parameter when tuning
+// Channel parameters
 
 typedef enum
 {
-  EPGACQ_TUNER_NORM_PAL = 0,     // analog norm IDs fixed for use in RC file
+  EPGACQ_TUNER_NORM_PAL = 0,     // analog norm IDs fixed for used in RC file
   EPGACQ_TUNER_NORM_NTSC = 1,
   EPGACQ_TUNER_NORM_SECAM = 2,
+  EPGACQ_TUNER_NORM_DVB,
+  EPGACQ_TUNER_EXTERNAL,         // external input (no tuning)
   EPGACQ_TUNER_NORM_COUNT
 } EPGACQ_TUNER_NORM;
 
+typedef struct
+{
+   EPGACQ_TUNER_NORM norm;
+   long              freq;
+   int               modulation;
+   long              symbolRate;
+   int               ttxPid;
+} EPGACQ_TUNER_PAR;
+
+// tolerance when comparing DVB frequencies,
+// as driver query may not return exactly the tuned value
+#define EPGACQ_TUNER_DVB_FREQ_TOL 10000
 
 // ---------------------------------------------------------------------------
 // Structure which is put into shared memory
@@ -289,6 +305,7 @@ typedef struct
    # endif
 
    uchar     cardIndex;
+   bool      cardIsDvb;
    int       dvbPid;
    uint      slicerType;
    # if defined(__NetBSD__) || defined(__FreeBSD__)
@@ -324,12 +341,12 @@ bool BtDriver_StartAcq( void );
 void BtDriver_StopAcq( void );
 const char * BtDriver_GetLastError( void );
 bool BtDriver_IsVideoPresent( void );
-bool BtDriver_QueryChannel( uint * pFreq, uint * pInput, bool * pIsTuner );
-bool BtDriver_TuneChannel( int inputIdx, uint freq, bool keepOpen, bool * pIsTuner );
+bool BtDriver_QueryChannel( EPGACQ_TUNER_PAR * pFreqPar, uint * pInput, bool * pIsTuner );
+bool BtDriver_TuneChannel( int inputIdx, const EPGACQ_TUNER_PAR * pFreqPar, bool keepOpen, bool * pIsTuner );
 
 #ifndef WIN32
 int BtDriver_GetDeviceOwnerPid( void );
-bool BtDriver_SetDvbPid( int pid );
+void BtDriver_TuneDvbPid( int pid );
 #else
 bool BtDriver_Restart( void );
 bool BtDriver_GetState( bool * pEnabled, bool * pHasDriver, uint * pCardIdx );
@@ -347,12 +364,12 @@ const char * BtDriver_GetInputName( uint cardIdx, uint cardType, uint drvType, u
 bool BtDriver_Configure( int sourceIdx, int drvType, int prio, int chipType, int cardType,
                          int tunerType, int pllType, bool wdmStop );
 void BtDriver_SelectSlicer( VBI_SLICER_TYPE slicerType );
+BTDRV_SOURCE_TYPE BtDriver_GetDefaultDrvType( void );
 #ifndef WIN32
-const char * BtDriver_GetCardName( uint cardIdx );
+const char * BtDriver_GetCardName( uint cardIdx, bool dvb );
 #else
 const char * BtDriver_GetCardNameFromList( uint cardIdx, uint listIdx );
 const char * BtDriver_GetTunerName( uint tunerIdx );
-BTDRV_SOURCE_TYPE BtDriver_GetDefaultDrvType( void );
 bool BtDriver_EnumCards( uint drvType, uint cardIdx, uint cardType,
                          uint * pChipType, const char ** pName, bool showDrvErr );
 bool BtDriver_QueryCardParams( uint cardIdx, sint * pCardType, sint * pTunerType, sint * pPllType );

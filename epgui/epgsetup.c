@@ -593,7 +593,7 @@ void EpgSetup_DbExpireDelay( void )
 // Get XML file name table and frequencies for teletext grabber
 // - note: the caller must free the returned pointers, if non-NULL
 //
-static bool EpgSetup_GetTtxConfig( uint * pCount, char ** ppNames, uint ** ppFreq )
+static bool EpgSetup_GetTtxConfig( uint * pCount, char ** ppNames, EPGACQ_TUNER_PAR ** ppFreq )
 {
    const RCFILE * pRc;
    char * ps;
@@ -731,7 +731,7 @@ static void EpgSetup_SortAcqCniList( uint cniCount, uint * cniTab )
 void EpgSetup_AcquisitionMode( NETACQ_SET_MODE netAcqSetMode )
 {
    const RCFILE * pRc;
-   uint       * pTtxFreqs;
+   EPGACQ_TUNER_PAR * pTtxFreqs;
    char       * pTtxNames;
    uint         ttxFreqCount;
    uint         cniCount;
@@ -853,7 +853,7 @@ bool EpgSetup_DaemonAcquisitionMode( uint cmdLineCni, bool forcePassive, int max
 #ifdef USE_DAEMON
    const RCFILE * pRc = RcFile_Query();
    EPGACQ_MODE   mode;
-   uint        * pTtxFreqs;
+   EPGACQ_TUNER_PAR * pTtxFreqs;
    char        * pTtxNames;
    uint          ttxFreqCount;
    const uint  * pProvList;
@@ -1021,12 +1021,12 @@ void EpgSetup_CardDriver( int newCardIndex )
       UpdateRcFile(TRUE);
    }
 
-#ifdef WIN32
    if (drvType == BTDRV_SOURCE_UNDEF)
    {
       drvType = BtDriver_GetDefaultDrvType();
    }
 
+#ifdef WIN32
    if (drvType == BTDRV_SOURCE_PCI)
    {
       if (cardIdx < pRc->tvcard.winsrc_count)
@@ -1040,22 +1040,17 @@ void EpgSetup_CardDriver( int newCardIndex )
       else
          debug2("EpgSetup-CardDriver: no config for card #%d (have %d cards)", cardIdx, pRc->tvcard.winsrc_count);
    }
+#endif
 
    if (drvType == BTDRV_SOURCE_NONE)
    {
       EpgAcqCtl_Stop();
    }
    else
-#endif
    {
       // pass the hardware config params to the driver
       if (BtDriver_Configure(cardIdx, drvType, prio, chipType, cardType, tuner, pll, wdmStop))
       {
-#ifndef WIN32
-         // enable DVB, if requested
-         if (mainOpts.dvbPid != -1)
-            BtDriver_SetDvbPid(mainOpts.dvbPid);
-#endif
          // pass the input selection to acquisition control
          EpgAcqCtl_SetInputSource(input, slicer);
       }

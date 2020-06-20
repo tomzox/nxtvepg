@@ -851,16 +851,12 @@ void BtDriver_Exit( void )
 //   also note that the isTuner flag is only set upon the first call
 // - note: assumes that VBI device is opened before
 //
-bool BtDriver_TuneChannel( int inputIdx, uint freq, bool dummy, bool * pIsTuner )
+bool BtDriver_TuneChannel( int inputIdx, const EPGACQ_TUNER_PAR * pFreqPar, bool dummy, bool * pIsTuner )
 {
 #if !defined (__NetBSD__) && !defined (__FreeBSD__)
-   ulong lfreq;
-   uint  norm;
    bool result = FALSE;
 
    *pIsTuner = TRUE;
-   norm  = freq >> 24;
-   lfreq = freq & 0xffffff;
 
    if (video_fd != -1)
    {
@@ -872,7 +868,7 @@ bool BtDriver_TuneChannel( int inputIdx, uint freq, bool dummy, bool * pIsTuner 
       v4l2_inp = inputIdx;
       if (IOCTL(video_fd, VIDIOC_S_INPUT, &v4l2_inp) == 0)
       {
-         switch (norm)
+         switch (pFreqPar->norm)
          {
             case EPGACQ_TUNER_NORM_PAL:
             default:
@@ -898,10 +894,10 @@ bool BtDriver_TuneChannel( int inputIdx, uint freq, bool dummy, bool * pIsTuner 
                   memset(&vfreq2, 0, sizeof(vfreq2));
                   if (IOCTL(video_fd, VIDIOC_G_FREQUENCY, &vfreq2) == 0)
                   {
-                     vfreq2.frequency = lfreq;
+                     vfreq2.frequency = pFreqPar->freq;
                      if (IOCTL(video_fd, VIDIOC_S_FREQUENCY, &vfreq2) == 0)
                      {
-                        dprintf1("BtDriver-TuneChannel: set to %.2f\n", (double)lfreq/16);
+                        dprintf1("BtDriver-TuneChannel: set to %.2f\n", (double)pFreqPar->freq/16);
 
                         result = TRUE;
                      }
@@ -925,16 +921,11 @@ bool BtDriver_TuneChannel( int inputIdx, uint freq, bool dummy, bool * pIsTuner 
    }
 
 #else // __NetBSD__ || __FreeBSD__
-   ulong lfreq;
-   uint  norm;
    bool result = FALSE;
 
-   norm  = freq >> 24;
-   lfreq = freq & 0xffffff;
-
-   //if (BtDriver_SetInputSource(inputIdx, norm, pIsTuner))
+   //if (BtDriver_SetInputSource(inputIdx, pFreqPar->norm, pIsTuner))
    {
-      if ( (*pIsTuner) && (lfreq != 0) )
+      if ( (*pIsTuner) && (pFreqPar->freq != 0) )
       {
          if (video_fd != -1)
          {
@@ -948,7 +939,7 @@ bool BtDriver_TuneChannel( int inputIdx, uint freq, bool dummy, bool * pIsTuner 
                fprintf(stderr, "muting audio (ioctl AUDIO_MUTE): %s\n", strerror(errno));
 
             // Set the tuner frequency
-            if(ioctl(video_fd, TVTUNER_SETFREQ, &lfreq) == 0)
+            if(ioctl(video_fd, TVTUNER_SETFREQ, &pFreqPar->freq) == 0)
             {
                dprintf1("Vbi-TuneChannel: set to %.2f\n", (double)freq/16);
 
@@ -1630,8 +1621,12 @@ static void TvSimuMsg_ReqTuner( void )
       if ( (inputSrc != EPG_REQ_INPUT_NONE) &&
            (freq != EPG_REQ_FREQ_NONE) )
       {
+         EPGACQ_TUNER_PAR freqPar;
+         freqPar.freq = freq;
+         freqPar.norm = norm;
+
          // set the TV input source (tuner, composite, S-video) and frequency
-         if ( BtDriver_TuneChannel(inputSrc, freq | (norm << 24), FALSE, &isTuner) )
+         if ( BtDriver_TuneChannel(inputSrc, &freqPar, FALSE, &isTuner) )
          {
             BtDriver_SelectSlicer(VBI_SLICER_ZVBI);
 
@@ -1858,7 +1853,7 @@ static int TclCb_TuneChan( ClientData ttp, Tcl_Interp *interp, int argc, CONST84
 {
    const char * const pUsage = "C_TuneChan <idx> <name>";
    char  * pErrMsg;
-   uint  * pFreqTab;
+   EPGACQ_TUNER_PAR * pFreqTab;
    uint    freqCount;
    int     freqIdx;
    bool    isTuner;
@@ -1882,7 +1877,7 @@ static int TclCb_TuneChan( ClientData ttp, Tcl_Interp *interp, int argc, CONST84
             if ((freqIdx < freqCount) && (freqIdx >= 0))
             {
                // Change the tuner frequency via the BT8x8 driver
-               BtDriver_TuneChannel(TVSIM_INPUT_IDX, pFreqTab[freqIdx], FALSE, &isTuner);
+               BtDriver_TuneChannel(TVSIM_INPUT_IDX, &pFreqTab[freqIdx], FALSE, &isTuner);
                BtDriver_SelectSlicer(VBI_SLICER_ZVBI);
 
                #ifdef WIN32
@@ -1901,14 +1896,14 @@ static int TclCb_TuneChan( ClientData ttp, Tcl_Interp *interp, int argc, CONST84
                   // - input source is hard-wired to TV tuner in this simulation
                   // - channel ID is hard-wired to 0 too (see comments in the winshmclnt.c)
                   WinSharedMemClient_SetStation(argv[2], -1, 0,
-                                                isTuner, pFreqTab[freqIdx] & 0xffffff,
-                                                pFreqTab[freqIdx] >> 24, piCount);
+                                                isTuner, pFreqTab[freqIdx].freq,
+                                                pFreqTab[freqIdx].norm, piCount);
                }
                #else
                // Xawtv: provide station name and frequency (FIXME channel code omitted)
                if (IPC_XAWTV_ENABLED)
                {
-                  TvSim_XawtvSetStation(pFreqTab[freqIdx], "-", argv[2]);
+                  TvSim_XawtvSetStation(pFreqTab[freqIdx].freq, "-", argv[2]);
                }
                if (IPC_ICCCM_ENABLED)
                {
@@ -1923,7 +1918,7 @@ static int TclCb_TuneChan( ClientData ttp, Tcl_Interp *interp, int argc, CONST84
                      if (pPiCountStr == NULL)
                         pPiCountStr = "1";
 
-                     sprintf(freq_buf, "%d", pFreqTab[freqIdx]);
+                     sprintf(freq_buf, "%ld", pFreqTab[freqIdx].freq);
 
                      Xiccc_BuildArgv(&pArgv, &arg_len, ICCCM_PROTO_VSTR, argv[2], freq_buf, "-", "", "Text/Tabular", pPiCountStr, "1", NULL);
                      Xiccc_SendQuery(&xiccc, pArgv, arg_len, xiccc.atoms._NXTVEPG_SETSTATION,

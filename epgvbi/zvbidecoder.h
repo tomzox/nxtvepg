@@ -297,6 +297,22 @@ typedef struct vbi_raw_decoder {
  */
 #define VBI_SLICED_VPS			0x00000004
 
+#define VBI_SLICED_VPS_F2               0x00001000
+
+#define VBI_SLICED_CAPTION_625_F1       0x00000008
+#define VBI_SLICED_CAPTION_625_F2       0x00000010
+#define VBI_SLICED_CAPTION_625          (VBI_SLICED_CAPTION_625_F1 | \
+                                         VBI_SLICED_CAPTION_625_F2)
+#define VBI_SLICED_CAPTION_525_F1       0x00000020
+#define VBI_SLICED_CAPTION_525_F2       0x00000040
+#define VBI_SLICED_CAPTION_525          (VBI_SLICED_CAPTION_525_F1 | \
+                                         VBI_SLICED_CAPTION_525_F2)
+#define VBI_SLICED_WSS_625              0x00000400
+#define VBI_SLICED_WSS_CPR1204          0x00000800
+#define VBI_SLICED_VBI_625              0x20000000
+#define VBI_SLICED_VBI_525              0x40000000
+
+
 /**
  * @ingroup Sliced
  * @brief This structure holds one scan line of sliced vbi data.

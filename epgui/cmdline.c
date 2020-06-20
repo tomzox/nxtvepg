@@ -168,9 +168,6 @@ static void Usage( const char *argv0, const char *argvn, const char * reason )
                    "       -epgquery <string>  \t: apply given filter command to export\n"
                    "       -provider <cni>     \t: network id of EPG provider (hex)\n"
                    "       -card <digit>       \t: index of TV card for acq (starting at 0)\n"
-                   #ifndef WIN32
-                   "       -dvbpid <number>    \t: Use DVB with the given pid (passive acq.)\n"
-                   #endif
                    ;
 
 
@@ -613,24 +610,6 @@ static void CmdLine_Parse( int argc, char * argv[] )
             else
                MainOptionError(argv[0], argv[argIdx], "missing card index after");
          }
-         else if (!strcmp(argv[argIdx], "-dvbpid"))
-         {
-            #ifndef WIN32
-            if (argIdx + 1 < argc)
-            {  // read PID for DVB
-               char *pe;
-               ulong dvbPid = strtol(argv[argIdx + 1], &pe, 0);
-               if (pe != (argv[argIdx + 1] + strlen(argv[argIdx + 1])))
-                  MainOptionError(argv[0], argv[argIdx+1], "invalid value for -dvbpid");
-               mainOpts.dvbPid = (int) dvbPid;
-               argIdx += 2;
-            }
-            else
-               MainOptionError(argv[0], argv[argIdx], "missing DVB pid number after");
-            #else
-            MainOptionError(argv[0], argv[argIdx], "not supported on Windows platforms");
-            #endif
-         }
          else if ( !strcmp(argv[argIdx], "-provider") ||
                    !strcmp(argv[argIdx], "-prov") )
          {
@@ -869,7 +848,6 @@ static void CmdLine_SetDefaults( bool daemonOnly )
 #endif
    mainOpts.dbdir  = NULL;
    mainOpts.videoCardIndex = -1;
-   mainOpts.dvbPid = -1;
    mainOpts.disableAcq = FALSE;
    mainOpts.optDaemonMode = FALSE;
    mainOpts.optDumpMode = EPG_DUMP_NONE;

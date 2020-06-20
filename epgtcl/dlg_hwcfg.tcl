@@ -40,7 +40,8 @@ set hwcfg_drvsrc_sel 0
 #=CONST= ::tvcf_drvsrc_none      -1
 #=CONST= ::tvcf_drvsrc_wdm       0
 #=CONST= ::tvcf_drvsrc_dsdrv     1
-#=CONST= ::tvcf_drvsrc_unix      0
+#=CONST= ::tvcf_drvsrc_v4l       0
+#=CONST= ::tvcf_drvsrc_dvb       1
 
 # Used for Windows only: PCI chip IDs (stored at $::tvcf_chip_idx in config list)
 #=CONST= ::pci_id_unknown        0
@@ -96,29 +97,12 @@ proc PopupHardwareConfig {} {
       set hwcfg_slicer_sel [lindex $hwcfg $::hwcf_ret_slicer_idx]
       set hwcf_wdm_stop_sel [lindex $hwcfg $::hwcf_ret_wdm_stop_idx]
 
-      if {!$is_unix} {
-         labelframe .hwcfg.opt1 -text "Video input connectors"
-      } else {
-         frame .hwcfg.opt1
-      }
-      # create menu to select video input
-      frame .hwcfg.opt1.input
-      label .hwcfg.opt1.input.curname -text "Current input: "
-      menubutton .hwcfg.opt1.input.mb -text "Select" -menu .hwcfg.opt1.input.mb.menu \
-                                      -indicatoron 1 -underline 0
-      config_menubutton .hwcfg.opt1.input.mb
-      menu .hwcfg.opt1.input.mb.menu -tearoff 0 -postcommand {PostDynamicMenu .hwcfg.opt1.input.mb.menu HardwareCreateInputMenu {}}
-      pack .hwcfg.opt1.input.curname -side left -padx 10 -anchor w -expand 1
-      pack .hwcfg.opt1.input.mb -side left -padx 10 -anchor e
-      pack .hwcfg.opt1.input -side top -pady 5 -anchor w -fill x
-      pack .hwcfg.opt1 -side top -fill x -padx 5 -pady 3
-
       # create menu to select TV card
-      if {!$is_unix} {
+      #if {!$is_unix} {
          labelframe .hwcfg.opt2 -text "TV card & driver selection"
-      } else {
-         frame .hwcfg.opt2
-      }
+      #} else {
+      #   frame .hwcfg.opt2
+      #}
       frame .hwcfg.opt2.card
       label .hwcfg.opt2.card.label -text "TV card: "
       pack .hwcfg.opt2.card.label -side left -padx 10
@@ -130,16 +114,29 @@ proc PopupHardwareConfig {} {
       pack .hwcfg.opt2.card.mb -side right -padx 10 -anchor e
       pack .hwcfg.opt2.card -side top -anchor w -pady 5 -fill x
 
-      if {!$is_unix} {
+      if {$is_unix} {
+         frame .hwcfg.opt2.drvsrc
+         radiobutton .hwcfg.opt2.drvsrc.src_wdm -text "Digital TV (DVB)" \
+                           -variable hwcfg_drvsrc_sel -value $::tvcf_drvsrc_dvb -command HwCfg_DrvTypeChanged
+         grid .hwcfg.opt2.drvsrc.src_wdm -row 0 -column 0 -sticky w
+         radiobutton .hwcfg.opt2.drvsrc.src_dsdrv -text "Analog TV" \
+                           -variable hwcfg_drvsrc_sel -value $::tvcf_drvsrc_v4l -command HwCfg_DrvTypeChanged
+         grid .hwcfg.opt2.drvsrc.src_dsdrv -row 1 -column 0 -sticky w
+         radiobutton .hwcfg.opt2.drvsrc.src_none -text "None (no device access)" \
+                           -variable hwcfg_drvsrc_sel -value $::tvcf_drvsrc_none -command HwCfg_DrvTypeChanged
+         grid .hwcfg.opt2.drvsrc.src_none -row 2 -column 0 -sticky w
+         pack .hwcfg.opt2.drvsrc -side top -padx 5 -pady 3 -anchor w
+         pack .hwcfg.opt2 -side top -fill x -padx 5 -pady 3
+      } else {
          frame .hwcfg.opt2.drvsrc
          radiobutton .hwcfg.opt2.drvsrc.src_wdm -text "WDM (card vendor's driver)" \
-                           -variable hwcfg_drvsrc_sel -value $::tvcf_drvsrc_wdm -command HwCfg_WinDrvChanged
+                           -variable hwcfg_drvsrc_sel -value $::tvcf_drvsrc_wdm -command HwCfg_DrvTypeChanged
          grid .hwcfg.opt2.drvsrc.src_wdm -row 0 -column 0 -sticky w
          radiobutton .hwcfg.opt2.drvsrc.src_dsdrv -text "DsDrv4 (internal driver)" \
-                           -variable hwcfg_drvsrc_sel -value $::tvcf_drvsrc_dsdrv -command HwCfg_WinDrvChanged
+                           -variable hwcfg_drvsrc_sel -value $::tvcf_drvsrc_dsdrv -command HwCfg_DrvTypeChanged
          grid .hwcfg.opt2.drvsrc.src_dsdrv -row 1 -column 0 -sticky w
          radiobutton .hwcfg.opt2.drvsrc.src_none -text "None (no TV card)" \
-                           -variable hwcfg_drvsrc_sel -value $::tvcf_drvsrc_none -command HwCfg_WinDrvChanged
+                           -variable hwcfg_drvsrc_sel -value $::tvcf_drvsrc_none -command HwCfg_DrvTypeChanged
          grid .hwcfg.opt2.drvsrc.src_none -row 2 -column 0 -sticky w
          pack .hwcfg.opt2.drvsrc -side top -padx 5 -pady 3 -anchor w
 
@@ -164,9 +161,25 @@ proc PopupHardwareConfig {} {
          if {$hwcfg_drvsrc_sel == $::tvcf_drvsrc_dsdrv} {
             pack .hwcfg.opt3 -side top -fill x -padx 5 -pady 3
          }
-      } else {
-         pack .hwcfg.opt2 -side top -fill x -padx 5 -pady 3
       }
+
+      # input selection
+      if {!$is_unix} {
+         labelframe .hwcfg.opt1 -text "Video input connectors"
+      } else {
+         frame .hwcfg.opt1
+      }
+      # create menu to select video input
+      frame .hwcfg.opt1.input
+      label .hwcfg.opt1.input.curname -text "Current input: "
+      menubutton .hwcfg.opt1.input.mb -text "Select" -menu .hwcfg.opt1.input.mb.menu \
+                                      -indicatoron 1 -underline 0
+      config_menubutton .hwcfg.opt1.input.mb
+      menu .hwcfg.opt1.input.mb.menu -tearoff 0 -postcommand {PostDynamicMenu .hwcfg.opt1.input.mb.menu HardwareCreateInputMenu {}}
+      pack .hwcfg.opt1.input.curname -side left -padx 10 -anchor w -expand 1
+      pack .hwcfg.opt1.input.mb -side left -padx 10 -anchor e
+      pack .hwcfg.opt1.input -side top -pady 5 -anchor w -fill x
+      pack .hwcfg.opt1 -side top -fill x -padx 5 -pady 3
 
       # create radio buttons to select slicer
       if {!$is_unix} {
@@ -231,7 +244,11 @@ proc HwCfg_LoadTvCardList {showDrvErr} {
    global is_unix
 
    if $is_unix {
-      set hwcfg_card_list [C_HwCfgScanTvCards $::tvcf_drvsrc_unix $showDrvErr]
+      if {$hwcfg_drvsrc_sel != $::tvcf_drvsrc_none} {
+         set hwcfg_card_list [C_HwCfgScanTvCards $hwcfg_drvsrc_sel $showDrvErr]
+      } else {
+         set hwcfg_card_list {}
+      }
    } else {
 
       set hwcfg_card_list {}
@@ -340,7 +357,7 @@ proc HwCfg_TvCardChanged {} {
    }
 }
 
-proc HwCfg_WinDrvChanged {} {
+proc HwCfg_DrvTypeChanged {} {
    global is_unix
    global hwcfg_drvsrc_sel
 
@@ -355,9 +372,9 @@ proc HwCfg_WinDrvChanged {} {
             pack forget .hwcfg.opt3 -side top -fill x -padx 5 -pady 3
          }
       }
-      HwCfg_LoadTvCardList 1
-      HwCfg_TvCardChanged
    }
+   HwCfg_LoadTvCardList 1
+   HwCfg_TvCardChanged
 }
 
 # callback for dynamic input source menu
@@ -425,7 +442,7 @@ proc HardwareConfigQuit {is_ok} {
 
    if {[string compare $answer "ok"] == 0} {
 
-      if $is_ok {
+      if {$is_ok} {
          # OK button -> save config into the global variables
 
          if { !$is_unix } {
@@ -679,7 +696,7 @@ proc TvCardConfigQuit {} {
 
       destroy .tvcard
 
-      if $hwcfg_popup {
+      if {$hwcfg_popup} {
          HwCfg_LoadTvCardList 0
          HwCfg_TvCardChanged
       }

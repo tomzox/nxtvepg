@@ -60,6 +60,7 @@ typedef enum
    TVAPP_XDTV,       // former xawdecode
    TVAPP_ZAPPING,
    TVAPP_TVTIME,
+   TVAPP_VDR,
    TVAPP_COUNT
 } TVAPP_NAME;
 #endif

@@ -267,9 +267,9 @@ bool TvChannels_GetNext( uint *pChan, uint *pFreq )
             *pChan = ft->firstChannel;
 
          // get the frequency of this channel
-         *pFreq = (uint) (16.0 * (ft->freqStart + (*pChan - ft->firstChannel) * ft->freqOffset));
-         if (freqTabIdx == FREQ_TAB_FRANCE)
-            *pFreq |= (EPGACQ_TUNER_NORM_SECAM << 24);
+         uint freq = (uint) (16.0 * (ft->freqStart + (*pChan - ft->firstChannel) * ft->freqOffset));
+         uint norm = ((freqTabIdx == FREQ_TAB_FRANCE) ? EPGACQ_TUNER_NORM_SECAM : EPGACQ_TUNER_NORM_PAL);
+         *pFreq = freq | (norm << 24);  // EPGDB_TUNER_FREQ_DEF(freq, norm)
          break;
       }
       ft += 1;

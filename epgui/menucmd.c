@@ -2040,7 +2040,8 @@ static int MenuCmd_StartEpgScan( ClientData ttp, Tcl_Interp *interp, int objc, T
    const char * const pUsage = "Usage: C_StartEpgScan <slow=0/1> <refresh=0/1> <ftable>";
    EPGSCAN_START_RESULT scanResult;
    char * pErrMsg;
-   uint  *freqTab;
+   char * chnNames;
+   EPGACQ_TUNER_PAR * freqTab;
    uint  *cniTab;
    uint freqCount;
    int isOptionSlow, isOptionRefresh, ftableIdx;
@@ -2059,14 +2060,16 @@ static int MenuCmd_StartEpgScan( ClientData ttp, Tcl_Interp *interp, int objc, T
            (Tcl_GetIntFromObj(interp, objv[3], &ftableIdx) == TCL_OK) )
       {
          freqCount = 0;
+         chnNames = NULL;
          freqTab = NULL;
          cniTab  = NULL;
          if (isOptionRefresh)
          {  // in this mode only previously stored provider frequencies are visited
             // retrieve provider frequency list from RC file (DB files may be missing)
             // (note the lists are freed by the EPG scan module)
-            freqCount = GetProvFreqTab(&freqTab, &cniTab);
-            if ( (freqCount == 0) || (freqTab == NULL) || (cniTab == NULL) )
+            uint *freqOnlyTab = NULL;
+            freqCount = GetProvFreqTab(&freqOnlyTab, &cniTab);
+            if ( (freqCount == 0) || (freqOnlyTab == NULL) || (cniTab == NULL) )
             {  // it's an error if the provider frequency list is empty
                // the caller has to check this condition beforehand
                eval_check(interp, ".epgscan.all.fmsg.msg insert end {Frequency list is empty or invalid - abort\n}");
@@ -2074,11 +2077,20 @@ static int MenuCmd_StartEpgScan( ClientData ttp, Tcl_Interp *interp, int objc, T
             }
             // note: the scan module additionally retrieves a freq. list from the DB cache
             // to check for dbs with zero freqs and offer provider removal
+
+            // convert provider frequency table into new format with DVB support
+            freqTab = xmalloc(freqCount * sizeof(*freqTab));
+            for (uint idx = 0; idx < freqCount; ++idx)
+            {
+               freqTab[idx].freq = EPGDB_TUNER_GET_FREQ(freqOnlyTab[idx]);
+               freqTab[idx].norm = EPGDB_TUNER_GET_NORM(freqOnlyTab[idx]);
+            }
+            xfree(freqOnlyTab);
          }
          else if (ftableIdx == 0)
          {  // in this mode only channels which are defined in the .xawtv file are visited
             pErrMsg = NULL;
-            if (WintvCfg_GetFreqTab(NULL, &freqTab, &freqCount, &pErrMsg) == FALSE)
+            if (WintvCfg_GetFreqTab(&chnNames, &freqTab, &freqCount, &pErrMsg) == FALSE)
             {
                sprintf(comm, "tk_messageBox -type ok -icon error -parent .epgscan -message {"
                              "%s "
@@ -2113,7 +2125,7 @@ static int MenuCmd_StartEpgScan( ClientData ttp, Tcl_Interp *interp, int objc, T
 
          scanResult = EpgScan_Start(RcFile_Query()->tvcard.input,
                                     isOptionSlow, (ftableIdx == 0), isOptionRefresh,
-                                    cniTab, freqTab, freqCount, &rescheduleMs,
+                                    cniTab, chnNames, freqTab, freqCount, &rescheduleMs,
                                     &MenuCmd_AddEpgScanMsg, &MenuCmd_AddProvDelButton);
          switch (scanResult)
          {
@@ -2299,7 +2311,7 @@ static int MenuCmd_GetTunerList( ClientData ttp, Tcl_Interp *interp, int objc, T
 //
 static int MenuCmd_ScanTvCards( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
 {
-   const char * const pUsage = "Usage: C_HwCfgScanTvCards <WIN32: drv-type> <show-drv-err=0/1>";
+   const char * const pUsage = "Usage: C_HwCfgScanTvCards <drv-type> <show-drv-err=0/1>";
    const char * pName;
    Tcl_Obj * pResultList;
    uint cardIdx;
@@ -2326,7 +2338,7 @@ static int MenuCmd_ScanTvCards( ClientData ttp, Tcl_Interp *interp, int objc, Tc
       do
       {
 #ifndef WIN32
-         pName = BtDriver_GetCardName(cardIdx);
+         pName = BtDriver_GetCardName(cardIdx, drvType);
          if (pName != NULL)
             Tcl_ListObjAppendElement(interp, pResultList, TranscodeToUtf8(EPG_ENC_SYSTEM, NULL, pName, NULL));
 #else
@@ -2641,12 +2653,10 @@ static int MenuCmd_GetHardwareConfig( ClientData ttp, Tcl_Interp *interp, int ob
       pResultList = Tcl_NewListObj(0, NULL);
 
       drvType = pRc->tvcard.drv_type;
-#ifdef WIN32
       if (drvType == BTDRV_SOURCE_UNDEF)
       {
          drvType = BtDriver_GetDefaultDrvType();
       }
-#endif
 
       Tcl_ListObjAppendElement(interp, pResultList, Tcl_NewIntObj(pRc->tvcard.card_idx));
       Tcl_ListObjAppendElement(interp, pResultList, Tcl_NewIntObj(pRc->tvcard.input));

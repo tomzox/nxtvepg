@@ -632,7 +632,7 @@ const char * EpgAcqCtl_GetLastError( void )
 // Set input source and tuner frequency for a provider
 // - errors are reported to the user interface
 //
-bool EpgAcqCtl_TuneProvider( bool isTtx, uint freq, uint cni, EPGACQ_PASSIVE * pMode )
+bool EpgAcqCtl_TuneProvider( bool isTtx, const EPGACQ_TUNER_PAR * par, uint cni, EPGACQ_PASSIVE * pMode )
 {
    bool isTuner;
    bool result = FALSE;
@@ -655,13 +655,13 @@ bool EpgAcqCtl_TuneProvider( bool isTtx, uint freq, uint cni, EPGACQ_PASSIVE * p
 
    // tune onto the provider's channel (before starting acq, to avoid catching false data)
    // always set the input source - may have been changed externally (since we don't hog the video device permanently)
-   if ( BtDriver_TuneChannel(acqCtl.inputSource, freq, FALSE, &isTuner) )
+   if ( BtDriver_TuneChannel(acqCtl.inputSource, par, FALSE, &isTuner) )
    {
       if (isTuner)
       {
-         if (freq != 0)
+         if (par->freq != 0)
          {
-            dprintf2("EpgAcqCtl-TuneProv: tuned freq %d for provider 0x%04X\n", freq, cni);
+            dprintf2("EpgAcqCtl-TuneProv: tuned freq %d for provider 0x%04X\n", par->freq, cni);
             result = TRUE;
          }
          else
@@ -683,7 +683,7 @@ bool EpgAcqCtl_TuneProvider( bool isTtx, uint freq, uint cni, EPGACQ_PASSIVE * p
          dprintf0("EpgAcqCtl-TuneProv: input is no tuner -> force to passive mode\n");
          acqCtl.passiveReason = ACQPASSIVE_NO_TUNER;
 
-         if (freq != 0)
+         if (par->freq != 0)
          {
             if ((acqCtl.mode != ACQMODE_EXTERNAL) && (acqCtl.haveWarnedInpSrc == FALSE))
             {  // warn the user, but only once
@@ -938,7 +938,8 @@ void EpgAcqCtl_UpdateProvList( uint cniCount, const uint * pCniTab )
 //
 bool EpgAcqCtl_SelectMode( EPGACQ_MODE newAcqMode, EPGACQ_PHASE maxPhase,
                            uint cniCount, const uint * pCniTab,
-                           uint ttxSrcCount, const char * pTtxNames, const uint * pTtxFreqs )
+                           uint ttxSrcCount, const char * pTtxNames,
+                           const EPGACQ_TUNER_PAR * pTtxFreqs )
 {
    bool restart;
    bool result = FALSE;

@@ -566,6 +566,10 @@ typedef struct EPGDB_CONTEXT_STRUCT
    EPGDB_PI_ACQ_CB *pPiAcqCb;
 } EPGDB_CONTEXT;
 
+#define EPGDB_TUNER_FREQ_DEF(FREQV, NORM) ((FREQV) | ((NORM)<<24))
+#define EPGDB_TUNER_GET_FREQ(FREQ)  ((FREQ) & 0xFFFFFF)
+#define EPGDB_TUNER_GET_NORM(FREQ)  ((FREQ) >> 24)
+
 typedef struct
 {
    uint32_t  ai;

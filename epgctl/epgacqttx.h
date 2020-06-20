@@ -27,8 +27,8 @@ void EpgAcqTtx_Destroy( void );
 bool EpgAcqTtx_Start( EPGACQ_MODE mode, EPGACQ_PHASE cyclePhase );
 void EpgAcqTtx_Stop( void );
 void EpgAcqTtx_Suspend( void );
-void EpgAcqTtx_SetParams( uint ttxSrcCount, const char * pTtxNames, const uint * pTtxFreqs );
-bool EpgAcqTtx_CompareParams( uint ttxSrcCount, const char * pTtxNames, const uint * pTtxFreqs );
+void EpgAcqTtx_SetParams( uint ttxSrcCount, const char * pTtxNames, const EPGACQ_TUNER_PAR * pTtxFreqs );
+bool EpgAcqTtx_CompareParams( uint ttxSrcCount, const char * pTtxNames, const EPGACQ_TUNER_PAR * pTtxFreqs );
 
 bool EpgAcqTtx_ProcessPackets( bool * pCheckSlicer );
 bool EpgAcqTtx_MonitorSources( void );

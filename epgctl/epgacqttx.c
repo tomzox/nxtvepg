@@ -67,7 +67,7 @@ typedef struct
    bool           srcDone;
    time_t         predictStart;
    time_t         mtime;
-   uint           freq;
+   EPGACQ_TUNER_PAR freq;
 } TTXACQ_SOURCE;
 
 typedef struct
@@ -110,7 +110,7 @@ static EPGACQTTX_CTL  acqCtl;
 static bool EpgAcqTtx_UpdateProvider( void );
 
 // ---------------------------------------------------------------------------
-// Helper functions which looks up a channel's XML file name
+// Helper function which looks up a channel's XML file name
 //
 static const char * EpgAcqTtx_GetChannelName( sint ttxSrcIdx )
 {
@@ -308,27 +308,26 @@ void EpgAcqTtx_Suspend( void )
 static bool EpgAcqTtx_UpdateProvider( void )
 {
    bool result = FALSE;
-   uint freq;
    time_t now = time(NULL);
 
    if ( (acqCtl.mode != ACQMODE_PASSIVE) && (acqCtl.ttxSrcIdx >= 0) )
    {
-      freq = acqCtl.pSources[acqCtl.ttxSrcIdx].freq;
-      if (freq != 0)
+      const EPGACQ_TUNER_PAR * par = &acqCtl.pSources[acqCtl.ttxSrcIdx].freq;
+      if (par->freq != 0)
       {
          if ( (acqCtl.mode != ACQMODE_PASSIVE) &&
               ((acqCtl.passiveReason == ACQPASSIVE_NONE) || (acqCtl.passiveReason != ACQPASSIVE_NO_TUNER)) )
          {
             acqCtl.chanChangeTime = now;
 
-            result = EpgAcqCtl_TuneProvider(TRUE, freq, XMLTV_TTX_PROV_CNI, &acqCtl.passiveReason);
+            result = EpgAcqCtl_TuneProvider(TRUE, par, XMLTV_TTX_PROV_CNI, &acqCtl.passiveReason);
          }
       }
       else
       {  // no channel to be tuned onto -> set at least the input source
          acqCtl.chanChangeTime = now;
 
-         result = EpgAcqCtl_TuneProvider(TRUE, 0, 0, &acqCtl.passiveReason);
+         result = EpgAcqCtl_TuneProvider(TRUE, par, 0, &acqCtl.passiveReason);
       }
    }
    else
@@ -415,28 +414,36 @@ static sint EpgAcqTtx_GetNextSrc( sint ttxSrcIdx )
 //
 static bool EpgAcqTtx_DetectSource( void )
 {
-   uint freq;
+   EPGACQ_TUNER_PAR par;
    uint input;
    bool isTuner;
    uint idx;
    bool result = FALSE;
 
-   if (BtDriver_QueryChannel(&freq, &input, &isTuner))
+   if (BtDriver_QueryChannel(&par, &input, &isTuner))
    {
       if (isTuner)
       {
+         // TODO pFreqPar->norm = EPGACQ_TUNER_NORM_DVB;
+         // search first with same freq, then configure that one's PID in demux
+
+#define CMP_DVB_FREQ(F) (((F) + EPGACQ_TUNER_DVB_FREQ_TOL/2) / EPGACQ_TUNER_DVB_FREQ_TOL)
          for (idx = 0; idx < acqCtl.ttxSrcCount; idx++)
-            if (acqCtl.pSources[idx].freq == freq)
+            if (   (par.norm == acqCtl.pSources[idx].freq.norm)
+                && (  (par.norm == EPGACQ_TUNER_NORM_DVB)
+                    ? (CMP_DVB_FREQ(acqCtl.pSources[idx].freq.freq) == CMP_DVB_FREQ(par.freq))
+                    : (acqCtl.pSources[idx].freq.freq == par.freq) ))
                break;
+
          if (idx < acqCtl.ttxSrcCount)
          {
-            dprintf3("EpgAcqTtx-DetectSource: freq %d -> src=%d (%s)\n", freq, idx, EpgAcqTtx_GetChannelName(idx));
+            dprintf3("EpgAcqTtx-DetectSource: freq %ld -> src=%d (%s)\n", par.freq, idx, EpgAcqTtx_GetChannelName(idx));
             acqCtl.ttxSrcIdx = idx;
             result = TRUE;
          }
          else
          {
-            dprintf1("EpgAcqTtx-DetectSource: freq %d unknown\n", freq);
+            dprintf1("EpgAcqTtx-DetectSource: freq %ld unknown\n", par.freq);
             acqCtl.ttxSrcIdx = -1;
          }
       }
@@ -455,17 +462,21 @@ static bool EpgAcqTtx_DetectSource( void )
 //
 static bool EpgAcqTtx_CheckSourceFreq( sint ttxSrcIdx )
 {
-   uint freq;
+   EPGACQ_TUNER_PAR par;
    uint input;
    bool isTuner;
    bool result = FALSE;
 
    if ((ttxSrcIdx >= 0) && (ttxSrcIdx < acqCtl.ttxSrcCount))
    {
-      if (BtDriver_QueryChannel(&freq, &input, &isTuner))
+      if (BtDriver_QueryChannel(&par, &input, &isTuner))
       {
-         result = isTuner && (acqCtl.pSources[ttxSrcIdx].freq == freq);
-         ifdebug3(!result && isTuner, "EpgAcqTtx-CheckSourceFreq: freq %d mismatch to src=%d freq %d", freq, acqCtl.pSources[ttxSrcIdx].freq, ttxSrcIdx);
+         if (par.norm == EPGACQ_TUNER_NORM_DVB)
+            result = (acqCtl.pSources[ttxSrcIdx].freq.freq / 100000 == par.freq / 100000);
+         else
+            result = isTuner && (acqCtl.pSources[ttxSrcIdx].freq.freq == par.freq);
+
+         ifdebug3(!result && isTuner, "EpgAcqTtx-CheckSourceFreq: freq %ld mismatch to freq %ld src=%d", par.freq, acqCtl.pSources[ttxSrcIdx].freq.freq, ttxSrcIdx);
       }
       else
          debug0("EpgAcqTtx-CheckSourceFreq: failed to query freq from driver");
@@ -789,7 +800,7 @@ bool EpgAcqTtx_ProcessPackets( bool * pCheckSlicer )
 // - can be already called before acquisition starts, i.e. params remain valid
 //   across acquisition stop and re-enable
 //
-void EpgAcqTtx_SetParams( uint ttxSrcCount, const char * pTtxNames, const uint * pTtxFreqs )
+void EpgAcqTtx_SetParams( uint ttxSrcCount, const char * pTtxNames, const EPGACQ_TUNER_PAR * pTtxFreqs )
 {
 #ifdef USE_TTX_GRABBER
    uint idx;
@@ -844,7 +855,7 @@ void EpgAcqTtx_SetParams( uint ttxSrcCount, const char * pTtxNames, const uint *
 // - used to check if acq must be reset for parameters changes while acq is running
 // - returns FALSE upon changes
 //
-bool EpgAcqTtx_CompareParams( uint ttxSrcCount, const char * pTtxNames, const uint * pTtxFreqs )
+bool EpgAcqTtx_CompareParams( uint ttxSrcCount, const char * pTtxNames, const EPGACQ_TUNER_PAR * pTtxFreqs )
 {
 #ifdef USE_TTX_GRABBER
    const char * pNames;
@@ -861,7 +872,8 @@ bool EpgAcqTtx_CompareParams( uint ttxSrcCount, const char * pTtxNames, const ui
          // compare frequencies
          change = FALSE;
          for (idx = 0; (idx < ttxSrcCount) && !change; idx++)
-            if (pTtxFreqs[idx] != acqCtl.pSources[idx].freq)
+            if ((pTtxFreqs[idx].freq != acqCtl.pSources[idx].freq.freq) ||
+                (pTtxFreqs[idx].ttxPid != acqCtl.pSources[idx].freq.ttxPid))
                change = TRUE;
 
          if (change == FALSE)

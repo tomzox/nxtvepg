@@ -56,7 +56,8 @@ typedef void (EPGSCAN_DELCB) ( uint cni );
 // Interface to main control module and user interface
 //
 EPGSCAN_START_RESULT EpgScan_Start( int inputSource, bool doSlow, bool useXawtv, bool doRefresh,
-                                    uint *cniTab, uint *freqTab, uint freqCount, uint * pRescheduleMs,
+                                    uint *cniTab, char * chnNames, EPGACQ_TUNER_PAR *freqTab,
+                                    uint freqCount, uint * pRescheduleMs,
                                     EPGSCAN_MSGCB * pMsgCallback, EPGSCAN_DELCB * pProvDelCallback  );
 uint EpgScan_EvHandler( void );
 void EpgScan_Stop( void );
@@ -64,6 +65,4 @@ void EpgScan_SetSpeed( bool doFast );
 bool EpgScan_IsActive( void );
 double EpgScan_GetProgressPercentage( void );
 
-
 #endif  // __EPGSCAN_H
-

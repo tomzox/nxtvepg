@@ -107,12 +107,6 @@ Wenn nxtvepg im "Daemon"-Modus benutzt wird, muss der Browser so konfiguriert we
 
 Gibt an welche TV-Hardware benutzt werden soll, wenn mehr als eine Karte verfügbar ist. Vorgabe: Index 0. Bei Linux wird der Index an den Gerätenamen angehängt, z.B. F</dev/vbi2> und F</dev/video2> (siehe auch L<"FILES">). Auf Windows bedeutet der Index "n" die n-te gefundene Karte, die beim Scan des PCI-Busses nach Karten mit unterstütztem Capture-Chip (z.B. Brooktree Bt878, Bt878A, Bt848, Bt849, Philips SAA7134, Conexant 23881) gefunden wurde. Wird mehr als eine Karte mit dem gleichen Chip gefunden, ist die Reihenfolge dieser undefiniert aber konstant. (Die Reihenfolge wird vom Treiber, nicht von nxtvepg festgelegt.)
 
-=item B<-dvbpid> I<number>
-
-Nur UNIX, und auch dort nur verfügbar wenn nxtvepg bei der Compilierung mit Benutzung der I<ZVBI library> (L<http://zapping.sourceforge.net/ZVBI/index.html>) konfiguriert wurde (d.h. in der Datei I<Makefile>)
-
-Diese Option gibt an dass ein DVB device zur Akquisition verwendet werden soll. Der Kanal muß jedoch mittels externer Applikationen eingestellt werden. Ebenso muß der PID Parameter anderweitig ermittelt werden. Die PID bezeichnet den Datenstrom in dem Teletext des gewünschten Senders übertragen wird. Beachten Sie dass DVB support rein experimentell ist und nicht offiziell unterstützt wird. Des weiteren funktionieren der EPG scan und aktive Akqusitionsmodi nicht für DVB devices da nxtvepg nicht in der Lage ist DVB TV-Sender umzuschalten.
-
 =item B<-provider> I<CNI>
 
 Wählt einen Provider mit dessen hexadezimalen CNI (Country and Network Identifier), z.B. I<-provider d92> für B<Kabel1>. Den CNI des Providers können Sie während dem Provider-Suchlauf oder aus den Namen der Datenbank-Dateien herausfinden. Verwenden Sie das Schlüsselwort I<merged>, um eine zusammengeführte Datenbank zu dumpen (oder den Code I<FF> wie er von früheren Versionen von nxtvepg benötigt wurde). Achtung, bevor Sie eine zusammengeführte Datenbank nutzen können, sollten Sie diese konfigurieren, siehe L<"MERGED DATABASES">. Vorgabe wenn diese Option weggelassen wird: der letzte Provider, der während einer vorangehenden Session gewählt wurde.
@@ -1465,9 +1459,14 @@ Der Inhalt der Datei ist in Sektionen eingeteilt: Sektion C<[GLOBAL]> wird für a
 
 Sektionen C<[EXPORT|...]> werden für die umgekehrte Richtung verwendet, d.h. den Export von Nextview EPG Daten in XMLTV Dateien. Details dazu siehe L<"CONTROL: Export as XMLTV">.
 
+=item B</dev/dvb/adapter0/frontend0>, B</dev/dvb/adapter0/demux0>
+
+Gerätedateien, aus denen die Teletext oder NexTView-Daten während der Akquisition gelesen werden wenn eine DVB-Karte konfiguriert wurde. (Das erste Gerät wird zum Einstellen der Empfangsfrequenz verwendet, das zweite zum Lesen der Daten.) Der Index des "adapter" Unterverzeichnisses kann mit der Befehlszeilenoption B<-card> (siehe L<"OPTIONS">) spezifiziert werden.
+
+
 =item B</dev/vbi0>, B</dev/vbi1>, etc.
 
-Gerätedateien, aus denen die NexTView-Daten während der Akquisition gelesen werden. Der Index von Postfix kann mit der Befehlszeilenoption B<-card> (siehe L<"OPTIONS">) spezifiziert werden. Sie müssen Lese-/Schreibzugriff auf diese Dateien haben; standardmäßig ist dies bei vielen Linux-Distributionen aus Sicherheitsgründen nicht der Fall (da Sie eine Webcam angeschlossen haben könnten und Mike oder sonst wer Sie aus der Ferne ausspionieren könnte). Auf einem Einzelplatzsystem ist es aber sicher, diese world-readable und writable zu machen, geben Sie dazu in der Root-Shell ein:
+Gerätedateien, aus denen die NexTView-Daten während der Akquisition gelesen werden wenn eine analoge TV-Karte konfiguriert wurde. Der Index von Postfix kann mit der Befehlszeilenoption B<-card> (siehe L<"OPTIONS">) spezifiziert werden. Sie müssen Lese-/Schreibzugriff auf diese Dateien haben; standardmäßig ist dies bei vielen Linux-Distributionen aus Sicherheitsgründen nicht der Fall (da Sie eine Webcam angeschlossen haben könnten und Mike oder sonst wer Sie aus der Ferne ausspionieren könnte). Auf einem Einzelplatzsystem ist es aber sicher, diese world-readable und writable zu machen, geben Sie dazu in der Root-Shell ein:
 
   chmod 666 /dev/vbi
 

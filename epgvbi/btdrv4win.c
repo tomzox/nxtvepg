@@ -1537,28 +1537,24 @@ void BtDriver_SelectSlicer( VBI_SLICER_TYPE slicerType )
 // Change the tuner frequency
 // - makes only sense if TV tuner is input source
 //
-bool BtDriver_TuneChannel( int inputIdx, uint freq, bool keepOpen, bool * pIsTuner )
+bool BtDriver_TuneChannel( int inputIdx, const EPGACQ_TUNER_PAR * pFreqPar, bool keepOpen, bool * pIsTuner )
 {
-   uint norm;
    bool result = FALSE;
 
-   norm  = freq >> 24;
-   freq &= 0xffffff;
-
-   if (BtDriver_SetInputSource(inputIdx, norm, pIsTuner))
+   if (BtDriver_SetInputSource(inputIdx, pFreqPar->norm, pIsTuner))
    {
-      if (*pIsTuner && (freq != 0))
+      if (*pIsTuner && (pFreqPar->freq != 0))
       {
          // remember frequency for later
-         btCfg.tunerFreq = freq;
-         btCfg.tunerNorm = norm;
+         btCfg.tunerFreq = pFreqPar->freq;
+         btCfg.tunerNorm = pFreqPar->norm;
 
          if (shmSlaveMode == FALSE)
          {
             if (pciDrvLoaded)
             {
 #ifndef WITHOUT_DSDRV
-               result = Tuner_SetFrequency(btCfg.tunerType, freq, norm);
+               result = Tuner_SetFrequency(btCfg.tunerType, pFreqPar->freq, pFreqPar->norm);
 #else
                result = TRUE;
 #endif
@@ -1569,20 +1565,20 @@ bool BtDriver_TuneChannel( int inputIdx, uint freq, bool keepOpen, bool * pIsTun
                uint country;
                sint channel;
 
-               channel = TvChannels_FreqToWdmChannel(freq, norm, &country);
+               channel = TvChannels_FreqToWdmChannel(pFreqPar->freq, pFreqPar->norm, &country);
                if (channel != -1)
                {
-                  WdmNorm = BtDriver_WdmMapNorm(norm);
+                  WdmNorm = BtDriver_WdmMapNorm(pFreqPar->norm);
                   WdmSkipFields = 2 * 4;
                   result = WDM_DRV_OK( WdmDrv.SetChannel(channel, country, WdmNorm) );
 
                   if (result)
-                     dprintf4("TUNE: freq=%.2f, norm=%d: WDM channel=%d, country=%d\n", (double)freq/16.0, norm, channel, country);
+                     dprintf4("TUNE: freq=%.2f, norm=%d: WDM channel=%d, country=%d\n", (double)pFreqPar->freq/16.0, pFreqPar->norm, channel, country);
                   else
-                     debug4("FAILED to tune: freq=%.2f, norm=%d: WDM channel=%d, country=%d", (double)freq/16.0, norm, channel, country);
+                     debug4("FAILED to tune: freq=%.2f, norm=%d: WDM channel=%d, country=%d", (double)pFreqPar->freq/16.0, pFreqPar->norm, channel, country);
                }
                else
-                  debug2("BtDriver-TuneChannel: freq conversion failed for %.2f norm=%d", (double)freq/16.0, norm);
+                  debug2("BtDriver-TuneChannel: freq conversion failed for %.2f norm=%d", (double)pFreqPar->freq/16.0, pFreqPar->norm);
             }
             else
             {  // driver not loaded -> freq will be tuned upon acq start
@@ -1591,7 +1587,7 @@ bool BtDriver_TuneChannel( int inputIdx, uint freq, bool keepOpen, bool * pIsTun
          }
          else
          {  // even in slave mode the TV app may have granted the tuner to us
-            result = WintvSharedMem_SetTunerFreq(freq, norm);
+            result = WintvSharedMem_SetTunerFreq(pFreqPar->freq, pFreqPar->norm);
          }
       }
       else
@@ -1604,16 +1600,16 @@ bool BtDriver_TuneChannel( int inputIdx, uint freq, bool keepOpen, bool * pIsTun
 // ----------------------------------------------------------------------------
 // Get the current tuner frequency
 //
-bool BtDriver_QueryChannel( uint * pFreq, uint * pInput, bool * pIsTuner )
+bool BtDriver_QueryChannel( EPGACQ_TUNER_PAR * pFreqPar, uint * pInput, bool * pIsTuner )
 {
    HRESULT hres;
    bool result = FALSE;
 
-   if ((pFreq != NULL) && (pInput != NULL) && (pIsTuner != NULL))
+   if ((pFreqPar != NULL) && (pInput != NULL) && (pIsTuner != NULL))
    {
       if (shmSlaveMode == FALSE)
       {
-         *pFreq = btCfg.tunerFreq | (btCfg.tunerNorm << 24);
+         pFreqPar->freq = btCfg.tunerFreq | (btCfg.tunerNorm << 24);
          *pInput = btCfg.inputSrc;
          if (pciDrvLoaded)
          {
@@ -1635,11 +1631,15 @@ bool BtDriver_QueryChannel( uint * pFreq, uint * pInput, bool * pIsTuner )
       }
       else
       {
+         uint lfreq = 0;
          *pInput = EPG_REQ_INPUT_NONE;  // dummy
 
-         result = WintvSharedMem_GetTunerFreq(pFreq, pIsTuner) &&
-                  (*pIsTuner) &&
-                  (*pFreq != EPG_REQ_FREQ_NONE);
+         if (WintvSharedMem_GetTunerFreq(&lfreq, pIsTuner) &&
+             (*pIsTuner) && (lfreq != EPG_REQ_FREQ_NONE))
+         {
+            pFreqPar->freq = lfreq;
+            result = TRUE;
+         }
       }
    }
    else

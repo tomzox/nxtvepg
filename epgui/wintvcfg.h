@@ -23,9 +23,9 @@
 #define __WINTVCFG_H
 
 
-bool WintvCfg_GetFreqTab( char ** ppNameTab, uint ** ppFreqTab, uint * pCount, char ** ppErrMsg );
+bool WintvCfg_GetFreqTab( char ** ppNameTab, EPGACQ_TUNER_PAR ** ppFreqTab, uint * pCount, char ** ppErrMsg );
 bool WintvCfg_GetChanTab( uint appIdx, const char * pChanTabPath, char ** ppErrMsg,
-                          char ** ppNameTab, uint ** ppFreqTab, uint * pCount );
+                          char ** ppNameTab, EPGACQ_TUNER_PAR ** ppFreqTab, uint * pCount );
 char * WintvCfg_GetRcPath( const char * pBase, uint appIdx );
 bool WintvCfg_QueryApp( uint appIdx, const char ** ppAppName, bool * pNeedPath );
 uint WintvCfg_GetAppIdx( void );

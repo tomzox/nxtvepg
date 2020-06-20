@@ -171,21 +171,6 @@ Bt848, Bt849, Philips SAA7134, Conexant 23881).  If you have more
 than one TV card with the same chip, the order between those is undefined,
 but still constant (i.e. the order is determined by the driver, not nxtvepg)
 
-=item B<-dvbpid> I<number>
-
-UNIX only. Also only available when nxtvepg was configured at
-compile time (i.e. in the Makefile) to use the I<ZVBI library>
-(L<http://zapping.sourceforge.net/ZVBI/index.html>) for acquisition.
-
-This option enables data acquisition from a DVB device.  The channel
-must be tuned with an external application. The PID is the identifier
-of the data stream which contains Nextview EPG data (i.e. the teletext
-PID aka I<TTPID>.) The PID value must be determined by external means,
-as the EPG scan does not support DVB devices. DVB support is still
-B<experimental> and not officially supported.  In particular, the
-EPG scan and acquisition modes which would require channel changing
-are not supported.
-
 =item B<-provider> I<CNI>
 
 Select a provider by its hexadecimal CNI (Country and Network Identifier),
@@ -3675,11 +3660,22 @@ C<[GLOBAL]>, C<[EXPORT|GLOBAL]> and C<[EXPORT|*xyz*]> are used and
 the given pattern is matched against the provider name (not the
 provider network name.) See also L<"CONTROL: Export as XMLTV">.
 
+
+=item B</dev/dvb/adapter0/frontend0>, B</dev/dvb/adapter0/demux0>
+
+Device files from which Nextview or teletext data is being captured
+during acquisition when a Digital TV (DVB) device is selected in the
+TV card configuration dialog. The first device file is used for tuning and
+the second for reading captured data. The adapter directory postfix can
+be specified with the B<-card> command line option (see L<"OPTIONS">).
+
+
 =item B</dev/vbi0>, B</dev/vbi1>, etc.
 
-Device files from which Nextview data is being read during acquisition.
-The index postfix can be specified with the B<-card> command line option
-(see L<"OPTIONS">).
+Device files from which Nextview data is being read during acquisition
+when an analog TV capture card is selected. The device index postfix can
+be specified with the B<-card> command line option (see L<"OPTIONS">).
+
 You must have read/write access to these files; by default this is not
 the case for many Linux distributions for security reasons (since you
 might have connected a WebCam and mike and someone could spy on you from
@@ -3727,10 +3723,6 @@ If you have enabled I<devfs> in your Linux kernel, the VBI and video
 devices will appear in a subdirectory.  nxtvepg automatically detects
 the existance of this directory and will search the devices there
 instead of the regular paths.
-
-=item B</dev/dvb/adapter0/demux0>
-
-This device is used when option I<-dvbpid> is present.
 
 =item B</tmp/.vbi0.pid>, B</tmp/.vbi1.pid>, etc.
 

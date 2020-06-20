@@ -159,7 +159,7 @@ endif
 SUBDIRS = epgvbi epgdb epgctl epgui epgtcl tvsim xmltv epgttx
 EPGSRC  = epgvbi/btdrv4linux epgvbi/vbidecode epgvbi/zvbidecoder \
           epgvbi/ttxdecode epgvbi/hamming epgvbi/cni_tables epgvbi/tvchan \
-          epgvbi/syserrmsg \
+          epgvbi/dvb_demux epgvbi/syserrmsg \
           epgdb/epgstream epgdb/epgaifrag epgdb/epgdbmerge epgdb/epgdbsav \
           epgdb/epgdbmgmt epgdb/epgdbif epgdb/epgdbfil epgdb/epgblock \
           epgdb/epgnetio epgdb/epgqueue epgdb/epgtscqueue epgdb/ttxgrab \
@@ -200,7 +200,7 @@ VBIREC_CSRC   = tvsim/vbirec_main
 VBIREC_CSRC2  = epgvbi/btdrv4linux epgvbi/vbidecode epgvbi/zvbidecoder \
                 epgvbi/ttxdecode epgvbi/hamming epgvbi/cni_tables \
                 epgvbi/syserrmsg epgctl/debug epgui/xawtv epgui/xiccc \
-                epgui/dumptext epgui/pidescr epgui/pdc_themes
+                epgui/dumptext epgui/pidescr epgui/pdc_themes epgvbi/dvb_demux
 VBIREC_TCLSRC = tvsim/vbirec_gui epgtcl/combobox
 
 NXTV_OBJS     = $(addprefix $(BUILD_DIR)/, $(addsuffix .o, $(EPGSRC) $(GUISRC) $(TCLSRC)))
