@@ -28,7 +28,7 @@
  *  DScaler #Id: CX2388xProvider.cpp,v 1.3 2002/11/02 09:47:36 adcockj Exp #
  *  DScaler #Id: CX2388xCard_Tuner.cpp,v 1.9 2005/12/27 19:29:35 to_see Exp #
  *
- *  $Id: cx2388x.c,v 1.21 2007/12/30 21:40:27 tom Exp tom $
+ *  $Id: cx2388x.c,v 1.22 2020/06/24 07:24:57 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_VBI
@@ -596,7 +596,7 @@ static void Cx2388x_SetGeoSize( TVCARD * pTvCard, uint nInput, uint TVFormat )
       HCombDefault = 0x181f0008;
    }
 
-   if (TVFormat == VIDEO_MODE_PAL)
+   if (TVFormat == EPGACQ_TUNER_NORM_PAL)
    {
       VideoInput |= VideoFormatPALBDGHI;
       HTotal = HLNotchFilter135PAL | 864;
@@ -1397,7 +1397,7 @@ static bool Cx2388x_Open( TVCARD * pTvCard, bool wdmStop )
             Cx2388x_CreateRiscCode();
 
             // XXX TODO should be called upon input or format changes
-            Cx2388x_SetGeoSize(pTvCard, 0, VIDEO_MODE_PAL);
+            Cx2388x_SetGeoSize(pTvCard, 0, EPGACQ_TUNER_NORM_PAL);
          }
       }
    }

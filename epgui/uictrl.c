@@ -21,7 +21,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: uictrl.c,v 1.60 2020/06/17 19:32:20 tom Exp tom $
+ *  $Id: uictrl.c,v 1.61 2020/06/21 07:37:46 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -445,30 +445,41 @@ void UiControl_AiStateChange( ClientData clientData )
       if (pAiBlock != NULL)
       {
          // set the window title according to the new AI
+         const char * prefix, * name;
 #ifdef USE_XMLTV_IMPORT
          if ( EpgDbContextIsXmltv(pUiDbContext) )
-            sprintf(comm, "XMLTV: %s", XmltvCni_LookupProviderPath(EpgDbContextGetCni(pUiDbContext)));
+         {
+            prefix = "XMLTV";
+            name = XmltvCni_LookupProviderPath(EpgDbContextGetCni(pUiDbContext));
+         }
          else
 #endif
          if ( EpgDbContextIsMerged(pUiDbContext) )
-            sprintf(comm, "nxtvepg: %s", AI_GET_SERVICENAME(pAiBlock));
-         else
-            sprintf(comm, "Nextview EPG: %s", AI_GET_SERVICENAME(pAiBlock));
-
          {
-            Tcl_DStringInit(&cmd_dstr);
-            Tcl_DStringAppend(&cmd_dstr, "wm title .", -1);
-            // limit length of title to apx. 100 characters
-            // (because else the assignment may silently fail, e.g. with fvwm)
-            if (strlen(comm) > 104)
-               strcpy(comm + 100, "...");
-            // append message as list element, so that '{' etc. is escaped properly
-            Tcl_DStringAppendElement(&cmd_dstr, comm);
-
-            eval_check(interp, Tcl_DStringValue(&cmd_dstr));
-
-            Tcl_DStringFree(&cmd_dstr);
+            prefix = "nxtvepg";
+            name = AI_GET_SERVICENAME(pAiBlock);
          }
+         else
+         {
+            prefix = "Nextview EPG";
+            name = AI_GET_SERVICENAME(pAiBlock);
+         }
+         // limit length of title to apx. 100 characters
+         // - because else the assignment may silently fail, e.g. with fvwm)
+         // - also we could overflow the "comm" buffer
+         if (strlen(name) > 104)
+            sprintf(comm, "%s: %.104s ...", prefix, name);
+         else
+            sprintf(comm, "%s: %s", prefix, name);
+
+         Tcl_DStringInit(&cmd_dstr);
+         Tcl_DStringAppend(&cmd_dstr, "wm title .", -1);
+         // append message as list element, so that '{' etc. is escaped properly
+         Tcl_DStringAppendElement(&cmd_dstr, comm);
+
+         eval_check(interp, Tcl_DStringValue(&cmd_dstr));
+
+         Tcl_DStringFree(&cmd_dstr);
 
          // generate the netwop mapping tables and update the netwop filter bar
          EpgSetup_UpdateProvCniTable();

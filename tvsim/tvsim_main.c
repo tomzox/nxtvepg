@@ -21,7 +21,7 @@
  *
  *  Author: Thorsten Zoerner
  *
- *  $Id: tvsim_main.c,v 1.38 2020/06/17 19:39:49 tom Exp tom $
+ *  $Id: tvsim_main.c,v 1.39 2020/06/24 07:28:04 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_TVSIM
@@ -74,6 +74,8 @@
 
 #if defined(__FreeBSD__) || defined(__NetBSD__)
 #include <machine/ioctl_bt848.h>
+#elif defined(__linux__)
+#include <linux/videodev2.h>
 #endif
 
 // prior to 8.4 there's a SEGV when evaluating const scripts (Tcl tries to modify the string)
@@ -852,8 +854,6 @@ void BtDriver_Exit( void )
 bool BtDriver_TuneChannel( int inputIdx, uint freq, bool dummy, bool * pIsTuner )
 {
 #if !defined (__NetBSD__) && !defined (__FreeBSD__)
-   struct video_channel vchan;
-   struct video_tuner vtuner;
    ulong lfreq;
    uint  norm;
    bool result = FALSE;
@@ -864,41 +864,64 @@ bool BtDriver_TuneChannel( int inputIdx, uint freq, bool dummy, bool * pIsTuner 
 
    if (video_fd != -1)
    {
-      memset(&vchan, 0, sizeof(vchan));
-      vchan.channel = inputIdx;
-      if (IOCTL(video_fd, VIDIOCGCHAN, &vchan) == 0)
-      {  // channel index is valid
-         vchan.norm    = norm;
-         vchan.channel = inputIdx;
+      struct v4l2_frequency vfreq2;
+      struct v4l2_input v4l2_desc_in;
+      uint32_t v4l2_inp;
+      v4l2_std_id vstd2;
 
-         if (IOCTL(video_fd, VIDIOCSCHAN, &vchan) == 0)
+      v4l2_inp = inputIdx;
+      if (IOCTL(video_fd, VIDIOC_S_INPUT, &v4l2_inp) == 0)
+      {
+         switch (norm)
          {
-            if ( (vchan.type & VIDEO_TYPE_TV) && (vchan.flags & VIDEO_VC_TUNER) && (lfreq != 0) )
+            case EPGACQ_TUNER_NORM_PAL:
+            default:
+               vstd2 = V4L2_STD_PAL;
+               break;
+            case EPGACQ_TUNER_NORM_NTSC:
+               vstd2 = V4L2_STD_NTSC;
+               break;
+            case EPGACQ_TUNER_NORM_SECAM:
+               vstd2 = V4L2_STD_SECAM;
+               break;
+         }
+         if (IOCTL(video_fd, VIDIOC_S_STD, &vstd2) == 0)
+         {
+            memset(&v4l2_desc_in, 0, sizeof(v4l2_desc_in));
+            v4l2_desc_in.index = inputIdx;
+            if (IOCTL(video_fd, VIDIOC_ENUMINPUT, &v4l2_desc_in) == 0)
             {
-               *pIsTuner = TRUE;
+               *pIsTuner = ((v4l2_desc_in.type & V4L2_INPUT_TYPE_TUNER) != 0);
 
-               // query the settings of tuner #0
-               memset(&vtuner, 0, sizeof(vtuner));
-               if (IOCTL(video_fd, VIDIOCGTUNER, &vtuner) == 0)
+               if (*pIsTuner)
                {
-                  // set tuner norm again (already done in CSCHAN above) - ignore errors
-                  vtuner.mode = norm;
-                  if (IOCTL(video_fd, VIDIOCSTUNER, &vtuner) != 0)
-                     perror("VIDIOCSTUNER");
-               }
+                  memset(&vfreq2, 0, sizeof(vfreq2));
+                  if (IOCTL(video_fd, VIDIOC_G_FREQUENCY, &vfreq2) == 0)
+                  {
+                     vfreq2.frequency = lfreq;
+                     if (IOCTL(video_fd, VIDIOC_S_FREQUENCY, &vfreq2) == 0)
+                     {
+                        dprintf1("BtDriver-TuneChannel: set to %.2f\n", (double)lfreq/16);
 
-               // Set the tuner frequency
-               if (IOCTL(video_fd, VIDIOCSFREQ, &lfreq) == 0)
-               {
-                  dprintf1("BtDriver-TuneChannel: set to %.2f\n", (double)lfreq/16);
-
-                  result = TRUE;
+                        result = TRUE;
+                     }
+                     else
+                        fprintf(stderr, "Failed to set tuner frequency (ioctl VIDIOC_S_FREQUENCY): %s\n", strerror(errno));
+                  }
+                  else
+                     fprintf(stderr, "Failed to query tuner frequency (ioctl VIDIOC_G_FREQUENCY): %s\n", strerror(errno));
                }
                else
-                  fprintf(stderr, "Failed to set tuner frequency (v4l ioctl VIDIOCSFREQ): %s\n", strerror(errno));
+                  result = TRUE;
             }
+            else
+               debug2("BtDriver-SetInputSource: v4l2 VIDIOC_ENUMINPUT #%d error: %s", inputIdx, strerror(errno));
          }
+         else
+            fprintf(stderr, "Failed to set input norm (ioctl VIDIOC_S_STD): %s\n", strerror(errno));
       }
+      else
+         fprintf(stderr, "Failed to set video input source (ioctl VIDIOC_S_INPUT): %s\n", strerror(errno));
    }
 
 #else // __NetBSD__ || __FreeBSD__

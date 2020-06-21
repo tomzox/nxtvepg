@@ -20,7 +20,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: pifilter.c,v 1.96 2020/06/17 19:34:20 tom Exp tom $
+ *  $Id: pifilter.c,v 1.97 2020/07/05 19:04:17 tom Exp tom $
  */
 
 #define __PIFILTER_C
@@ -2193,25 +2193,33 @@ static int PiFilter_ContextMenuAddFilter( ClientData ttp, Tcl_Interp *interp, in
             if (EpgDbFilterIsEnabled(pPiFilterContext, FILTER_SUBSTR) == FALSE)
             {
                const char * pTitle;
-               char subStr[50];
+               char subStr[256];
 
                pTitle = PiDescription_RemoveSeriesIndex(PI_GET_TITLE(pPiBlock), subStr, sizeof(subStr));
                if (pTitle[0] != 0)
                {
-                  EpgDbFilterSetSubStr(pPiFilterContext, pTitle, TRUE, FALSE, TRUE, TRUE);
+                  bool isShortened = (pTitle != PI_GET_TITLE(pPiBlock));
+                  EpgDbFilterSetSubStr(pPiFilterContext, pTitle, TRUE, FALSE, TRUE, !isShortened);
                   EpgDbFilterEnable(pPiFilterContext, FILTER_SUBSTR);
                   if ( (EpgDbSearchPrevPi(pUiDbContext, pPiFilterContext, pPiBlock) != NULL) ||
                        (EpgDbSearchNextPi(pUiDbContext, pPiFilterContext, pPiBlock) != NULL) )
                   {
+                     char par_buf[30];
                      char * p;
-                     Tcl_ListObjAppendElement(interp, pResultList, TranscodeToUtf8(EPG_ENC_NXTVEPG, "Filter title '", pTitle, "'"));
+                     Tcl_ListObjAppendElement(interp, pResultList,
+                                              TranscodeToUtf8(EPG_ENC_NXTVEPG,
+                                                 "Filter title '", pTitle, "'"));
+
                      strncpy(comm, pTitle, TCL_COMM_BUF_SIZE);
                      comm[TCL_COMM_BUF_SIZE-1] = 0;
                      while ((p = strchr(comm, '{')) != NULL)
                         *p = '(';
                      while ((p = strchr(comm, '}')) != NULL)
                         *p = ')';
-                     Tcl_ListObjAppendElement(interp, pResultList, TranscodeToUtf8(EPG_ENC_NXTVEPG, "SubstrSetFilter {{", comm, "} 1 0 1 1 0 0}"));
+                     sprintf(par_buf, "} 1 0 1 %d}", !isShortened);
+                     Tcl_ListObjAppendElement(interp, pResultList,
+                                              TranscodeToUtf8(EPG_ENC_NXTVEPG,
+                                                "SubstrSetFilter {{", comm, par_buf));
                   }
                   EpgDbFilterDisable(pPiFilterContext, FILTER_SUBSTR);
                }

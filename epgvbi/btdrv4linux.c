@@ -44,7 +44,7 @@
  *    NetBSD:  Mario Kemper <magick@bundy.zhadum.de>
  *    FreeBSD: Simon Barner <barner@gmx.de>
  *
- *  $Id: btdrv4linux.c,v 1.78 2020/06/17 19:30:01 tom Exp tom $
+ *  $Id: btdrv4linux.c,v 1.79 2020/06/24 07:23:04 tom Exp tom $
  */
 
 #if !defined(linux) && !defined(__NetBSD__) && !defined(__FreeBSD__) 
@@ -132,11 +132,7 @@ typedef enum
 # define IOCTL(fd, cmd, data)  ioctl(fd, cmd, data)
 
 #else  // Linux
-# ifndef PATH_VIDEODEV_H
-#  include "epgvbi/videodev.h"
-# else
-#  include PATH_VIDEODEV_H
-# endif
+#include <linux/videodev2.h>
 /* same as ioctl(), but repeat if interrupted */
 #define IOCTL(fd, cmd, data)                                            \
 ({ int __result; do __result = ioctl(fd, cmd, data);                    \
@@ -158,7 +154,7 @@ typedef enum
 #define VBI_MAX_LINESIZE (8*1024)
 #define VBI_DEFAULT_BPL   2048
 
-#define DEV_MAX_NAME_LEN 32
+#define DEV_MAX_NAME_LEN 64
 
 volatile EPGACQ_BUF *pVbiBuf;
 
@@ -216,7 +212,7 @@ typedef enum
 //
 static char * BtDriver_GetDevicePath( BTDRV_DEV_TYPE devType, uint cardIdx )
 {
-   static char devName[DEV_MAX_NAME_LEN];
+   static char devName[DEV_MAX_NAME_LEN + 1];
 #if !defined(__NetBSD__) && !defined(__FreeBSD__)
    static char * pLastDevPath = NULL;
    char * pDevPath;
@@ -236,9 +232,9 @@ static char * BtDriver_GetDevicePath( BTDRV_DEV_TYPE devType, uint cardIdx )
                pDevPath = "/dev/v4l";
 
             if (devType == DEV_TYPE_VIDEO)
-               sprintf(devName, "%s/video%u", pDevPath, cardIdx);
+               snprintf(devName, DEV_MAX_NAME_LEN, "%s/video%u", pDevPath, cardIdx);
             else
-               sprintf(devName, "%s/vbi%u", pDevPath, cardIdx);
+               snprintf(devName, DEV_MAX_NAME_LEN, "%s/vbi%u", pDevPath, cardIdx);
 
             if (access(devName, R_OK) == 0)
             {
@@ -250,7 +246,7 @@ static char * BtDriver_GetDevicePath( BTDRV_DEV_TYPE devType, uint cardIdx )
          break;
 
       case DEV_TYPE_DVB:
-         sprintf(devName, "/dev/dvb/adapter%u/demux0", cardIdx);
+         snprintf(devName, DEV_MAX_NAME_LEN, "/dev/dvb/adapter%u/demux0", cardIdx);
          break;
 
       default:
@@ -263,13 +259,13 @@ static char * BtDriver_GetDevicePath( BTDRV_DEV_TYPE devType, uint cardIdx )
    switch (devType)
    {
       case DEV_TYPE_VBI:
-         sprintf(devName, "/dev/vbi%u", cardIdx);
+         snprintf(devName, DEV_MAX_NAME_LEN, "/dev/vbi%u", cardIdx);
          break;
       case DEV_TYPE_VIDEO:
-         sprintf(devName, "/dev/bktr%u", cardIdx);
+         snprintf(devName, DEV_MAX_NAME_LEN, "/dev/bktr%u", cardIdx);
          break;
       case DEV_TYPE_TUNER:
-         sprintf(devName, "/dev/tuner%u", cardIdx);
+         snprintf(devName, DEV_MAX_NAME_LEN, "/dev/tuner%u", cardIdx);
          break;
       default:
          strcpy(devName, "/dev/null");
@@ -277,6 +273,8 @@ static char * BtDriver_GetDevicePath( BTDRV_DEV_TYPE devType, uint cardIdx )
          break;
    }
 #endif
+   devName[DEV_MAX_NAME_LEN] = 0;  // 0-terminate in case of overflow
+
    return devName;
 }
 
@@ -552,7 +550,6 @@ static void BtDriver_OpenVbi( void )
 
    vbiCardIndex = pVbiBuf->cardIndex;
    vbiDvbPid = pVbiBuf->dvbPid;
-   pVbiBuf->is_v4l2 = FALSE;
 
    #if defined(__NetBSD__) || defined(__FreeBSD__)
    // the bktr driver on NetBSD requires to start video capture for VBI to work
@@ -570,7 +567,6 @@ static void BtDriver_OpenVbi( void )
          vbi_fdin = open(pDevName, O_RDONLY);
          if (vbi_fdin != -1)
          {
-#ifdef HAVE_V4L2
             struct v4l2_capability  vcap;
             memset(&vcap, 0, sizeof(vcap));
             if (IOCTL(vbi_fdin, VIDIOC_QUERYCAP, &vcap) != -1)
@@ -591,9 +587,7 @@ static void BtDriver_OpenVbi( void )
                   errno = ENOSYS;
                   vbi_fdin = -1;
                }
-               pVbiBuf->is_v4l2 = TRUE;
             }
-#endif  // HAVE_V4L2
          }
          else
             debug2("VBI open %s failed: errno=%d", pDevName, errno);
@@ -608,23 +602,9 @@ static void BtDriver_OpenVbi( void )
       pErrStr = NULL;
       if (vbiDvbPid != -1)
       {
-#if (VBI_VERSION_MAJOR>0) || (VBI_VERSION_MINOR>2) || (VBI_VERSION_MICRO >= 13)
          pDevName = BtDriver_GetDevicePath(DEV_TYPE_DVB, vbiCardIndex);
          services = VBI_SLICED_TELETEXT_B;
          pZvbiCapt = vbi_capture_dvb_new2(pDevName, vbiDvbPid, &pErrStr, ZVBI_TRACE);
-#elif (VBI_VERSION_MAJOR>0) || (VBI_VERSION_MINOR>2) || (VBI_VERSION_MICRO >= 6)
-         pDevName = BtDriver_GetDevicePath(DEV_TYPE_DVB, vbiCardIndex);
-         services = VBI_SLICED_TELETEXT_B;
-         pZvbiCapt = vbi_capture_dvb_new(pDevName, 0, &services, 0, &pErrStr, ZVBI_TRACE);
-         if (pZvbiCapt != NULL)
-         {
-            vbi_capture_dvb_filter(pZvbiCapt, vbiDvbPid);
-         }
-#else
-         // error (note: do not use xstrdup() because free() is used below instead of xfree())
-         pErrStr = strdup("ZVBI library is too old (minimum version is 0.2.6)");
-         errno = EINVAL;
-#endif
       }
       else
       {
@@ -639,7 +619,6 @@ static void BtDriver_OpenVbi( void )
             if (pZvbiCapt != NULL)
             {
                vbi_proxy_client_set_callback(pProxyClient, BtDriver_ProxyCallback, NULL);
-               pVbiBuf->is_v4l2 = (vbi_proxy_client_get_driver_api(pProxyClient) == VBI_API_V4L2);
             }
             else
             {  // failed to connect to proxy
@@ -659,6 +638,17 @@ static void BtDriver_OpenVbi( void )
             services = VBI_SLICED_TELETEXT_B | VBI_SLICED_VPS;
             pZvbiCapt = vbi_capture_v4l_new(pDevName, 0, &services, 0, &pErrStr, ZVBI_TRACE);
          }
+#if defined (USE_VBI_PROXY) && defined (VIDIOC_S_PRIORITY)
+         if ((pZvbiCapt != NULL) && (pProxyClient == NULL))
+         {
+            // set device user priority to "background" -> channel swtiches will fail while
+            // higher-priority users (e.g. an interactive TV app) have opened the device
+            enum v4l2_priority prio = V4L2_PRIORITY_BACKGROUND;
+            int fd = vbi_capture_fd(pZvbiCapt);
+            if (IOCTL(fd, VIDIOC_S_PRIORITY, &prio) != 0)
+               debug4("ioctl VIDIOC_S_PRIORITY=%d (background) failed on %s: %d, %s", V4L2_PRIORITY_BACKGROUND, pDevName, errno, strerror(errno));
+         }
+#endif
       }
 
       if (pZvbiCapt != NULL)
@@ -684,7 +674,7 @@ static void BtDriver_OpenVbi( void )
       if (pErrStr != NULL)
       {  // re-allocate the error string with internal malloc func
          SystemErrorMessage_Set(&pSysErrorText, 0, pErrStr, NULL);
-         free(pErrStr);
+         free(pErrStr);  // not xFree: allocated by libzvbi
       }
 #endif  // USE_LIBZVBI
    }
@@ -746,8 +736,13 @@ static void BtDriver_CloseVbi( void )
       if (pZvbiCapt != NULL)
          vbi_capture_delete(pZvbiCapt);
       pZvbiCapt = NULL;
+# ifdef USE_VBI_PROXY
+      if (pProxyClient != NULL)
+         vbi_proxy_client_destroy(pProxyClient);
+      pProxyClient = NULL;
+# endif
       vbi_fdin = -1;
-#endif
+#endif  // USE_LIBZVBI
 
       #if defined(__NetBSD__) || defined(__FreeBSD__)
       if (video_fd != -1)
@@ -804,13 +799,14 @@ static bool BtDriver_SetInputSource( int inputIdx, int norm, bool * pIsTuner )
 #if !defined (__NetBSD__) && !defined (__FreeBSD__)
    bool isTuner = FALSE;
    bool result = FALSE;
-   struct video_channel vchan;
-   struct video_tuner vtuner;
 
    if (video_fd != -1)
    {
-#ifdef HAVE_V4L2
-      if (pVbiBuf->is_v4l2)
+      if (pVbiBuf->dvbPid != -1)
+      {
+         dprintf0("BtDriver-SetInputSource: not supported for DVB\n");
+      }
+      else  // V4L2
       {
          struct v4l2_input v4l2_desc_in;
          uint32_t v4l2_inp;
@@ -821,14 +817,14 @@ static bool BtDriver_SetInputSource( int inputIdx, int norm, bool * pIsTuner )
          {
             switch (norm)
             {
-               case VIDEO_MODE_PAL:
+               case EPGACQ_TUNER_NORM_PAL:
                default:
                   vstd2 = V4L2_STD_PAL;
                   break;
-               case VIDEO_MODE_NTSC:
+               case EPGACQ_TUNER_NORM_NTSC:
                   vstd2 = V4L2_STD_NTSC;
                   break;
-               case VIDEO_MODE_SECAM:
+               case EPGACQ_TUNER_NORM_SECAM:
                   vstd2 = V4L2_STD_SECAM;
                   break;
             }
@@ -849,62 +845,6 @@ static bool BtDriver_SetInputSource( int inputIdx, int norm, bool * pIsTuner )
          }
          else
             SystemErrorMessage_Set(&pSysErrorText, errno, "failed to switch input channel (v4l ioctl VIDIOC_S_INPUT): ", NULL);
-      }
-      else
-#endif /* HAVE_V4L2 */
-      {
-         // get current config of the selected chanel
-         memset(&vchan, 0, sizeof(vchan));
-         vchan.channel = inputIdx;
-         if (IOCTL(video_fd, VIDIOCGCHAN, &vchan) == 0)
-         {  // channel index is valid
-
-            dprintf3("BtDriver-SetInputSource: set input %d (is-tuner=%d) norm=%d\n", inputIdx, (vchan.flags & VIDEO_VC_TUNER), norm);
-            vchan.norm    = norm;
-            vchan.channel = inputIdx;
-
-            if (IOCTL(video_fd, VIDIOCSCHAN, &vchan) == 0)
-            {
-               if ( (vchan.type & VIDEO_TYPE_TV) && (vchan.flags & VIDEO_VC_TUNER) )
-               {
-                  isTuner = TRUE;
-
-                  // query the settings of tuner #0
-                  memset(&vtuner, 0, sizeof(vtuner));
-                  #ifndef SAA7134_0_2_2
-                  if (IOCTL(video_fd, VIDIOCGTUNER, &vtuner) == 0)
-                  {
-                     if (vtuner.flags & ((norm == VIDEO_MODE_SECAM) ? VIDEO_TUNER_SECAM : VIDEO_TUNER_PAL))
-                     {
-                        result = TRUE;
-
-                        // set tuner norm again (already done in CSCHAN above) - ignore errors
-                        vtuner.mode = norm;
-                        if (IOCTL(video_fd, VIDIOCSTUNER, &vtuner) != 0)
-                           debug3("BtDriver-SetInputSource: v4l ioctl VIDIOCSTUNER for %s failed: %d: %s", (norm == VIDEO_MODE_SECAM) ? "SECAM" : "PAL", errno, strerror(errno));
-                     }
-                     else
-                        SystemErrorMessage_Set(&pSysErrorText, 0, "tuner supports no ", (norm == VIDEO_MODE_SECAM) ? "SECAM" : "PAL", NULL);
-                  }
-                  else
-                     SystemErrorMessage_Set(&pSysErrorText, errno, "failed to query tuner capabilities (v4l ioctl VIDIOCGTUNER): ", NULL);
-
-                  #else
-                  // workaround for SAA7134 driver version 0.2.2 and assorted v4l2 kernel patch:
-                  // in this version vtuner.flags lacks the video norm capability flags & VIDIOCSTUNER always returns an error code
-                  result = TRUE;
-                  #endif
-               }
-               else
-               {  // not a tuner -> don't need to set the frequency
-                  result = TRUE;
-               }
-            }
-            else
-               SystemErrorMessage_Set(&pSysErrorText, errno, "failed to set input channel (v4l ioctl VIDIOCSCHAN): ", NULL);
-         }
-         else
-            SystemErrorMessage_Set(&pSysErrorText, errno, "failed to query channel capabilities (v4l ioctl VIDIOCGCHAN): ", NULL);
       }
    }
    else
@@ -1093,16 +1033,16 @@ bool BtDriver_TuneChannel( int inputIdx, uint freq, bool keepOpen, bool * pIsTun
       dprintf3("BtDriver-TuneChannel: opened %s, fd=%d, keep-open=%d\n", pDevName, video_fd, keepOpen);
       wasOpen = FALSE;
 
-#if defined(HAVE_V4L2) && defined(VIDIOC_S_PRIORITY)
-      if ((video_fd != -1) && (pVbiBuf->is_v4l2) &&
+#if defined(VIDIOC_S_PRIORITY)
+      if ((video_fd != -1) &&
           (pVbiBuf->chnPrio != V4L2_PRIORITY_UNSET))
-      {  // this is a v4l2 device (as detected when VBI device was opened)
+      {
          enum v4l2_priority prio = pVbiBuf->chnPrio;
 
          if (IOCTL(video_fd, VIDIOC_S_PRIORITY, &prio) != 0)
             debug4("ioctl VIDIOC_S_PRIORITY=%d failed on %s: %d, %s", pVbiBuf->chnPrio, pDevName, errno, strerror(errno));
       }
-#endif  // HAVE_V4L2 && VIDIOC_S_PRIORITY
+#endif  // VIDIOC_S_PRIORITY
 
       if (video_fd == -1)
       {
@@ -1117,13 +1057,11 @@ bool BtDriver_TuneChannel( int inputIdx, uint freq, bool keepOpen, bool * pIsTun
 
    if (video_fd != -1)
    {
-      if ( wasOpen || BtDriver_SetInputSource(inputIdx, norm, pIsTuner) )
+      if ( BtDriver_SetInputSource(inputIdx, norm, pIsTuner) || wasOpen )
       {
          if ( (wasOpen || *pIsTuner) && (lfreq != 0) )
          {
             // Set the tuner frequency
-#ifdef HAVE_V4L2
-            if (pVbiBuf->is_v4l2)
             {
                struct v4l2_frequency vfreq2;
 
@@ -1142,18 +1080,6 @@ bool BtDriver_TuneChannel( int inputIdx, uint freq, bool keepOpen, bool * pIsTun
                }
                else
                   SystemErrorMessage_Set(&pSysErrorText, errno, "failed to get tuner params (v4l ioctl VIDIOC_G_FREQUENCY): ", NULL);
-            }
-            else
-#endif /* HAVE_V4L2 */
-            {
-               if (IOCTL(video_fd, VIDIOCSFREQ, &lfreq) == 0)
-               {
-                  dprintf1("BtDriver-TuneChannel: set to %.2f\n", (double)lfreq/16);
-
-                  result = TRUE;
-               }
-               else
-                  SystemErrorMessage_Set(&pSysErrorText, errno, "failed to set tuner frequency (v4l ioctl VIDIOCSFREQ): ", NULL);
             }
          }
          else
@@ -1251,19 +1177,21 @@ bool BtDriver_TuneChannel( int inputIdx, uint freq, bool keepOpen, bool * pIsTun
 bool BtDriver_QueryChannel( uint * pFreq, uint * pInput, bool * pIsTuner )
 {
 #if (!defined (__NetBSD__) && !defined (__FreeBSD__)) || defined(USE_LIBZVBI)
-#ifdef HAVE_V4L2
-   struct v4l2_frequency v4l2_freq;
-   struct v4l2_input v4l2_desc_in;
-   int vinp2;
    char * pDevName;
    bool wasOpen;
-#endif
    bool result = FALSE;
 
    if ( (pVbiBuf != NULL) && (pFreq != NULL) && (pInput != NULL) && (pIsTuner != NULL) )
    {
-#ifdef HAVE_V4L2
-      if (pVbiBuf->is_v4l2)
+      if (pVbiBuf->dvbPid != -1)
+      {
+         dprintf0("BtDriver-QueryChannel: not supported for DVB\n");
+         *pFreq = 0;
+         *pInput = 0;
+         *pIsTuner = FALSE;
+         result = TRUE;
+      }
+      else  // V4L2
       {
          wasOpen = (video_fd != -1);
          if (wasOpen == FALSE)
@@ -1274,6 +1202,11 @@ bool BtDriver_QueryChannel( uint * pFreq, uint * pInput, bool * pIsTuner )
          }
          if (video_fd != -1)
          {
+	    struct v4l2_frequency v4l2_freq;
+	    struct v4l2_input v4l2_desc_in;
+            v4l2_std_id vstd2;
+	    int vinp2;
+
             if (IOCTL(video_fd, VIDIOC_G_INPUT, &vinp2) == 0)
             {
                *pInput = vinp2;
@@ -1294,7 +1227,33 @@ bool BtDriver_QueryChannel( uint * pFreq, uint * pInput, bool * pIsTuner )
                   if (IOCTL(video_fd, VIDIOC_G_FREQUENCY, &v4l2_freq) == 0)
                   {
                      if (v4l2_freq.type == V4L2_TUNER_ANALOG_TV)
+                     {
                         *pFreq = v4l2_freq.frequency;
+
+                        // get TV norm set in the tuner (channel #0)
+                        if (IOCTL(vbi_fdin, VIDIOC_G_STD, &vstd2) == 0)
+                        {
+                           if (vstd2 & V4L2_STD_PAL)
+                           {
+                              *pFreq |= EPGACQ_TUNER_NORM_PAL << 24;
+                           }
+                           else if (vstd2 & V4L2_STD_NTSC)
+                           {
+                              *pFreq |= EPGACQ_TUNER_NORM_NTSC << 24;
+                           }
+                           else if (vstd2 & V4L2_STD_SECAM)
+                           {
+                              *pFreq |= EPGACQ_TUNER_NORM_SECAM << 24;
+                           }
+                           else
+                           {
+                              debug1("BtDriver-QueryChannel: unknown standard 0x%X", (int)vstd2);
+                           }
+                           dprintf2("BtDriver-QueryChannel: VIDIOC_G_STD returned V4L2 norm 0x%0x, map to %d\n", (int)vstd2, pFreqPar->norm);
+                        }
+                        else
+                           debug1("BtDriver-QueryChannel: VIDIOC_G_STD error: %s", strerror(errno));
+                     }
                      result = TRUE;
                   }
                   else
@@ -1303,7 +1262,7 @@ bool BtDriver_QueryChannel( uint * pFreq, uint * pInput, bool * pIsTuner )
                else
                   *pFreq = 0;
 
-               dprintf4("BtDriver-QueryChannel: fd=%d input=%d is-tuner=%d freq=%d\n", video_fd, *pInput, *pIsTuner, *pFreq);
+               dprintf4("BtDriver-QueryChannel: fd=%d input=%d is-tuner?=%d freq=%ld\n", video_fd, *pInput, *pIsTuner, pFreqPar->freq);
             }
             else
                debug1("BtDriver-QueryChannel: v4l2 VIDIOC_G_INPUT error: %s", strerror(errno));
@@ -1315,66 +1274,6 @@ bool BtDriver_QueryChannel( uint * pFreq, uint * pInput, bool * pIsTuner )
                video_fd = -1;
             }
          }
-      }
-      else
-#endif  // HAVE_V4L2
-      if (pVbiBuf->vbiPid != -1)
-      {
-         #ifdef USE_THREADS
-         pthread_mutex_lock(&vbi_start_mutex);
-         #endif
-         pVbiBuf->vbiQueryFreq = 0;
-         pVbiBuf->vbiQueryInput = ~0u;
-         pVbiBuf->vbiQueryIsTuner = FALSE;
-         pVbiBuf->doQueryFreq = TRUE;
-         recvWakeUpSig = FALSE;
-
-         #ifdef USE_THREADS
-         // wake the process/thread up from being blocked in read (Linux only)
-         if (pthread_kill(vbi_thread_id, SIGUSR1) == 0)
-         {
-            struct timespec tsp;
-            struct timeval tv;
-
-            gettimeofday(&tv, NULL);
-            tv.tv_usec += 1000 * 1000L;
-            if (tv.tv_usec > 1000 * 1000L)
-            {
-               tv.tv_sec  += 1;
-               tv.tv_usec -= 1000 * 1000;
-            }
-            tsp.tv_sec  = tv.tv_sec;
-            tsp.tv_nsec = tv.tv_usec * 1000;
-
-            // wait for signal from slave on condition variable
-            pthread_cond_timedwait(&vbi_start_cond, &vbi_start_mutex, &tsp);
-         }
-         #else
-         if (kill(pVbiBuf->vbiPid, SIGUSR1) != -1)
-         {
-            if ((recvWakeUpSig == FALSE) && (pVbiBuf->doQueryFreq))
-            {
-               struct timeval tv;
-
-               tv.tv_sec = 1;
-               tv.tv_usec = 0;
-               select(0, NULL, NULL, NULL, &tv);
-            }
-         }
-         #endif
-         if ( (pVbiBuf->doQueryFreq == FALSE) &&
-              (pVbiBuf->vbiQueryFreq != 0) && (pVbiBuf->vbiQueryInput != ~0) )
-         {
-            *pFreq = pVbiBuf->vbiQueryFreq;
-            *pInput = pVbiBuf->vbiQueryInput;
-            *pIsTuner = pVbiBuf->vbiQueryIsTuner;
-            result = TRUE;
-         }
-         pVbiBuf->doQueryFreq = FALSE;
-
-         #ifdef USE_THREADS
-         pthread_mutex_unlock(&vbi_start_mutex);
-         #endif
       }
    }
    return result;
@@ -1419,122 +1318,6 @@ bool BtDriver_QueryChannel( uint * pFreq, uint * pInput, bool * pIsTuner )
 #endif  // (NetBSD || FreeBSD) && !LIBZVBI
 }
 
-#if !defined (__NetBSD__) && !defined (__FreeBSD__)
-// ---------------------------------------------------------------------------
-// Slave handling of master's tuner frequency query
-//
-static void BtDriver_SlaveQueryChannel( void )
-{
-   struct video_channel vchan;
-   ulong lfreq;
-
-   if ((pVbiBuf != NULL) && (vbi_fdin != -1))
-   {
-      #ifdef USE_THREADS
-      pthread_mutex_lock(&vbi_start_mutex);
-      #endif
-
-#ifdef HAVE_V4L2
-      if (pVbiBuf->is_v4l2)
-      {
-         struct v4l2_input v4l2_desc_in;
-         struct v4l2_frequency v4l2_freq;
-         v4l2_std_id vstd2;
-         int vinp2;
-
-         if (IOCTL(vbi_fdin, VIDIOC_G_INPUT, &vinp2) == 0)
-         {
-            pVbiBuf->vbiQueryInput = vinp2;
-            pVbiBuf->vbiQueryFreq = 0;
-            pVbiBuf->vbiQueryIsTuner = FALSE;
-
-            memset(&v4l2_desc_in, 0, sizeof(v4l2_desc_in));
-            v4l2_desc_in.index = vinp2;
-            if (IOCTL(vbi_fdin, VIDIOC_ENUMINPUT, &v4l2_desc_in) == 0)
-            {
-               pVbiBuf->vbiQueryIsTuner = ((v4l2_desc_in.type & V4L2_INPUT_TYPE_TUNER) != 0);
-            }
-
-            memset(&v4l2_freq, 0, sizeof(v4l2_freq));
-            if (IOCTL(vbi_fdin, VIDIOC_G_FREQUENCY, &v4l2_freq) == 0)
-            {
-               dprintf2("BtDriver-SlaveQueryChannel: QueryChannel got %d (%.2f MHz)\n", (int)v4l2_freq.frequency, (double)v4l2_freq.frequency/16);
-
-               if (v4l2_freq.type == V4L2_TUNER_ANALOG_TV)
-               {
-                  pVbiBuf->vbiQueryFreq = v4l2_freq.frequency;
-               }
-            }
-            else
-               debug1("BtDriver-SlaveQueryChannel: VIDIOC_G_FREQUENCY error: %s", strerror(errno));
-
-            // get TV norm set in the tuner (channel #0)
-            if (IOCTL(vbi_fdin, VIDIOC_G_STD, &vstd2) == 0)
-            {
-               if (vstd2 & V4L2_STD_PAL)
-               {
-                  pVbiBuf->vbiQueryFreq |= VIDEO_MODE_PAL << 24;
-               }
-               else if (vstd2 & V4L2_STD_NTSC)
-               {
-                  pVbiBuf->vbiQueryFreq |= VIDEO_MODE_NTSC << 24;
-               }
-               else if (vstd2 & V4L2_STD_SECAM)
-               {
-                  pVbiBuf->vbiQueryFreq |= VIDEO_MODE_SECAM << 24;
-               }
-               else
-               {
-                  debug1("BtDriver-SlaveQueryChannel: unknown standard 0x%X", (int)vstd2);
-               }
-               dprintf2("BtDriver-SlaveQueryChannel: VIDIOC_G_STD returned V4L2 norm 0x%0x, map to %d\n", (int)vstd2, pVbiBuf->vbiQueryFreq>>24);
-            }
-            else
-               debug1("BtDriver-SlaveQueryChannel: VIDIOC_G_STD error: %s", strerror(errno));
-         }
-         else
-            debug1("BtDriver-SlaveQueryChannel: VIDIOC_G_INPUT error: %s", strerror(errno));
-      }
-      else
-#endif /* HAVE_V4L2 */
-      {
-         if (IOCTL(vbi_fdin, VIDIOCGFREQ, &lfreq) == 0)
-         {
-            dprintf2("BtDriver-SlaveQueryChannel: QueryChannel got %d (%.2f MHz)\n", (int)lfreq, (double)lfreq/16);
-
-            // get TV norm set in the tuner (channel #0)
-            memset(&vchan, 0, sizeof(vchan));
-
-            if (IOCTL(vbi_fdin, VIDIOCGCHAN, &vchan) == 0)
-            {
-               dprintf2("BtDriver-SlaveQueryChannel: VIDIOCGCHAN returned norm %d, chan #%d\n", vchan.norm, vchan.channel);
-               lfreq |= (uint)vchan.norm << 24;
-
-               pVbiBuf->vbiQueryInput = vchan.channel;
-               pVbiBuf->vbiQueryIsTuner = (vchan.type & VIDEO_TYPE_TV) &&
-                                          (vchan.flags & VIDEO_VC_TUNER);
-            }
-            else
-               debug1("BtDriver-SlaveQueryChannel: VIDIOCGCHAN error: %s", strerror(errno));
-
-            pVbiBuf->vbiQueryFreq = lfreq;
-         }
-         else
-            debug1("BtDriver-SlaveQueryChannel: VIDIOCGFREQ error: %s", strerror(errno));
-      }
-
-      pVbiBuf->doQueryFreq = FALSE;
-
-      #ifdef USE_THREADS
-      pthread_cond_signal(&vbi_start_cond);
-      pthread_mutex_unlock(&vbi_start_mutex);
-      #else  // not USE_THREADS
-      kill(pVbiBuf->epgPid, SIGUSR1);
-      #endif
-   }
-}
-#endif
-
 // ---------------------------------------------------------------------------
 // Get signal strength on current tuner frequency
 //
@@ -1545,8 +1328,6 @@ bool BtDriver_IsVideoPresent( void )
 
    if ( video_fd != -1 )
    {
-#ifdef HAVE_V4L2
-      if (pVbiBuf->is_v4l2)
       {
          struct v4l2_tuner vtuner2;
 
@@ -1554,18 +1335,6 @@ bool BtDriver_IsVideoPresent( void )
          if (IOCTL(video_fd, VIDIOC_G_TUNER, &vtuner2) == 0)
          {
             result = (vtuner2.signal >= 32768);
-         }
-      }
-      else
-#endif /* HAVE_V4L2 */
-      {
-         struct video_tuner vtuner;
-
-         memset(&vtuner, 0, sizeof(vtuner));
-         if (IOCTL(video_fd, VIDIOCGTUNER, &vtuner) == 0)
-         {
-            //printf("BtDriver-GetSignalStrength: %u\n", vtuner.signal);
-            result = (vtuner.signal >= 32768);
          }
       }
    }
@@ -1605,7 +1374,6 @@ const char * BtDriver_GetCardName( uint cardIndex )
 {
 #if !defined (__NetBSD__) && !defined (__FreeBSD__)
    const char * pName = NULL;
-   struct video_capability vcapab;
    char * pDevName;
    #define MAX_CARD_NAME_LEN 32
    static char name[MAX_CARD_NAME_LEN];
@@ -1620,7 +1388,6 @@ const char * BtDriver_GetCardName( uint cardIndex )
 
    if (video_fd != -1)
    {
-#ifdef HAVE_V4L2
       struct v4l2_capability  v4l2_cap;
 
       memset(&v4l2_cap, 0, sizeof(v4l2_cap));
@@ -1629,19 +1396,6 @@ const char * BtDriver_GetCardName( uint cardIndex )
          strncpy(name, (char*)v4l2_cap.card, MAX_CARD_NAME_LEN);
          name[MAX_CARD_NAME_LEN - 1] = 0;
          pName = (const char *) name;
-      }
-      else
-#endif
-      {
-         memset(&vcapab, 0, sizeof(vcapab));
-         if (IOCTL(video_fd, VIDIOCGCAP, &vcapab) == 0)
-         {
-            strncpy(name, vcapab.name, MAX_CARD_NAME_LEN);
-            name[MAX_CARD_NAME_LEN - 1] = 0;
-            pName = (const char *) name;
-         }
-         else
-            debug3("BtDriver-GetCardName: ioctl(VIDIOCGCAP) for %s failed with errno %d: %s", pDevName, errno, strerror(errno));
       }
 
       BtDriver_CloseDevice();
@@ -1683,8 +1437,6 @@ const char * BtDriver_GetCardName( uint cardIndex )
 const char * BtDriver_GetInputName( uint cardIndex, uint cardType, uint drvType, uint inputIdx )
 {
 #if !defined (__NetBSD__) && !defined (__FreeBSD__)
-   struct video_capability vcapab;
-   struct video_channel vchan;
    char * pDevName = NULL;
    const char * pName = NULL;
    #define MAX_INPUT_NAME_LEN 32
@@ -1699,7 +1451,6 @@ const char * BtDriver_GetInputName( uint cardIndex, uint cardType, uint drvType,
 
    if (video_fd != -1)
    {
-#ifdef HAVE_V4L2
       struct v4l2_capability  v4l2_cap;
       struct v4l2_input v4l2_inp;
 
@@ -1716,28 +1467,6 @@ const char * BtDriver_GetInputName( uint cardIndex, uint cardType, uint drvType,
          }
          else  // we iterate until an error is returned, hence ignore errors after input #0
             ifdebug4(inputIdx == 0, "BtDriver-GetInputName: ioctl(ENUMINPUT) for %s, input #%d failed with errno %d: %s", ((pDevName != NULL) ? pDevName : BtDriver_GetDevicePath(DEV_TYPE_VIDEO, cardIndex)), inputIdx, errno, strerror(errno));
-      }
-      else
-#endif
-      {
-         memset(&vcapab, 0, sizeof(vcapab));
-         if (IOCTL(video_fd, VIDIOCGCAP, &vcapab) == 0)
-         {
-            if (inputIdx < (uint)vcapab.channels)
-            {
-               vchan.channel = inputIdx;
-               if (IOCTL(video_fd, VIDIOCGCHAN, &vchan) == 0)
-               {
-                  strncpy(name, vchan.name, MAX_INPUT_NAME_LEN);
-                  name[MAX_INPUT_NAME_LEN - 1] = 0;
-                  pName = (const char *) name;
-               }
-               else
-                  debug4("BtDriver-GetInputName: ioctl(VIDIOCGCHAN) for %s, input #%d failed with errno %d: %s", ((pDevName != NULL) ? pDevName : BtDriver_GetDevicePath(DEV_TYPE_VIDEO, cardIndex)), inputIdx, errno, strerror(errno));
-            }
-         }
-         else
-            debug3("BtDriver-GetInputName: ioctl(VIDIOCGCAP) for %s failed with errno %d: %s", ((pDevName != NULL) ? pDevName : BtDriver_GetDevicePath(DEV_TYPE_VIDEO, cardIndex)), errno, strerror(errno));
       }
    }
 
@@ -1778,15 +1507,14 @@ bool BtDriver_Configure( int cardIndex, int drvType, int prio, int chipType, int
    bool wasEnabled;
 
    wasEnabled = (pVbiBuf->epgEnabled || pVbiBuf->ttxEnabled) && !pVbiBuf->hasFailed;
-   pVbiBuf->is_v4l2 = FALSE;
 
    // pass the new card index to the slave via shared memory
    pVbiBuf->cardIndex = cardIndex;
 
    if (wasEnabled)
-   {  // wait 30ms for the slave to process the request
+   {  // wait 100ms for the slave to process the request
       tv.tv_sec  = 0;
-      tv.tv_usec = 30000L;
+      tv.tv_usec = 100000L;
       select(0, NULL, NULL, NULL, &tv);
    }
 
@@ -1801,6 +1529,7 @@ bool BtDriver_Configure( int cardIndex, int drvType, int prio, int chipType, int
 //
 void BtDriver_SelectSlicer( VBI_SLICER_TYPE slicerType )
 {
+#ifndef USE_LIBZVBI
    if ((slicerType != VBI_SLICER_AUTO) && (slicerType < VBI_SLICER_COUNT))
    {
       dprintf1("BtDriver-SelectSlicer: slicer %d\n", slicerType);
@@ -1808,6 +1537,7 @@ void BtDriver_SelectSlicer( VBI_SLICER_TYPE slicerType )
    }
    else
       debug1("BtDriver-SelectSlicer: invalid slicer type %d", slicerType);
+#endif
 }
 
 #if 0
@@ -1898,7 +1628,7 @@ static void BtDriver_SignalDeathOfChild( int sigval )
       if (pVbiBuf != NULL)
       {
          if (pid == pVbiBuf->vbiPid)
-         {  // slave died without catching the signal (e.g. SIGKILL)
+         {  // slave died from an uncaught signal (e.g. SIGKILL)
             debug1("BtDriver-SignalDeathOfChild: acq slave pid %d crashed - disable acq", pid);
             pVbiBuf->vbiPid = -1;
             if (pVbiBuf->failureErrno == 0)
@@ -2189,13 +1919,9 @@ static void BtDriver_OpenVbiBuf( void )
 {
 #ifndef USE_LIBZVBI
 #if !defined (__NetBSD__) && !defined (__FreeBSD__)
-   struct vbi_format fmt;
-   struct vbi_format fmt_copy;
    long bufSize;
-#ifdef HAVE_V4L2
    struct v4l2_format vfmt2;
    struct v4l2_format vfmt2_copy;
-#endif
 #endif
 
    bufLines            = VBI_DEFAULT_LINES * 2;
@@ -2220,15 +1946,10 @@ static void BtDriver_OpenVbiBuf( void )
 
 #if !defined (__NetBSD__) && !defined (__FreeBSD__)
 
-#ifdef HAVE_V4L2
-   if (pVbiBuf->is_v4l2)
-   {
-      memset(&vfmt2, 0, sizeof(vfmt2));
-      vfmt2.type = V4L2_BUF_TYPE_VBI_CAPTURE;
-   }
+   memset(&vfmt2, 0, sizeof(vfmt2));
+   vfmt2.type = V4L2_BUF_TYPE_VBI_CAPTURE;
 
-   if ( (pVbiBuf->is_v4l2) &&
-        (IOCTL(vbi_fdin, VIDIOC_G_FMT, &vfmt2)) == 0)
+   if (IOCTL(vbi_fdin, VIDIOC_G_FMT, &vfmt2) == 0)
    {
       vfmt2_copy = vfmt2;
       // VBI format query succeeded -> now try to alter acc. to our preferences
@@ -2267,48 +1988,8 @@ static void BtDriver_OpenVbiBuf( void )
       zvbi_rd.synchronous       = !(vfmt2.fmt.vbi.flags & V4L2_VBI_UNSYNC);
    }
    else
-#endif  // HAVE_V4L2
-   if ( (pVbiBuf->is_v4l2 == FALSE) &&
-        (IOCTL(vbi_fdin, VIDIOCGVBIFMT, &fmt) == 0) )
-   {  // VBI format query succeeded -> now try to alter acc. to our preferences
-      fmt_copy = fmt;
-      fmt_copy.start[0]       = 7;
-      fmt_copy.count[0]       = VBI_DEFAULT_LINES;
-      fmt_copy.start[1]       = 319;
-      fmt_copy.count[1]       = VBI_DEFAULT_LINES;
-      fmt_copy.sample_format  = VIDEO_PALETTE_RAW;
-      if (IOCTL(vbi_fdin, VIDIOCSVBIFMT, &fmt_copy) == 0)
-      {  // update succeeded -> use the new parameters (possibly altered by the driver)
-         fmt = fmt_copy;
-      }
-      else  // ignore failure
-         debug2("BtDriver-OpenVbiBuf: ioctl(VIDIOCSVBIFMT) failed with errno %d: %s", errno, strerror(errno));
-
-      dprintf6("VBI format: %d lines, %d samples per line, %d sampling rate, flags=0x%X, start lines %d,%d\n", fmt.count[0] + fmt.count[1], fmt.samples_per_line, fmt.sampling_rate, fmt.flags, fmt.start[0], fmt.start[1]);
-      bufLines = fmt.count[0] + fmt.count[1];
-      if (bufLines > VBI_MAX_LINENUM)
-         bufLines = VBI_MAX_LINENUM;
-
-      bufLineSize = fmt.samples_per_line;
-      if ((bufLineSize == 0) || (bufLineSize > VBI_MAX_LINESIZE))
-         bufLineSize = VBI_MAX_LINESIZE;
-
-      VbiDecodeSetSamplingRate(fmt.sampling_rate, fmt.start[0]);
-
-      zvbi_rd.sampling_rate    = fmt.sampling_rate;
-      zvbi_rd.offset           = (int)(9.2e-6 * fmt.sampling_rate);
-      zvbi_rd.bytes_per_line   = fmt.samples_per_line;
-      zvbi_rd.start[0]         = fmt.start[0];
-      zvbi_rd.count[0]         = fmt.count[0];
-      zvbi_rd.start[1]         = fmt.start[1];
-      zvbi_rd.count[1]         = fmt.count[1];
-      //zvbi_rd.interlaced       = !!(fmt.flags & VBI_INTERLACED);
-      //zvbi_rd.synchronous      = !(fmt.flags & VBI_UNSYNC);
-      zvbi_rd.sampling_format  = VBI_PIXFMT_YUV420;
-   }
-   else
    {
-      ifdebug2(errno != EINVAL, "ioctl VIDIOCGVBIFMT error %d: %s", errno, strerror(errno));
+      ifdebug2(errno != EINVAL, "ioctl VIDIOC_G_FMT error %d: %s", errno, strerror(errno));
       dprintf1("BTTV driver version 0x%X\n", IOCTL(vbi_fdin, BTTV_VERSION, NULL));
 
       bufSize = IOCTL(vbi_fdin, BTTV_VBISIZE, NULL);
@@ -2356,7 +2037,7 @@ static void BtDriver_DecodeFrame( void )
    uchar *pData;
    uint  line;
    size_t bufSize;
-   slong stat;
+   ssize_t stat;
 
    #if defined(__NetBSD__) || defined(__FreeBSD__)
    // wait max. 10 seconds for the read to complete. After this time
@@ -2421,7 +2102,7 @@ static void BtDriver_DecodeFrame( void )
    }
    else if (stat >= 0)
    {
-      debug2("BtDriver-DecodeFrame: short read: %ld of %ld", stat, (long)bufSize);
+      debug2("BtDriver-DecodeFrame: short read: %ld of %ld", (long)stat, (long)bufSize);
    }
 #else  // USE_LIBZVBI
    double timestamp;
@@ -2436,7 +2117,9 @@ static void BtDriver_DecodeFrame( void )
    alarm(10);
    #endif
 
-   timeout.tv_sec = 10;
+   // need a small timeout as the following function does not return upo SIGUSR1
+   // as LIBZVBI internally retries the read upon EINTR
+   timeout.tv_sec =  1;
    timeout.tv_usec = 0;
    res = vbi_capture_read_sliced(pZvbiCapt, pZvbiData, &lineCount, &timestamp, &timeout);
    if (res > 0)
@@ -2458,7 +2141,7 @@ static void BtDriver_DecodeFrame( void )
          {
             TtxDecode_AddVpsData(pZvbiData[line].data);
          }
-         else
+         else if (vbiDvbPid == -1)
             debug1("BtDriver-DecodeFrame: unrequested service 0x%x", pZvbiData[line].id);
       }
    }
@@ -2695,13 +2378,6 @@ static void * BtDriver_Main( void * foo )
          #endif
       }
 
-      #if !defined (__NetBSD__) && !defined (__FreeBSD__)
-      // We get here only on Linux (because of pVbiBuf->doQueryFreq),
-      if (pVbiBuf->doQueryFreq)
-      {
-         BtDriver_SlaveQueryChannel();
-      }
-      #endif
 #if defined(USE_VBI_PROXY)
       if ( (pVbiBuf->slaveChnSwitch != ZVBI_CHN_MSG_NONE) &&
            (pVbiBuf->slaveChnSwitch != ZVBI_CHN_MSG_DONE) )
@@ -2856,4 +2532,3 @@ bool BtDriver_Init( void )
    return TRUE;
 #endif  //USE_THREADS
 }
-

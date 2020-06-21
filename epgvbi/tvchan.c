@@ -28,7 +28,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: tvchan.c,v 1.10 2020/06/17 19:59:13 tom Exp tom $
+ *  $Id: tvchan.c,v 1.11 2020/06/21 07:33:38 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_VBI
@@ -188,12 +188,12 @@ int TvChannels_FreqToWdmChannel( uint ifreq, uint norm, uint * pCountry )
    double dfreq;
    int    wdmIdx = -1;
 
-   if (norm == VIDEO_MODE_SECAM)
+   if (norm == EPGACQ_TUNER_NORM_SECAM)
    {
       ft = freqTableList[FREQ_TAB_FRANCE];
       *pCountry = 33;
    }
-   else // (norm == VIDEO_MODE_PAL)
+   else // (norm == EPGACQ_TUNER_NORM_PAL)
    {
       ft = freqTableList[FREQ_TAB_D_A_CH];
       *pCountry = 49;
@@ -269,7 +269,7 @@ bool TvChannels_GetNext( uint *pChan, uint *pFreq )
          // get the frequency of this channel
          *pFreq = (uint) (16.0 * (ft->freqStart + (*pChan - ft->firstChannel) * ft->freqOffset));
          if (freqTabIdx == FREQ_TAB_FRANCE)
-            *pFreq |= (VIDEO_MODE_SECAM << 24);
+            *pFreq |= (EPGACQ_TUNER_NORM_SECAM << 24);
          break;
       }
       ft += 1;
@@ -311,7 +311,7 @@ int main(int argc, char **argv)
       if (*pEnd == 0)
       {
          freq = ffreq * 16;
-         norm = VIDEO_MODE_SECAM;
+         norm = EPGACQ_TUNER_NORM_SECAM;
          wdmChannel = TvChannels_FreqToWdmChannel(freq, norm, &country);
 
          printf("%.2f -> channel #%d, country %d\n", (freq & 0xffffff)/16.0, wdmChannel, country);

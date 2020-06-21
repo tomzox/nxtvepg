@@ -40,7 +40,7 @@
  *  DScaler #Id: TDA8275.cpp,v 1.10 2005/10/04 19:59:48 to_see Exp #
  *  DScaler #Id: TDA8275.h,v 1.6 2005/10/04 19:59:09 to_see Exp #
  *
- *  $Id: wintuner.c,v 1.31 2020/06/15 09:56:38 tom Exp tom $
+ *  $Id: wintuner.c,v 1.32 2020/06/24 07:24:57 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_VBI
@@ -854,7 +854,7 @@ static void Tda8290_TunerSet(bool bPreSet, uint norm /*eVideoFormat videoFormat*
         Tda8290_WriteToSubAddress(TDA8290_IF_AGC_SET, 0x88);
         // "1.3 Set ADC headroom (TDA8290) to nominal" (data-sheet)
         //if (standard == TDA8290_STANDARD_L || standard == TDA8290_STANDARD_L2)
-        if (norm == VIDEO_MODE_SECAM)
+        if (norm == EPGACQ_TUNER_NORM_SECAM)
         {
             // 9dB ADC headroom if standard is L or L'
             Tda8290_WriteToSubAddress(TDA8290_ADC_HEADR, 0x2);
@@ -911,7 +911,7 @@ static void Tda8290_TunerSet(bool bPreSet, uint norm /*eVideoFormat videoFormat*
 
         // 5/ RESET for L/L' deadlock
         //if (standard == TDA8290_STANDARD_L || standard == TDA8290_STANDARD_L2)
-        if (norm == VIDEO_MODE_SECAM)
+        if (norm == EPGACQ_TUNER_NORM_SECAM)
         {
             if ((Tda8290_ReadFromSubAddress(TDA8290_ADC_SAT, &readByte, 1) && (readByte > 20)) ||
                 (Tda8290_ReadFromSubAddress(TDA8290_AFC_REG, &readByte, 1) && ((readByte & 0x80) == 0)) )
@@ -973,7 +973,7 @@ static eTDA8290Standard Tda8290_GetTDA8290Standard(uint norm /*eVideoFormat vide
     {
     //case VIDEOFORMAT_PAL_B:
     //case VIDEOFORMAT_SECAM_B:
-    case VIDEO_MODE_PAL:
+    case EPGACQ_TUNER_NORM_PAL:
         standard = TDA8290_STANDARD_B;
         break;
     //case VIDEOFORMAT_PAL_G:
@@ -994,7 +994,7 @@ static eTDA8290Standard Tda8290_GetTDA8290Standard(uint norm /*eVideoFormat vide
         //break;
     //case VIDEOFORMAT_SECAM_L:
     //case VIDEOFORMAT_SECAM_L1:
-    case VIDEO_MODE_SECAM:
+    case EPGACQ_TUNER_NORM_SECAM:
         standard = TDA8290_STANDARD_L;
         break;
     //case VIDEOFORMAT_PAL_60:    
@@ -1003,7 +1003,7 @@ static eTDA8290Standard Tda8290_GetTDA8290Standard(uint norm /*eVideoFormat vide
     //case VIDEOFORMAT_PAL_M:
     //case VIDEOFORMAT_PAL_N_COMBO:
     //case VIDEOFORMAT_NTSC_M:
-    case VIDEO_MODE_NTSC:
+    case EPGACQ_TUNER_NORM_NTSC:
         standard = TDA8290_STANDARD_MN;
         break;
     //case VIDEOFORMAT_NTSC_50:
@@ -1499,7 +1499,7 @@ static bool Tda8275_InitializeTuner( void )
 
     if (haveTda8290)
     {
-        Tda8290_Init(FALSE, VIDEO_MODE_PAL);
+        Tda8290_Init(FALSE, EPGACQ_TUNER_NORM_PAL);
     }
 
     return TRUE;
@@ -1596,15 +1596,15 @@ static void Tda9887_TunerSet( bool bPreSet, uint norm /* eVideoFormat videoForma
       {
          switch (norm)
          {
-            case VIDEO_MODE_PAL:
+            case EPGACQ_TUNER_NORM_PAL:
                memcpy(tda9887set, tda9887set_pal_bg, 5);
                break;
 
-            case VIDEO_MODE_SECAM:
+            case EPGACQ_TUNER_NORM_SECAM:
                memcpy(tda9887set, tda9887set_pal_l, 5);
                break;
 
-            case VIDEO_MODE_NTSC:
+            case EPGACQ_TUNER_NORM_NTSC:
                memcpy(tda9887set, tda9887set_ntsc, 5);
                break;
 
@@ -1729,7 +1729,7 @@ static void TDA9887Pinnacle_TunerSet(bool bPreSet, uint norm /* eVideoFormat vid
 
         m_LastVideoFormat = norm;
 
-        if (norm == VIDEO_MODE_PAL)
+        if (norm == EPGACQ_TUNER_NORM_PAL)
         {
             bDeEmphasis  = TDA9887_DeemphasisON;
             bDeEmphVal   = TDA9887_Deemphasis50;
@@ -1744,7 +1744,7 @@ static void TDA9887Pinnacle_TunerSet(bool bPreSet, uint norm /* eVideoFormat vid
             }
             bOutPort1    = TDA9887_OutputPort1Inactive;
         }
-        else if (norm == VIDEO_MODE_SECAM)
+        else if (norm == EPGACQ_TUNER_NORM_SECAM)
         {
             bDeEmphasis  = TDA9887_DeemphasisON;
             bDeEmphVal   = TDA9887_Deemphasis50;
@@ -1768,7 +1768,7 @@ static void TDA9887Pinnacle_TunerSet(bool bPreSet, uint norm /* eVideoFormat vid
         bAudioIF     = TDA9887_AudioIF_5_5;
         switch (norm)
         {
-        case VIDEO_MODE_PAL:
+        case EPGACQ_TUNER_NORM_PAL:
         //case VIDEOFORMAT_PAL_B:
         //case VIDEOFORMAT_PAL_G:
         //case VIDEOFORMAT_PAL_H:
@@ -1789,7 +1789,7 @@ static void TDA9887Pinnacle_TunerSet(bool bPreSet, uint norm /* eVideoFormat vid
             //bVideoIF     = TDA9887_VideoIF_45_75;
             //bAudioIF     = TDA9887_AudioIF_4_5;
 
-        case VIDEO_MODE_SECAM:
+        case EPGACQ_TUNER_NORM_SECAM:
         //case VIDEOFORMAT_SECAM_D:
             //bVideoIF     = TDA9887_VideoIF_38_00;
             //bAudioIF     = TDA9887_AudioIF_6_5;
@@ -2036,7 +2036,7 @@ static eTDA9887Format TDA9887Ex_VideoFormat2TDA9887Format(IN eVideoFormat format
     {
         //case VIDEOFORMAT_PAL_B:
         //case VIDEOFORMAT_PAL_G:
-        case VIDEO_MODE_PAL:
+        case EPGACQ_TUNER_NORM_PAL:
             return TDA9887_FORMAT_PAL_BG;
         //case VIDEOFORMAT_PAL_I:
         //    return TDA9887_FORMAT_PAL_I;
@@ -2048,14 +2048,14 @@ static eTDA9887Format TDA9887Ex_VideoFormat2TDA9887Format(IN eVideoFormat format
         //    return TDA9887_FORMAT_PAL_MN;
         //case VIDEOFORMAT_SECAM_L:
         //case VIDEOFORMAT_SECAM_L1:
-        case VIDEO_MODE_SECAM:
+        case EPGACQ_TUNER_NORM_SECAM:
             return TDA9887_FORMAT_SECAM_L;
         //case VIDEOFORMAT_SECAM_D:
         //case VIDEOFORMAT_SECAM_K:
         //case VIDEOFORMAT_SECAM_K1:
         //    return TDA9887_FORMAT_SECAM_DK;
         //case VIDEOFORMAT_NTSC_M:
-        case VIDEO_MODE_NTSC:
+        case EPGACQ_TUNER_NORM_NTSC:
             return TDA9887_FORMAT_NTSC_M;
         //case VIDEOFORMAT_NTSC_50:
         //case VIDEOFORMAT_NTSC_M_Japan:
@@ -2787,7 +2787,7 @@ bool Tuner_SetFrequency( TUNER_TYPE type, uint wFrequency, uint norm )
          {
             case TUNER_PHILIPS_SECAM:
                /* XXX TODO: disabled until norm is provided by TV channel file parsers
-               if (norm == VIDEO_MODE_SECAM)
+               if (norm == EPGACQ_TUNER_NORM_SECAM)
                   config |= 0x02;
                else
                   config &= ~0x02;
@@ -2796,7 +2796,7 @@ bool Tuner_SetFrequency( TUNER_TYPE type, uint wFrequency, uint norm )
             case TUNER_TEMIC_4046FM5_MULTI:
                config &= ~0x0f;
                /*
-               if (norm == VIDEO_MODE_SECAM)
+               if (norm == EPGACQ_TUNER_NORM_SECAM)
                   config |= TEMIC_SET_PAL_L;
                else
                */
@@ -2805,7 +2805,7 @@ bool Tuner_SetFrequency( TUNER_TYPE type, uint wFrequency, uint norm )
             case TUNER_PHILIPS_MULTI:
                config &= ~0x0f;
                /*
-               if (norm == VIDEO_MODE_SECAM)
+               if (norm == EPGACQ_TUNER_NORM_SECAM)
                   config |= PHILIPS_SET_PAL_L;
                else
                */
@@ -2934,9 +2934,9 @@ bool Tuner_Init( TUNER_TYPE type, TVCARD * pNewTvCardIf )
              (type == TUNER_PHILIPS_FM1216ME_MK3))
          {
             if ((type != TUNER_MT2032_PAL) && (type != TUNER_MT2050_PAL))
-               defaultNorm = VIDEO_MODE_SECAM;
+               defaultNorm = EPGACQ_TUNER_NORM_SECAM;
             else
-               defaultNorm = VIDEO_MODE_PAL;
+               defaultNorm = EPGACQ_TUNER_NORM_PAL;
             dprintf1("Tuner-Init: detecting IF demodulator, norm %d\n", defaultNorm);
 
             if (pTvCard->cfg->GetTda9887Modes(pTvCard, &haveTda9887Standard, &pTda9887Modes))
@@ -2977,7 +2977,7 @@ bool Tuner_Init( TUNER_TYPE type, TVCARD * pNewTvCardIf )
             if ( Tda8290_Detect() )
             {
                haveTda8290 = TRUE;
-               Tda8290_Init(TRUE, VIDEO_MODE_PAL);  // norm is unused
+               Tda8290_Init(TRUE, EPGACQ_TUNER_NORM_PAL);  // norm is unused
             }
             else
                debug0("Tuner-Init: failed to detect TDA8290 - expected to be present with TDA8275");

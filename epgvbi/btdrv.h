@@ -37,7 +37,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: btdrv.h,v 1.50 2011/01/09 16:54:01 tom Exp tom $
+ *  $Id: btdrv.h,v 1.51 2020/06/21 07:33:46 tom Exp tom $
  */
 
 #ifndef __BTDRV_H
@@ -76,20 +76,6 @@ struct Card
   int inUse;              // device is used by the vbi slave
 };
 #endif  //__NetBSD__ || __FreeBSD__
-
-#ifdef linux
-# ifndef PATH_VIDEODEV_H
-#  include "epgvbi/videodev.h"
-# else
-#  include PATH_VIDEODEV_H
-# endif
-#else
-# ifndef VIDEO_MODE_SECAM
-#  define VIDEO_MODE_PAL          0   // from videodev.h
-#  define VIDEO_MODE_NTSC         1
-#  define VIDEO_MODE_SECAM        2
-# endif
-#endif
 
 typedef enum
 {
@@ -245,6 +231,19 @@ typedef struct
 
 
 // ---------------------------------------------------------------------------
+// Video norm
+// - encoded in the upper-most 8 bit of the frequency parameter when tuning
+
+typedef enum
+{
+  EPGACQ_TUNER_NORM_PAL = 0,     // analog norm IDs fixed for use in RC file
+  EPGACQ_TUNER_NORM_NTSC = 1,
+  EPGACQ_TUNER_NORM_SECAM = 2,
+  EPGACQ_TUNER_NORM_COUNT
+} EPGACQ_TUNER_NORM;
+
+
+// ---------------------------------------------------------------------------
 // Structure which is put into shared memory
 // - used to pass parameters and commands from the master to the acq slave.
 //   Those elements are marked with "In:" in the comments below
@@ -284,16 +283,10 @@ typedef struct
    #ifndef WIN32
    pid_t     vbiPid;
    pid_t     epgPid;
-   bool      is_v4l2;
    int       failureErrno;
    # ifndef USE_THREADS
    bool      freeDevice;        // In:  TRUE when acq is stopped
    # endif
-
-   bool      doQueryFreq;
-   bool      vbiQueryIsTuner;
-   uint      vbiQueryInput;
-   uint      vbiQueryFreq;
 
    uchar     cardIndex;
    int       dvbPid;

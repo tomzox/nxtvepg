@@ -22,7 +22,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: debug.c,v 1.30 2014/04/23 21:28:22 tom Exp tom $
+ *  $Id: debug.c,v 1.31 2020/06/26 21:52:21 tom Exp tom $
  */
 
 #define __DEBUG_C
@@ -56,6 +56,9 @@
 #include <time.h>
 #include <errno.h>
 #include <string.h>
+#ifdef USE_THREADS
+# include <pthread.h>
+#endif
 
 #endif  // DEBUG_SWITCH == ON
 
@@ -98,6 +101,10 @@ static ulong malUsage = 0L;
 static ulong malPeak  = 0L;
 static uint malRealloc = 0;
 static uint malReallocOk = 0;
+
+#ifdef USE_THREADS
+static pthread_mutex_t  check_malloc_mutex;
+#endif
 #endif  // CHK_MALLOC == ON
 
 
@@ -200,14 +207,17 @@ void * chk_malloc( size_t size, const char * pCallerFile, int callerLine )
    pElem->line = callerLine;
    pElem->size = size;
 
+   // write a magic before and after the data
+   memcpy(pElem->magic1, pMallocMagic, sizeof(MALLOC_CHAIN_MAGIC_LEN));
+   memcpy((uchar *)&pElem[1] + size, pMallocMagic, sizeof(MALLOC_CHAIN_MAGIC_LEN));
+
+#ifdef USE_THREADS
+   pthread_mutex_lock(&check_malloc_mutex);
+#endif
    // monitor maximum memory usage
    malUsage += size;
    if (malUsage > malPeak)
       malPeak = malUsage;
-
-   // write a magic before and after the data
-   memcpy(pElem->magic1, pMallocMagic, sizeof(MALLOC_CHAIN_MAGIC_LEN));
-   memcpy((uchar *)&pElem[1] + size, pMallocMagic, sizeof(MALLOC_CHAIN_MAGIC_LEN));
 
    // unshift the element to the start of the chain
    pElem->next = pMallocChain;
@@ -219,6 +229,9 @@ void * chk_malloc( size_t size, const char * pCallerFile, int callerLine )
       pElem->next->prev = pElem;
    }
    //fprintf(stderr, "chk-malloc: 0x%lX: %s, line %d, size %ld\n", (long)pElem, pElem->fileName, pElem->line, (ulong)pElem->size);
+#ifdef USE_THREADS
+   pthread_mutex_unlock(&check_malloc_mutex);
+#endif
 
    return (void *)&pElem[1];
 }  
@@ -231,18 +244,16 @@ void * chk_realloc( void * ptr, size_t size, const char * pCallerFile, int calle
 {
    MALLOC_CHAIN * pElem;
    MALLOC_CHAIN * pPrevElem;
+   size_t prevSize;
 
    pElem = (MALLOC_CHAIN *)((ulong)ptr - sizeof(MALLOC_CHAIN));
    pPrevElem = pElem;
+   prevSize = pElem->size;
 
    assert(size > 0);
    // check the magic strings before and after the data
    assert(memcmp(pElem->magic1, pMallocMagic, sizeof(MALLOC_CHAIN_MAGIC_LEN)) == 0);
    assert(memcmp((uchar *)&pElem[1] + pElem->size, pMallocMagic, sizeof(MALLOC_CHAIN_MAGIC_LEN)) == 0);
-
-   // update memory usage
-   assert(malUsage >= pElem->size);
-   malUsage -= pElem->size;
 
    // perform the actual re-allocation
    pElem = realloc(pElem, size + MALLOC_CHAIN_ADD_LEN);
@@ -255,7 +266,17 @@ void * chk_realloc( void * ptr, size_t size, const char * pCallerFile, int calle
       exit(-1);
    }
 
-   // updates links to the current element in case the pointer changed
+   // update magic after the data
+   memcpy((uchar *)&pElem[1] + size, pMallocMagic, sizeof(MALLOC_CHAIN_MAGIC_LEN));
+   //fprintf(stderr, "chk-realloc: 0x%lX: %s, line %d, size %ld; caller: %s, line: %d\n", (long)pElem, pElem->fileName, pElem->line, (ulong)pElem->size, pCallerFile, callerLine);
+
+   // update size in header magic
+   pElem->size = size;
+
+#ifdef USE_THREADS
+   pthread_mutex_lock(&check_malloc_mutex);
+#endif
+   // update links to the current element in case the pointer changed
    if (pElem->prev != NULL)
    {
       pElem->prev->next = pElem;
@@ -270,20 +291,17 @@ void * chk_realloc( void * ptr, size_t size, const char * pCallerFile, int calle
    }
 
    // monitor maximum memory usage
-   malUsage += size;
+   assert(malUsage >= prevSize);
+   malUsage = malUsage - prevSize + size;
    if (malUsage > malPeak)
       malPeak = malUsage;
 
    malRealloc += 1;
    if (pElem == pPrevElem)
       malReallocOk += 1;
-
-   // update size in header magic
-   pElem->size = size;
-
-   // update magic after the data
-   memcpy((uchar *)&pElem[1] + size, pMallocMagic, sizeof(MALLOC_CHAIN_MAGIC_LEN));
-   //fprintf(stderr, "chk-realloc: 0x%lX: %s, line %d, size %ld; caller: %s, line: %d\n", (long)pElem, pElem->fileName, pElem->line, (ulong)pElem->size, pCallerFile, callerLine);
+#ifdef USE_THREADS
+   pthread_mutex_unlock(&check_malloc_mutex);
+#endif
 
    return (void *)&pElem[1];
 }
@@ -314,16 +332,19 @@ void chk_free( void * ptr, const char * pCallerFile, int callerLine )
       fatal6("chk-free: invalid magic after allocated buffer 0x%lX: %s, line %d, size %ld; caller: %s, line: %d", (long)pElem, pElem->fileName, pElem->line, (ulong)pElem->size, pCallerFile, callerLine);
    }
 
+   // invalidate the magic
+   memcpy(pElem->magic1, pMallocXmark, sizeof(MALLOC_CHAIN_MAGIC_LEN));
+   memcpy((uchar *)&pElem[1] + pElem->size, pMallocXmark, sizeof(MALLOC_CHAIN_MAGIC_LEN));
+
+#ifdef USE_THREADS
+   pthread_mutex_lock(&check_malloc_mutex);
+#endif
    // update memory usage
    if (malUsage < pElem->size)
    {
       fatal7("chk-free: mem usage %ld < freed size: buffer 0x%lX: %s, line %d, size %ld; caller: %s, line: %d", malUsage, (long)pElem, pElem->fileName, pElem->line, (ulong)pElem->size, pCallerFile, callerLine);
    }
    malUsage -= pElem->size;
-
-   // invalidate the magic
-   memcpy(pElem->magic1, pMallocXmark, sizeof(MALLOC_CHAIN_MAGIC_LEN));
-   memcpy((uchar *)&pElem[1] + pElem->size, pMallocXmark, sizeof(MALLOC_CHAIN_MAGIC_LEN));
 
    // remove the element from the chain
    if (pElem->prev != NULL)
@@ -341,6 +362,9 @@ void chk_free( void * ptr, const char * pCallerFile, int callerLine )
       assert(pElem->next->prev == pElem);
       pElem->next->prev = pElem->prev;
    }
+#ifdef USE_THREADS
+   pthread_mutex_unlock(&check_malloc_mutex);
+#endif
 
    // perform the actual free
    free(pElem);

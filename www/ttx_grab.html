@@ -1,6 +1,6 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/HTMLlat1.ent">
 <HTML lang="en">
-<!-- $Id: ttx_grab.html,v 1.6 2020/06/14 15:49:39 tom Exp tom $ -->
+<!-- $Id: ttx_grab.html,v 1.7 2020/07/01 19:03:24 tom Exp tom $ -->
 <HEAD>
 <TITLE>Teletext EPG Grabber Software</TITLE>
 <META http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
@@ -56,7 +56,7 @@ This EPG grabber allows extracting TV programme listings in
 from teletext pages as broadcast by most European TV networks.
 The grabber works by reading teletext pages via a TV card from all
 individual networks, then extracting programme title and starting times
-from programme tables (e.g. in Germany usually pages 301-304) and
+from programme tables (e.g. in Germany usually pages 301-399) and
 finally adding description texts from pages which are referenced in
 the overviews.
 </P><P>
@@ -73,13 +73,13 @@ description texts to the Nextview EPG.  In teletext, many networks
 have good descriptions not only for movies, but especially also for
 weekly magazines, daily soaps or current events.
 </P><P>
-Since the grabber has to read each individual network's teletext stream
-and many networks use sub-pages at least for descriptions, the
-process unfortunately takes relatively long. For full EPG grabbing,
-at least 90 seconds per network are required. There's a fast scan mode
-which requires only 10-20 seconds per network in average, however in
-this mode overview and descriptions may be incomplete if sub-pages are
-used by the respective network.
+Since the grabber has to read each individual network's teletext
+stream and many networks use sub-pages at least for descriptions, the
+process unfortunately takes relatively long: For full EPG grabbing,
+typically between 90 and 120 seconds per channel are required. When
+receiving via DVB, this can be sped-up significantly however, as it's
+possible to receive teletext from all channels sharing a transponder
+concurrently.
 </P><P>
 For now, only nation-wide German networks are supported. For other
 networks the parser will need to be adapted to different page
@@ -87,9 +87,6 @@ formats. That's because almost every network formats tables, dates,
 times and descriptions slightly differently, so that the parser will
 have trouble locating the EPG data among all the advertisements and
 other content in teletext.
-</P><P>
-Since 2020 the grabber's homepage is
-<A HREF="https://github.com/tomzox/tv_grab_ttx">https://github.com/tomzox/tv_grab_ttx</A>
 </P>
 
 <H2>Download</H2>
@@ -98,34 +95,51 @@ This download is mainly inteded for users who want to use the
 grabber stand-alone, i.e. without nxtvepg.  In this case you need the
 <A HREF="http://zapping.sourceforge.net/doc/libzvbi/index.html">ZVBI library</A>,
 see below.
+</P><P>
+Since 2020 the grabber's homepage is
+<A HREF="https://github.com/tomzox/tv_grab_ttx">https://github.com/tomzox/tv_grab_ttx</A>.
+You can download the latest sources directly from the git repository
+instead of using the release package below.
 </P>
-<H3>Latest Release: Version 2.0 from January 9th 2011</H3>
+
+<H3>Latest Release: Version 2.1 from June 30th 2020</H3>
 <P>
-Under the hood the grabber has been completely rewritten in the C++
-language instead of Perl. To the user this is a benefit only insofar
-as the grabber runs now slightly faster and Windows users no longer
-need to obtain a Perl interpreter.
-</P><P>
-Additionally, many minor updates, enhancements and fixes both in
-in overview and description page parsing were done. In essence, the
-quantity and quality of the XMLTV output has been improved.
-</P><P>
-Note this grabber version in compiled into
-<A HREF="pre-releases.html#pre_rel_nxtvepg">version 2.9.pre4</A>.
+Development was resumed after a 9 year gap. The new release mainly focuses on
+enhancing working with digital TV capture cards (e.g. by adapting the `capall.pl`
+example automatisation script). Also tools have been updated (e.g. removed the
+need for the Boost regex library by requiring C++11) and the parser was
+slightly enhanced and adapted to changes in teletext content by networks.
+Detailed change log:
+</P>
+<UL>
+<LI> Replaced use of boost_regex library with C++11 std::regex
+<LI> Changed default from analog to digital TV capture device
+<LI> Added command line option "-pgstat" for monitoring capture progress
+<LI> Added optional tool for tuning DVB channels in util/ directory
+<LI> Enhanced example capture script capall.pl: receive concurrently
+    from channels sharing a transponder; can speed-up overall duration
+    of acquisition significantly (e.g. by factor 4)
+<LI> Minor parser enhancements
+</UL>
+<P>
+This new release will be included in
+<A HREF="pre-releases.html#pre_rel_nxtvepg">nxtvepg release 2.9.0pre5</A>.
 </P>
 
 <DIV CLASS="box">
 <H3><A NAME="download_source">Sources</A></H3>
 <P>
 Note the grabber is no longer implemented in Perl, thus a compiler is
-required to compile, unless you can use one of the pre-compiled-packages
-below. Note the grabber requires the "libzvbi" library. For this reason,
-compilation on Windows is currently not supported (use an
-<A HREF="pre-releases.html">nxtvepg pre-release</A> instead.)
+required to compile. Specifically, a C++ compiler supporting C++14 is required.
+The grabber additionally requires the
+<A HREF="http://zapping.sourceforge.net/doc/libzvbi/index.html">ZVBI library</A>
+for capturing teletext. Since this library only supports Linux and BSD, the
+teletext grabber currently is not particularly useful for Windows users,
+even though cross-compilation for Window using MinGW is supported.
 </P>
 <UL>
-<LI>Teletext grabber sources (requires a C++ compiler):
-    <A HREF="http://nxtvepg.sourceforge.net/tmp/tv_grab_ttx-2.0.tar.gz">tv_grab_ttx-2.0.tar.gz</A> (apx. 130 kB)
+<LI>Teletext grabber sources:
+    <A HREF="http://nxtvepg.sourceforge.net/tmp/tv_grab_ttx-2.1.tar.gz">tv_grab_ttx-2.1.tar.gz</A> (apx. 300 kB)
 </UL>
 </DIV>
 

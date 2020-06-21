@@ -22,7 +22,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgdbmerge.c,v 1.36 2020/06/17 19:30:47 tom Exp tom $
+ *  $Id: epgdbmerge.c,v 1.37 2020/06/21 07:33:18 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB
@@ -51,6 +51,9 @@ typedef EPGDB_CONTEXT *PDBC;
 #undef MAX
 #define MIN(A,B) (((A)<=(B)) ? (A) : (B))
 #define MAX(A,B) (((A)>=(B)) ? (A) : (B))
+
+// limit length of merged provider name (i.e. concatenation)
+#define MAX_SERVICE_NAME_LEN  300
 
 // ---------------------------------------------------------------------------
 // Helper function for debug output
@@ -1127,30 +1130,39 @@ static char * EpgDbMergeAiServiceNames( EPGDB_MERGE_CONTEXT * dbmc )
    uint dbIdx, len;
    const char *name;
    char *mergeName;
+   uint concatCnt;
 
    // sum up netwop name lens
-   len = strlen(mergedServiceName) + 5;
+   len = strlen(mergedServiceName) + 5 + 5;
    for (dbIdx=0; dbIdx < dbmc->dbCount; dbIdx++)
    {
       pAi = (AI_BLOCK *) &dbmc->prov[dbIdx].pDbContext->pAiBlock->blk.ai;
       name = AI_GET_NETWOP_NAME(pAi, pAi->thisNetwop);
-      len += strlen(name) + 2;
+      // limit name length
+      size_t tlen = strlen(name);
+      if ((len + tlen >= MAX_SERVICE_NAME_LEN) && (dbIdx != 0))
+         break;
+      len += tlen + 2;
    }
+   concatCnt = dbIdx;
 
    // allocate the memory
    mergeName = xmalloc(len);
    strcpy(mergeName, mergedServiceName);
 
    // concatenate the names
-   for (dbIdx=0; dbIdx < dbmc->dbCount; dbIdx++)
+   for (dbIdx=0; dbIdx < concatCnt; dbIdx++)
    {
       pAi = (AI_BLOCK *) &dbmc->prov[dbIdx].pDbContext->pAiBlock->blk.ai;
       name = AI_GET_NETWOP_NAME(pAi, pAi->thisNetwop);
       strcat(mergeName, name);
-      if (dbIdx + 1 < dbmc->dbCount)
+      if (dbIdx + 1 < concatCnt)
          strcat(mergeName, ", ");
    }
-   strcat(mergeName, ")");
+   if (concatCnt < dbmc->dbCount)
+      strcat(mergeName, ", ...)");
+   else
+      strcat(mergeName, ")");
 
    return mergeName;
 }

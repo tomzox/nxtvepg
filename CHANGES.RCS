@@ -23169,3 +23169,75 @@ tvsim/vbirec_main.c [rev:1.30, 2020-06-17T19:40:07]:
 - Fixed compiler warnings for -Wpointer-sign
   - replaced "uchar" with "char" for text-string data
   - added (char*) casts when passing generated Tcl script array (uchar)
+epgdb/epgdbmerge.c [rev:1.37, 2020-06-21T07:33:18]:
+- Limit length of SERVICENAME in merged DB to 300 chars
+- string is limited for display anyway
+- caused overflow of "comm" buffer in GUI (also fixed there)
+epgvbi/tvchan.c [rev:1.11, 2020-06-21T07:33:38]:
+- Globally replaced VIDEO_MODE_* with new EPGACQ_TUNER_NORM enum
+epgvbi/btdrv.h [rev:1.51, 2020-06-21T07:33:46]:
+- removed obsolete internal copy of Linux headers
+- replaced internal use/definition of obsolete VIDEO_MODE_PAL et.al.
+  added new type EPGACQ_TUNER_NORM; globally replaced
+epgui/wintvcfg.c [rev:1.31, 2020-06-21T07:37:23]:
+- Globally replaced VIDEO_MODE_* with new EPGACQ_TUNER_NORM enum
+epgui/dumpxml.c [rev:1.27, 2020-06-21T07:37:39]:
+- Increased limit for max SERVICENAME length from 200 to 300
+- to sync with new limit in epgdbmerge.c
+epgui/uictrl.c [rev:1.61, 2020-06-21T07:37:46]:
+- Fixed crash upon very long SERVICENAME (many merged providers)
+- limit length already before copying name to "comm" buffer
+- (note: also limited length of name within epgdbmerge.c)
+epgtcl/dlg_remind.tcl [rev:1.26, 2020-06-21T07:39:37]:
+- Fixed Tcl error upon start-up
+- error in debug output upon missing shortcut during start-up
+Makefile [rev:1.113, 2020-06-21T07:41:03]:
+- corrected doc rules for concurrent build
+- added address sanitizer (ASAN) support (commented by default)
+- removed DPATH_VIDEODEV_H: removed from btdrv.h
+cni_tables.c [rev:1.35, 2020-06-22T07:10:42]:
+- Updated CNI tables per "TS 101 231 Codes Register (2015-12)"
+ttxdecode.c [rev:1.67, 2020-06-22T07:12:17]:
+- Filter illegal CNI 0x1234 seen in DVB sources
+  - split filtering off into macros
+epgvbi/btdrv4linux.c [rev:1.79, 2020-06-24T07:23:04]:
+- removed obsolete support for V4L v1 API
+  (as videodev.h kernel header file was removed)
+- replaced internal use of obsolete VIDEO_MODE_PAL enum values;
+  globally use new enum EPGACQ_TUNER_NORM instead
+- fixes for USE_LIBZVBI build configuration (caused "passive mode")
+  - by missing setting of V4L2 device prio
+  - incorrect V4L API version query
+  - reduced timeout for vbi_capture_read_sliced() to avoid GUI stall
+    upon acq stop
+- fixes for -dvbpid
+  - avoid trying VL4 channel change ioctl on DVB device
+  - skip debug warnings about unexpected service ID
+dsdrv/cx2388x.c [rev:1.22, 2020-06-24T07:24:57]:
+dsdrv/wintuner.c [rev:1.32, 2020-06-24T07:24:57]:
+epgvbi/btdrv4win.c [rev:1.63, 2020-06-24T07:25:39]:
+- Globally replaced VIDEO_MODE_* with new EPGACQ_TUNER_NORM enum
+tvsim/tvsim_main.c [rev:1.39, 2020-06-24T07:28:04]:
+- Linux: replaced use of vl4 v1 API with v2 (and use new EPGACQ_TUNER_NORM)
+epgdb/ttxgrab.c [rev:1.19, 2020-06-24T07:31:05]:
+- Fixed read-beyond-end-of-array in debug output to allow using ASAN
+- pass-through start offset to TTX header char array to TtxGrab_PrintHeader()
+  for limiting output accordingly
+epgctl/epgctxctl.c [rev:1.35, 2020-06-24T07:33:41]:
+- Bugfix failed consistency check "illegal reloadErr=11 in XML context"
+- clear error status when upgrading from STAT to PEEK after load success
+epgctl/debug.c [rev:1.31, 2020-06-26T21:52:21]
+- Bugfix malloc "check": not thread-safe
+  - for USE_THREADS: moved modifications of global vars under mutex
+ttx_grab.html [rev:1.7, 2020-07-01T19:03:24]:
+- Updated for release 2.1 (2020-June-30)
+epgtcl/dlg_shortcuts.tcl [rev:1.19, 2020-07-05T19:01:22]:
+- Fixed Tcl error upon "Invoke" button for new shortcuts:
+- missing check before deref shortcuts($sc_tag)
+epgui/pidescr.c [rev:1.14, 2020-07-05T19:04:02]:
+- PiDescription_RemoveSeriesIndex():
+- extended match to remove "(N-M)", "(N/M)" and "(N+M+...)"
+epgui/pifilter.c [rev:1.97, 2020-07-05T19:04:17]:
+- PiFilter_ContextMenuAddFilter:
+- stripping series index post-fix for title search had no effect
+  because "match complete" was used for sub-str filter

@@ -19,7 +19,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: dlg_shortcuts.tcl,v 1.18 2007/12/29 21:03:39 tom Exp tom $
+#  $Id: dlg_shortcuts.tcl,v 1.19 2020/07/05 19:01:22 tom Exp tom $
 #
 # import constants from other modules
 #=INCLUDE=  "epgtcl/shortcuts.h"
@@ -662,7 +662,8 @@ proc InvokeEditedShortcutFilter {} {
       Tree:selection .all.shortcuts.list clear first end
 
       # if the shortcut exists in the global list and has the same filters, select it
-      if {($sc_tag != -1) && [CompareShortcuts $fscedit_sclist($sc_tag) $shortcuts($sc_tag)]} {
+      if {($sc_tag != -1) && [info exists shortcuts($sc_tag)] &&
+          [CompareShortcuts $fscedit_sclist($sc_tag) $shortcuts($sc_tag)]} {
          Tree:selection .all.shortcuts.list set $sc_tag
          set fsc_prevselection $sc_tag
       }

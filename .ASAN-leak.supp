@@ -1,0 +1,2 @@
+leak:/usr/lib/x86_64-linux-gnu/libX11.so
+leak:/usr/lib/x86_64-linux-gnu/libfontconfig.so

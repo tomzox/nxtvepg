@@ -547,7 +547,7 @@ static bool XmltvDb_AddPiBlock( EPGDB_CONTEXT * dbc, EPGDB_BLOCK *pBlock )
       netwop = pBlock->blk.pi.netwop_no;
       if ((netwop < xds.chn_count) && (netwop < MAX_NETWOP_COUNT))
       {
-         dprintf4("ADD PI ptr=%lx: netwop=%d, blockno=%d, start=%ld\n", (ulong)pBlock, netwop, pBlock->blk.pi.block_no, pBlock->blk.pi.start_time);
+         dprintf5("ADD PI ptr=%lx: netwop=%d, blockno=%d, start=%ld \"%s\"\n", (ulong)pBlock, netwop, pBlock->blk.pi.block_no, pBlock->blk.pi.start_time, PI_GET_TITLE(&pBlock->blk.pi));
 
          // search inside network chain for insertion point
          pWalk = dbc->pFirstNetwopPi[netwop];
@@ -574,7 +574,10 @@ static bool XmltvDb_AddPiBlock( EPGDB_CONTEXT * dbc, EPGDB_BLOCK *pBlock )
          }
          else
          {
-            dprintf0("OVERLAP - dropping PI\n");
+            if ((pWalk != NULL) && (pWalk->blk.pi.start_time < pBlock->blk.pi.stop_time))
+               dprintf1("OVERLAP NEXT start:%ld - dropping PI\n", pWalk->blk.pi.start_time);
+            else
+               dprintf2("OVERLAP PREV start:%ld stop:%ld - dropping PI\n", pPrev->blk.pi.start_time, pPrev->blk.pi.stop_time);
             added = FALSE;
          }
       }
@@ -628,8 +631,12 @@ static EPGDB_BLOCK * XmltvDb_BuildPi( void )
    pPi = (PI_BLOCK *) &pBlk->blk.pi;  // remove const from pointer
    memcpy(pPi, &xds.pi, sizeof(PI_BLOCK));
 
+   // copy title string (always present)
    strcpy((char *) PI_GET_TITLE(pPi), XML_STR_BUF_GET_STR(xds.pi_title));
-   strcpy((char *) PI_GET_SHORT_INFO(pPi), XML_STR_BUF_GET_STR(xds.pi_desc));
+
+   // copy description text: only if present (else no memory was allocated above)
+   if (XML_STR_BUF_GET_STR_LEN(xds.pi_desc) > 0)
+      strcpy((char *) PI_GET_SHORT_INFO(pPi), XML_STR_BUF_GET_STR(xds.pi_desc));
 
    return pBlk;
 }
@@ -935,6 +942,7 @@ void Xmltv_TsSetChannel( XML_STR_BUF * pBuf )
    pChnIdx = XmlHash_SearchEntry(xds.pChannelHash, pStr);
    if (pChnIdx != NULL)
    {
+      dprintf2("Xmltv-TsSetChannel: %s: %d\n", pStr, *pChnIdx);
       xds.pi.netwop_no = *pChnIdx;
    }
    else

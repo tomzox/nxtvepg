@@ -32,7 +32,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: ttxdecode.c,v 1.66 2020/06/17 19:57:29 tom Exp tom $
+ *  $Id: ttxdecode.c,v 1.67 2020/06/22 07:12:17 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_VBI
@@ -86,6 +86,11 @@ typedef struct
 static PAGE_SCAN_STATE scanState[NXTV_VALID_PAGE_COUNT];
 static int             lastMagIdx[8];
 static time32_t        ttxStatsStart;
+
+// Unknown CNI and obvious invalid values
+#define CNI_IS_INVALID(CNI) (((CNI) == 0) || ((CNI) == 0xffff) || ((CNI) == 0x0fff))
+// This (unassigned) value is transmitted by several networks in DE via DVB
+#define CNI_IS_BLOCKED(CNI) ((CNI) == 0x1234)
 
 // ----------------------------------------------------------------------------
 // Start EPG acquisition
@@ -321,7 +326,7 @@ static void TtxDecode_AddCni( CNI_TYPE type, uint cni, uint pil )
    {
       if (type < CNI_TYPE_COUNT)
       {
-         if ((cni != 0) && (cni != 0xffff) && (cni != 0x0fff))
+         if (!CNI_IS_INVALID(cni) && !CNI_IS_BLOCKED(cni))
          {
             DBGONLY( if (pVbiBuf->cnis[type].cniRepCount == 0) )
                dprintf3("TtxDecode-AddCni: new CNI 0x%04X, PIL=%X, type %d\n", cni, pil, type);
@@ -937,7 +942,7 @@ static void TtxDecode_AddPageHeader( uint pageNo, uint ctrl, const uchar * data 
 
 // ---------------------------------------------------------------------------
 // Retrieve last page header
-// - the buffer must have space fo 40 bytes
+// - the buffer must have space for 40 bytes
 //
 bool TtxDecode_GetPageHeader( uchar * pBuf, uint * pPgNum, uint pkgOff )
 {
@@ -1145,6 +1150,8 @@ static void TtxDecode_BufferAdd( uint pageNo, uint ctrl, uchar pkgno, const ucha
 //
 void TtxDecode_NotifyChannelChange( volatile EPGACQ_BUF * pThisVbiBuf )
 {
+   dprintf0("TtxDecode-NotifyChannelChange\n");
+
    if (pThisVbiBuf == NULL)
    {
       // notify the slave of the channel change
@@ -1393,4 +1400,3 @@ void TtxDecode_AddPacket( const uchar * data, uint line )
          pVbiBuf->ttxStats.ttxPkgDrop += 1;
    }
 }
-

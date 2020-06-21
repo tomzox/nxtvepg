@@ -18,7 +18,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: dumpxml.c,v 1.26 2020/06/17 19:32:20 tom Exp tom $
+ *  $Id: dumpxml.c,v 1.27 2020/06/21 07:37:39 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -241,7 +241,7 @@ static void EpgDumpXml_WriteHeader( EPGDB_CONTEXT * pDbContext,
                                     const AI_BLOCK * pAiBlock, const OI_BLOCK * pOiBlock,
                                     FILE * fp, DUMP_XML_MODE xmlDtdVersion )
 {
-   char    src_str[200];
+   char    src_str[300];   // MAX_SERVICE_NAME_LEN in epgdbmerge
    char    start_str[50];
    time_t  lastAiUpdate;
 

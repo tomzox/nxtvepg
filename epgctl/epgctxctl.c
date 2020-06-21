@@ -31,7 +31,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgctxctl.c,v 1.34 2008/10/19 17:51:35 tom Exp tom $
+ *  $Id: epgctxctl.c,v 1.35 2020/06/24 07:33:41 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGCTL
@@ -438,8 +438,10 @@ EPGDB_CONTEXT * EpgContextCtl_Peek( uint cni, int failMsgMode )
          {
             dprintf1("EpgContextCtl-Peek: prov %04X upgrade STAT to PEEK\n", cni);
             assert(pDbContext->provCni == pContext->provCni);
+            assert(dberr == EPGDB_RELOAD_OK);
 
             pContext->state         = CTX_CACHE_PEEK;
+            pContext->reloadErr     = EPGDB_RELOAD_OK;
             pContext->mtime         = mtime;
             pContext->pDbContext    = pDbContext;
             pContext->peekRefCount  = 1;

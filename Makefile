@@ -30,7 +30,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: Makefile,v 1.112 2020/06/17 19:29:13 tom Exp tom $
+#  $Id: Makefile,v 1.113 2020/06/21 07:41:03 tom Exp tom $
 #
 
 ifeq ($(OS),Windows_NT)
@@ -105,9 +105,6 @@ DEFS   += -DUSE_DAEMON
 # enable if you have both 32-bit and 64-bit systems
 #DEFS   += -DUSE_32BIT_COMPAT
 
-# specify path to header file for video4linux device driver (default: use internal copy)
-#DEFS  += -DPATH_VIDEODEV_H=\"/usr/include/linux/videodev.h\"
-
 # enable use of libzvbi
 # (automatically uses the VBI proxy, if the daemon is running)
 #DEFS   += -DUSE_LIBZVBI
@@ -136,9 +133,16 @@ CFLAGS ?= -pipe -g -O2
 CFLAGS += $(WARN) $(INCS) $(DEFS)
 CPPFLAGS = -pipe -g -O2 $(INCS) $(DEFS)
 LDFLAGS += -lm
+
 #CFLAGS += -ftest-coverage -fprofile-arcs
 #LDFLAGS += -ftest-coverage -fprofile-arcs
 #LDFLAGS += -pg
+
+#CFLAGS += -fsanitize=address
+#LDFLAGS += -fsanitize=address
+#setenv ASAN_OPTIONS suppressions=/tom/work/EPG/pc-git/.ASAN-mem.supp
+#setenv LSAN_OPTIONS suppressions=/tom/work/EPG/pc-git/.ASAN-leak.supp
+#unsetenv LD_PRELOAD
 
 BUILD_DIR  = build-$(shell uname -m | sed -e 's/i.86/i386/' -e 's/ppc/powerpc/')
 INCS      += -I$(BUILD_DIR)
@@ -363,7 +367,8 @@ endif
 .PHONY: clean
 clean:
 	-rm -rf build-*
-	-rm -f core a.out *.exe *.o
+	-rm -f core debug.out
+	-rm -f epgtcl/helptexts*.tcl manual*.html nxtvepg*.1 tvsim/*.html tvsim/*.1
 
 .PHONY: depend
 depend:
@@ -371,96 +376,55 @@ depend:
 	@echo "dependencies are generated and updated while compiling."
 
 epgtcl/helptexts.tcl: nxtvepg.pod pod2help.pl
-	@if test -x $(PERL); then \
-	  echo "$(PERL) pod2help.pl -lang en nxtvepg.pod > epgtcl/helptexts.tcl"; \
-	  $(PERL) pod2help.pl -lang en nxtvepg.pod > epgtcl/helptexts.tcl; \
-	elif test -f epgtcl/helptexts.tcl; then \
-	  touch epgtcl/helptexts.tcl; \
-	else \
-	  echo "ERROR: cannot generate epgtcl/helptexts.tcl without Perl"; \
-	  false; \
-	fi
+	$(PERL) pod2help.pl -lang en nxtvepg.pod > epgtcl/helptexts.tcl
 
 epgtcl/helptexts_de.tcl: nxtvepg-de.pod pod2help.pl
-	@if test -x $(PERL); then \
-	  echo "$(PERL) pod2help.pl -lang de nxtvepg-de.pod > epgtcl/helptexts_de.tcl"; \
-	  $(PERL) pod2help.pl -lang de nxtvepg-de.pod > epgtcl/helptexts_de.tcl; \
-	elif test -f epgtcl/helptexts_de.tcl; then \
-	  touch epgtcl/helptexts_de.tcl; \
-	else \
-	  echo "ERROR: cannot generate epgtcl/helptexts_de.tcl without Perl"; \
-	  false; \
-	fi
+	$(PERL) pod2help.pl -lang de nxtvepg-de.pod > epgtcl/helptexts_de.tcl
 
-nxtvepg.1 nxtvepgd.1 manual.html: nxtvepg.pod epgctl/epgversion.h
-	@if test -x $(PERL); then \
-	  EPG_VERSION_STR=`egrep '[ \t]*#[ \t]*define[ \t]*EPG_VERSION_STR' epgctl/epgversion.h | head -1 | sed -e 's#.*"\(.*\)".*#\1#'`; \
-	  echo "pod2man nxtvepg.pod > nxtvepg.1"; \
-	  pod2man -date " " -center "Nextview EPG Decoder" -section "1" \
-	          -release "nxtvepg "$$EPG_VERSION_STR" (C) 1999-2011, 2020 Tom Zoerner" \
-	     nxtvepg.pod > nxtvepg.1; \
-          echo ".so man1/nxtvepg.1" > nxtvepgd.1; \
-	  echo "pod2html nxtvepg.pod > manual.html"; \
-	  pod2html nxtvepg.pod | $(PERL) -p -e 's/(HREF=\"#)([^:"]+: |[^_"]+(_[^_"]+)?__)+/$$1/gi;' > manual.html; \
-	  rm -f pod2htm?.* pod2html-{dircache,itemcache}; \
-	else \
-	  echo "ERROR: cannot generate manual page without Perl"; \
-	  false; \
-	fi
+nxtvepg.1: nxtvepg.pod epgctl/epgversion.h
+	EPG_VERSION_STR=`egrep '[ \t]*#[ \t]*define[ \t]*EPG_VERSION_STR' epgctl/epgversion.h | head -1 | sed -e 's#.*"\(.*\)".*#\1#'`; \
+	pod2man -date " " -center "Nextview EPG Decoder" -section "1" \
+	        -release "nxtvepg "$$EPG_VERSION_STR" (C) 2020 Tom Zoerner" \
+	   nxtvepg.pod > nxtvepg.1
+
+nxtvepgd.1: nxtvepg.1
+	echo ".so man1/nxtvepg.1" > nxtvepgd.1
+
+manual.html: nxtvepg.pod
+	pod2html nxtvepg.pod | $(PERL) -p -e 's/(HREF=\"#)([^:"]+: |[^_"]+(_[^_"]+)?__)+/$$1/gi;' > manual.html
+	rm -f pod2htm?.* pod2html-{dircache,itemcache}
 
 manual-de.html: nxtvepg-de.pod epgctl/epgversion.h
-	@if test -x $(PERL); then \
-	  EPG_VERSION_STR=`egrep '[ \t]*#[ \t]*define[ \t]*EPG_VERSION_STR' epgctl/epgversion.h | head -1 | sed -e 's#.*"\(.*\)".*#\1#'`; \
-	  echo "pod2html nxtvepg-de.pod > manual-de.html"; \
-	  pod2html nxtvepg-de.pod | $(PERL) -p -e 's/(HREF=\"#)([^:"]+: |[^_"]+(_[^_"]+)?__)+/$$1/gi;' > manual-de.html; \
-	  rm -f pod2htm?.* pod2html-{dircache,itemcache}; \
-	else \
-	  echo "ERROR: cannot generate manual page without Perl"; \
-	  false; \
-	fi
+	EPG_VERSION_STR=`egrep '[ \t]*#[ \t]*define[ \t]*EPG_VERSION_STR' epgctl/epgversion.h | head -1 | sed -e 's#.*"\(.*\)".*#\1#'`; \
+	pod2html nxtvepg-de.pod | $(PERL) -p -e 's/(HREF=\"#)([^:"]+: |[^_"]+(_[^_"]+)?__)+/$$1/gi;' > manual-de.html; \
+	rm -f pod2htm?.* pod2html-{dircache,itemcache}
 
-tvsim/tvsim.1 tvsim/tvsim.html: tvsim/tvsim.pod tvsim/tvsim_version.h
-	@if test -x $(PERL); then \
-	  TVSIM_VERSION_STR=`egrep '[ \t]*#[ \t]*define[ \t]*TVSIM_VERSION_STR' tvsim/tvsim_version.h | head -1 | sed -e 's#.*"\(.*\)".*#\1#'`; \
-	  echo "pod2man tvsim/tvsim.pod > tvsim/tvsim.1"; \
-	  pod2man -date " " -center "TV app interaction simulator" -section "1" \
-	          -release "tvsim "$$TVSIM_VERSION_STR" (C) 2002-2007 Tom Zoerner" \
-	          tvsim/tvsim.pod > tvsim/tvsim.1; \
-	  echo "pod2html tvsim/tvsim.pod > tvsim/tvsim.html"; \
-	  pod2html tvsim/tvsim.pod | $(PERL) -p -e 's/(HREF=\"#)([^:"]+: |[^_"]+(_[^_"]+)?__)+/$$1/gi;' > tvsim/tvsim.html; \
-	  rm -f pod2htm?.* pod2html-{dircache,itemcache}; \
-	else \
-	  echo "ERROR: cannot generate tvsim HTML or nroff manuals without Perl"; \
-	  false; \
-	fi
+tvsim/tvsim.1: tvsim/tvsim.pod tvsim/tvsim_version.h
+	TVSIM_VERSION_STR=`egrep '[ \t]*#[ \t]*define[ \t]*TVSIM_VERSION_STR' tvsim/tvsim_version.h | head -1 | sed -e 's#.*"\(.*\)".*#\1#'`; \
+	pod2man -date " " -center "TV app interaction simulator" -section "1" \
+	        -release "tvsim "$$TVSIM_VERSION_STR" (C) 2002-2007 Tom Zoerner" \
+	        tvsim/tvsim.pod > tvsim/tvsim.1; \
 
-tvsim/vbirec.1 tvsim/vbirec.html: tvsim/vbirec.pod tvsim/tvsim_version.h
-	@if test -x $(PERL); then \
-	  TVSIM_VERSION_STR=`egrep '[ \t]*#[ \t]*define[ \t]*TVSIM_VERSION_STR' tvsim/tvsim_version.h | head -1 | sed -e 's#.*"\(.*\)".*#\1#'`; \
-	  echo "pod2man tvsim/vbirec.pod > tvsim/vbirec.1"; \
-	  pod2man -date " " -center "VBI recorder" -section "1" \
-	          -release "vbirec (C) 2002-2007 Tom Zoerner" \
-	          tvsim/vbirec.pod > tvsim/vbirec.1; \
-	  echo "pod2html tvsim/vbirec.pod > tvsim/vbirec.html"; \
-	  pod2html tvsim/vbirec.pod | $(PERL) -p -e 's/(HREF=\"#)([^:"]+: |[^_"]+(_[^_"]+)?__)+/$$1/gi;' > tvsim/vbirec.html; \
-	  rm -f pod2htm?.* pod2html-{dircache,itemcache}; \
-	else \
-	  echo "ERROR: cannot generate vbirec HTML or nroff manuals without Perl"; \
-	  false; \
-	fi
+tvsim/tvsim.html: tvsim/tvsim.pod tvsim/tvsim_version.h
+	pod2html tvsim/tvsim.pod | $(PERL) -p -e 's/(HREF=\"#)([^:"]+: |[^_"]+(_[^_"]+)?__)+/$$1/gi;' > tvsim/tvsim.html
+	rm -f pod2htm?.* pod2html-{dircache,itemcache}
 
-tvsim/vbiplay.1 tvsim/vbiplay.html: tvsim/vbiplay.pod tvsim/tvsim_version.h
-	@if test -x $(PERL); then \
-	  TVSIM_VERSION_STR=`egrep '[ \t]*#[ \t]*define[ \t]*TVSIM_VERSION_STR' tvsim/tvsim_version.h | head -1 | sed -e 's#.*"\(.*\)".*#\1#'`; \
-	  echo "pod2man tvsim/vbiplay.pod > tvsim/vbiplay.1"; \
-	  pod2man -date " " -center "VBI playback tool" -section "1" \
-	          -release "vbiplay (C) 2002,2006 Tom Zoerner" \
-	          tvsim/vbiplay.pod > tvsim/vbiplay.1; \
-	  echo "pod2html tvsim/vbiplay.pod > tvsim/vbiplay.html"; \
-	  pod2html tvsim/vbiplay.pod | $(PERL) -p -e 's/(HREF=\"#)([^:"]+: |[^_"]+(_[^_"]+)?__)+/$$1/gi;' > tvsim/vbiplay.html; \
-	  rm -f pod2htm?.* pod2html-{dircache,itemcache}; \
-	else \
-	  echo "ERROR: cannot generate vbiplay HTML or nroff manuals without Perl"; \
-	  false; \
-	fi
+tvsim/vbirec.1: tvsim/vbirec.pod tvsim/tvsim_version.h
+	TVSIM_VERSION_STR=`egrep '[ \t]*#[ \t]*define[ \t]*TVSIM_VERSION_STR' tvsim/tvsim_version.h | head -1 | sed -e 's#.*"\(.*\)".*#\1#'`; \
+	pod2man -date " " -center "VBI recorder" -section "1" \
+	        -release "vbirec (C) 2002-2007 Tom Zoerner" \
+	        tvsim/vbirec.pod > tvsim/vbirec.1;
 
+tvsim/vbirec.html: tvsim/vbirec.pod tvsim/tvsim_version.h
+	pod2html tvsim/vbirec.pod | $(PERL) -p -e 's/(HREF=\"#)([^:"]+: |[^_"]+(_[^_"]+)?__)+/$$1/gi;' > tvsim/vbirec.html
+	rm -f pod2htm?.* pod2html-{dircache,itemcache}
+
+tvsim/vbiplay.1: tvsim/vbiplay.pod tvsim/tvsim_version.h
+	TVSIM_VERSION_STR=`egrep '[ \t]*#[ \t]*define[ \t]*TVSIM_VERSION_STR' tvsim/tvsim_version.h | head -1 | sed -e 's#.*"\(.*\)".*#\1#'`; \
+	pod2man -date " " -center "VBI playback tool" -section "1" \
+	        -release "vbiplay (C) 2002,2006 Tom Zoerner" \
+	        tvsim/vbiplay.pod > tvsim/vbiplay.1
+
+tvsim/vbiplay.html: tvsim/vbiplay.pod tvsim/tvsim_version.h
+	pod2html tvsim/vbiplay.pod | $(PERL) -p -e 's/(HREF=\"#)([^:"]+: |[^_"]+(_[^_"]+)?__)+/$$1/gi;' > tvsim/vbiplay.html; \
+	rm -f pod2htm?.* pod2html-{dircache,itemcache}

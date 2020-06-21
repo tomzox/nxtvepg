@@ -51,7 +51,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: dlg_remind.tcl,v 1.25 2009/03/13 22:24:15 tom Exp tom $
+#  $Id: dlg_remind.tcl,v 1.26 2020/06/21 07:39:37 tom Exp tom $
 #
 # import constants from other modules
 #=INCLUDE= "epgtcl/dlg_udefcols.h"
@@ -165,7 +165,7 @@ proc Reminder_InitData {} {
             lappend scl $sc_tag
             set sc_cache($sc_tag) {}
          } elseif $::is_unix {
-            puts stderr "Warning: removing obsolete/redundant shortcut reference $sc_tag from reminder group $group"
+            puts stderr "Warning: removing obsolete/redundant shortcut reference $sc_tag from reminder group $grp_tag"
          }
       }
       set elem [lreplace $elem $::rgp_sclist_idx $::rgp_sclist_idx $scl]

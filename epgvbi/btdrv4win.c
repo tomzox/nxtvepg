@@ -42,7 +42,7 @@
  *      Tom Zoerner
  *
  *
- *  $Id: btdrv4win.c,v 1.62 2020/06/15 10:01:39 tom Exp tom $
+ *  $Id: btdrv4win.c,v 1.63 2020/06/24 07:25:39 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_VBI
@@ -452,13 +452,13 @@ static AnalogVideoStandard BtDriver_WdmMapNorm( int norm )
    // Adapt norm value for WDM driver (uses DirectShow convention)
    switch (norm)
    {
-      case VIDEO_MODE_PAL :
+      case EPGACQ_TUNER_NORM_PAL :
          WdmNorm = AnalogVideo_PAL_B;
          break;
-      case VIDEO_MODE_SECAM :
+      case EPGACQ_TUNER_NORM_SECAM :
          WdmNorm = AnalogVideo_SECAM_L;
          break;
-      case VIDEO_MODE_NTSC :
+      case EPGACQ_TUNER_NORM_NTSC :
          WdmNorm = AnalogVideo_NTSC_M;
          break;
       default:
@@ -1893,7 +1893,7 @@ void BtDriver_StopAcq( void )
    }
 
    btCfg.tunerFreq  = 0;
-   btCfg.tunerNorm  = VIDEO_MODE_PAL;
+   btCfg.tunerNorm  = EPGACQ_TUNER_NORM_PAL;
    btCfg.inputSrc   = INVALID_INPUT_SOURCE;
 }
 

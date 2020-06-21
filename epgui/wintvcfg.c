@@ -29,7 +29,7 @@
  *    so their respective copyright applies too. Please see the notes in
  *    functions headers below.
  *
- *  $Id: wintvcfg.c,v 1.30 2020/06/17 19:29:50 tom Exp tom $
+ *  $Id: wintvcfg.c,v 1.31 2020/06/21 07:37:23 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -935,7 +935,7 @@ static bool WintvCfg_GetXawtvChanTab( TV_CHNTAB_BUF * pChanTab, const char * pCh
       if (fp != NULL)
       {
          isOpen = FALSE;
-         defaultNorm = attrNorm = VIDEO_MODE_PAL;
+         defaultNorm = attrNorm = EPGACQ_TUNER_NORM_PAL;
          defaultFine = attrFine = 0;
          defaultIsTvInput = isTvInput = TRUE;
          freq = 0;
@@ -992,11 +992,11 @@ static bool WintvCfg_GetXawtvChanTab( TV_CHNTAB_BUF * pChanTab, const char * pCh
                else if (strcasecmp(tag, "norm") == 0)
                {
                   if (strncasecmp(value, "pal", 3) == 0)
-                     attrNorm = VIDEO_MODE_PAL;
+                     attrNorm = EPGACQ_TUNER_NORM_PAL;
                   else if (strncasecmp(value, "secam", 5) == 0)
-                     attrNorm = VIDEO_MODE_SECAM;
+                     attrNorm = EPGACQ_TUNER_NORM_SECAM;
                   else if (strncasecmp(value, "ntsc", 4) == 0)
-                     attrNorm = VIDEO_MODE_NTSC;
+                     attrNorm = EPGACQ_TUNER_NORM_NTSC;
                   else
                      debug1("Xawtv-GetFreqTab: unknown norm '%s' in .xawtvrc", value);
                   if (isOpen == FALSE)
@@ -1077,7 +1077,7 @@ static void WintvCfg_ParseZappingConf( FILE * fp, TV_CHNTAB_BUF * pChanTab )
       {
          subTreeLevel += 1;
          freq = 0;
-         norm = VIDEO_MODE_PAL;
+         norm = EPGACQ_TUNER_NORM_PAL;
          WintvCfg_ChanTabItemOpen(pChanTab);
       }
       else if ( (subTreeLevel == 2) &&
@@ -1218,7 +1218,7 @@ static void WintvCfg_ParseTvtimeStations( FILE * fp, TV_CHNTAB_BUF * pChanTab, c
 
    subTreeLevel = 0;
    isActiveList = FALSE;
-   defaultNorm = VIDEO_MODE_PAL;
+   defaultNorm = EPGACQ_TUNER_NORM_PAL;
 
    // read all lines of the file (ignoring section structure)
    while (fgets(line, sizeof(line)-1, fp) != NULL)
@@ -1241,11 +1241,11 @@ static void WintvCfg_ParseTvtimeStations( FILE * fp, TV_CHNTAB_BUF * pChanTab, c
                if (sscanf(line, " norm = \"%63[^\"]\"]%n", tag, &len) == 1)
                {
                   if (strncmp(tag, "NTSC", 4) == 0)
-                     defaultNorm = VIDEO_MODE_NTSC;
+                     defaultNorm = EPGACQ_TUNER_NORM_NTSC;
                   else if (strncmp(tag, "SECAM", 5) == 0)
-                     defaultNorm = VIDEO_MODE_SECAM;
+                     defaultNorm = EPGACQ_TUNER_NORM_SECAM;
                   else
-                     defaultNorm = VIDEO_MODE_PAL;
+                     defaultNorm = EPGACQ_TUNER_NORM_PAL;
                }
                isActiveList = TRUE;
                dprintf2("WintvCfg-ParseTvtimeStations: start reading table '%s', default norm '%s'\n", pTableName, tag);
@@ -1291,11 +1291,11 @@ static void WintvCfg_ParseTvtimeStations( FILE * fp, TV_CHNTAB_BUF * pChanTab, c
               (sscanf(pAtt, "channel = \"%63[^\"]\"]%n", tag, &len) < 1) )
          {
             if (strncmp(tag, "NTSC", 4) == 0)
-               norm = VIDEO_MODE_NTSC;
+               norm = EPGACQ_TUNER_NORM_NTSC;
             else if (strncmp(tag, "SECAM", 5) == 0)
-               norm = VIDEO_MODE_SECAM;
+               norm = EPGACQ_TUNER_NORM_SECAM;
             else
-               norm = VIDEO_MODE_PAL;
+               norm = EPGACQ_TUNER_NORM_PAL;
          }
          if ( ((pAtt = strstr(line, "band")) == NULL) ||
               (sscanf(pAtt, "band = \"%63[^\"]\"]%n", band, &len) < 1) )

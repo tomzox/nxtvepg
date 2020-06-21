@@ -20,7 +20,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: pidescr.c,v 1.13 2020/06/17 19:32:20 tom Exp tom $
+ *  $Id: pidescr.c,v 1.14 2020/07/05 19:04:02 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -77,30 +77,45 @@ const char * PiDescription_RemoveSeriesIndex( const char * pTitle, char * outbuf
    uint  len;
 
    len = strlen(pTitle);
-   if ((len >= 5) && (len < 100) && (*(pTitle + len - 1) == ')'))
+   if ((len >= 5) && (len < maxLen) && (*(pTitle + len - 1) == ')'))
    {  // found closing brace at end of string -> check for preceeding decimal number
       pe = (char *)pTitle + len - 1 - 1;  // cast to remove "const"
       len -= 1;
-      if (isdigit(*pe))
-      {  // at least one digit found
-         len -= 1;
-         pe -= 1;
-         // skip preceeding digits
-         while ((len > 0) && isdigit(*pe))
-         {
-            pe--;
-            len--;
+
+      while (TRUE)
+      {
+         if (isdigit(*pe))
+         {  // at least one digit found
+            len -= 1;
+            pe -= 1;
+            // skip preceeding digits
+            while ((len > 0) && isdigit(*pe))
+            {
+               pe--;
+               len--;
+            }
+            // check for the opening brace and a space before it
+            if ((len > 2) && (*pe == '(') && (*(pe - 1) == ' '))
+            {
+               //dprintf2("EpgDbSeries-AddPi: stripping '%s' from title '%s'\n", pTitle + len - 2, pTitle);
+               len -= 2;
+               // copy the title string up to before the braces into the output buffer
+               strncpy(outbuf, pTitle, len);
+               outbuf[len] = 0;
+               pTitle = outbuf;
+               break;
+            }
+            else if ((len > 2) && ((*pe == '-') || (*pe == '+') || (*pe == '/')))
+            {
+               len -= 1;
+               pe -= 1;
+               // redoo loop: skip (at least) one more preceding number
+            }
+            else
+               break;
          }
-         // check for the opening brace and a space before it
-         if ((len > 2) && (*pe == '(') && (*(pe - 1) == ' '))
-         {
-            //dprintf2("EpgDbSeries-AddPi: stripping '%s' from title '%s'\n", pTitle + len - 2, pTitle);
-            len -= 2;
-            // copy the title string up to before the braces into the output buffer
-            strncpy(outbuf, pTitle, len);
-            outbuf[len] = 0;
-            pTitle = outbuf;
-         }
+         else
+            break;
       }
    }
    return pTitle;
