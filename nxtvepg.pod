@@ -171,17 +171,6 @@ Bt848, Bt849, Philips SAA7134, Conexant 23881).  If you have more
 than one TV card with the same chip, the order between those is undefined,
 but still constant (i.e. the order is determined by the driver, not nxtvepg)
 
-=item B<-provider> I<CNI>
-
-Select a provider by its hexadecimal CNI (Country and Network Identifier),
-e.g. I<-provider d92> for B<Kabel1>. You can find out the provider's CNI
-during a provider scan or from the database file names.
-Use keyword I<merged> to dump a merged database (or use code I<FF> as required
-by earlier versions of nxtvepg.)  Note before you can use a merged
-database you have to configure it, see L<"MERGED DATABASES">.
-Default if this option is omitted: the last provider selected during
-the previous session.
-
 =item B<-noacq>
 
 Start with acquisition disabled.
@@ -195,12 +184,8 @@ Start without graphical user interface and silently perform acquisition
 (The daemon-only executable is slightly more efficient since it's smaller
 and uses less libraries than the GUI executable and hence needs less memory.)
 
-If no other
-options are given the same provider and acquisition mode as configured with
-the GUI will be used. If the -provider option is given acquisition will work
-for this provider only (note the difference to non-daemon mode, where that
-option selects the browser database). The I<-daemon> option cannot be combined
-with the I<-noacq>, I<-remctrl> or other display related options.
+If no other options are given the same provider and acquisition mode as
+configured with the GUI will be used.
 
 The daemon always creates a named socket in the I</tmp> directory (UNIX only)
 plus optionally a TCP/IP socket to allow connects by browser processes. While
@@ -311,8 +296,8 @@ program (namely nxtvepg) has finished.
 =item B<-dump> I<mode>
 
 When started with this argument, nxtvepg will only export the entire
-programme database, then exit.  This argument must be combined
-with I<-provider> to specify which database shall be exported.
+programme database, then exit.  An XML file has to be specified on
+the command line, as this data will be exported.
 
 To export the database in XML format, use keyword I<xml> as mode.
 In this case the last mode (i.e. XMLTV DTD version) which was used
@@ -368,8 +353,8 @@ the ">" or "|" operators in UNIX shells or under M$ Windows at the
 MS-DOS command prompt.  For example you could use either of the
 following:
 
-  nxtvepg -dump ai -prov d92 > networks.txt
-  nxtvepg -dump ai -prov d92 | more
+  nxtvepg -dump ai tv.xml > networks.txt
+  nxtvepg -dump ai tv.xml | more
 
 to write the network table of provider I<Kabel1> (CNI I<0xd92>) into
 a file named I<networks.txt>, or pipe it to the paging program "more"
@@ -509,11 +494,6 @@ C<-epgquery FEATURES=stereo,wide -epgquery FEATURES=surround,wide> will
 list all programmes in 16:9 aspect ratio with either stereo or
 surround sound.)
 
-=item I<SORTCRIT>
-
-This command will only list programmes labeled with the given "sorting
-criterion" code. These codes are explained in L<"FILTERING">.
-
 =item I<INVERT>
 
 This command will only list programmes which do not match any of the
@@ -523,7 +503,7 @@ filters given with I<-epgquery> options. See also L<"FILTERING">.
 
 Example:
 
-  nxtvepg -dump html -prov d92 -outfile tv.html \
+  nxtvepg -dump html tv.xml -outfile tv.html \
             -epgquery TITLE=Tagesschau -epgquery expire=NOW
 
 =item B<-remctrl> I<command>
@@ -578,35 +558,13 @@ after nxtvepg.  Some Linux distributions automatically take care of
 this during shutdown.
 
 
-=item B<-provscan> I<country>
-
-When started with this argument nxtvepg will start scanning all
-TV channels in the given country's frequency band for Nextview EPG
-providers. Countries are specified by their top-level Internet
-domain names (e.g. de, at, ch, fr, be)
-When the scan is finished, nxtvepg updates the provider list stored
-in the configuration file and terminates itself.
-The scan is performed in the same way as described in
-L<"GETTING STARTED: Search for Nextview providers"> and
-L<"CONFIGURATION">, section "Provider scan", just without the graphical
-user interface.
-
-During the scan nxtvepg reports progress to I<stdout> unless you
-redirect it into a file or pipe it into another program.
-See option I<-outfile> for details.
-
-
 =item B<-help>
 
 List all available command line options.
 
 =back
 
-After the options you can add a database filename.  If it's a regular
-nxtvepg database, this is equivalent to specifying options B<-dbdir>
-and B<-provider> (if such options are provided, they are silently
-overridden in this case.) 
-It's also possible to name an XML file with XMLTV data.
+After the options you can add the name of a file in XMLTV format.
 
 This is particularily useful for users of graphical file managers
 (like the Windows Explorer) who can just drag and drop a database file
@@ -1497,14 +1455,14 @@ timescale windows.
 
 =head1 MERGED DATABASES
 
-If you compare databases of different Nextview providers, you will
+If you compare databases of different XMLTV providers, you will
 often find that each has one or more nice features, or covers networks,
 that the others lack. Instead of changing back and forth between
-several providers all the time, database merging allows to select and
-combine features or networks from several original databases into one
-newly created database.
+several providers all the time, database merging allows selecting and
+combining features or networks from several sources into one newly
+created database.
 
-When you select the B<Merge providers> entry from the B<Configure>
+When you select the B<Merge XMLTV files> entry from the B<Configure>
 menu, you will get a dialog with two listboxes: the left one contains
 a list of all currently available databases. The right one is the list
 of databases you want to merge. You can add, delete or reorder the
@@ -1531,9 +1489,9 @@ delete any providers.
 
 Attributes that cannot be merged, e.g. editorial rating, are fetched from
 the first database in the list that contains the attribute for a given
-programme.  An exception are sorting criteria and series, where only the
+programme.  An exception are series, where only the
 first provider in the list is queried (i.e. even if the first provider
-does not have a sorting criterion for a given programme, the further
+does not have a series ID for a given programme, the further
 databases are not searched) because these types of attributes cannot
 be mixed between providers (see also L<"FILTERING">).
 
@@ -1798,32 +1756,6 @@ the database in a long time.  In this case you may get a confusing
 warning that programmes are about to be removed although they won't.)
 
 
-=item B<Sorting Criteria>
-
-Restrict the listing to programmes that have any of the given sorting
-criteria attached to them; every programme can have 0..7 sorting
-criteria attached to it.  They work very much like theme descriptors
-however their meaning is not predefined by the Nextview standard.
-The content provider can use arbitrary numbers to represent an attribute.
-Attributes usually are themes that are not in the predefined catalog,
-e.g. current events like the Olympic Games, but could also be not
-content related at all.  The meaning of these numbers is usually
-defined by the provider's navigation menus (see L<"NAVIGATE">).
-
-Equivalently to themes, you can assign sorting criteria in different
-I<classes> to implement a logical AND, i.e. only programmes that have
-at least one of the sorting criteria specified in every used class
-will match. Example: to get all programmes that have 0x01 attached
-plus either 0x10 or 0x11, specify sorting criterion 0x01 in class #1
-and 0x10 and 0x11 in class #2.  Note that the dialog displays
-all values in hexadecimal format, i.e. with digits 0-9 followed
-by a-f.
-
-The I<Load all used> button in the sorting criteria filter dialog
-fills the selection listbox with a list of all codes that are actually
-used in the current database.  This allows a quick overview which filter
-criteria will produce any matches.
-
 =item B<VPS/PDC>
 
 Restrict the listing to programmes that have a valid VPS/PDC start
@@ -1838,8 +1770,8 @@ label then is the actual start time minus one minute)
 =back
 
 
-Note that the interpretation of two filter types depends on the
-provider: sorting criterion and series. That's because those are
+Note that the interpretation of series identifications depends on the
+provider. That's because those are
 just arbitrary numbers which only have a meaning in the context of
 the provider's navigation menu.
 
@@ -1875,7 +1807,7 @@ as sports nor as children's programmes, select theme filters sport
 and children's and then invert the current theme filter (usually class #1;
 you can equivalently use the global invert if themes are the only filter).
 
-For the theme and sorting criterion filters it's possible to invert
+For the theme filter it's possible to invert
 only parts of the selection, so that you can require that a programme
 has a certain attribute and at the same time require that it doesn't
 have another attribute.
@@ -2312,9 +2244,16 @@ Summary of commands available from the Control menu:
 
 =head2 Enable acquisition
 
-Toggles acquisition on or off.  When you start the browser, acquisition
-is automatically enabled (although failure to do so is silently ignored).
-You can suppress automatic start with the B<-noacq> command line switch.
+Toggles EPG acquisition via the TV card on or off temporarily. This
+option is enabled only if the teletext grabber is configured (see
+L<"CONFIGURATION"> section "Teletext grabber").
+
+When starting the browser and the teletext grabber is configured,
+acquisition is always automatically enabled (although failure to do so
+is silently ignored). This means disabling acquisition via this menu
+option is not remembered across restart of the application.
+You can suppress automatic start with the B<-noacq> command line switch
+or by disabling the grabber in the configuration menu.
 Switching off acquisition allows other applications (e.g. a teletext
 decoder) to use the TV card while you browse the database, if you have
 only one TV card.
@@ -2329,9 +2268,10 @@ hardware or Operating System related, test with a TV application or
 teletext decoder first, because these usually allow for easier debugging
 (e.g. due to the visible TV image). See also L<"GETTING STARTED">.
 
-UNIX: When acquisition is switched off, the I</dev/vbi> device is freed.
+UNIX: When acquisition is switched off, the TV capture device device is
+freed, so that other applications can use it and tune different channels.
 Acquisition can also been switched on and off automatically (i.e. from a
-shell script) by sending signal HUP (e.g. with the kill(1) command) to
+shell script) by sending signal C<HUP> (e.g. with the kill(1) command) to
 any of the nxtvepg processes or threads.  If you're using a daemon for
 acquisition (see the next command) you have to send the signal to one of
 the daemon processes/threads.  To simplify this, the pid of the process
@@ -2631,29 +2571,20 @@ If you have started acquisition as a daemon, it will not be terminated
 Summary of commands available from the Configure menu:
 
 
-=head2 Select provider
+=head2 Load XMLTV file
 
-Open the provider selection dialog.  This dialog lists all TV channels
-from which Nextview data can be received.  When you select a channel
-name on the list, you'll see the name of the Nextview service that's
-transmitted there and a list of all networks covered by it on the right.
+Open the XMLTV file selection dialog.  This dialog lists all XMLTV files
+in the current directory.  When selecting a file in the list, the provider
+and grabber names included in the XML file and the list of covered channels
+are shown in the info boxes on the right side of the dialog.
 
-If you leave the dialog with Ok, the selected provider's database will
-be loaded into the browser.  If the database hasn't been updated for a
-long time, the programme list might initially be empty, but if you have
-selected "Follow-UI" acquisition mode, the provider's TV channel will be
-tuned to update the database content (see L<"ACQUISITION MODES"> for
-more details.)
-
-To remove obsolete providers (i.e. such which have ceased to provide
-Nextview service or which you can no longer receive), you should start a
-provider scan in I<refresh> mode (see L<"CONFIGURATION">, section "Provider scan")
-You cannot remove active providers even if you're not interested in their
-EPG information, because nxtvepg would add them back automatically in
-the next scan or when their TV channel is tuned externally.
+When you leave the dialog with Ok, the selected XMLTV file will
+be loaded into the browser.  If the file hasn't been updated for a
+long time, the programme list might be empty though (i.e. all programmes
+expired). In that case restart the grabber you used to create the file.
 
 
-=head2 Merge providers
+=head2 Merge XMLTV files
 
 Open a dialog that allows to merge several databases into one.
 See L<"MERGED DATABASES"> for details.
@@ -2667,46 +2598,30 @@ See L<"ACQUISITION MODES"> for more details.
 
 =head2 Teletext grabber
 
-B<Note> this is still an experimental feature. Support is still
-limited to German networks and configuration options are limited.
-
 Open a dialog which allows to enable and configure the teletext EPG
 grabber.  The grabber works by cyclically tuning all TV channels,
-loading the TV overview teletext pages (e.g. 301-309 in Germany)
+loading the TV overview teletext pages (e.g. 301-399 in Germany)
 and building a small database from them.  For titles which contain
 references to other teletext pages, the grabber loads these pages
 too and extracts descriptions from them.  Finally the grabber's
 output is written into separate files in XMLTV format.
 
-The main intention of the grabber is to improve on the data provided
-by Nextview EPG.  The main disadvantage of teletext compared to
-Nextview is the long time it takes to grab teletext. The cause for
+A disadvantage of teletext is the long time it takes to grab the data.
+The cause for
 the long duration is that most TV networks use sub-pages in their
 TV-schedules, so that it takes several cycles until all parts of a
-given page are loaded, usually at least 90 seconds.  Assuming only
-30 TV networks, the total load time is already 45 minutes. Another
+given page are loaded, usually 90 - 120 seconds.  Assuming only
+30 TV networks, the total load time is more than 45 minutes. Another
 difficulty encountered by the teletext grabber is the lack of a
 standardized format for the schedules.  Hence the data extraction
 cannot always work correctly.  In particular the capabilities to
 extract theme categories and additional attributes are very limited.
 But these disadvantages can be compensated by merging teletext EPG
-with a Nextview EPG database (see L<"MERGED DATABASES">)
+with other sources (see L<"MERGED DATABASES">)
 
-To be able to use the grabber, you have to install a programm called
-"Perl" on your PC.  Perl is included within virtually every UNIX
-and Linux installation, so you probably already have it if you use
-one of these operating systems.  If not, you'll probably find it in
-section "programming languages" on your distribution's CD or DVD.
-M$-Windows users have to download and install Perl manually (from
-L<http://www.activestate.com/Products/ActivePerl/?mp=1> or
-L<http://www.cygwin.com/>) and then specify the path to perl in the
-configuration dialog.  (Alternatively you can extend your C<PATH>
-environment variable so that perl.exe is automatically found.)
-
-By the default, the grabber is disabled since it's still experimental.
-To enable it, check the box at the top of the configuration dialog.
-If you haven't configured a TV application yet you'll get an error
-message, since the grabber requires a TV channel table. The grabber
+If you haven't configured a TV application yet, you'll get an error
+message when enabling acquisition via the teletext grabber, since it
+requires a TV channel table. The grabber
 will retrieve EPG data starting with the first channel listed in
 the TV app's channel table, and then switch through one-by-one.
 Currently you cannot change the order or skip any programmes, but
@@ -2728,30 +2643,18 @@ To use the grabbed data you have to wait until each channel has
 been visited at least once. After that you should see an XML
 file for each TV channel in the nxtvepg directory (named
 "ttx-XXX.xml" where XXX is the TV channel name.) These files
-will appear in the provider selection and merge dialogs and
-can then be used just like Nextview EPG providers.
+will appear in the XMLTV file selection dialogs and can be
+loaded like any other XMLTV file.
 
 
-=head2 Provider scan
+=head2 TV channel scan
 
 Open a dialog that allows to start a scan across all TV channels for
-Nextview transmissions.  You should perform this search at least once,
-firstly to find out which providers are available in your area, and
-secondly to determine the TV frequencies of all EPG providers. Those
-are required for most acquisition modes, and due to driver limitations
-often not available without a scan (e.g. on Windows or Linux with bttv
-driver <= 0.7.50).  Note that the provider scan only works if you use
-the internal tuner as input source.  See also L<"GETTING STARTED"> and
-the subsequent chapter on TV card configuration.
-
-If you live in France, select the French frequency table
-(which implies the I<Secam L> TV norm) to be used for the EPG scan;
-else use the default frequency table which covers common cable network
-frequencies in Western Europe with the PAL TV norm.
-Other countries are not supported, since there currently
-are no Nextview providers.  If you live in an area where you receive
-both PAL and SECAM stations, you should perform the EPG scan twice
-with different channel tables.
+Teletext transmissions. However this is for your information only; the
+scan is not required for operation of the Teletext EPG grabber.
+Note that the provider scan only works if you use the internal tuner
+as input source (see also L<"GETTING STARTED"> and the subsequent
+chapter on TV card configuration).
 
 The I<Use TV app.> button is automatically checked if an I<xawtv>
 configuration file is found in your home directory (on UNIX) or
@@ -2760,6 +2663,17 @@ Instead of searching all possible TV channels or frequencies in
 all bands, nxtvepg then just checks the TV channels defined there,
 which usually saves a lot of time and is also more reliable.
 
+Otherwise the scan is performed on all possible transmission frequencies
+in multiple frequency bands. This is supported only for analog TV capture
+cards.  If you live in France, select the French frequency table
+(which implies the I<Secam L> TV norm) to be used for the EPG scan;
+else use the default frequency table which covers common cable network
+frequencies in Western Europe with the PAL TV norm.
+Other countries are not supported, since there currently
+are no Nextview providers.  If you live in an area where you receive
+both PAL and SECAM stations, you should perform the EPG scan twice
+with different channel tables.
+
 Check the I<Slow> button if you have bad reception on some channels.
 In slow mode the scanner will not skip channels with "unstable"
 video signal (i.e. no PLL H-lock within 0.150 seconds) and wait
@@ -2767,18 +2681,6 @@ twice as long as normal for everything, i.e. up to 4 seconds for a
 VPS/PDC channel identification and up to 90 seconds if potential
 EPG data packets were found.  Note that you
 can change this setting while the scan is running.
-
-Use the I<Refresh only> mode if you deleted your database files (or if you
-upgrade from an incompatible software version) or if you want to identify or
-remove obsolete providers. In this mode only the channels on which Nextview
-data was received before are checked (the frequencies are kept both in the
-databases and your rc/ini file). This allows to regain your complete
-provider selection very quickly. If no data transmission is found on a
-provider's channel, a I<Remove this provider> button will be added to the
-output window, which you can use after the scan has finished to remove
-the database and any information recorded about the provider.  Note that
-removal will fail if the database is currently in use, so you may have to
-stop acquisition and select a different provider.
 
 Technical background information on how the EPG scan works:
 The scan will visit every physical TV frequency (or subsets thereof if
@@ -2791,16 +2693,6 @@ been received (which does not necessarily mean it's EPG, because other
 services could use the same encoding) the scan waits up to 45 seconds
 for EPG inventory messages (BI and AI blocks). You can watch these
 proceedings in the message output window.
-
-Even though the scan tries very hard, it can not warrent that every
-EPG provider is found every time. For example some providers do have
-pauses of more than 45 seconds in their EPG transmission; or they
-might have technical problems.  So the safest way is to check the
-nxtvepg web site (see I<About> in the Help menu) for a list of known
-Nextview EPG providers. If you receive TV channels for which a provider
-is listed, repeat the scan until they are found, e.g. at different times
-of the day.  If you find new providers not listed on the web site,
-please write a note in the discussion forum on the web site.
 
 
 =head2 TV card input
@@ -2886,17 +2778,18 @@ any vendor supplied drivers.)
 
 =head2 Client/Server
 
-Opens a dialog that allows to configure the connection between browser
-and an acquisition daemon (i.e. a separate instance of nxtvepg which is
-running in server mode, see I<-daemon> command line switch in L<"OPTIONS">)
-The daemon allows to forward all newly acquired EPG data to one or more
-connected browsers and to monitor the it's acquisition progress.
+Opens a dialog that allows configuring the connection between browser and
+an EPG acquisition daemon (i.e. a separate instance of nxtvepg which is
+running in server mode, see the I<-daemon> command line switch in L<"OPTIONS">).
+The daemon forwards newly acquired EPG data to all connected browsers
+and allows monitoring the acquisition progress.
 
 The dialog contains settings of which some refer to the server-side only,
 some to the client-side only and some to both server and client.  To avoid
 confusion, there are three radio buttons at the top of the dialog which
-allow to grey out items that do not refer to the client or server
-respectively.  Note: for server configuration changes to take effect, the
+allow greying out items that do not apply to the client or server
+respectively (the button selection does not otherwise affect the result
+of configuration). Note: for server configuration changes to take effect, the
 daemon must be restarted.  If it's running locally, you can do this via
 the Control menu (see L<"CONTROL: Connect to acq. daemon">)
 
@@ -3120,7 +3013,7 @@ In the lower part of the dialog window you can configure
 type and path of your preferred TV application.  This information
 is used to access the TV app's channel table (i.e. TV tuner frequencies
 and station names) during an EPG provider scan
-(see L<"CONFIGURATION">, section "Provider scan") and in the network name
+(see L<"CONFIGURATION">, section "TV channel scan") and in the network name
 configuration dialog (see L<"CONFIGURATION">, section "Network names").
 
 After you've changed the setting, you can press the I<Test> button to
@@ -3699,7 +3592,7 @@ specified with the B<-card> command line option. This device must be
 readable and writable.
 
 The device is only kept open during a provider search
-(see L<"CONFIGURATION">, section "Provider scan").  Else, it's just
+(see L<"CONFIGURATION">, section "TV channel scan").  Else, it's just
 opened shortly to set the input source and tuner frequency. If the device
 is busy (e.g. while you watch TV), acquisition starts on the currently
 selected channel and automatically follows any externally controlled

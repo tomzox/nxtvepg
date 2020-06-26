@@ -27,11 +27,9 @@
 void TimeScale_Create( void );
 
 // Interface to acq control and provider selection menu
-void TimeScale_ProvChange( int target );
+void TimeScale_ProvChange( void );
 void TimeScale_VersionChange( void );
 void TimeScale_AcqStatsUpdate( void );
-void TimeScale_AcqPiAdded( void );
-void TimeScale_AcqPiMerged( void );
 
 
 #endif  // __TIMESCALE_H

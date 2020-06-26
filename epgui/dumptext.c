@@ -141,7 +141,7 @@ static void DumpText_Pi( PI_DESCR_BUF * pb, const PI_BLOCK * pPi, const EPGDB_CO
       len = sprintf(str_buf, "%c\t%c\t%c\t%c\t%c\t%c\t%c\t",
                        ((pPi->feature_flags & PI_FEATURE_FMT_WIDE) ? '1' : '0'),
                        ((pPi->feature_flags & PI_FEATURE_PAL_PLUS) ? '1' : '0'),
-                       ((pPi->feature_flags & PI_FEATURE_DIGITAL) ? '1' : '0'),
+                       '0', /*((pPi->feature_flags & PI_FEATURE_DIGITAL) ? '1' : '0'),*/ // obsolete
                        ((pPi->feature_flags & PI_FEATURE_ENCRYPTED) ? '1' : '0'),
                        ((pPi->feature_flags & PI_FEATURE_LIVE) ? '1' : '0'),
                        ((pPi->feature_flags & PI_FEATURE_REPEAT) ? '1' : '0'),

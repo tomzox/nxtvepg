@@ -44,11 +44,8 @@
 #include "epgdb/epgblock.h"
 #include "epgdb/epgdbif.h"
 #include "epgdb/epgswap.h"
-#include "epgdb/epgqueue.h"
-#include "epgdb/epgtscqueue.h"
 #include "epgdb/epgdbmgmt.h"
 #include "epgdb/epgdbmerge.h"
-#include "epgdb/epgdbsav.h"
 #include "epgdb/epgnetio.h"
 #include "epgui/uictrl.h"
 #include "epgctl/epgacqctl.h"
@@ -62,8 +59,6 @@ typedef enum
 {
    SRV_STATE_WAIT_CON_REQ,
    SRV_STATE_WAIT_FWD_REQ,
-   SRV_STATE_DUMP_REQUESTED,
-   SRV_STATE_DUMP_ACQ,
    SRV_STATE_FORWARD,
 } SRV_REQ_STATE;
 
@@ -85,23 +80,10 @@ typedef struct REQUEST_struct
    bool            isLocalCon;
    bool            endianSwap;
 
-   EPGNETIO_DUMP   dump;
-   uint            dumpProvIdx;
-   uint            dumpCnis[MAX_MERGED_DB_COUNT];
-   uint            dumpedLastCni;
-   time32_t        dumpStartTimes[MAX_MERGED_DB_COUNT];
-
    SRV_STATS_STATE doTtxStats;
    bool            doVpsPdc;
    time32_t        sendDbUpdTime;
-   bool            enableAllBlocks;
-   uint            cniCount;
-   uint            provCnis[MAX_MERGED_DB_COUNT];
    uint            statsReqBits;
-
-   EPGDB_CONTEXT * pDbContext;
-   EPGDB_QUEUE     outQueue;
-   EPGDB_PI_TSC    tscQueue;
 
    EPGDBSRV_MSG_BODY  msgBuf;
 
@@ -122,10 +104,6 @@ typedef struct
 
 } SRV_CTL_STRUCT;
 
-// convenience macro
-#define IS_AI_OI_BLOCK(X)  (((X)->type == BLOCK_TYPE_AI) || \
-                            (((X)->type == BLOCK_TYPE_OI) && ((X)->blk.oi.block_no == 0)))
-
 #define SRV_REPLY_TIMEOUT       60
 #define SRV_STALLED_STATS_INTV  15
 
@@ -137,52 +115,10 @@ static EPGDBSRV_STATE   * pReqChain = NULL;
 static SRV_CTL_STRUCT     srvState;
 
 // ----------------------------------------------------------------------------
-// Merge CNIs from all clients and send them to the acq-ctl layer
-// - called after receiving the FWD message from a client
-// - acqctl only uses the CNI list in FOLLOW-UI mode
-//
-static void EpgAcqServer_MergeCniLists( void )
-{
-   EPGDBSRV_STATE  * pReq;
-   uint reqIdx, chkIdx;
-   uint reqCni;
-   uint cniCount;
-   uint provCnis[MAX_MERGED_DB_COUNT];
-
-   cniCount = 0;
-   pReq = pReqChain;
-   // loop over all client request structures
-   while (pReq != NULL)
-   {
-      // loop over all CNIs requested by this client
-      for (reqIdx=0; reqIdx < pReq->cniCount; reqIdx++)
-      {
-         reqCni = pReq->provCnis[reqIdx];
-         // check if the CNI is already in the list
-         for (chkIdx=0; chkIdx < cniCount; chkIdx++)
-            if (provCnis[chkIdx] == reqCni)
-               break;
-         if (chkIdx >= cniCount)
-         {  // new CNI -> append it to the merged list
-            provCnis[cniCount] = reqCni;
-            cniCount += 1;
-         }
-      }
-      pReq = pReq->pNext;
-   }
-
-   // if at least one CNI was found, send it to acq ctl
-   if (cniCount > 0)
-   {
-      EpgAcqCtl_UpdateProvList(cniCount, provCnis);
-   }
-}
-
-// ----------------------------------------------------------------------------
 // Build statistics message
 // - called periodically after each AI update
 //
-static void EpgAcqServer_BuildStatsMsg( EPGDBSRV_STATE * req, bool aiFollows )
+static void EpgAcqServer_BuildStatsMsg( EPGDBSRV_STATE * req )
 {
    EPG_ACQ_VPS_PDC  vpsPdc;
    EPG_ACQ_STATS acqStats;
@@ -192,7 +128,6 @@ static void EpgAcqServer_BuildStatsMsg( EPGDBSRV_STATE * req, bool aiFollows )
    if (EpgAcqCtl_GetAcqStats(&acqStats))
    {
       req->msgBuf.stats_ind.p.pNext   = NULL;
-      req->msgBuf.stats_ind.aiFollows = aiFollows;
       // always include description of acq state
       EpgAcqCtl_DescribeAcqState(&req->msgBuf.stats_ind.descr);
       newVpsPdc = EpgAcqCtl_GetVpsPdc(&vpsPdc, VPSPDC_REQ_DAEMON, TRUE);
@@ -232,10 +167,8 @@ static void EpgAcqServer_BuildStatsMsg( EPGDBSRV_STATE * req, bool aiFollows )
             // include database statistics (block counts)
             memcpy(&req->msgBuf.stats_ind.u.update.count, &acqStats.nxtv.count, sizeof(acqStats.nxtv.count));
 
-            req->msgBuf.stats_ind.u.update.ai      = acqStats.nxtv.ai;
             req->msgBuf.stats_ind.u.update.hist    = acqStats.nxtv.hist[acqStats.nxtv.histIdx];
             req->msgBuf.stats_ind.u.update.histIdx = acqStats.nxtv.histIdx;
-            req->msgBuf.stats_ind.u.update.stream  = acqStats.nxtv.stream;
             req->msgBuf.stats_ind.u.update.ttx_dec = acqStats.ttx_dec;
             req->msgBuf.stats_ind.u.update.ttx_duration = acqStats.ttx_duration;
             req->msgBuf.stats_ind.u.update.nowMaxAcqRepCount = acqStats.nxtv.nowMaxAcqRepCount;
@@ -327,48 +260,27 @@ static char * EpgAcqServer_BuildAcqDescrStr( void )
                                      (vpsPdc.pil >>  6) & 0x1F, (vpsPdc.pil) & 0x3F);
 
    off += snprintf(pMsg + off, 10000 - off, "Nextview acq duration:  %d\n"
-                                            "Nextview provider CNI:  %04X\n"
                                             "Providers done:         %d of %d\n"
-                                            "Expected block total:   %d + %d\n"
-                                            "Block total in DB:      %d + %d\n",
+                                            "Block total in DB:      %d\n",
                                acq_duration,
-                               acqState.nxtvDbCni,
                                acqState.cycleIdx, acqState.cniCount,
-                               sv.nxtv.count[0].ai, sv.nxtv.count[1].ai,
-                               sv.nxtv.count[0].allVersions + sv.nxtv.count[0].expired + sv.nxtv.count[0].defective,
-                               sv.nxtv.count[1].allVersions + sv.nxtv.count[1].expired + sv.nxtv.count[1].defective
+                               sv.nxtv.count.allVersions + sv.nxtv.count.expired + sv.nxtv.count.defective
                   );
    if (ACQMODE_IS_CYCLIC(acqState.mode))
    {
-      off += snprintf(pMsg + off, 10000 - off, "Network variance:       %1.2f / %1.2f\n",
-                                   sv.nxtv.count[0].variance, sv.nxtv.count[1].variance);
+      off += snprintf(pMsg + off, 10000 - off, "Network variance:       %1.2f\n",
+                                   sv.nxtv.count.variance);
    }
 
    off += snprintf(pMsg + off, 10000 - off,
                  "TTX pkg/frame:          %.1f\n"
-                 "EPG pages/sec:          %1.2f\n"
-                 "EPG page no:            %X\n"
-                 "AI recv. count:         %d\n"
-                 "AI min/avg/max [sec]:   %d/%2.2f/%d\n"
-                 "PI repetition now/1/2:  %d/%.2f/%.2f\n"
-                 "TTX acq. duration:      %d\n"
-                 "TTX lost/got pages:     %d/%d\n"
-                 "TTX lost/got pkg:       %d/%d\n"
-                 "EPG dropped/got blocks: %d/%d\n"
-                 "EPG blanked/got chars:  %d/%d\n",
+                 "Captured TTX pages:     %d\n"
+                 "PI repetition now/next: %d/%.2f\n"
+                 "TTX acq. duration:      %d\n",
                  (double)sv.ttx_dec.ttxPkgRate / (1 << TTX_PKG_RATE_FIXP),
-                 ((acq_duration > 0) ? ((double)sv.ttx_dec.epgPagCount / acq_duration) : 0),
-                 sv.nxtv.stream.epgPageNo,
-                 sv.nxtv.ai.aiCount,
-                 (int)sv.nxtv.ai.minAiDistance,
-                    ((sv.nxtv.ai.aiCount > 1) ? ((double)sv.nxtv.ai.sumAiDistance / (sv.nxtv.ai.aiCount - 1)) : 0),
-                    (int)sv.nxtv.ai.maxAiDistance,
-                 sv.nxtv.nowMaxAcqRepCount, sv.nxtv.count[0].avgAcqRepCount, sv.nxtv.count[1].avgAcqRepCount,
-                 sv.ttx_duration,
-                 sv.nxtv.stream.epgPagMissing, sv.nxtv.stream.epgPagCount,
-                 sv.nxtv.stream.epgPkgMissing, sv.nxtv.stream.epgPkgCount,
-                 sv.nxtv.stream.epgBlkErr, sv.nxtv.stream.epgBlkCount,
-                 sv.nxtv.stream.epgParErr, sv.nxtv.stream.epgStrSum
+                 sv.ttx_grab.pkgStats.ttxPagCount,
+                 sv.nxtv.nowMaxAcqRepCount, sv.nxtv.count.avgAcqRepCount,
+                 sv.ttx_duration
           );
 
    if (acqState.ttxSrcCount > 0)
@@ -386,113 +298,6 @@ static char * EpgAcqServer_BuildAcqDescrStr( void )
 }
 
 // ----------------------------------------------------------------------------
-// Perform dump of a client-requested provider datbase
-// - the db context is opened at the start of the dump and kept open until finished
-// - returns TRUE if the dump is finished successfully; more specifically, TRUE is
-//   returned when the func is called and nothing is to be done, so that I/O is
-//   guaranteed to be idle
-//
-static bool EpgAcqServer_DumpReqDb( EPGDBSRV_STATE * req )
-{
-   time32_t swapTime;
-   uint   swapCni;
-   bool   result;
-
-   if (req->pDbContext == NULL)
-   {  // currently no dump in progress -> open next db
-      // dump the next db from the requested list; loop until a dumpable one is found
-      for ( ; req->dumpProvIdx < req->cniCount; req->dumpProvIdx++)
-      {
-         if ( (req->dumpProvIdx < req->cniCount - 1) && (req->dumpCnis[req->dumpProvIdx] == srvState.lastFwdCni) )
-         {  // move the current acq db to the last position
-            dprintf2("EpgAcqServer-DumpReqDb: move acq db #%d, CNI 0x%04X to end of list\n", req->dumpProvIdx, req->dumpCnis[req->dumpProvIdx]);
-            swapCni  = req->dumpCnis[req->dumpProvIdx];
-            swapTime = req->dumpStartTimes[req->dumpProvIdx];
-            req->dumpCnis[req->dumpProvIdx]       = req->dumpCnis[req->cniCount - 1];
-            req->dumpStartTimes[req->dumpProvIdx] = req->dumpStartTimes[req->cniCount - 1];
-            req->dumpCnis[req->cniCount - 1]       = swapCni;
-            req->dumpStartTimes[req->cniCount - 1] = swapTime;
-         }
-
-         if (req->dumpStartTimes[req->dumpProvIdx] < EpgContextCtl_GetAiUpdateTime(req->dumpCnis[req->dumpProvIdx], FALSE))
-         {
-            req->pDbContext = EpgContextCtl_Open(req->dumpCnis[req->dumpProvIdx], FALSE, CTX_FAIL_RET_NULL, CTX_RELOAD_ERR_ANY);
-            if (req->pDbContext != NULL)
-            {
-               dprintf3("EpgAcqServer-DumpReqDb: dump db #%d, CNI 0x%04X: last %ld secs\n", req->dumpProvIdx, req->dumpCnis[req->dumpProvIdx], time(NULL) - req->dumpStartTimes[req->dumpProvIdx]);
-
-               // initialize parameters for the dump
-               req->dump.dumpAcqTime    = req->dumpStartTimes[req->dumpProvIdx];
-               req->dump.dumpType       = BLOCK_TYPE_AI;
-               req->dump.dumpBlockNo    = 0;
-               req->dump.dumpStartTime  = 0;
-               req->dump.dumpNetwop     = 0;
-               // remember the last dumped provider
-               req->dumpedLastCni       = req->dumpCnis[req->dumpProvIdx];
-               // send a dump indication to the client
-               req->msgBuf.dump_ind.cni = req->dumpCnis[req->dumpProvIdx];
-               EpgNetIo_WriteMsg(&req->io, MSG_TYPE_DUMP_IND, sizeof(req->msgBuf.dump_ind), &req->msgBuf.dump_ind, FALSE);
-               break;
-            }
-         }
-         else
-            dprintf2("EpgAcqServer-DumpReqDb: skip dump of db #%d, CNI 0x%04X: no newer blocks\n", req->dumpProvIdx, req->dumpCnis[req->dumpProvIdx]);
-      }
-   }
-
-   if (req->pDbContext != NULL)
-   {
-      if (EpgNetIo_DumpAllBlocks(&req->io, req->pDbContext, &req->dump, ((req->statsReqBits & STATS_REQ_BITS_TSC_REQ) ? &req->tscQueue : NULL)) == FALSE)
-      {
-         // dump for this db is finished -> close the dumped db
-         EpgContextCtl_Close(req->pDbContext);
-         req->pDbContext = NULL;
-         // update dump status
-         req->dumpStartTimes[req->dumpProvIdx] = time(NULL);
-         req->dumpProvIdx += 1;
-      }
-      result = FALSE;
-   }
-   else  // all finished
-      result = TRUE;
-
-   return result;
-}
-
-// ----------------------------------------------------------------------------
-// Initialize the state for start of dump of requested dbs
-// - called after reception of forward request message
-//
-static void EpgAcqServer_DumpReqInit( EPGDBSRV_STATE * req, const time32_t * pDumpStartTimes )
-{
-   memcpy(req->dumpCnis, req->provCnis, sizeof(req->dumpCnis));
-   memcpy(req->dumpStartTimes, pDumpStartTimes, sizeof(req->dumpStartTimes));
-   req->dumpedLastCni = 0;
-   req->dumpProvIdx   = 0;
-}
-
-// ----------------------------------------------------------------------------
-// Check if the current acq database is requested for forwarding
-//
-static void EpgAcqServer_EnableBlockFwd( EPGDBSRV_STATE * req )
-{
-   uint  dbIdx;
-
-   if (req->cniCount == 0)
-   {  // client specified no CNIs
-      req->enableAllBlocks = FALSE;
-   }
-   else
-   {  // search for the current AI CNI in the requested list
-      for (dbIdx=0; dbIdx < req->cniCount; dbIdx++)
-         if (req->provCnis[dbIdx] == srvState.lastFwdCni)
-            break;
-      // enable block forward for all types only if acq is working on a requested CNI
-      req->enableAllBlocks = (dbIdx < req->cniCount);
-   }
-}
-
-// ----------------------------------------------------------------------------
 // Close the connection to the client
 // - frees all allocated resources
 //
@@ -502,18 +307,6 @@ static void EpgAcqServer_Close( EPGDBSRV_STATE * req, bool closeAll )
    EpgNetIo_Logger(LOG_INFO, req->io.sock_fd, 0, "closing connection", NULL);
 
    EpgNetIo_CloseIO(&req->io);
-
-   if (req->pDbContext != NULL)
-   {
-      EpgContextCtl_Close(req->pDbContext);
-      req->pDbContext = NULL;
-   }
-
-   EpgDbQueue_Clear(&req->outQueue);
-   EpgTscQueue_Clear(&req->tscQueue);
-
-   if ((req->cniCount > 0) && (closeAll == FALSE))
-      EpgAcqServer_MergeCniLists();
 }
 
 // ----------------------------------------------------------------------------
@@ -549,7 +342,6 @@ static void EpgAcqServer_AddConnection( int listen_fd, bool isLocal )
 //
 static bool EpgAcqServer_CheckMsg( uint len, EPGNETIO_MSG_HEADER * pHead, EPGDBSRV_MSG_BODY * pBody, bool * pEndianSwap )
 {
-   uint idx;
    bool result = FALSE;
 
    switch (pHead->type)
@@ -587,18 +379,8 @@ static bool EpgAcqServer_CheckMsg( uint len, EPGNETIO_MSG_HEADER * pHead, EPGDBS
             if (*pEndianSwap)
             {
                swap32(&pBody->fwd_req.statsReqBits);
-               swap32(&pBody->fwd_req.cniCount);
-               if (pBody->fwd_req.cniCount <= MAX_MERGED_DB_COUNT)
-               {
-                  for (idx=0; idx < pBody->fwd_req.cniCount; idx++)
-                  {
-                     swap32(&pBody->fwd_req.dumpStartTimes[idx]);
-                     swap32(&pBody->fwd_req.provCnis[idx]);
-                  }
-                  result = TRUE;
-               }
             }
-            else if (pBody->fwd_req.cniCount <= MAX_MERGED_DB_COUNT)
+            else
             {
                result = TRUE;
             }
@@ -622,12 +404,9 @@ static bool EpgAcqServer_CheckMsg( uint len, EPGNETIO_MSG_HEADER * pHead, EPGDBS
       case MSG_TYPE_CONQUERY_CNF:
       case MSG_TYPE_FORWARD_CNF:
       case MSG_TYPE_FORWARD_IND:
-      case MSG_TYPE_BLOCK_IND:
-      case MSG_TYPE_TSC_IND:
       case MSG_TYPE_VPS_PDC_IND:
       case MSG_TYPE_DB_UPD_IND:
       case MSG_TYPE_STATS_IND:
-      case MSG_TYPE_DUMP_IND:
          debug1("EpgAcqServer-CheckMsg: recv client msg type %d", pHead->type);
          result = FALSE;
          break;
@@ -679,8 +458,7 @@ static bool EpgAcqServer_TakeMessage( EPGDBSRV_STATE *req, EPGDBSRV_MSG_BODY * p
             dprintf0("EpgAcqServer-TakeMessage: con req for BROWSER type\n");
             memcpy(req->msgBuf.con_cnf.magic, MAGIC_STR, MAGIC_STR_LEN);
             memset(req->msgBuf.con_cnf.reserved, 0, sizeof(req->msgBuf.con_cnf.reserved));
-            req->msgBuf.con_cnf.endianMagic           = ENDIAN_MAGIC;
-            req->msgBuf.con_cnf.blockCompatVersion    = DUMP_COMPAT;
+            req->msgBuf.con_cnf.endianMagic           = PROTOCOL_ENDIAN_MAGIC;
             req->msgBuf.con_cnf.protocolCompatVersion = PROTOCOL_COMPAT;
             req->msgBuf.con_cnf.swVersion             = EPG_VERSION_NO;
 #ifndef WIN32
@@ -711,36 +489,20 @@ static bool EpgAcqServer_TakeMessage( EPGDBSRV_STATE *req, EPGDBSRV_MSG_BODY * p
          // note: if acq is working on a provider not in this list, AI and OI#0 are forwarded anyways
          dprintf1("EpgAcqServer-TakeMessage: fwd req for %d CNIs\n", pMsg->fwd_req.cniCount);
          if ( (req->state == SRV_STATE_WAIT_FWD_REQ) ||
-              (req->state == SRV_STATE_DUMP_REQUESTED) ||
-              (req->state == SRV_STATE_DUMP_ACQ) ||
               (req->state == SRV_STATE_FORWARD) )
          {
             // save the new CNI list in the client req structure
-            memcpy(req->provCnis, pMsg->fwd_req.provCnis, sizeof(req->provCnis));
-            req->cniCount = pMsg->fwd_req.cniCount;
             req->statsReqBits = pMsg->fwd_req.statsReqBits;
-            EpgAcqServer_DumpReqInit(req, pMsg->fwd_req.dumpStartTimes);
-
-            // in case state is >= dump must reset it before the merge, which may cause a prov change
             req->state = SRV_STATE_WAIT_FWD_REQ;
-            // merge the list with other clients and it to the acq ctl layer
-            EpgAcqServer_MergeCniLists();
-
-            // free old blocks in the output queues (e.g. during dump)
-            EpgDbQueue_Clear(&req->outQueue);
-            EpgTscQueue_Clear(&req->tscQueue);
 
             // immediately reply with confirmation message: mandatory for synchronization with the client
             // - copy params from request into reply (to identify the request we reply to)
-            memcpy(req->msgBuf.fwd_cnf.provCnis, req->provCnis, sizeof(req->msgBuf.fwd_cnf.provCnis));
-            req->msgBuf.fwd_cnf.cniCount = req->cniCount;
             EpgNetIo_WriteMsg(&req->io, MSG_TYPE_FORWARD_CNF, sizeof(req->msgBuf.fwd_cnf), &req->msgBuf.fwd_cnf, FALSE);
 
             // check if the current acq db is requested for forwarding
-            EpgAcqServer_EnableBlockFwd(req);
             req->doTtxStats = SRV_FWD_STATS_INITIAL;
 
-            req->state = SRV_STATE_DUMP_REQUESTED;
+            req->state = SRV_STATE_FORWARD;
             result = TRUE;
          }
          break;
@@ -754,26 +516,6 @@ static bool EpgAcqServer_TakeMessage( EPGDBSRV_STATE *req, EPGDBSRV_MSG_BODY * p
             if ( ((pMsg->stats_req.statsReqBits & STATS_REQ_BITS_HIST) != 0) &&
                  ((req->statsReqBits & STATS_REQ_BITS_HIST) == 0) )
                req->doTtxStats = SRV_FWD_STATS_INITIAL;
-
-            // if timescale forward is (or was already) disabled, clear the queue
-            if ((req->statsReqBits & STATS_REQ_BITS_TSC_REQ) == 0)
-            {
-               EpgTscQueue_Clear(&req->tscQueue);
-            }
-            // full timescale info need only be sent if this is a non-requested db
-            // and the user has opened the acq timescales
-            if ( (req->enableAllBlocks == FALSE) &&
-                 ((pMsg->stats_req.statsReqBits & STATS_REQ_BITS_TSC_REQ) != 0) &&
-                 ((pMsg->stats_req.statsReqBits & STATS_REQ_BITS_TSC_ALL) != 0) &&
-                 ((req->statsReqBits & STATS_REQ_BITS_TSC_ALL) == 0) )
-            {
-               EPGDB_CONTEXT * pDbContext = EpgAcqCtl_GetDbContext(TRUE);
-               if (pDbContext != NULL)
-               {
-                  EpgTscQueue_AddAll(&req->tscQueue, pDbContext);
-               }
-               EpgAcqCtl_GetDbContext(FALSE);
-            }
 
             // immediately send VPS/PDC updates if requested and available
             if (pMsg->stats_req.statsReqBits & STATS_REQ_BITS_VPS_PDC_REQ)
@@ -852,10 +594,6 @@ sint EpgAcqServer_GetFdSet( fd_set * rd, fd_set * wr )
          FD_SET(req->io.sock_fd, rd);
       else
       if ((req->io.writeLen > 0) ||
-          (EpgDbQueue_GetBlockCount(&req->outQueue) > 0) ||
-          EpgTscQueue_HasElems(&req->tscQueue) ||
-          (req->state == SRV_STATE_DUMP_REQUESTED) ||
-          (req->state == SRV_STATE_DUMP_ACQ) ||
           (req->doTtxStats != SRV_FWD_STATS_DONE) ||
           (req->doVpsPdc) ||
           (req->sendDbUpdTime != 0))
@@ -875,8 +613,6 @@ sint EpgAcqServer_GetFdSet( fd_set * rd, fd_set * wr )
 //
 void EpgAcqServer_HandleSockets( fd_set * rd, fd_set * wr )
 {
-   EPGDB_CONTEXT     *pDbContext;
-   const EPGDB_BLOCK *pOutBlock;
    EPGDBSRV_STATE    *req;
    EPGDBSRV_STATE    *prev, *tmp;
    bool              ioBlocked;  // dummy
@@ -942,57 +678,8 @@ void EpgAcqServer_HandleSockets( fd_set * rd, fd_set * wr )
       else if (EpgNetIo_IsIdle(&req->io))
       {  // currently no I/O in progress
 
-         pOutBlock = EpgDbQueue_Peek(&req->outQueue);
-         if (req->state == SRV_STATE_DUMP_REQUESTED)
-         {
-            if (EpgAcqServer_DumpReqDb(req) && (req->io.sock_fd != -1))
-            {  // dump is finished -> advance to the next state
-               if ((req->enableAllBlocks == FALSE) || (req->dumpedLastCni != srvState.lastFwdCni))
-               {  // current acq db is not among the client-requested
-                  // dump at least AI and OI#0 (AI is required so that acqctl opens the new db)
-                  req->dump.dumpType = BLOCK_TYPE_AI;
-                  req->state = SRV_STATE_DUMP_ACQ;
-               }
-               else
-               {  // current acq db is among the requested, i.e. has already been dumped
-                  // inform the client that dumps are over
-                  req->msgBuf.fwd_ind.cni = srvState.lastFwdCni;
-                  EpgNetIo_WriteMsg(&req->io, MSG_TYPE_FORWARD_IND, sizeof(req->msgBuf.fwd_ind), &req->msgBuf.fwd_ind, FALSE);
-                  req->state = SRV_STATE_FORWARD;
-               }
-
-               // send updated acq status information
-               req->doTtxStats = SRV_FWD_STATS_INITIAL;
-            }
-         }
-         else if (req->state == SRV_STATE_DUMP_ACQ)
-         {  // Perform dump of AI and OI#0 of non-requested db
-            pDbContext = EpgAcqCtl_GetDbContext(TRUE);
-            if (pDbContext != NULL)
-            {
-               if ( (EpgNetIo_DumpAiOi(&req->io, pDbContext, &req->dump) == FALSE) && (req->io.sock_fd != -1) )
-               {
-                  if ( (req->statsReqBits & STATS_REQ_BITS_TSC_REQ) &&
-                       (req->statsReqBits & STATS_REQ_BITS_TSC_ALL) &&
-                       (req->enableAllBlocks == FALSE) )
-                  {  // if this is a non-forwarded provider but acq timescales are open,
-                     // generate full timescale info
-                     EpgTscQueue_AddAll(&req->tscQueue, pDbContext);
-                  }
-                  req->msgBuf.fwd_ind.cni = srvState.lastFwdCni;
-                  EpgNetIo_WriteMsg(&req->io, MSG_TYPE_FORWARD_IND, sizeof(req->msgBuf.fwd_ind), &req->msgBuf.fwd_ind, FALSE);
-
-                  req->state = SRV_STATE_FORWARD;
-               }
-            }
-            else
-            {  // acquisition has been stopped (can only occur during server shutdown)
-               EpgAcqServer_Close(req, TRUE);
-            }
-            EpgAcqCtl_GetDbContext(FALSE);
-         }
-         else if ( (req->doVpsPdc) &&
-                   (req->state == SRV_STATE_FORWARD) )
+         if ( (req->doVpsPdc) &&
+              (req->state == SRV_STATE_FORWARD) )
          {  // send VPS/PDC
             EpgAcqServer_BuildVpsPdcMsg(req);
          }
@@ -1002,23 +689,10 @@ void EpgAcqServer_HandleSockets( fd_set * rd, fd_set * wr )
             EpgAcqServer_BuildDbUpdateMsg(req);
          }
          else if ( (req->doTtxStats != SRV_FWD_STATS_DONE) &&
-                   (req->state == SRV_STATE_FORWARD) &&
-                   ( (pOutBlock == NULL) ||
-                     (req->doTtxStats == SRV_FWD_STATS_UPD_NO_AI) ||
-                     (pOutBlock->type == BLOCK_TYPE_AI) ) )
+                   (req->state == SRV_STATE_FORWARD) )
          {  // statistics are due: include them now if either the block queue is empty
             // or next is an AI block (but suppress stats during provider change)
-            EpgAcqServer_BuildStatsMsg(req, (pOutBlock != NULL) && (pOutBlock->type == BLOCK_TYPE_AI));
-         }
-         else if (pOutBlock != NULL)
-         {  // send the next acq block
-            if (EpgNetIo_WriteEpgQueue(&req->io, &req->outQueue) == FALSE)
-               EpgAcqServer_Close(req, FALSE);
-         }
-         else if (EpgTscQueue_HasElems(&req->tscQueue))
-         {
-            if (EpgNetIo_WriteTscQueue(&req->io, &req->tscQueue) == FALSE)
-               EpgAcqServer_Close(req, FALSE);
+            EpgAcqServer_BuildStatsMsg(req);
          }
 
          if ((req->io.sock_fd != -1) && (req->io.writeLen > 0))
@@ -1052,7 +726,7 @@ void EpgAcqServer_HandleSockets( fd_set * rd, fd_set * wr )
          dprintf1("EpgAcqServer-HandleSockets: fd %d: send 'no reception' stats\n", req->io.sock_fd);
          req->io.lastIoTime = now;
          req->doTtxStats = SRV_FWD_STATS_UPD_NO_AI;
-         EpgAcqServer_BuildStatsMsg(req, FALSE);
+         EpgAcqServer_BuildStatsMsg(req);
       }
 
       if (req->io.sock_fd == -1)
@@ -1222,54 +896,6 @@ void EpgAcqServer_SetAddress( bool do_tcp_ip, const char * pIpStr, const char * 
 }
 
 // ----------------------------------------------------------------------------
-// Notification about provider switches or version change by acqctl module
-// - when the acq provider changes, all connected providers are set into an
-//   intermediate state in which the server waits until the output queues are
-//   empty; then the client is informed about the new acq provider and forwarding
-//   is re-established starting with the "wait dump confirmation" state.
-//
-void EpgAcqServer_SetProvider( uint cni )
-{
-   EPGDBSRV_STATE *req;
-
-   if (isDbServer)
-   {
-      if (cni != srvState.lastFwdCni)
-      {
-         dprintf2("EpgAcqServer-SetProvider: CNI %04X -> %04X\n", srvState.lastFwdCni, cni);
-         srvState.lastFwdCni = cni;
-         srvState.aiVersionChange = FALSE;
-
-         for (req = pReqChain; req != NULL; req = req->pNext)
-         {
-            if (req->state >= SRV_STATE_DUMP_REQUESTED)
-            {
-               EpgAcqServer_EnableBlockFwd(req);
-
-               if (req->state == SRV_STATE_DUMP_REQUESTED)
-               {  // nothing to do: prov switch is handled by dump loop
-               }
-               else if ( (req->state == SRV_STATE_DUMP_ACQ) ||
-                         (req->state == SRV_STATE_FORWARD) )
-               {  // dump AI and OI#0 (AI is required so that acqctl opens the new db)
-                  req->dump.dumpType = BLOCK_TYPE_AI;
-                  req->state = SRV_STATE_DUMP_ACQ;
-               }
-               // send updated acq status information
-               req->doTtxStats = SRV_FWD_STATS_INITIAL;
-            }
-         }
-      }
-      else
-      {  // AI version or PI range changed - this trigger arrives before
-         // the new AI block is in the db, and before obsolete PI are removed
-         // -> all we can do here is set a flag
-         srvState.aiVersionChange = TRUE;
-      }
-   }
-}
-
-// ----------------------------------------------------------------------------
 // Trigger sending of VPS/PDC CNI and PIL to all interested clients
 // - called every time acquisition has a new VPS/PDC CNI or PIL;
 //   The boolean param tells if the CNI or PIL did change since the last call.
@@ -1338,106 +964,4 @@ void EpgAcqServer_TriggerDbUpdate( time_t mtime )
    }
 }
 
-// ----------------------------------------------------------------------------
-// Append a block to the queues of all interested clients
-// - blocks are only forwarded if their version or content has changed
-// - for every AI blocks a acq stats update is sent, even if the AI is not forwarded
-// - blocks are only forwarded if the client has requested the provider
-//   except for AI and OI#0 which are always forwarded (if version or content changed)
-//
-void EpgAcqServer_AddBlock( EPGDB_CONTEXT * dbc, EPGDB_BLOCK * pNewBlock )
-{
-   EPGDB_CONTEXT * pDbContext;
-   EPGDB_BLOCK * pCopyBlock;
-   EPGDBSRV_STATE *req;
-
-   if ( isDbServer && (srvState.lastFwdCni != 0) )
-   {
-      assert ((pNewBlock->type != BLOCK_TYPE_AI) || (srvState.lastFwdCni == AI_GET_THIS_NET_CNI(&pNewBlock->blk.ai)));
-
-      // if content changed -> offer block to all connected clients
-      if (pNewBlock->updTimestamp == pNewBlock->acqTimestamp)
-      {
-         for (req = pReqChain; req != NULL; req = req->pNext)
-         {
-            if (req->state >= SRV_STATE_DUMP_REQUESTED)
-            {
-               if (req->enableAllBlocks || IS_AI_OI_BLOCK(pNewBlock))
-               {
-                  dprintf2("EpgAcqServer-AddBlock: fd %d: add block type %d\n", req->io.sock_fd, pNewBlock->type);
-
-                  // make a copy of the EPG block
-                  // XXX TODO do not copy, do not use queue; instead save netwop & startTime in list
-                  pCopyBlock = xmalloc(pNewBlock->size + BLK_UNION_OFF);
-                  memcpy(pCopyBlock, pNewBlock, pNewBlock->size + BLK_UNION_OFF);
-                  pCopyBlock->pNextBlock = NULL;
-
-                  // append the block to the end of the output queue
-                  EpgDbQueue_Add(&req->outQueue, pCopyBlock);
-               }
-            }
-         }
-      }
-
-      // send an acq stats report with every AI (even if the AI is not forwarded)
-      if (pNewBlock->type == BLOCK_TYPE_AI)
-      {
-         for (req = pReqChain; req != NULL; req = req->pNext)
-         {
-            if ( (req->state == SRV_STATE_FORWARD) &&
-                 (req->doTtxStats != SRV_FWD_STATS_INITIAL) )
-            {
-               if (pNewBlock->updTimestamp == pNewBlock->acqTimestamp)
-                  req->doTtxStats = SRV_FWD_STATS_UPD;
-               else
-                  req->doTtxStats = SRV_FWD_STATS_UPD_NO_AI;
-            }
-         }
-      }
-
-      // generate PI timescale info if requested
-      if (srvState.aiVersionChange == TRUE)
-      {
-         // after a AI Version change or PI range change, the complete scale info is sent again...
-         for (req = pReqChain; req != NULL; req = req->pNext)
-         {
-            if (req->state == SRV_STATE_FORWARD)
-            {
-               // ...but only to clients which have opened the acq timescale window
-               // and the current provider is not among the requested ones
-               if ( (req->statsReqBits & STATS_REQ_BITS_TSC_REQ) &&
-                    (req->statsReqBits & STATS_REQ_BITS_TSC_ALL) &&
-                    (req->enableAllBlocks == FALSE) )
-               {
-                  pDbContext = EpgAcqCtl_GetDbContext(TRUE);
-                  if (pDbContext != NULL)
-                  {
-                     EpgTscQueue_AddAll(&req->tscQueue, pDbContext);
-                  }
-                  EpgAcqCtl_GetDbContext(FALSE);
-               }
-            }
-         }
-         srvState.aiVersionChange = FALSE;
-      }
-      else
-      {
-         if (pNewBlock->type == BLOCK_TYPE_PI)
-         {
-            for (req = pReqChain; req != NULL; req = req->pNext)
-            {
-               if (req->state == SRV_STATE_FORWARD)
-               {
-                  if ( (req->statsReqBits & STATS_REQ_BITS_TSC_REQ) &&
-                       (req->enableAllBlocks || (req->statsReqBits & STATS_REQ_BITS_TSC_ALL)) )
-                  {
-                     EpgTscQueue_AddPi(&req->tscQueue, dbc, &pNewBlock->blk.pi, pNewBlock->stream);
-                  }
-               }
-            }
-         }
-      }
-   }
-}
-
-#endif  // USE_DAEMON
+#endif // USE_DAEMON

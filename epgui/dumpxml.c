@@ -389,9 +389,9 @@ static void EpgDumpXml_WriteProgramme( EPGDB_CONTEXT * pDbContext, const AI_BLOC
          fprintf(fp, "  <code-time system=\"vps\" start=\"%s\" />\n", tmp_str);
       }
 
-      fprintf(fp, "  <programme id=\"C%04X.B%04X.S%d\"%s>\n",
+      fprintf(fp, "  <programme id=\"C%04X.S%d\"%s>\n",
                   AI_GET_NET_CNI_N(pAiBlock, pPiBlock->netwop_no),
-                  pPiBlock->block_no, (int)pPiBlock->start_time,
+                  (int)pPiBlock->start_time,
                   ((pPiBlock->feature_flags & PI_FEATURE_REPEAT) ? " newness=\"repeat\"" : ""));
    }
 
@@ -493,13 +493,6 @@ static void EpgDumpXml_WriteProgramme( EPGDB_CONTEXT * pDbContext, const AI_BLOC
    }
    else
    {
-      // sorting criteria
-      for (idx=0; idx < pPiBlock->no_sortcrit; idx++)
-      {
-         fprintf(fp, "\t<category system=\"nextview/sorting_criterion\" code=\"%d\"></category>\n",
-                     pPiBlock->sortcrits[idx]);
-      }
-
       if ((pPiBlock->feature_flags & (PI_FEATURE_PAL_PLUS | PI_FEATURE_FMT_WIDE)) != 0)
       {
          fprintf(fp, "\t<video>\n");
@@ -568,7 +561,7 @@ void EpgDumpXml_Standalone( EPGDB_CONTEXT * pDbContext, FILTER_CONTEXT * fc,
          XmltvCni_InitMapCni2Ids(&xmlIdMap, AI_GET_SERVICENAME(pAiBlock));
 #endif
          // get "OSD information" with service name and message
-         pOiBlock = EpgDbGetOi(pDbContext, 0);
+         pOiBlock = EpgDbGetOi(pDbContext);
 
          // header with source info
          EpgDumpXml_WriteHeader(pDbContext, pAiBlock, pOiBlock, fp, dumpMode);

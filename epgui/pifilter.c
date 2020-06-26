@@ -117,52 +117,6 @@ static int SelectThemes( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *
 }
 
 // ----------------------------------------------------------------------------
-// Callback for sorting criteria
-//
-static int SelectSortCrits( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
-{  
-   const char * const pUsage = "Usage: C_SelectSortCrits <class 1..8> <list>";
-   Tcl_Obj **pSortCritArgv;
-   uchar usedClasses;
-   int class, sortcrit, sortcritCount, idx;
-   int result; 
-   
-   if ( (objc != 3)  || Tcl_GetIntFromObj(interp, objv[1], &class) ||
-        (class == 0) || ((uint)class > THEME_CLASS_COUNT) )
-   {  // illegal parameter count, format or value
-      Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
-      result = TCL_ERROR; 
-   }  
-   else
-   {
-      result = Tcl_ListObjGetElements(interp, objv[2], &sortcritCount, &pSortCritArgv);
-      if (result == TCL_OK)
-      {
-         class = 1 << (class - 1);
-         usedClasses = EpgDbFilterInitSortCrit(pPiFilterContext, class);
-
-         for (idx=0; idx < sortcritCount; idx++)
-         {
-            result = Tcl_GetIntFromObj(interp, pSortCritArgv[idx], &sortcrit);
-            if (result == TCL_OK)
-            {
-               EpgDbFilterSetSortCrit(pPiFilterContext, sortcrit, sortcrit, class);
-            }
-            else
-               break;
-         }
-
-         if ((sortcritCount > 0) || usedClasses)
-            EpgDbFilterEnable(pPiFilterContext, FILTER_SORTCRIT);
-         else
-            EpgDbFilterDisable(pPiFilterContext, FILTER_SORTCRIT);
-      }
-   }
-
-   return result;
-}
-
-// ----------------------------------------------------------------------------
 // callback for series checkbuttons
 //
 static int SelectSeries( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
@@ -647,10 +601,10 @@ static int PiFilter_Reset( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj
    uint mask;
    int  result; 
 
-   static CONST84 char * pKeywords[] = {"all", "netwops", "themes", "sortcrits",
+   static CONST84 char * pKeywords[] = {"all", "netwops", "themes",
       "series", "substr", "progidx", "timsel", "dursel", "parental", "editorial",
       "features", "languages", "subtitles", "vps_pdc", (char *) NULL};
-   enum reset_keys { FE_ALL, FE_NETWOPS, FE_THEMES, FE_SORTCRITS,
+   enum reset_keys { FE_ALL, FE_NETWOPS, FE_THEMES,
       FE_SERIES, FE_SUBSTR, FE_PROGIDX, FE_TIMSEL, FE_DURSEL, FE_PARENTAL, FE_EDITORIAL,
       FE_FEATURES, FE_LANGUAGES, FE_SUBTITLES, FE_VPS_PDC};
 
@@ -674,7 +628,6 @@ static int PiFilter_Reset( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj
                   case FE_ALL:        mask |= FILTER_ALL & ~FILTER_PERM; break;
                   case FE_NETWOPS:    mask |= FILTER_NETWOP; break;
                   case FE_THEMES:     mask |= FILTER_THEMES; break;
-                  case FE_SORTCRITS:  mask |= FILTER_SORTCRIT; break;
                   case FE_SERIES:     mask |= FILTER_SERIES; break;
                   case FE_SUBSTR:     mask |= FILTER_SUBSTR; break;
                   case FE_PROGIDX:    mask |= FILTER_PROGIDX; break;
@@ -712,17 +665,17 @@ static int PiFilter_Invert( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Ob
    const char * const pUsage = "Usage: C_InvertFilter <keyword-list>";
    const char * pThisKey;
    Tcl_Obj   ** pKeyList;
-   uchar themeClass, sortCritClass;
+   uchar themeClass;
    uint  mask, class;
    bool  globalInvert;
    int   filtIndex;
    int   idx, keywordCount;
    int   result;
 
-   static CONST84 char * pKeywords[] = {"all", "netwops", "themes", "sortcrits",
+   static CONST84 char * pKeywords[] = {"all", "netwops", "themes",
       "series", "substr", "progidx", "timsel", "dursel", "parental", "editorial",
       "features", "languages", "subtitles", "vps_pdc", "custom", (char *) NULL};
-   enum reset_keys { FE_ALL, FE_NETWOPS, FE_THEMES, FE_SORTCRITS,
+   enum reset_keys { FE_ALL, FE_NETWOPS, FE_THEMES,
       FE_SERIES, FE_SUBSTR, FE_PROGIDX, FE_TIMSEL, FE_DURSEL, FE_PARENTAL, FE_EDITORIAL,
       FE_FEATURES, FE_LANGUAGES, FE_SUBTITLES, FE_VPS_PDC, FE_CUSTOM};
 
@@ -736,7 +689,7 @@ static int PiFilter_Invert( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Ob
       result = Tcl_ListObjGetElements(interp, objv[1], &keywordCount, &pKeyList);
       if (result == TCL_OK)
       {
-         themeClass = sortCritClass = 0;
+         themeClass = 0;
          mask = 0;
          globalInvert = FALSE;
 
@@ -750,12 +703,6 @@ static int PiFilter_Invert( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Ob
                   ifdebug1((class == 0) || (class > 8), "PiFilter-Invert: illegal theme class %d", class);
                   mask          |= FILTER_THEMES;
                   themeClass    |= (1 << (class - 1));
-               }
-               else if (sscanf(pThisKey, "sortcrit_class%u", &class) == 1)
-               {
-                  ifdebug1((class == 0) || (class > 8), "PiFilter-Invert: illegal sortcrit class %d", class);
-                  mask          |= FILTER_SORTCRIT;
-                  sortCritClass |= (1 << (class - 1));
                }
                else if (Tcl_GetIndexFromObj(interp, pKeyList[idx], pKeywords, "keyword", TCL_EXACT, &filtIndex) == TCL_OK)
                {
@@ -777,7 +724,6 @@ static int PiFilter_Invert( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Ob
                      case FE_CUSTOM:     mask |= FILTER_CUSTOM; break;
 
                      case FE_THEMES:
-                     case FE_SORTCRITS:
                         debug1("PiFilter-Invert: illegal key: %s", pThisKey);
                         break;
                      default:
@@ -790,7 +736,7 @@ static int PiFilter_Invert( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Ob
             }
          }
 
-         EpgDbFilterInvert(pPiFilterContext, mask, themeClass, sortCritClass);
+         EpgDbFilterInvert(pPiFilterContext, mask, themeClass);
 
          if (globalInvert)
             EpgDbFilterEnable(pPiFilterContext, FILTER_INVERT);
@@ -1020,55 +966,6 @@ static int GetPdcString( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *
       }
       result = TCL_OK; 
    }
-   return result;
-}
-
-// ----------------------------------------------------------------------------
-// Return a list of sorting criterion codes which are used in the database
-//
-static int GetAllUsedSortCrits( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
-{
-   const char * const pUsage = "Usage: C_GetAllUsedSortCrits";
-   const PI_BLOCK * pPiBlock;
-   bool sortCritBuf[256];
-   Tcl_Obj * pResultList;
-   uint  idx;
-   int   result;
-
-   if (objc != 1) 
-   {  // wrong # of args for this TCL cmd -> display error msg
-      Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
-      result = TCL_ERROR; 
-   }  
-   else
-   {
-      memset(sortCritBuf, FALSE, sizeof(sortCritBuf));
-
-      EpgDbLockDatabase(dbc, TRUE);
-      // loop across all PI in the database
-      pPiBlock = EpgDbSearchFirstPi(dbc, NULL);
-      while (pPiBlock != NULL)
-      {
-         for (idx=0; idx < pPiBlock->no_sortcrit; idx++)
-         {
-            sortCritBuf[pPiBlock->sortcrits[idx]] = TRUE;
-         }
-         pPiBlock = EpgDbSearchNextPi(dbc, NULL, pPiBlock);
-      }
-      EpgDbLockDatabase(dbc, FALSE);
-
-      // generate Tcl result list with all found sortcrit indices
-      pResultList = Tcl_NewListObj(0, NULL);
-      for (idx=0; idx < 256; idx++)
-      {
-         if (sortCritBuf[idx])
-            Tcl_ListObjAppendElement(interp, pResultList, Tcl_NewIntObj(idx));
-      }
-      Tcl_SetObjResult(interp, pResultList);
-
-      result = TCL_OK; 
-   }  
-
    return result;
 }
 
@@ -1484,322 +1381,6 @@ static int GetLastPiTime( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj 
 }
 
 // ----------------------------------------------------------------------------
-// Update filter menu state
-//
-static void UpdateFilterContextMenuState( const NI_FILTER_STATE * pNiState )
-{
-   uchar netwop, series;
-   uint index, class, classIdx;
-
-   if (EpgDbFilterIsEnabled(pPiFilterContext, FILTER_NETWOP))
-   {
-      eval_check(interp, "set all {}");
-      for (netwop=0; netwop < MAX_NETWOP_COUNT; netwop++)
-      {
-         if (pPiFilterContext->act.netwopFilterField[netwop])
-         {
-            sprintf(comm, "lappend all %d", netwop);
-            eval_check(interp, comm);
-         }
-      }
-      eval_check(interp, "UpdateNetwopMenuState $all");
-   }
-
-   // handled through pNiState
-   //if (EpgDbFilterIsEnabled(pPiFilterContext, FILTER_TIME_ALL))
-
-   if (EpgDbFilterIsEnabled(pPiFilterContext, FILTER_PAR_RAT))
-   {
-      sprintf(comm, "set parental_rating %d\n", pPiFilterContext->act.parentalRating);
-      eval_check(interp, comm);
-   }
-
-   if (EpgDbFilterIsEnabled(pPiFilterContext, FILTER_EDIT_RAT))
-   {
-      sprintf(comm, "set editorial_rating %d\n", pPiFilterContext->act.editorialRating);
-      eval_check(interp, comm);
-   }
-
-   if (EpgDbFilterIsEnabled(pPiFilterContext, FILTER_PROGIDX))
-   {
-      sprintf(comm, "set progidx_first %d; set progidx_last %d;"
-                    "UpdateProgIdxMenuState\n",
-                    pPiFilterContext->act.firstProgIdx, pPiFilterContext->act.lastProgIdx);
-      eval_check(interp, comm);
-   }
-
-   if (EpgDbFilterIsEnabled(pPiFilterContext, FILTER_FEATURES))
-   {
-      for (index=0; index < pPiFilterContext->act.featureFilterCount; index++)
-      {
-         sprintf(comm, "set feature_class_mask(%d) %d; set feature_class_value(%d) %d\n",
-                       index, pPiFilterContext->act.featureFilterMaskField[index],
-                       index, pPiFilterContext->act.featureFilterFlagField[index]);
-         eval_check(interp, comm);
-      }
-   }
-
-   if ( (EpgDbFilterIsEnabled(pPiFilterContext, FILTER_SERIES)) &&
-        (pPiFilterContext->act.pSeriesFilterMatrix != NULL) )
-   {
-      for (netwop=0; netwop < MAX_NETWOP_COUNT; netwop++)
-      {
-         for (series=0; series < 128; series++)
-         {
-            if ((*pPiFilterContext->act.pSeriesFilterMatrix)[netwop][series])
-            {
-               sprintf(comm, "set series_sel(%d) 1\n", (netwop << 8) | series);
-               eval_check(interp, comm);
-            }
-         }
-      }
-   }
-
-   if (EpgDbFilterIsEnabled(pPiFilterContext, FILTER_THEMES))
-   {
-      for (index=0; index <= 255; index++)
-      {
-         if (pPiFilterContext->act.themeFilterField[index])
-         {
-            for (classIdx=1, class=1; classIdx <= THEME_CLASS_COUNT + 1; classIdx++, class <<= 1)
-            {
-               if (pPiFilterContext->act.themeFilterField[index] & class)
-               {
-                  if (classIdx != 1)
-                     sprintf(comm, "lappend theme_class_sel(%d) %d\n", classIdx, index);
-                  else
-                     sprintf(comm, "set theme_sel(%d) 1\n", index);
-                  eval_check(interp, comm);
-               }
-            }
-         }
-      }
-   }
-
-   if (EpgDbFilterIsEnabled(pPiFilterContext, FILTER_SORTCRIT))
-   {
-      for (index=0; index <= 255; index++)
-      {
-         if (pPiFilterContext->act.sortCritFilterField[index])
-         {
-            for (classIdx=1, class=1; classIdx <= THEME_CLASS_COUNT + 1; classIdx++, class <<= 1)
-            {
-               if (pPiFilterContext->act.sortCritFilterField[index] & class)
-               {
-                  sprintf(comm, "lappend sortcrit_class_sel(%d) %d\n", classIdx, index);
-                  eval_check(interp, comm);
-               }
-            }
-         }
-      }
-      eval_check(interp, "UpdateSortCritListbox");
-   }
-
-   // currently unused by providers -> unsupported by me too
-   //if (EpgDbFilterIsEnabled(pPiFilterContext, FILTER_LANGUAGES))
-   //if (EpgDbFilterIsEnabled(pPiFilterContext, FILTER_SUBTITLES))
-
-   if (pNiState->flags != NI_DATE_NONE)
-   {
-      time_t now  = time(NULL);
-      sint lto    = EpgLtoGet(now);
-      uint nowMoD = ((now + lto) % (60*60*24)) / 60;
-
-      if ((pNiState->flags & NI_DATE_RELDATE) != 0)
-      {
-         sprintf(comm, "set timsel_datemode rel\n"
-                       "set timsel_date %d\n", pNiState->reldate);
-      }
-      else
-         sprintf(comm, "set timsel_datemode ignore\n");
-      eval_check(interp, comm);
-
-      if ((pNiState->flags & NI_DATE_START) == 0)
-         sprintf(comm, "set timsel_start %d\nset timsel_relative 0\n", nowMoD);
-      else if (pNiState->startMoD == 0xffff)
-         sprintf(comm, "set timsel_start %d\nset timsel_relative 1\n", nowMoD);
-      else
-         sprintf(comm, "set timsel_start %d\nset timsel_relative 0\n", pNiState->startMoD);
-      eval_check(interp, comm);
-
-      if ((pNiState->flags & NI_DATE_STOP) == 0)
-         sprintf(comm, "set timsel_stop %d\nset timsel_absstop 1\n", 23*60+59);
-      else
-         sprintf(comm, "set timsel_stop %d\nset timsel_absstop 0\n", pNiState->stopMoD);
-      eval_check(interp, comm);
-
-      eval_check(interp, "set timsel_enabled 1\n"
-                         "TimeFilterExternalChange\n");
-   }
-}
-
-// ----------------------------------------------------------------------------
-// Check if any NI are in the database
-//
-static int IsNavigateMenuEmpty( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
-{
-   const char * const pUsage = "Usage: C_IsNavigateMenuEmpty";
-   bool isEmpty;
-   int  result;
-
-   if (objc != 1)
-   {  // wrong # of args for this TCL cmd -> display error msg
-      Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
-      result = TCL_ERROR; 
-   }  
-   else
-   {
-      EpgDbLockDatabase(dbc, TRUE);
-      isEmpty = (EpgDbGetNi(dbc, 1) == NULL);
-      EpgDbLockDatabase(dbc, FALSE);
-
-      Tcl_SetObjResult(interp, Tcl_NewBooleanObj((int) isEmpty));
-      result = TCL_OK; 
-   }
-
-   return result;
-}
-
-// ----------------------------------------------------------------------------
-// Create navigation menu
-// - the menus are derived from the NI and OI blocks tranmitted by the provider
-// - the menu tree's root is NI block #1; it contains references to other NI blocks
-//   or to OI, which are the tree's leaves
-// - links to NI are translated into menu cascades (i.e. sub menus);
-//   links to OI are translated into menu commands
-// - at the end of the root menu a "Reset" command is appended, which allows to reset all filters
-//
-static int CreateNi( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
-{
-   const char * const pUsage = "Usage: C_CreateNi <ni-block-idx>";
-   const NI_BLOCK *pNiBlock;
-   const EVENT_ATTRIB *pEv;
-   const char *evName;
-   int blockno, i;
-   Tcl_Obj * pResultList;
-   int result;
-
-   if (objc != 2) 
-   {  // wrong # of args for this TCL cmd -> display error msg
-      Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
-      result = TCL_ERROR; 
-   }  
-   else if (Tcl_GetIntFromObj(interp, objv[1], &blockno) != TCL_OK)
-   {
-      result = TCL_ERROR; 
-   }
-   else
-   {
-      pResultList = Tcl_NewListObj(0, NULL);
-      EpgDbLockDatabase(dbc, TRUE);
-      // search the block in the database
-      pNiBlock = EpgDbGetNi(dbc, blockno);
-      if (pNiBlock != NULL)
-      {
-         // get a pointer to the event array in the block compound structure
-         pEv = NI_GET_EVENTS(pNiBlock);
-         // loop across all events in the NI block
-         for (i=0; i < pNiBlock->no_events; i++)
-         {
-            if (pEv[i].next_type == 1) 
-            {  // link to another NI -> insert menu cascade
-               Tcl_ListObjAppendElement(interp, pResultList, Tcl_NewIntObj(pEv[i].next_id));
-            }
-            else
-            {  // link to OI -> insert menu command
-               Tcl_ListObjAppendElement(interp, pResultList, Tcl_NewIntObj(0));
-            }
-
-            // get pointer to descriptive text for this event
-            evName = ((pEv[i].off_evstr != 0) ? NI_GET_EVENT_STR(pNiBlock, &pEv[i]) : "?");
-            Tcl_ListObjAppendElement(interp, pResultList, TranscodeToUtf8(EPG_ENC_NXTVEPG, NULL, evName, NULL));
-         }
-      }
-      else
-      {
-         ifdebug1(blockno != 1, "Create-Ni: blockno=%d not found", blockno);
-      }
-      EpgDbLockDatabase(dbc, FALSE);
-      Tcl_SetObjResult(interp, pResultList);
-      result = TCL_OK; 
-   }
-
-   return result;
-}
-
-// ----------------------------------------------------------------------------
-// Apply navigation menu filter setting
-//
-static int SelectNi( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
-{
-   const char * const pUsage = "Usage: C_SelectNi <menu-path>";
-   const NI_BLOCK *pNiBlock;
-   const EVENT_ATTRIB *pEv;
-   NI_FILTER_STATE niState;
-   const char *pWidget;
-   char *n;
-   int blockno, index, attrib;
-   int result;
-
-   if ((objc != 2) || ((pWidget = Tcl_GetString(objv[1])) == NULL))
-   {  // wrong # of args for this TCL cmd -> display error msg
-      Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
-      result = TCL_ERROR; 
-   }  
-   else
-   {
-      EpgDbLockDatabase(dbc, TRUE);
-      EpgDbFilterInitNi(pPiFilterContext, &niState);
-      dprintf1("Select-Ni: processing NI stack %s\n", pWidget);
-      while (1)
-      {
-         blockno = strtol(pWidget, &n, 10);
-         if (pWidget == n)
-            break;
-
-         assert(*n == 'x');
-         pWidget = n + 1;
-         index = strtol(pWidget, &n, 10);
-         assert(pWidget != n);
-
-         pNiBlock = EpgDbGetNi(dbc, blockno);
-         if ((pNiBlock != NULL) && (index < pNiBlock->no_events))
-         {
-            dprintf2("Select-Ni: apply NI %d #%d\n", blockno, index);
-            pEv = NI_GET_EVENTS(pNiBlock) + index;
-
-            // apply all filters of the selected item
-            for (attrib=0; attrib < pEv->no_attribs; attrib++)
-            {
-               dprintf2("           filter kind=0x%x data=0x%lx\n", pEv->unit[attrib].kind, (long)pEv->unit[attrib].data);
-               EpgDbFilterApplyNi(dbc, pPiFilterContext, &niState, pEv->unit[attrib].kind, pEv->unit[attrib].data);
-            }
-         }
-         else
-            debug3("Select-Ni: invalid blockno=%d or index=%d/%d", blockno, index, ((pNiBlock != NULL) ? pNiBlock->no_events : 0));
-
-         if (*n == 0)
-            break;
-
-         assert(*n == '_');
-         pWidget = n + 1;
-      }
-      // lift filter settings into GUI menu state
-      // (called before applying time-slots since the state is altered in there)
-      UpdateFilterContextMenuState(&niState);
-      // apply time filter settings to filter context
-      EpgDbFilterFinishNi(pPiFilterContext, &niState);
-
-      PiBox_Refresh();
-
-      EpgDbLockDatabase(dbc, FALSE);
-      result = TCL_OK; 
-   }
-
-   return result;
-}
-
-// ----------------------------------------------------------------------------
 // Update network prefilter for restricted air times
 //
 void PiFilter_UpdateAirTime( void )
@@ -2122,13 +1703,6 @@ static int PiFilter_ContextMenuUndoFilter( ClientData ttp, Tcl_Interp *interp, i
             }
          }
 
-         // undo sorting criteria filters
-         if (EpgDbFilterIsEnabled(pPiFilterContext, FILTER_SORTCRIT))
-         {
-            Tcl_ListObjAppendElement(interp, pResultList, Tcl_NewStringObj("Undo sorting criteria filter", -1));
-            Tcl_ListObjAppendElement(interp, pResultList, Tcl_NewStringObj("for {set idx 1} {$idx <= $theme_class_count} {incr idx} {C_SelectSortCrits $idx {}}; ResetSortCrits; C_PiBox_Refresh; CheckShortcutDeselection", -1));
-         }
-
          // undo global invert
          if (EpgDbFilterIsEnabled(pPiFilterContext, FILTER_INVERT))
          {
@@ -2404,7 +1978,6 @@ void PiFilter_Create( void )
    if (Tcl_GetCommandInfo(interp, "C_SelectThemes", &cmdInfo) == 0)
    {
       Tcl_CreateObjCommand(interp, "C_SelectThemes", SelectThemes, (ClientData) NULL, NULL);
-      Tcl_CreateObjCommand(interp, "C_SelectSortCrits", SelectSortCrits, (ClientData) NULL, NULL);
       Tcl_CreateObjCommand(interp, "C_SelectSeries", SelectSeries, (ClientData) NULL, NULL);
       Tcl_CreateObjCommand(interp, "C_SelectNetwops", SelectNetwops, (ClientData) NULL, NULL);
       Tcl_CreateObjCommand(interp, "C_SelectFeatures", SelectFeatures, (ClientData) NULL, NULL);
@@ -2424,15 +1997,11 @@ void PiFilter_Create( void )
       Tcl_CreateObjCommand(interp, "C_PiFilter_SelectAirTimes", PiFilter_SelectAirTimes, (ClientData) NULL, NULL);
 
       Tcl_CreateObjCommand(interp, "C_GetPdcString", GetPdcString, (ClientData) NULL, NULL);
-      Tcl_CreateObjCommand(interp, "C_GetAllUsedSortCrits", GetAllUsedSortCrits, (ClientData) NULL, NULL);
       Tcl_CreateObjCommand(interp, "C_GetNetwopsWithSeries", GetNetwopsWithSeries, (ClientData) NULL, NULL);
       Tcl_CreateObjCommand(interp, "C_GetNetwopSeriesList", GetNetwopSeriesList, (ClientData) NULL, NULL);
       Tcl_CreateObjCommand(interp, "C_GetSeriesByLetter", GetSeriesByLetter, (ClientData) NULL, NULL);
       Tcl_CreateObjCommand(interp, "C_GetSeriesTitles", GetSeriesTitles, (ClientData) NULL, NULL);
       Tcl_CreateObjCommand(interp, "C_GetLastPiTime", GetLastPiTime, (ClientData) NULL, NULL);
-      Tcl_CreateObjCommand(interp, "C_IsNavigateMenuEmpty", IsNavigateMenuEmpty, (ClientData) NULL, NULL);
-      Tcl_CreateObjCommand(interp, "C_CreateNi", CreateNi, (ClientData) NULL, NULL);
-      Tcl_CreateObjCommand(interp, "C_SelectNi", SelectNi, (ClientData) NULL, NULL);
 
       Tcl_CreateObjCommand(interp, "C_UpdateNetwopList", UpdateNetwopList, (ClientData) NULL, NULL);
       Tcl_CreateObjCommand(interp, "C_GetNetwopFilterList", GetNetwopFilterList, (ClientData) NULL, NULL);

@@ -42,7 +42,6 @@
 #include "epgdb/epgblock.h"
 #include "epgdb/epgdbfil.h"
 #include "epgdb/epgdbif.h"
-#include "epgdb/epgdbsav.h"
 #include "epgdb/epgnetio.h"
 #include "epgvbi/btdrv.h"
 #include "epgvbi/winshmsrv.h"
@@ -67,10 +66,6 @@ void UiControlMsg_NewProvFreq( uint cni, uint freq )
       UpdateRcFile(TRUE);
    }
 }
-uint UiControlMsg_QueryProvFreq( uint cni )
-{
-   return RcFile_GetProvFreqForCni(cni);
-}
 void UiControlMsg_ReloadError( uint cni, EPGDB_RELOAD_RESULT dberr, CONTEXT_RELOAD_ERR_HAND errHand, bool isNewDb )
 {
    char msgBuf[100];
@@ -92,13 +87,6 @@ void UiControlMsg_ReloadError( uint cni, EPGDB_RELOAD_RESULT dberr, CONTEXT_RELO
       }
    }
 }
-void UiControlMsg_MissingTunerFreq( uint cni )
-{
-   char msgBuf[100];
-
-   sprintf(msgBuf, "cannot tune channel for provider 0x%04X: frequency unknown", cni);
-   EpgNetIo_Logger(LOG_NOTICE, -1, 0, msgBuf, NULL);
-}
 void UiControlMsg_NetAcqError( void )
 {
    // cannot occur in daemon mode (client lost connection to daemon)
@@ -110,11 +98,6 @@ void UiControlMsg_AcqPassive( void )
 void UiControlMsg_AcqEvent( ACQ_EVENT acqEvent )
 {
    // no GUI - nothing to do here
-}
-bool UiControlMsg_AcqQueueOverflow( bool prepare )
-{
-   // unused (also in GUI)
-   return FALSE;
 }
 
 // ---------------------------------------------------------------------------
@@ -186,11 +169,6 @@ int main( int argc, char *argv[] )
    }
    #endif
 
-   // set up the directory for the databases
-   if (EpgDbSavSetupDir(mainOpts.dbdir) == FALSE)
-   {  // failed to create dir: message was already issued, so just exit
-      exit(-1);
-   }
    // scan the database directory for provider databases
    EpgContextCtl_Init();
 
@@ -219,11 +197,8 @@ int main( int argc, char *argv[] )
    }
    else if (mainOpts.optDaemonMode == EPG_CLOCK_CTRL)
    {
-      Daemon_SystemClockCmd(mainOpts.optDumpSubMode, mainOpts.startUiCni);
-   }
-   else if (mainOpts.optDaemonMode == EPG_CL_PROV_SCAN)
-   {
-      Daemon_ProvScanStart();
+      // TODO pass channel name instead of CNI
+      Daemon_SystemClockCmd(mainOpts.optDumpSubMode, 0);
    }
    else if ( IS_DUMP_MODE(mainOpts) )
    {

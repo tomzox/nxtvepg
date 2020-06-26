@@ -42,9 +42,6 @@ typedef enum
    SCAN_STATE_WAIT_SIGNAL,
    SCAN_STATE_WAIT_ANY,
    SCAN_STATE_WAIT_NI,
-   SCAN_STATE_WAIT_DATA,
-   SCAN_STATE_WAIT_NI_OR_EPG,
-   SCAN_STATE_WAIT_EPG,
    SCAN_STATE_DONE
 } EPGSCAN_STATE;
 
@@ -55,10 +52,10 @@ typedef void (EPGSCAN_DELCB) ( uint cni );
 // ---------------------------------------------------------------------------
 // Interface to main control module and user interface
 //
-EPGSCAN_START_RESULT EpgScan_Start( int inputSource, bool doSlow, bool useXawtv, bool doRefresh,
-                                    uint *cniTab, char * chnNames, EPGACQ_TUNER_PAR *freqTab,
+EPGSCAN_START_RESULT EpgScan_Start( int inputSource, bool doSlow, bool useXawtv,
+                                    char * chnNames, EPGACQ_TUNER_PAR *freqTab,
                                     uint freqCount, uint * pRescheduleMs,
-                                    EPGSCAN_MSGCB * pMsgCallback, EPGSCAN_DELCB * pProvDelCallback  );
+                                    EPGSCAN_MSGCB * pMsgCallback );
 uint EpgScan_EvHandler( void );
 void EpgScan_Stop( void );
 void EpgScan_SetSpeed( bool doFast );

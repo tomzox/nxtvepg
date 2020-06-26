@@ -693,8 +693,6 @@ void PiDescription_AppendFeatureList( const PI_BLOCK *pPiBlock, char * outstr )
       strcat(outstr, "wide, ");
    if (pPiBlock->feature_flags & PI_FEATURE_PAL_PLUS)
       strcat(outstr, "PAL+, ");
-   if (pPiBlock->feature_flags & PI_FEATURE_DIGITAL)
-      strcat(outstr, "digital, ");
    if (pPiBlock->feature_flags & PI_FEATURE_ENCRYPTED)
       strcat(outstr, "encrypted, ");
    if (pPiBlock->feature_flags & PI_FEATURE_LIVE)

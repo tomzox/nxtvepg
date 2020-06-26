@@ -49,7 +49,6 @@
 #include "epgdb/epgblock.h"
 #include "epgdb/epgdbfil.h"
 #include "epgdb/epgdbif.h"
-#include "epgdb/epgdbsav.h"
 #include "epgctl/epgctxctl.h"
 #include "epgctl/epgacqctl.h"
 #include "epgctl/epgversion.h"
@@ -166,7 +165,6 @@ static void Usage( const char *argv0, const char *argvn, const char * reason )
                    "       -outfile <path>     \t: target file for export and other output\n"
                    "       -dump xml|html|pi|...\t: export database in various formats\n"
                    "       -epgquery <string>  \t: apply given filter command to export\n"
-                   "       -provider <cni>     \t: network id of EPG provider (hex)\n"
                    "       -card <digit>       \t: index of TV card for acq (starting at 0)\n"
                    ;
 
@@ -184,8 +182,7 @@ static void Usage( const char *argv0, const char *argvn, const char * reason )
                    "       -acqonce <phase>    \t: stop acquisition after the given stage\n"
                    "       -nodetach           \t: daemon remains connected to tty\n"
                    #endif
-                   "       -clock set|print    \t: set system clock from teletext clock\n"
-                   "       -provscan <country> \t: run stand-alone EPG provider scan\n";
+                   "       -clock set|print    \t: set system clock from teletext clock\n";
 
 #ifndef WIN32
    if (mainOpts.daemonOnly)
@@ -337,7 +334,11 @@ static void SetWorkingDirectoryFromExe( const char *argv0 )
    len = strlen(argv0);
    while (--len >= 0)
    {
-      if (argv0[len] == PATH_SEPARATOR)
+#ifdef WIN32
+      if (argv0[len] == '\\')
+#else
+      if (argv0[len] == '/')
+#endif
       {
          pDirPath = xstrdup(argv0);
          pDirPath[len] = 0;
@@ -452,9 +453,7 @@ static bool CmdLine_GetDumpMode( char * argv[], int argIdx )
 static void CmdLine_Parse( int argc, char * argv[] )
 {
    int argIdx = 1;
-#ifdef USE_XMLTV_IMPORT
    uint errCode;
-#endif
 
    mainOpts.pOptArgv0 = argv[0];
 
@@ -610,34 +609,6 @@ static void CmdLine_Parse( int argc, char * argv[] )
             else
                MainOptionError(argv[0], argv[argIdx], "missing card index after");
          }
-         else if ( !strcmp(argv[argIdx], "-provider") ||
-                   !strcmp(argv[argIdx], "-prov") )
-         {
-            if (argIdx + 1 < argc)
-            {  // read hexadecimal CNI of selected provider
-               if (mainOpts.startUiCni != 0)
-               {
-                  MainOptionError(argv[0], argv[argIdx], "this option can be used only once");
-               }
-               if (strcmp(argv[argIdx + 1], "merged") == 0)
-               {
-                  mainOpts.startUiCni = MERGED_PROV_CNI;
-               }
-               else
-               {
-                  char *pe;
-                  mainOpts.startUiCni = strtol(argv[argIdx + 1], &pe, 16);
-                  if (pe != (argv[argIdx + 1] + strlen(argv[argIdx + 1])))
-                     MainOptionError(argv[0], argv[argIdx+1], "invalid provider CNI (must be hexadecimal, e.g. 0x0d94 or d94, or 'merged')");
-                  if (IS_NXTV_CNI(mainOpts.startUiCni) == FALSE)
-                     MainOptionError(argv[0], argv[argIdx+1], "provider CNI is outside of allowed range 0001-FFFF");
-
-               }
-               argIdx += 2;
-            }
-            else
-               MainOptionError(argv[0], argv[argIdx], "missing provider cni after");
-         }
          else if (!strcmp(argv[argIdx], "-clock"))
          {  // extract current time from teletext
             if (argIdx + 1 < argc)
@@ -649,25 +620,6 @@ static void CmdLine_Parse( int argc, char * argv[] )
                   mainOpts.optDumpSubMode = CLOCK_CTRL_PRINT;
                else
                   MainOptionError(argv[0], argv[argIdx + 1], "illegal mode keyword for -clock");
-               argIdx += 2;
-            }
-            else
-               MainOptionError(argv[0], argv[argIdx], "missing mode keyword after");
-         }
-         else if (!strcmp(argv[argIdx], "-provscan"))
-         {  // extract current time from teletext
-            if (argIdx + 1 < argc)
-            {
-               mainOpts.optDaemonMode = EPG_CL_PROV_SCAN;
-               if ( (strcasecmp("de", argv[argIdx + 1]) == 0) ||
-                    (strcasecmp("ch", argv[argIdx + 1]) == 0) ||
-                    (strcasecmp("at", argv[argIdx + 1]) == 0) ||
-                    (strcasecmp("be", argv[argIdx + 1]) == 0) )
-                  mainOpts.optDumpSubMode = EPG_CLPROV_SCAN_EU;
-               else if (strcasecmp("fr", argv[argIdx + 1]) == 0)
-                  mainOpts.optDumpSubMode = EPG_CLPROV_SCAN_FR;
-               else
-                  MainOptionError(argv[0], argv[argIdx + 1], "unknwon country code for -provscan");
                argIdx += 2;
             }
             else
@@ -747,17 +699,7 @@ static void CmdLine_Parse( int argc, char * argv[] )
       }
       else if (argIdx + 1 == argc)
       {  // database file argument -> determine dbdir and provider from path
-         if ( EpgDbDumpCheckFileHeader(argv[argIdx]) )
-         {
-            if (EpgDbDumpGetDirAndCniFromArg(argv[argIdx], &mainOpts.dbdir, &mainOpts.startUiCni) == FALSE)
-            {
-               MainOptionError(argv[0], argv[argIdx],
-                                        "argument refers to file with nxtvepg database, "
-                                        "but its filename doesn't have the expecteg format");
-            }
-         }
-#ifdef USE_XMLTV_IMPORT
-         else if ( Xmltv_CheckHeader(argv[argIdx], &errCode) )
+         if ( Xmltv_CheckHeader(argv[argIdx], &errCode) )
          {
             mainOpts.pXmlDatabase = argv[argIdx];
          }
@@ -765,10 +707,9 @@ static void CmdLine_Parse( int argc, char * argv[] )
          {
             MainOptionError(argv[0], argv[argIdx], Xmltv_TranslateErrorCode(errCode));
          }
-#endif
          else
          {
-            MainOptionError(argv[0], argv[argIdx], "unrecognized type of file");
+            MainOptionError(argv[0], argv[argIdx], "not an XML file");
          }
          argIdx += 1;
       }
@@ -803,17 +744,10 @@ static void CmdLine_Parse( int argc, char * argv[] )
          MainOptionError(argv[0], "-acqonce", "Only meant for -daemon mode");
    }
 
-   if ((mainOpts.startUiCni != 0) && mainOpts.optAcqPassive)
-      MainOptionError(argv[0], "-provider", "Useless together with -acqpassive in daemon mode");
-   if ( IS_DUMP_MODE(mainOpts) &&
-        (mainOpts.startUiCni == 0) && (mainOpts.pXmlDatabase == NULL) )
-      MainOptionError(argv[0], "-dump", "Must also specify -provider");
+   if ( IS_DUMP_MODE(mainOpts) && (mainOpts.pXmlDatabase == NULL) )
+      MainOptionError(argv[0], "-dump", "Must also specify a database file to load");
    if ( !IS_DUMP_MODE(mainOpts) && (*mainOpts.optDumpFilter != NULL) )
       MainOptionError(argv[0], "-epgquery", "only useful together with -dump");
-#ifdef USE_XMLTV_IMPORT
-   if ((mainOpts.pXmlDatabase != NULL) && (mainOpts.startUiCni != 0))
-      MainOptionError(argv[0], "-prov", "Cannot be used together with XMLTV database");
-#endif
 }
 
 // ---------------------------------------------------------------------------
@@ -859,7 +793,6 @@ static void CmdLine_SetDefaults( bool daemonOnly )
    mainOpts.optAcqOnce = ACQMODE_PHASE_COUNT;
    mainOpts.optAcqPassive = FALSE;
    mainOpts.startIconified = FALSE;
-   mainOpts.startUiCni = 0;
    mainOpts.pOptArgv0 = NULL;
    mainOpts.optGuiPipe = -1;
 
@@ -888,12 +821,8 @@ uint CmdLine_GetStartProviderCni( void )
 {
    uint cni;
 
-   if (mainOpts.startUiCni != 0)
-      cni = mainOpts.startUiCni;
-#ifdef USE_XMLTV_IMPORT
-   else if (mainOpts.pXmlDatabase != NULL)
+   if (mainOpts.pXmlDatabase != NULL)
       cni = XmltvCni_MapProvider(mainOpts.pXmlDatabase);
-#endif
    else
       cni = 0;
 

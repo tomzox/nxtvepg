@@ -42,7 +42,6 @@
 #include "epgdb/epgblock.h"
 #include "epgdb/epgdbfil.h"
 #include "epgdb/epgdbif.h"
-#include "epgdb/epgtscqueue.h"
 #include "epgdb/epgdbmerge.h"
 #include "epgctl/epgacqctl.h"
 #include "epgui/pdc_themes.h"
@@ -57,7 +56,6 @@
 #include "epgui/uidump.h"
 #include "epgui/dumptext.h"
 #include "epgui/dumphtml.h"
-#include "epgui/dumpraw.h"
 #include "epgui/dumpxml.h"
 #include "epgtcl/dlg_dump.h"
 
@@ -232,6 +230,7 @@ static int EpgDump_Text( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *
    return result;
 }
 
+#if 0  // unused code
 // ----------------------------------------------------------------------------
 // Helper func: read boolean from global Tcl var
 //
@@ -258,98 +257,7 @@ static bool EpgDump_ReadTclBool( Tcl_Interp *interp,
    }
    return (bool) value;
 }
-
-// ----------------------------------------------------------------------------
-// Dump the complete database (invoked via GUI)
-//
-static int EpgDump_RawDatabase( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
-{
-   const char * const pUsage = "Usage: C_DumpRawDatabase <file-name>";
-   const char * pFileName;
-   Tcl_DString ds;
-   FILE *fp;
-   bool  do_pi, do_xi, do_ai, do_ni;
-   bool  do_oi, do_mi, do_li, do_ti;
-   int result;
-
-   if (objc != 1+1)
-   {  // parameter count is invalid
-      Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
-      result = TCL_ERROR;
-   }
-   else if ( (pFileName = Tcl_GetString(objv[1])) == NULL )
-   {  // internal error: can not get filename string
-      Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
-      result = TCL_ERROR;
-   }
-   else
-   {
-      if (Tcl_GetCharLength(objv[1]) > 0)
-      {
-         pFileName = Tcl_UtfToExternalDString(NULL, pFileName, -1, &ds);
-         fp = fopen(pFileName, "w");
-         if (fp == NULL)
-         {  // access, create or truncate failed -> inform the user
-            sprintf(comm, "tk_messageBox -type ok -icon error -parent .dumpdb -message \"Failed to open file '%s' for writing: %s\"",
-                          Tcl_GetString(objv[1]), strerror(errno));
-            eval_check(interp, comm);
-            Tcl_ResetResult(interp);
-         }
-         Tcl_DStringFree(&ds);
-      }
-      else
-         fp = stdout;
-
-      if (fp != NULL)
-      {
-         do_pi = EpgDump_ReadTclBool(interp, "dumpdb_pi", 1);
-         do_xi = EpgDump_ReadTclBool(interp, "dumpdb_xi", 1);
-         do_ai = EpgDump_ReadTclBool(interp, "dumpdb_ai", 1);
-         do_ni = EpgDump_ReadTclBool(interp, "dumpdb_ni", 1);
-         do_oi = EpgDump_ReadTclBool(interp, "dumpdb_oi", 1);
-         do_mi = EpgDump_ReadTclBool(interp, "dumpdb_mi", 1);
-         do_li = EpgDump_ReadTclBool(interp, "dumpdb_li", 1);
-         do_ti = EpgDump_ReadTclBool(interp, "dumpdb_ti", 1);
-
-         EpgDumpRaw_Database(pUiDbContext, NULL, fp,
-                             do_pi, do_xi, do_ai, do_ni,
-                             do_oi, do_mi, do_li, do_ti);
-
-         if (fp != stdout)
-            fclose(fp);
-      }
-      result = TCL_OK;
-   }
-
-   return result;
-}
-
-// ----------------------------------------------------------------------------
-// Toggle dump of incoming PI
-//
-static int EpgDump_RawStream( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
-{
-   const char * const pUsage = "Usage: C_ToggleDumpStream <boolean>";
-   int value;
-   int result;
-
-   if (objc != 2)
-   {  // parameter count is invalid
-      Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
-      result = TCL_ERROR;
-   }
-   else if (Tcl_GetBooleanFromObj(interp, objv[1], &value) != TCL_OK)
-   {  // string parameter is not a decimal integer
-      result = TCL_ERROR;
-   }
-   else
-   {
-      EpgDumpRaw_Toggle();
-      result = TCL_OK;
-   }
-
-   return result;
-}
+#endif
 
 // ----------------------------------------------------------------------------
 // Show info about the currently selected item in pop-up window
@@ -359,9 +267,7 @@ static int EpgDump_GetRawPi( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_O
 {
    const char * const pUsage = "Usage: C_Dump_GetRawPi";
    const AI_BLOCK * pAiBlock;
-   const AI_NETWOP *pNetwop;
    const PI_BLOCK * pPiBlock;
-   const DESCRIPTOR *pDesc;
    const char * pCfNetname;
    const char * pThemeStr;
    const char * pGeneralStr;
@@ -392,8 +298,6 @@ static int EpgDump_GetRawPi( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_O
       pPiBlock = PiBox_GetSelectedPi();
       if ((pAiBlock != NULL) && (pPiBlock != NULL))
       {
-         pNetwop = AI_GET_NETWOP_N(pAiBlock, pPiBlock->netwop_no);
-
          // first two elements in result list are netwop and start time (as unique key)
          Tcl_ListObjAppendElement(interp, pResultList, Tcl_NewIntObj(pPiBlock->netwop_no));
          Tcl_ListObjAppendElement(interp, pResultList, Tcl_NewIntObj(pPiBlock->start_time));
@@ -404,9 +308,6 @@ static int EpgDump_GetRawPi( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_O
          // following elements are the contents
          pCfNetname = EpgSetup_GetNetName(pAiBlock, pPiBlock->netwop_no, &isFromAi);
          APPEND_ENC(EPG_ENC_NETNAME(isFromAi), "Network: \t", pCfNetname, "\n");
-
-         len = sprintf(comm, "BlockNo:\t0x%04X in %04X-%04X-%04X\n", pPiBlock->block_no, pNetwop->startNo, pNetwop->stopNo, pNetwop->stopNoSwo);
-         APPEND_ASCII(comm, len);
 
          start_time = pPiBlock->start_time;
          strftime(start_str, sizeof(start_str), "%a %d.%m %H:%M", localtime(&start_time));
@@ -475,28 +376,6 @@ static int EpgDump_GetRawPi( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_O
             len = sprintf(comm, "Theme:\t0x%02X ", pPiBlock->themes[index]);
             APPEND_ENC2(EPG_ENC_NXTVEPG, comm, pThemeStr, pGeneralStr, "\n");
          }
-
-         for (index=0; index < pPiBlock->no_sortcrit; index++)
-         {
-            len = sprintf(comm, "Sorting Criterion:\t0x%02X\n", pPiBlock->sortcrits[index]);
-            APPEND_ASCII(comm, len);
-         }
-
-         pDesc = PI_GET_DESCRIPTORS(pPiBlock);
-         for (index=0; index < pPiBlock->no_descriptors; index++)
-         {
-            switch (pDesc[index].type)
-            {
-               case LI_DESCR_TYPE:    len = sprintf(comm, "Descriptor:\tlanguage ID %d\n", pDesc[index].id); break;
-               case TI_DESCR_TYPE:    len = sprintf(comm, "Descriptor:\tsubtitle ID %d\n", pDesc[index].id); break;
-               case MERGE_DESCR_TYPE: len = sprintf(comm, "Descriptor:\tmerged from db #%d\n", pDesc[index].id); break;
-               default:               len = sprintf(comm, "Descriptor:\tunknown type=%d, ID=%d\n", pDesc[index].type, pDesc[index].id); break;
-            }
-            APPEND_ASCII(comm, len);
-         }
-
-         len = sprintf(comm, "Acq. stream:\t%d\n", EpgDbGetStream(pPiBlock));
-         APPEND_ASCII(comm, len);
       }
       EpgDbLockDatabase(pUiDbContext, FALSE);
       Tcl_SetObjResult(interp, pResultList);
@@ -536,10 +415,6 @@ void EpgDump_Standalone( EPGDB_CONTEXT * pDbContext, FILE * fp,
          EpgDumpHtml_Standalone(pUiDbContext, fc, stdout, dumpSubMode);
          break;
 
-      case EPG_DUMP_RAW:
-         EpgDumpRaw_Standalone(pUiDbContext, fc, stdout);
-         break;
-
       default:
          fatal1("EpgDump-Standalone: unsupported dump mode %d\n", dumpMode);
          break;
@@ -571,9 +446,6 @@ void EpgDump_Init( void )
 
    Tcl_CreateObjCommand(interp, "C_DumpTabsDatabase", EpgDump_Text, (ClientData) NULL, NULL);
    Tcl_CreateObjCommand(interp, "C_DumpXml", EpgDump_Xml, (ClientData) NULL, NULL);
-
-   Tcl_CreateObjCommand(interp, "C_ToggleDumpStream", EpgDump_RawStream, (ClientData) NULL, NULL);
-   Tcl_CreateObjCommand(interp, "C_DumpRawDatabase", EpgDump_RawDatabase, (ClientData) NULL, NULL);
 
    Tcl_CreateObjCommand(interp, "C_Dump_GetRawPi", EpgDump_GetRawPi, (ClientData) NULL, NULL);
 

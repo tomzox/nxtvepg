@@ -25,8 +25,7 @@
 
 #=CONST= ::tsc_cv_label_x0        2
 #=CONST= ::tsc_cv_label_w        96
-#=CONST= ::tsc_cv_now_x0        100
-#=CONST= ::tsc_cv_stream_x0     140
+#=CONST= ::tsc_cv_stream_x0     100
 
 #=CONST= ::tsc_cv_scale_y0        0
 #=CONST= ::tsc_cv_scale_h        18
@@ -44,7 +43,7 @@
 ## ---------------------------------------------------------------------------
 ## Open or update a timescale popup window
 ##
-proc TimeScale_Open {w cni key isMerged scaleWidth} {
+proc TimeScale_Open {w cni scaleWidth} {
    global default_bg pi_font
    global tsc_tail tsc_id
 
@@ -65,14 +64,8 @@ proc TimeScale_Open {w cni key isMerged scaleWidth} {
    }
 
    if {[string length [info commands $w]] == 0} {
-      if {[string compare $key ui] == 0} {
-         set wtitle "Nextview browser database time scales"
-      } else {
-         set wtitle "Nextview acquisition database time scales"
-      }
-
       toplevel $w
-      wm title $w $wtitle
+      wm title $w "Nextview database time scales"
       wm resizable $w 1 1
       wm group $w .
 
@@ -84,11 +77,11 @@ proc TimeScale_Open {w cni key isMerged scaleWidth} {
       pack   $w.top.qmark -side left -fill y
       bind   $w <Key-F1> {PopupHelp $helpIndex(Statistics) "Timescale popup windows"}
       button $w.top.zoom_in -bitmap bitmap_zoom_in -cursor top_left_arrow -takefocus 0 \
-                                -command [list C_TimeScale_Zoom $key 1]
+                                -command [list C_TimeScale_Zoom 1]
       relief_ridge_v84 $w.top.zoom_in
       pack   $w.top.zoom_in -side left
       button $w.top.zoom_out -bitmap bitmap_zoom_out -cursor top_left_arrow -takefocus 0 \
-                                 -command [list C_TimeScale_Zoom $key -1]
+                                 -command [list C_TimeScale_Zoom -1]
       relief_ridge_v84 $w.top.zoom_out
       pack   $w.top.zoom_out -side left
 
@@ -118,7 +111,7 @@ proc TimeScale_Open {w cni key isMerged scaleWidth} {
       pack $w.middle_sbh -padx 2 -side top -fill x
 
       # create notification callback in case the window is closed
-      bind $w.top <Destroy> [list + C_TimeScale_Toggle $key 0]
+      bind $w.top <Destroy> {C_TimeScale_Toggle 0}
 
    } else {
       # canvas already exists - clear all content
@@ -133,7 +126,7 @@ proc TimeScale_Open {w cni key isMerged scaleWidth} {
    # instead of CNIs to be able to reuse the scales for another provider
    set idx 0
    foreach cni $netsel_ailist {
-      TimeScale_CreateCanvas $w $idx $netnames($cni) $isMerged $scaleWidth $canvasWidth
+      TimeScale_CreateCanvas $w $idx $netnames($cni) $scaleWidth $canvasWidth
       incr idx
    }
 
@@ -145,37 +138,24 @@ proc TimeScale_Open {w cni key isMerged scaleWidth} {
 ## ---------------------------------------------------------------------------
 ## Create or update the n'th timescale
 ##
-proc TimeScale_CreateCanvas {w netwop netwopName isMerged scaleWidth canvasWidth} {
+proc TimeScale_CreateCanvas {w netwop netwopName scaleWidth canvasWidth} {
    global tsc_id default_bg pi_font
 
    set wc $w.middle.cv
 
-   # for merged databases make Now & Next boxes invisible
-   if $isMerged {
-      set now_bg $default_bg
-   } else {
-      set now_bg black
-   }
    set lh [expr [font metrics $pi_font -linespace] + 2]
    set y0 [expr $::tsc_cv_stream_y0 + $lh * $netwop]
    set y1 [expr $y0 + $::tsc_cv_stream_h]
 
    # make sure network label fits into the name column
-   while {([font measure $pi_font $netwopName] + 4 >= $::tsc_cv_now_x0) &&
+   while {([font measure $pi_font $netwopName] + 4 >= $::tsc_cv_stream_x0) &&
           ([string length $netwopName] > 0)} {
       set netwopName [string replace $netwopName end end]
    }
 
    set tsc_id("$w.label.$netwop") [$wc create text $::tsc_cv_label_x0 [expr $y0 + 2] \
                                                -text $netwopName -font $pi_font \
-                                               -anchor w -width [expr $::tsc_cv_now_x0 - 4]]
-
-   # hard-coded $::tsc_cv_now_x0
-   set tsc_id("$w.now.0.$netwop") [$wc create rect 101 $y0 105 $y1 -outline "" -fill $now_bg]
-   set tsc_id("$w.now.1.$netwop") [$wc create rect 108 $y0 112 $y1 -outline "" -fill $now_bg]
-   set tsc_id("$w.now.2.$netwop") [$wc create rect 115 $y0 119 $y1 -outline "" -fill $now_bg]
-   set tsc_id("$w.now.3.$netwop") [$wc create rect 122 $y0 126 $y1 -outline "" -fill $now_bg]
-   set tsc_id("$w.now.4.$netwop") [$wc create rect 129 $y0 133 $y1 -outline "" -fill $now_bg]
+                                               -anchor w -width [expr $::tsc_cv_stream_x0 - 4]]
 
    set tsc_id("$w.bg.$netwop") [$wc create rect $::tsc_cv_stream_x0 $y0 $scaleWidth $y1 \
                                             -outline "" -fill black]
@@ -221,8 +201,10 @@ proc TimeScale_AddRange {w netwop pos1 pos2 color hasShort hasLong isLast} {
 ##   by 10%, i.e. the initial color is white and then fades to the normal
 ##   stream color, i.e. red or blue
 ##
-proc TimeScale_AddTail {w netwop pos1 pos2 stream} {
+proc TimeScale_AddTail {w netwop pos1 pos2} {
    global tsc_tail pi_font
+   #TODO remove stream
+   set stream 0
 
    foreach {tel col} [array get tsc_tail "${w}*"] {
       set id [lindex $tel 1]
@@ -414,7 +396,7 @@ proc TimeScale_DrawDateScale {frame scaleWidth nowoff daybrklist} {
 }
 
 proc TimeScale_ClearDateScale {frame scaleWidth} {
-   foreach id [$frame.middle.cv find overlapping $::tsc_cv_now_x0 0 9999999 $::tsc_cv_scale_h] {
+   foreach id [$frame.middle.cv find overlapping $::tsc_cv_stream_x0 0 9999999 $::tsc_cv_scale_h] {
       $frame.middle.cv delete $id
    }
 
@@ -428,15 +410,6 @@ proc TimeScale_MarkNet {w netwop color} {
    global tsc_id
 
    ${w}.middle.cv itemconfigure $tsc_id("$w.label.$netwop") -fill $color
-}
-
-## ---------------------------------------------------------------------------
-## Fill one of a given network's NOW boxes with the given color
-##
-proc TimeScale_MarkNow {w netwop num color} {
-   global tsc_id
-
-   ${w}.middle.cv itemconfigure $tsc_id("$w.now.$num.$netwop") -fill $color
 }
 
 ## ---------------------------------------------------------------------------
@@ -481,7 +454,7 @@ proc DbStatsWin_Create {wname} {
 ## ---------------------------------------------------------------------------
 ## Paint the pie which reflects the current database percentages
 ##
-proc DbStatsWin_PaintPie {wname val1exp val1cur val1all val1total val2exp val2cur val2all} {
+proc DbStatsWin_PaintPie {wname val1exp val1cur val1all val1total} {
 
    catch [ $wname.browser.pie delete all ]
 

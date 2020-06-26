@@ -112,11 +112,10 @@ SUBDIRS = epgvbi epgdb epgctl epgui epgtcl tvsim dsdrv xmltv epgttx
 
 EPGSRC  = epgvbi/btdrv4win epgvbi/vbidecode epgvbi/zvbidecoder \
           epgvbi/ttxdecode epgvbi/hamming epgvbi/cni_tables epgvbi/tvchan \
-          epgvbi/syserrmsg epgvbi/winshmsrv \
-          epgdb/epgstream epgdb/epgaifrag epgdb/epgdbmerge epgdb/epgdbsav \
+          epgvbi/syserrmsg epgvbi/winshmsrv epgdb/epgdbmerge \
           epgdb/epgdbmgmt epgdb/epgdbif epgdb/epgdbfil epgdb/epgblock \
-          epgdb/epgnetio epgdb/epgqueue epgdb/epgtscqueue epgdb/ttxgrab \
-          epgctl/debug epgctl/epgacqctl epgctl/epgacqnxt epgctl/epgacqttx \
+          epgdb/epgnetio epgdb/epgtscqueue epgdb/ttxgrab \
+          epgctl/debug epgctl/epgacqctl epgctl/epgacqttx \
           epgctl/epgscan epgctl/epgctxctl epgctl/epgctxmerge \
           epgctl/epgacqclnt epgctl/epgacqsrv
 XMLSRC  = xmltv/xml_prolog.tab xmltv/xml_scan.yy xmltv/xml_cdata \
@@ -130,12 +129,12 @@ GUISRC  = epgui/uictrl epgui/pibox epgui/pilistbox epgui/pinetbox \
           epgui/statswin epgui/timescale epgui/pdc_themes epgui/menucmd \
           epgui/epgmain epgui/loadtcl epgui/wintv epgui/wintvcfg \
           epgui/wintvui epgui/epgsetup epgui/cmdline epgui/rcfile \
-          epgui/dumptext epgui/dumpraw epgui/dumphtml epgui/dumpxml \
-          epgui/uidump epgui/epgquery epgui/shellcmd epgui/wmhooks \
+          epgui/dumptext epgui/dumphtml epgui/dumpxml epgui/uidump \
+          epgui/epgquery epgui/shellcmd epgui/wmhooks \
           epgui/daemon
 CLDSRC  = epgui/daemon_main epgui/daemon epgui/epgsetup epgui/cmdline \
           epgui/rcfile epgui/wintvcfg epgui/dumptext epgui/dumpxml \
-          epgui/dumpraw epgui/pidescr epgui/pdc_themes epgui/epgquery
+          epgui/pidescr epgui/pdc_themes epgui/epgquery
 TCLSRC  = epgtcl/mainwin epgtcl/dlg_hwcfg epgtcl/dlg_xawtvcf \
           epgtcl/dlg_ctxmencf epgtcl/dlg_acqmode epgtcl/dlg_netsel \
           epgtcl/dlg_dump epgtcl/dlg_netname epgtcl/dlg_udefcols \

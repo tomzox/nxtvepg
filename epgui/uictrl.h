@@ -22,6 +22,7 @@
 #ifndef __UICTRL_H
 #define __UICTRL_H
 
+#include "epgctl/epgctxctl.h"  // EPGDB_RELOAD_RESULT
 
 // define possible handling of reload errors
 typedef enum
@@ -42,12 +43,8 @@ enum
 typedef enum
 {
    ACQ_EVENT_PROV_CHANGE,
-   ACQ_EVENT_AI_VERSION_CHANGE,
-   ACQ_EVENT_AI_PI_RANGE_CHANGE,
    ACQ_EVENT_STATS_UPDATE,
    ACQ_EVENT_CTL,
-   ACQ_EVENT_PI_ADDED,
-   ACQ_EVENT_PI_MERGED,
    ACQ_EVENT_PI_EXPIRED,
    ACQ_EVENT_NEW_DB,
    ACQ_EVENT_VPS_PDC,
@@ -64,19 +61,14 @@ void UiControl_DisplayErrorMessage( char * pMsg );
 
 // Interface to acquisition control
 void UiControlMsg_AcqEvent( ACQ_EVENT acqEvent );
-bool UiControlMsg_AcqQueueOverflow( bool prepare );
-void UiControlMsg_MissingTunerFreq( uint cni );
 void UiControlMsg_AcqPassive( void );
 void UiControlMsg_NetAcqError( void );
 void UiControlMsg_NewProvFreq( uint cni, uint freq );
-uint UiControlMsg_QueryProvFreq( uint cni );
 void UpdateRcFile( bool immediate );
 void LoadRcFile( void );
 
 // Interface to context control
-#ifdef __EPGDBSAV_H
 void UiControlMsg_ReloadError( uint cni, EPGDB_RELOAD_RESULT dberr, CONTEXT_RELOAD_ERR_HAND errHand, bool isNewDb );
-#endif
 
 void UiControl_Init( void );
 

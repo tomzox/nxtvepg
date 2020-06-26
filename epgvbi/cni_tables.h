@@ -27,6 +27,5 @@ bool CniGetProviderLto( uint cni, sint * pLto );
 uint CniConvertP8301ToVps( uint cni );
 uint CniConvertPdcToVps( uint cni );
 uint CniConvertUnknownToPdc( uint cni );
-bool CniIsKnownProvider( uint cni );
 
 #endif  //__CNI_TABLES_H

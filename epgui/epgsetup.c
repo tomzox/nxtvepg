@@ -39,7 +39,6 @@
 #include "epgdb/epgdbmgmt.h"
 #include "epgdb/epgdbfil.h"
 #include "epgdb/epgdbif.h"
-#include "epgdb/epgtscqueue.h"
 #include "epgdb/epgdbmerge.h"
 #include "epgdb/ttxgrab.h"
 #include "epgctl/epgacqsrv.h"
@@ -769,7 +768,7 @@ void EpgSetup_AcquisitionMode( NETACQ_SET_MODE netAcqSetMode )
          EpgAcqCtl_DescribeAcqState(&acqState);
          if (acqState.isNetAcq)
             doNetAcq = TRUE;
-         else if (acqState.nxtvState == ACQDESCR_DISABLED)
+         else if (acqState.ttxGrabState == ACQDESCR_DISABLED)
             doNetAcq = isNetAcqDefault;
          else
             doNetAcq = FALSE;
@@ -1152,7 +1151,15 @@ void EpgSetup_TtxGrabber( void )
 {
    const RCFILE * pRc = RcFile_Query();
 
-   TtxGrab_SetConfig( pRc->db.piexpire_cutoff, pRc->ttx.keep_ttx_data );
+   if (pRc->ttx.ttx_enable == FALSE)
+   {
+      // TODO inversely enable acq when grabber is enabled
+      EpgAcqCtl_Stop();
+   }
+   else
+   {
+      TtxGrab_SetConfig( pRc->db.piexpire_cutoff, pRc->ttx.keep_ttx_data );
+   }
 }
 #endif // USE_TTX_GRABBER
 

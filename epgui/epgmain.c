@@ -56,7 +56,6 @@
 #include "epgdb/epgdbfil.h"
 #include "epgdb/epgdbif.h"
 #include "epgdb/epgdbmgmt.h"
-#include "epgdb/epgdbsav.h"
 #include "epgdb/epgnetio.h"
 #include "epgctl/epgacqctl.h"
 #include "epgctl/epgscan.h"
@@ -2206,11 +2205,13 @@ int main( int argc, char *argv[] )
    }
    #endif
 
+#if 0 //TODO TTX
    // set up the directory for the databases
    if (EpgDbSavSetupDir(mainOpts.dbdir) == FALSE)
    {  // failed to create dir: message was already issued, so just exit
       exit(-1);
    }
+#endif
    EpgContextCtl_Init();
 
    if ( !IS_DUMP_MODE(mainOpts) && !IS_REMCTL_MODE(mainOpts) )
@@ -2271,10 +2272,6 @@ int main( int argc, char *argv[] )
       else if (mainOpts.optDaemonMode == EPG_CLOCK_CTRL)
       {
          Daemon_SystemClockCmd(mainOpts.optDumpSubMode, CmdLine_GetStartProviderCni());
-      }
-      else if (mainOpts.optDaemonMode == EPG_CL_PROV_SCAN)
-      {
-         Daemon_ProvScanStart();
       }
       else
       {

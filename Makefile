@@ -93,6 +93,7 @@ ACQLIBS += -lpthread
 #DEFS   += -DUSE_UTF8 -DXMLTV_OUTPUT_UTF8
 
 # enable support for importing XMLTV files
+#TODO remove USE_XMLTV_IMPORT
 DEFS   += -DUSE_XMLTV_IMPORT -DXMLTV_CNI_MAP_PATH=\"$(cfgdir)\"
 
 # enable support for teletext EPG grabber (EXPERIMENTAL)
@@ -159,11 +160,10 @@ endif
 SUBDIRS = epgvbi epgdb epgctl epgui epgtcl tvsim xmltv epgttx
 EPGSRC  = epgvbi/btdrv4linux epgvbi/vbidecode epgvbi/zvbidecoder \
           epgvbi/ttxdecode epgvbi/hamming epgvbi/cni_tables epgvbi/tvchan \
-          epgvbi/dvb_demux epgvbi/syserrmsg \
-          epgdb/epgstream epgdb/epgaifrag epgdb/epgdbmerge epgdb/epgdbsav \
+          epgvbi/dvb_demux epgvbi/syserrmsg epgdb/epgdbmerge \
           epgdb/epgdbmgmt epgdb/epgdbif epgdb/epgdbfil epgdb/epgblock \
-          epgdb/epgnetio epgdb/epgqueue epgdb/epgtscqueue epgdb/ttxgrab \
-          epgctl/debug epgctl/epgacqctl epgctl/epgacqnxt epgctl/epgacqttx \
+          epgdb/epgnetio epgdb/epgtscqueue epgdb/ttxgrab \
+          epgctl/debug epgctl/epgacqctl epgctl/epgacqttx \
           epgctl/epgscan epgctl/epgctxctl epgctl/epgctxmerge \
           epgctl/epgacqclnt epgctl/epgacqsrv
 XMLSRC  = xmltv/xml_prolog.tab xmltv/xml_scan.yy xmltv/xml_cdata \
@@ -177,12 +177,12 @@ GUISRC  = epgui/pibox epgui/pilistbox epgui/pinetbox epgui/piremind \
           epgui/statswin epgui/timescale epgui/pdc_themes epgui/menucmd \
           epgui/epgmain epgui/loadtcl epgui/xawtv epgui/wintvcfg \
           epgui/wintvui epgui/epgsetup epgui/cmdline epgui/rcfile \
-          epgui/dumptext epgui/dumpraw epgui/dumphtml epgui/dumpxml \
-          epgui/uidump epgui/epgquery epgui/shellcmd epgui/wmhooks \
-          epgui/xiccc epgui/daemon
+          epgui/dumptext epgui/dumphtml epgui/dumpxml epgui/uidump \
+          epgui/epgquery epgui/shellcmd epgui/wmhooks epgui/xiccc \
+          epgui/daemon
 CLDSRC  = epgui/daemon_main epgui/daemon epgui/epgsetup epgui/cmdline \
           epgui/rcfile epgui/wintvcfg epgui/dumptext epgui/dumpxml \
-          epgui/dumpraw epgui/pidescr epgui/pdc_themes epgui/epgquery
+          epgui/pidescr epgui/pdc_themes epgui/epgquery
 TCLSRC  = epgtcl/mainwin epgtcl/dlg_hwcfg epgtcl/dlg_xawtvcf \
           epgtcl/dlg_ctxmencf epgtcl/dlg_acqmode epgtcl/dlg_netsel \
           epgtcl/dlg_dump epgtcl/dlg_netname epgtcl/dlg_udefcols \

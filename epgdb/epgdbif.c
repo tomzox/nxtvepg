@@ -41,7 +41,6 @@
 #include "epgdb/epgdbfil.h"
 #include "epgdb/epgdbif.h"
 #include "epgdb/epgdbmgmt.h"
-#include "epgdb/epgstream.h"
 
 
 // internal shortcuts
@@ -197,142 +196,21 @@ const AI_BLOCK * EpgDbGetAi( CPDBC dbc )
 }
 
 // ---------------------------------------------------------------------------
-// Look up a generic-type block by number
-// - blocks are sorted by block number, i.e. the search can be aborted
-//   when a block with higher number as the requested is found
-//
-static const EPGDB_BLOCK * EpgDbSearchGenericBlock( CPDBC dbc, BLOCK_TYPE type, uint block_no )
-{
-   const EPGDB_BLOCK * pBlock;
-
-   if ( EpgDbIsLocked(dbc) )
-   {
-      if (type < BLOCK_TYPE_GENERIC_COUNT)
-      {
-         pBlock = dbc->pFirstGenericBlock[type];
-         while ( (pBlock != NULL ) &&
-                 (pBlock->blk.all.block_no <= block_no) )
-         {
-            if (pBlock->blk.all.block_no == block_no)
-            {
-               // found -> return the address
-               return pBlock;
-            }
-            pBlock = pBlock->pNextBlock;
-         }
-         // not found
-      }
-      else
-         fatal1("EpgDb-Search-GenericBlock: illegal type %d", type);
-   }
-   else
-      fatal0("EpgDb-Search-GenericBlock: DB not locked");
-
-   return NULL;
-}
-
-// ---------------------------------------------------------------------------
 // Look up a OI block by number
 //
-const OI_BLOCK * EpgDbGetOi( CPDBC dbc, uint block_no )
+const OI_BLOCK * EpgDbGetOi( CPDBC dbc )
 {
-   const EPGDB_BLOCK * pBlock;
-
-   pBlock = EpgDbSearchGenericBlock(dbc, BLOCK_TYPE_OI, block_no);
-
-   if (pBlock != NULL)
-      return &pBlock->blk.oi;
-   else
-      return NULL;
-}
-
-// ---------------------------------------------------------------------------
-// Look up a NI block by number
-//
-const NI_BLOCK * EpgDbGetNi( CPDBC dbc, uint block_no )
-{
-   const EPGDB_BLOCK * pBlock;
-
-   pBlock = EpgDbSearchGenericBlock(dbc, BLOCK_TYPE_NI, block_no);
-
-   if (pBlock != NULL)
-      return &pBlock->blk.ni;
-   else
-      return NULL;
-}
-
-// ---------------------------------------------------------------------------
-// Look up a MI block by number
-//
-const MI_BLOCK * EpgDbGetMi( CPDBC dbc, uint block_no )
-{
-   const EPGDB_BLOCK * pBlock;
-
-   pBlock = EpgDbSearchGenericBlock(dbc, BLOCK_TYPE_MI, block_no);
-
-   if (pBlock != NULL)
-      return &pBlock->blk.mi;
-   else
-      return NULL;
-}
-
-// ---------------------------------------------------------------------------
-// Look up a LI block by number
-//  - see also description of TI
-//
-const LI_BLOCK * EpgDbGetLi( CPDBC dbc, uint block_no, uchar netwop )
-{
-   const EPGDB_BLOCK * pBlock;
-
-   if (block_no == 0x0000)
-   {  // netwop is used for block sorting
-      pBlock = EpgDbSearchGenericBlock(dbc, BLOCK_TYPE_LI, netwop);
-   }
-   else if (block_no == 0x8000)
-   {  // This-Channel LI block
-      pBlock = EpgDbSearchGenericBlock(dbc, BLOCK_TYPE_LI, 0x8000);
-   }
-   else
+   if ( EpgDbIsLocked(dbc) )
    {
-      fatal1("EpgDb-GetLi: WARNING: unsupported block_no %d requested", block_no);
-      pBlock = NULL;
-   }
-
-   if (pBlock != NULL)
-      return &pBlock->blk.li;
-   else
-      return NULL;
-}
-
-// ---------------------------------------------------------------------------
-// Look up a TI block by number
-// - only block #0 of each netwop and block 0x8000 of this_netwop
-//   are kept in the DB in this version; block_no is abused internally
-//   to reflect the netwop_no - this allows to use the generic search
-//   algorithm.
-//
-const TI_BLOCK * EpgDbGetTi( CPDBC dbc, uint block_no, uchar netwop )
-{
-   const EPGDB_BLOCK * pBlock;
-
-   if (block_no == 0x0000)
-   {  // netwop is used for block sorting
-      pBlock = EpgDbSearchGenericBlock(dbc, BLOCK_TYPE_TI, netwop);
-   }
-   else if (block_no == 0x8000)
-   {  // This-Channel TI block
-      pBlock = EpgDbSearchGenericBlock(dbc, BLOCK_TYPE_TI, 0x8000);
+      if (dbc->pOiBlock != NULL)
+      {
+         return &dbc->pOiBlock->blk.oi;
+      }
    }
    else
-   {
-      fatal1("EpgDb-GetTi: WARNING: unsupported block_no %d requested", block_no);
-      pBlock = NULL;
-   }
+      fatal0("EpgDb-GetOi: DB not locked");
 
-   if (pBlock != NULL)
-      return &pBlock->blk.ti;
-   else
-      return NULL;
+   return NULL;
 }
 
 // ---------------------------------------------------------------------------
@@ -826,7 +704,6 @@ bool EpgDbGetVpsTimestamp( struct tm * pVpsTime, uint pil, time_t startTime )
 uint EpgDbGetProgIdx( CPDBC dbc, const PI_BLOCK * pPiBlock )
 {
    EPGDB_BLOCK * pBlock;
-   ulong blockNo, startNo, firstBlockNo;
    uint  nowIdx;
    uchar netwop;
    time_t now = time(NULL);
@@ -859,34 +736,12 @@ uint EpgDbGetProgIdx( CPDBC dbc, const PI_BLOCK * pPiBlock )
                nowIdx = 1;
             }
 
-            if (!EpgDbContextIsMerged(dbc) && !EpgDbContextIsXmltv(dbc))
-            {
-               startNo = AI_GET_NETWOP_N(&dbc->pAiBlock->blk.ai, netwop)->startNo;
-
-               firstBlockNo = pBlock->blk.pi.block_no;
-               if (firstBlockNo < startNo)
-                  firstBlockNo += 0x10000;
-
-               blockNo = pPiBlock->block_no;
-               if (blockNo < startNo)
-                  blockNo += 0x10000;
-
-               if (blockNo >= firstBlockNo)
-               {
-                  result = blockNo - firstBlockNo + nowIdx;
-               }
-               else
-                  debug4("EpgDb-GetProgIdx: block #%d,net#%d should already have expired; start=%ld,first=%ld", pPiBlock->block_no, netwop, startNo, firstBlockNo);
-            }
-            else
-            {  // non-native database: no block numbers available
-               if (pPiBlock == &pBlock->blk.pi)
-                  result = nowIdx;
-               else if ( (nowIdx == 0) &&
-                         (pBlock->blk.pi.stop_time == pPiBlock->start_time) )
-                  result = 1;
-               // else: neither Now nor Next -> return invalid result code
-            }
+            if (pPiBlock == &pBlock->blk.pi)
+               result = nowIdx;
+            else if ( (nowIdx == 0) &&
+                      (pBlock->blk.pi.stop_time == pPiBlock->start_time) )
+               result = 1;
+            // else: neither Now nor Next -> return invalid result code
          }
          else
             debug1("EpgDb-GetProgIdx: no unexpired blocks in db for netwop %d", netwop);
@@ -898,25 +753,6 @@ uint EpgDbGetProgIdx( CPDBC dbc, const PI_BLOCK * pPiBlock )
       fatal0("EpgDb-GetProgIdx: no AI in db");
 
    return result;
-}
-
-// ---------------------------------------------------------------------------
-// Returns the stream a block was received in
-//
-uchar EpgDbGetStream( const void * pUnion )
-{
-   const EPGDB_BLOCK *pBlock;
-
-   if (pUnion != NULL)
-   {
-      pBlock = (const EPGDB_BLOCK *)((ulong)pUnion - BLK_UNION_OFF);
-
-      return pBlock->stream;
-   }
-   else
-      fatal0("EpgDb-GetStream: illegal NULL ptr param");
-
-   return 0;
 }
 
 // ---------------------------------------------------------------------------
@@ -939,68 +775,6 @@ time_t EpgDbGetPiUpdateTime( const PI_BLOCK * pPiBlock )
 }
 
 // ---------------------------------------------------------------------------
-// Returns the stream a PI block belongs to according to the current AI
-// - since the AI allocation may have changed since receiving the block,
-//   the result is not neccessarily the same as the stream the block was
-//   received in
-//
-uchar EpgDbGetStreamByBlockNo( CPDBC dbc, const EPGDB_BLOCK * pBlock )
-{
-   const AI_NETWOP *pNetwop;
-   uint  block_no;
-   uchar netwop;
-   uchar stream;
-
-   if (dbc->pAiBlock != NULL)
-   {
-      netwop   = pBlock->blk.pi.netwop_no;
-      block_no = pBlock->blk.pi.block_no;
-
-      if (netwop < dbc->pAiBlock->blk.ai.netwopCount)
-      {
-         pNetwop = AI_GET_NETWOP_N(&dbc->pAiBlock->blk.ai, netwop);
-
-         if (pNetwop->startNo <= pNetwop->stopNo)
-         {
-            if ((pNetwop->startNo == 0x0000) && (pNetwop->stopNo == 0xffff))
-            {  // case 1: stream 1 empty (startNo == stopNo + 1 modulo 2^16)
-               stream = NXTV_STREAM_NO_2;
-            }
-            else
-            {  // case 2: no block sequence overflow -> simple comparison
-               stream = ((block_no <= pNetwop->stopNo) ? NXTV_STREAM_NO_1 : NXTV_STREAM_NO_2);
-            }
-         }
-         else
-         {
-            if (pNetwop->startNo == pNetwop->stopNo + 1)
-            {  // case 3: stream 1 empty (as defined in ETS 300 707)
-               stream = NXTV_STREAM_NO_2;
-            }
-            else
-            {  // case 4: block sequence overflow -> range of stream 1 block numbers consists of
-               //         two separate ranges at the top and bottom of the 16-bit number space
-               stream = (( (block_no >= pNetwop->startNo) ||
-                           (block_no <= pNetwop->stopNo) ) ? NXTV_STREAM_NO_1 : NXTV_STREAM_NO_2);
-            }
-         }
-      }
-      else
-      {
-         debug2("EpgDb-GetStreamByBlockNo: invalid netwop=%d >= count %d", netwop, dbc->pAiBlock->blk.ai.netwopCount);
-         stream = NXTV_STREAM_NO_1;
-      }
-   }
-   else
-   {
-      fatal0("EpgDb-GetStreamByBlockNo: no AI block in db");
-      stream = NXTV_STREAM_NO_1;
-   }
-
-   return stream;
-}
-
-// ---------------------------------------------------------------------------
 // Returns the version number of a PI block
 //
 uchar EpgDbGetVersion( const void * pUnion )
@@ -1015,93 +789,62 @@ uchar EpgDbGetVersion( const void * pUnion )
 }
 
 // ---------------------------------------------------------------------------
-// Count the number of PI blocks in the database, separately for stream 1 & 2
+// Count the number of PI blocks in the database
 // - db needs not be locked since this is an atomic operation
 //   and no pointers into the db are returned
-// - returns counts separately for both streams - pCount points to array[2] !!
 //
-bool EpgDbGetStat( CPDBC dbc, EPGDB_BLOCK_COUNT * pCount, time_t * acqMinTime, uint maxNowRepCount )
+bool EpgDbGetStat( CPDBC dbc, EPGDB_BLOCK_COUNT * pCount, time_t acqMinTime, uint maxNowRepCount )
 {
    const EPGDB_BLOCK * pBlock;
-   const AI_NETWOP *pNetwops;
-   uint blockCount[2][MAX_NETWOP_COUNT];
-   register uint cur_stream;
-   uint32_t  count1, count2;
-   uchar  ai_version[2];
-   double avgPercentage1, avgPercentage2, variance1, variance2;
-   uint   acqRepSum[2];
+   uint blockCount[MAX_NETWOP_COUNT];
+   uchar  ai_version;
+   double avgPercentage1, variance1;
+   uint   acqRepSum;
    time_t now;
    uchar  netwop;
    bool   result;
 
-   memset(pCount, 0, 2 * sizeof(EPGDB_BLOCK_COUNT));
+   memset(pCount, 0, sizeof(EPGDB_BLOCK_COUNT));
    memset(blockCount, 0, sizeof(blockCount));
-   acqRepSum[0] = acqRepSum[1] = 0;
+   acqRepSum = 0;
    now = time(NULL);
 
    maxNowRepCount = ((maxNowRepCount > 3) ? (maxNowRepCount - 3) : 1);
 
    if (dbc->pAiBlock != NULL)
    {
-      pNetwops = AI_GET_NETWOPS(&dbc->pAiBlock->blk.ai);
-      ai_version[0] = dbc->pAiBlock->blk.ai.version;
-      ai_version[1] = dbc->pAiBlock->blk.ai.version_swo;
+      ai_version = dbc->pAiBlock->blk.ai.version;
 
       pBlock = dbc->pFirstPi;
       while (pBlock != NULL)
       {
-         // Use the block number to determine which stream currently contains the block.
-         // Cannot use the stream number from the block header because that's the stream
-         // in which the block was received; However here we need the up-to-date stream
-         // or the block counts will be inconsistent with the AI counts!
-         if (pBlock->blk.pi.block_no_in_ai == FALSE)
+         if (pBlock->blk.pi.stop_time > now)
          {
-            pCount[0].extra += 1;
+            pCount->allVersions += 1;
+            // note about the stream comparison:
+            // the borderline between stream 1 and 2 may change without a version change.
+            // since with a move from stream 2 to 1 more information may have been added
+            // we then consider the block out of date.
+            if (pBlock->version == ai_version)
+            {
+               pCount->curVersion += 1;
+            }
          }
          else
+            pCount->expired += 1;
+
+         // note about "<=" in stream comparison: there's a bug in the TARA Nextview encoder,
+         // where blocks are assigned to stream 2 in AI, but transmitted in stream 1 anyways
+         // (e.g. when stream 1 is empty because there are no programmes in the time range
+         // that's usually covered by stream 1)
+         if ( (pBlock->acqTimestamp >= acqMinTime) &&
+              (pBlock->version == ai_version) )
          {
-            cur_stream = EpgDbGetStreamByBlockNo(dbc, pBlock);
-            if (pBlock->blk.pi.stop_time > now)
-            {
-               pCount[cur_stream].allVersions += 1;
-               // note about the stream comparison:
-               // the borderline between stream 1 and 2 may change without a version change.
-               // since with a move from stream 2 to 1 more information may have been added
-               // we then consider the block out of date.
-               if ( (pBlock->version == ai_version[cur_stream]) &&
-                    (pBlock->stream == cur_stream) )
-               {
-                  pCount[cur_stream].curVersion += 1;
-               }
-            }
-            else
-               pCount[cur_stream].expired += 1;
-
-            // note about "<=" in stream comparison: there's a bug in the TARA Nextview encoder,
-            // where blocks are assigned to stream 2 in AI, but transmitted in stream 1 anyways
-            // (e.g. when stream 1 is empty because there are no programmes in the time range
-            // that's usually covered by stream 1)
-            if ( (pBlock->acqTimestamp >= acqMinTime[cur_stream]) &&
-                 (pBlock->version == ai_version[cur_stream]) &&
-                 (pBlock->stream <= cur_stream) )
-            {
-               pCount[cur_stream].sinceAcq += 1;
-               blockCount[cur_stream][pBlock->blk.pi.netwop_no] += 1;
-            }
-
-            if (cur_stream == 1)
-            {  // stream 2
-               acqRepSum[cur_stream] += pBlock->acqRepCount;
-            }
-            else
-            {  // stream 1 needs special handling to split off rep counts from Now & Next
-               // PI in now & next sub-stream count exactly once; other PI may count more often
-               if (pBlock->acqRepCount >= maxNowRepCount)
-                  acqRepSum[0] += 1;
-               else
-                  acqRepSum[0] += pBlock->acqRepCount;
-            }
+            pCount->sinceAcq += 1;
+            blockCount[pBlock->blk.pi.netwop_no] += 1;
          }
+
+         acqRepSum += pBlock->acqRepCount;
 
          pBlock = pBlock->pNextBlock;
       }
@@ -1111,79 +854,35 @@ bool EpgDbGetStat( CPDBC dbc, EPGDB_BLOCK_COUNT * pCount, time_t * acqMinTime, u
       pBlock = dbc->pObsoletePi;
       while (pBlock != NULL)
       {
-         cur_stream = EpgDbGetStreamByBlockNo(dbc, pBlock);
-
-         pCount[cur_stream].defective += 1;
-         if ( (pBlock->acqTimestamp >= acqMinTime[cur_stream]) &&
-              (pBlock->stream <= cur_stream) )
+         pCount->defective += 1;
+         if (pBlock->acqTimestamp >= acqMinTime)
          {
-            pCount[cur_stream].sinceAcq += 1;
-            blockCount[cur_stream][pBlock->blk.pi.netwop_no] += 1;
+            pCount->sinceAcq += 1;
+            blockCount[pBlock->blk.pi.netwop_no] += 1;
          }
 
-         if (cur_stream == 1)
-         {  // stream 2
-            acqRepSum[cur_stream] += pBlock->acqRepCount;
-         }
-         else
-         {  // stream 1 needs special handling to split off rep counts from Now & Next
-            if (pBlock->acqRepCount >= maxNowRepCount)
-               acqRepSum[0] += 1;
-            else
-               acqRepSum[0] += pBlock->acqRepCount;
-         }
+         acqRepSum += pBlock->acqRepCount;
 
          pBlock = pBlock->pNextBlock;
       }
 
       // determine total block sum from AI block start- and stop numbers per netwop
-      avgPercentage1 = avgPercentage2 = 0.0;
-
-      for (netwop=0; netwop < dbc->pAiBlock->blk.ai.netwopCount; netwop++)
-      {
-         count1 = EpgDbGetPiBlockCount(pNetwops[netwop].startNo, pNetwops[netwop].stopNo);
-         count2 = EpgDbGetPiBlockCount(pNetwops[netwop].startNo, pNetwops[netwop].stopNoSwo) - count1;
-
-         if (count1 > 0)
-         {
-            pCount[0].ai += count1;
-            blockCount[0][netwop] = (uint)(1000L * blockCount[0][netwop] / count1);
-         }
-         else
-            blockCount[0][netwop] = 1000L;
-         avgPercentage1 += blockCount[0][netwop];
-
-         if (count2 > 0)
-         {
-            pCount[1].ai += count2;
-            blockCount[1][netwop] = (uint)(1000L * blockCount[1][netwop] / count2);
-         }
-         else
-            blockCount[1][netwop] = 1000L;
-         avgPercentage2 += blockCount[1][netwop];
-      }
-      avgPercentage1 /= (double) dbc->pAiBlock->blk.ai.netwopCount;
-      avgPercentage2 /= (double) dbc->pAiBlock->blk.ai.netwopCount;
+      // TODO obsolete - cannot be calculated for XMLTV
+      avgPercentage1 = 0.0;
 
       // determine variance of coverages per netwop
-      variance1 = variance2 = 0.0;
+      variance1 = 0.0;
       for (netwop=0; netwop < dbc->pAiBlock->blk.ai.netwopCount; netwop++)
       {
-         variance1 += pow(fabs(blockCount[0][netwop] - avgPercentage1) / 1000L, 2.0);
-         variance2 += pow(fabs(blockCount[1][netwop] - avgPercentage2) / 1000L, 2.0);
+         variance1 += pow(fabs(blockCount[netwop] - avgPercentage1) / 1000L, 2.0);
       }
-      pCount[0].variance = sqrt(variance1);
-      pCount[1].variance = sqrt(variance2);
+      pCount->variance = sqrt(variance1);
 
-      // calculate average acquisition repetition count in both streams
-      if (pCount[0].ai > 0)
-         pCount[0].avgAcqRepCount = (double)acqRepSum[0] / (double)pCount[0].ai;
+      // calculate average acquisition repetition count
+      if (pCount->ai > 0)
+         pCount->avgAcqRepCount = (double)acqRepSum / (double)pCount->ai;
       else
-         pCount[0].avgAcqRepCount = 0.0;
-      if (pCount[1].ai > 0)
-         pCount[1].avgAcqRepCount = (double)acqRepSum[1] / (double)pCount[1].ai;
-      else
-         pCount[1].avgAcqRepCount = 0.0;
+         pCount->avgAcqRepCount = 0.0;
 
       result = TRUE;
    }
@@ -1196,52 +895,6 @@ bool EpgDbGetStat( CPDBC dbc, EPGDB_BLOCK_COUNT * pCount, time_t * acqMinTime, u
    return result;
 }
 
-// ----------------------------------------------------------------------------
-// Compute the distance between two PI block numbers
-// - modulo 0x10000
-// - if stop == start - 1  =>  distance == 0  (see ETS 300 707)
-//
-uint EpgDbGetPiBlockCount( uint startNo, uint stopNo )
-{
-   uint result;
-
-   if (stopNo >= startNo)
-   {
-      if ((startNo == 0) && (stopNo == 0xffff))
-         result = 0;
-      else
-         result = stopNo - startNo + 1;
-   }
-   else
-   {  // stopNo < startNo
-      if (stopNo + 1 == startNo)
-         result = 0;
-      else
-         result = (0x10000 + stopNo) - startNo + 1;
-   }
-
-   return result;
-}
-
-// ----------------------------------------------------------------------------
-// Get the index of a PI block relative to the start number given in AI
-//
-uint EpgDbGetPiBlockIndex( uint startNo, uint blockNo )
-{
-   uint result;
-
-   if (blockNo >= startNo)
-   {
-      result = blockNo - startNo;
-   }
-   else
-   {  // blockNo < startNo
-      result = (blockNo + 0x10000) - startNo;
-   }
-
-   return result;
-}
- 
 // ----------------------------------------------------------------------------
 // Reset acquisition repetition counters on all PI blocks
 // - used by the epgacqctl module, in the cycle state machine
@@ -1297,8 +950,7 @@ void EpgDbGetNowCycleMaxRepCounter( CPDBC dbc, uint * pMaxVal, uint * pMaxCount 
 
             if ( (pBlock != NULL) &&
                  ( (pBlock->blk.pi.start_time <= now) ||
-                   ( (pBlock->blk.pi.block_no_in_ai) &&
-                     (pBlock->blk.pi.block_no == AI_GET_NETWOP_N(&dbc->pAiBlock->blk.ai, netwop)->startNo) )))
+                   (pBlock == dbc->pFirstNetwopPi[netwop]) ))
             {  // PI is currently running, i.e. it's a "NOW" block
 
                if (pBlock->acqRepCount > maxRepVal)
@@ -1323,41 +975,3 @@ void EpgDbGetNowCycleMaxRepCounter( CPDBC dbc, uint * pMaxVal, uint * pMaxCount 
    else
       fatal0("EpgDb-GetNowCycleMaxRepCounter: illegal NULL ptr param");
 }
-
-// ----------------------------------------------------------------------------
-// Compare PI range in two AI blocks
-// - called after AI updates to trigger update of statistics display in GUI
-//
-bool EpgDbComparePiRanges( PDBC dbc, const AI_BLOCK * pOldAi, const AI_BLOCK * pNewAi )
-{
-   const AI_NETWOP * pOldNets;
-   const AI_NETWOP * pNewNets;
-   uint netwop;
-   bool result = TRUE;
-
-   if ( EpgDbIsLocked(dbc) )
-   {
-      if ((pOldAi != NULL) && (pNewAi != NULL))
-      {
-         pOldNets = AI_GET_NETWOPS(pOldAi);
-         pNewNets = AI_GET_NETWOPS(pNewAi);
-
-         for (netwop=0; netwop < pNewAi->netwopCount; netwop++)
-         {
-            if ( (pOldNets[netwop].startNo != pNewNets[netwop].startNo) ||
-                 (pOldNets[netwop].stopNoSwo != pNewNets[netwop].stopNoSwo) )
-            {
-               result = FALSE;
-               break;
-            }
-         }
-      }
-      else
-         fatal0("EpgDb-ComparePiRanges: illegal NULL ptr param");
-   }
-   else
-      fatal0("EpgDb-ComparePiRanges: DB not locked");
-
-   return result;
-}
-

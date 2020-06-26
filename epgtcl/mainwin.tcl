@@ -682,8 +682,7 @@ set menuStatusStartAcq 0
 set menuStatusDaemon 0
 set menuStatusDumpStream 0
 set menuStatusThemeClass 1
-set menuStatusTscaleOpen(ui) 0
-set menuStatusTscaleOpen(acq) 0
+set menuStatusTscaleOpen 0
 set menuStatusStatsOpen(ui) 0
 set menuStatusStatsOpen(acq) 0
 
@@ -696,7 +695,6 @@ array set pi_attr_labels [list \
    dursel Duration \
    themes Themes \
    series Series \
-   sortcrits {Sorting Criteria} \
    netwops Networks \
    substr {Text search} \
    vps_pdc VPS/PDC \
@@ -720,24 +718,18 @@ proc CreateMenubar {} {
    .menubar add cascade -label "Reminder" -menu .menubar.reminder -underline 0
    .menubar add cascade -label "Shortcuts" -menu .menubar.shortcuts -underline 0
    .menubar add cascade -label "Filter" -menu .menubar.filter -underline 0
-   if {$is_unix} {
-      .menubar add cascade -label "Navigate" -menu .menubar.ni_1 -underline 0
-   }
    .menubar add cascade -label "Help" -menu .menubar.help -underline 0
    # Control menu
    menu .menubar.ctrl -tearoff 0 -postcommand C_SetControlMenuStates
    .menubar.ctrl add checkbutton -label "Enable acquisition" -variable menuStatusStartAcq -command {C_ToggleAcq $menuStatusStartAcq $menuStatusDaemon}
    .menubar.ctrl add checkbutton -label "Connect to acq. daemon" -variable menuStatusDaemon -command {C_ToggleAcq $menuStatusStartAcq $menuStatusDaemon}
    .menubar.ctrl add separator
-   .menubar.ctrl add checkbutton -label "Dump stream" -variable menuStatusDumpStream -command {C_ToggleDumpStream $menuStatusDumpStream}
-   .menubar.ctrl add command -label "Dump raw database..." -command PopupDumpDatabase
    .menubar.ctrl add command -label "Export as text..." -command PopupDumpDbTabs
    .menubar.ctrl add command -label "Export as XMLTV..." -command PopupDumpXml
    .menubar.ctrl add command -label "Export as HTML..." -command PopupDumpHtml
    .menubar.ctrl add separator
-   .menubar.ctrl add checkbutton -label "View coverage timescales..." -command {C_TimeScale_Toggle ui} -variable menuStatusTscaleOpen(ui)
+   .menubar.ctrl add checkbutton -label "View coverage timescales..." -command {C_TimeScale_Toggle} -variable menuStatusTscaleOpen
    .menubar.ctrl add checkbutton -label "View database statistics..." -command {C_StatsWin_ToggleDbStats ui} -variable menuStatusStatsOpen(ui)
-   .menubar.ctrl add checkbutton -label "Nextview acq. timescales..." -command {C_TimeScale_Toggle acq} -variable menuStatusTscaleOpen(acq)
    .menubar.ctrl add checkbutton -label "Nextview acq. statistics..." -command {C_StatsWin_ToggleDbStats acq} -variable menuStatusStatsOpen(acq)
 #=IF=defined(USE_TTX_GRABBER)
    .menubar.ctrl add checkbutton -label "Teletext grabber statistics..." -command {C_StatsWin_ToggleTtxStats} -variable menuStatusStatsOpen(ttx_acq)
@@ -746,14 +738,14 @@ proc CreateMenubar {} {
    .menubar.ctrl add command -label "Quit" -command {destroy .; update}
    # Config menu
    menu .menubar.config -tearoff 0
-   .menubar.config add command -label "Select provider..." -command ProvWin_Create
-   .menubar.config add command -label "Merge providers..." -command PopupProviderMerge
+   .menubar.config add command -label "Load XMLTV file..." -command ProvWin_Create
+   .menubar.config add command -label "Merge XMLTV files..." -command PopupProviderMerge
    .menubar.config add separator
    .menubar.config add command -label "Acquisition mode..." -command PopupAcqMode
 #=IF=defined(USE_TTX_GRABBER)
    .menubar.config add command -label "Teletext grabber..." -command PopupTtxGrab
 #=ENDIF=
-   .menubar.config add command -label "Provider scan..." -command PopupEpgScan
+   .menubar.config add command -label "TV channel scan..." -command PopupEpgScan
    .menubar.config add command -label "TV card input..." -command PopupHardwareConfig
    .menubar.config add command -label "TV app. interaction..." -command XawtvConfigPopup
    .menubar.config add command -label "Client/Server..." -command PopupNetAcqConfig
@@ -825,11 +817,6 @@ proc CreateMenubar {} {
    .menubar.filter add command -label "Start Time..." -command PopupTimeFilterSelection
    .menubar.filter add command -label "Duration..." -command PopupDurationFilterSelection
    .menubar.filter add command -label "Expired display..." -command PopupExpireDelaySelection
-   .menubar.filter add command -label "Sorting Criteria..." -command PopupSortCritSelection
-   if {!$is_unix} {
-      .menubar.filter add command -label "Navigate" -command {PostSeparateMenu .menubar.filter.ni_1 PopupNiMenu 1}
-      .menubar.filter configure -postcommand {.menubar.filter entryconfigure "Navigate" -state [if [C_IsNavigateMenuEmpty] {set tmp "disabled"} else {set tmp "normal"}]}
-   }
    .menubar.filter add separator
    .menubar.filter add cascade -menu .menubar.filter.invert -label "Invert"
    .menubar.filter add command -label "Reset" -command {ResetFilterState; C_PiBox_Reset}
@@ -838,7 +825,6 @@ proc CreateMenubar {} {
    .menubar.filter.invert add checkbutton -label Global -variable filter_invert(all) -command InvertFilter
    .menubar.filter.invert add separator
    .menubar.filter.invert add cascade -menu .menubar.filter.invert.themes -label Themes
-   .menubar.filter.invert add cascade -menu .menubar.filter.invert.sortcrits -label "Sorting Criteria"
    foreach filt {netwops series substr features parental editorial progidx timsel dursel vps_pdc} {
       .menubar.filter.invert add checkbutton -label $pi_attr_labels($filt) -variable filter_invert($filt) -command InvertFilter
    }
@@ -899,10 +885,6 @@ proc CreateMenubar {} {
    FilterMenuAdd_VpsPdc .menubar.filter.vps_pdc 0
 
    menu .menubar.filter.netwops
-   # Navigation menu
-   if {$is_unix} {
-      menu .menubar.ni_1 -postcommand {PostDynamicMenu .menubar.ni_1 PopupNiMenu 1}
-   }
    # Shortcuts menu
    menu .menubar.shortcuts -tearoff 0
    .menubar.shortcuts add command -label "Edit shortcut list..." -command EditFilterShortcuts
@@ -1087,7 +1069,6 @@ proc GenerateFilterMenues {tcc fcc} {
    }
 
    AddInvertMenuForClasses .menubar.filter.invert.themes theme
-   AddInvertMenuForClasses .menubar.filter.invert.sortcrits sortcrits
 }
 
 proc AddInvertMenuForClasses {widget filt} {
@@ -1630,19 +1611,6 @@ proc ResetThemes {} {
    array unset filter_invert theme_class*
 }
 
-proc ResetSortCrits {} {
-   global theme_class_count sortcrit_class sortcrit_class_sel
-   global filter_invert
-
-   for {set index 1} {$index <= $theme_class_count} {incr index} {
-      set sortcrit_class_sel($index) {}
-   }
-   set sortcrit_class 1
-   array unset filter_invert sortcrit_class*
-
-   UpdateSortCritListbox
-}
-
 proc ResetFeatures {} {
    global feature_class_mask feature_class_value
    global feature_class_count current_feature_class
@@ -1761,7 +1729,6 @@ proc ResetFilterState {} {
    global filter_invert
 
    ResetThemes
-   ResetSortCrits
    ResetFeatures
    ResetSeries
    ResetProgIdx
@@ -2613,42 +2580,6 @@ proc Create_PopupPi {wid xcoo ycoo} {
       }
 
       ${poppedup_pi}.text configure -state disabled -height [expr 1 + [$poppedup_pi.text index end]]
-   }
-}
-
-##  ---------------------------------------------------------------------------
-##  Create NI menu cascade
-##
-proc PopupNiMenu {wid block_no} {
-   global dynmenu_posted
-
-   set idx 0
-   # retrieve list of events for this node from the database
-   foreach {link ev_name} [C_CreateNi $block_no] {
-      if {$link != 0} {
-         set sub_men "${wid}x${idx}_${link}"
-         $wid add cascade -label $ev_name -menu $sub_men
-
-         if {[string length [info commands $sub_men]] > 0} {
-            PostDynamicMenu $sub_men C_CreateNi $link
-         } elseif {![info exist dynmenu_posted($sub_men)] || ($dynmenu_posted($sub_men) == 0)} {
-            menu $sub_men -postcommand [list PostDynamicMenu $sub_men PopupNiMenu $link]
-         }
-      } else {
-         # note: the NI menu widget name contains the path to this node from the root NI;
-         # append event index to the current widget's name
-         if [regexp {\.ni_(\d.*)} $wid foo node] {
-            set ev_id "${node}x${idx}"
-            $wid add command -label $ev_name -command "ResetFilterState; C_SelectNi $ev_id"
-         }
-      }
-      incr idx
-   }
-
-   # append "Reset" command to the top-level menu
-   if {$block_no == 1} {
-      $wid add separator
-      $wid add command -label Reset -command {ResetFilterState; C_PiBox_Reset}
    }
 }
 

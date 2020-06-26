@@ -34,13 +34,6 @@ typedef enum
    CLOCK_CTRL_COUNT
 } EPG_CLOCK_CTRL_MODE;
 
-typedef enum
-{
-   EPG_CLPROV_SCAN_EU,
-   EPG_CLPROV_SCAN_FR,
-   EPG_CLPROV_SCAN_MODE_COUNT
-} EPG_CL_PROV_SCAN_MODE;
-
 #ifdef WIN32
 #ifdef WM_USER
 #define UWM_SYSTRAY     (WM_USER + 1)   // Sent by the systray

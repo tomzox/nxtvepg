@@ -55,8 +55,6 @@
 #include "epgctl/epgctxctl.h"
 #include "epgvbi/cni_tables.h"
 #include "epgdb/epgdbif.h"
-#include "epgdb/epgtscqueue.h"
-#include "epgdb/epgdbsav.h"
 #include "epgdb/epgdbmgmt.h"
 #include "epgdb/epgdbmerge.h"
 #include "epgctl/epgacqctl.h"
@@ -186,8 +184,6 @@ void EpgContextMergeDestroy( void * pMergeContextPtr )
 {
    EPGDB_MERGE_CONTEXT * dbmc = pMergeContextPtr;
 
-   EpgTscQueue_Clear(&dbmc->tscQueue);
-
    EpgDbMergeCloseDatabases(dbmc);
    xfree(pMergeContextPtr);
 }
@@ -266,46 +262,6 @@ bool EpgContextMergeCheckForCni( const EPGDB_CONTEXT * dbc, uint cni )
 }
 
 // ---------------------------------------------------------------------------
-// En-/Disable generation of PI timescale information
-//
-void EpgContextMergeEnableTimescale( const EPGDB_CONTEXT * dbc, bool enable )
-{
-   EPGDB_MERGE_CONTEXT * dbmc;
-
-   if ( (pUiDbContext != NULL) && (pUiDbContext->pMergeContext != NULL) )
-   {
-      dbmc = pUiDbContext->pMergeContext;
-
-      if (enable == FALSE)
-         EpgTscQueue_Clear(&dbmc->tscQueue);
-
-      dbmc->tscEnable = enable;
-   }
-   else
-      fatal1("EpgContextMerge-EnableTimescale: not a merged context, CNI 0x%04X", EpgDbContextGetCni(dbc));
-}
-
-// ---------------------------------------------------------------------------
-// Get Pointer to PI timescale queue
-// - used by the GUI to retrieve info from the queue (and thereby emptying it)
-// 
-EPGDB_PI_TSC * EpgContextMergeGetTimescaleQueue( const EPGDB_CONTEXT * dbc )
-{
-   EPGDB_MERGE_CONTEXT * dbmc;
-   EPGDB_PI_TSC        * pQueue;
-
-   if ( (pUiDbContext != NULL) && (pUiDbContext->pMergeContext != NULL) )
-   {
-      dbmc = pUiDbContext->pMergeContext;
-      pQueue = &dbmc->tscQueue;
-   }
-   else
-      pQueue = NULL;
-
-   return pQueue;
-}
-
-// ---------------------------------------------------------------------------
 // Determine the index of a given CNI (i.e. source db) in the merged context
 // - the determined index is cached in the context
 // - Note: if there's more than one acq process this will get VERY inefficient
@@ -359,32 +315,11 @@ static bool EpgDbMergeOpenAcqContext( uint cni )
 }
 
 // ---------------------------------------------------------------------------
-// Insert a PI block into the merged db
-// - called after the block was inserted to its provider's database
-// 
-void EpgContextMergeInsertPi( CPDBC pAcqContext, EPGDB_BLOCK * pNewBlock )
-{
-   EPGDB_MERGE_CONTEXT * dbmc;
-
-   if ( EpgDbMergeOpenAcqContext(EpgDbContextGetCni(pAcqContext)) )
-   {
-      dbmc = pUiDbContext->pMergeContext;
-      dprintf6("MERGE PI ptr=%lx: dbidx=%d, netwop=%d->%d, blockno=%d, start=%ld\n", (ulong)pNewBlock, dbmc->acqIdx, pNewBlock->blk.pi.netwop_no, dbmc->prov[dbmc->acqIdx].netwopMap[pNewBlock->blk.pi.netwop_no], pNewBlock->blk.pi.block_no, pNewBlock->blk.pi.start_time);
-
-      EpgDbMergeInsertPi(pUiDbContext, pNewBlock);
-
-      if (EpgTscQueue_HasElems(&dbmc->tscQueue))
-         UiControlMsg_AcqEvent(ACQ_EVENT_PI_MERGED);
-   }
-}
-
-// ---------------------------------------------------------------------------
 // Update all PI in one of the merged databases
 // - optimization for the special case where each DB covers only one (or few) networks
 // 
 bool EpgContextMergeUpdateDb( CPDBC pAcqContext )
 {
-   EPGDB_MERGE_CONTEXT * dbmc;
    EPGDB_BLOCK * pPiBlock;
    uint netwopCount;
    uint idx;
@@ -392,8 +327,6 @@ bool EpgContextMergeUpdateDb( CPDBC pAcqContext )
 
    if (EpgDbMergeOpenAcqContext( EpgDbContextGetCni(pAcqContext)) )
    {
-      dbmc = pUiDbContext->pMergeContext;
-
       netwopCount = pAcqContext->pAiBlock->blk.ai.netwopCount;
       dprintf1("EpgContextMerge-UpdateDb: merge all PI of %d netwops\n", netwopCount);
 
@@ -405,9 +338,6 @@ bool EpgContextMergeUpdateDb( CPDBC pAcqContext )
             EpgDbMergeUpdateNetwork(pUiDbContext, idx, pPiBlock);
          }
       }
-
-      if (EpgTscQueue_HasElems(&dbmc->tscQueue))
-         UiControlMsg_AcqEvent(ACQ_EVENT_PI_MERGED);
 
       result = TRUE;
    }
@@ -500,9 +430,6 @@ EPGDB_CONTEXT * EpgContextMerge( uint dbCount, const uint * pCni, MERGE_ATTRIB_V
 
       // close the databases
       EpgDbMergeCloseDatabases(pMergeContext);
-
-      // initialize the PI timescale queue (used during acquisition)
-      EpgTscQueue_Init(&pMergeContext->tscQueue);
    }
    else
    {

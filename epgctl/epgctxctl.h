@@ -33,6 +33,22 @@ typedef enum
    CTX_FAIL_RET_CREATE,     // create new, empty db with given CNI, for acq
 } CTX_FAIL_RET_MODE;
 
+// result codes for reload and peek (ordered by increasing user relevance)
+typedef enum
+{
+   EPGDB_RELOAD_OK,            // no error
+   EPGDB_RELOAD_ACCESS,        // file open failed
+   EPGDB_RELOAD_VERSION,       // incompatible version
+   EPGDB_RELOAD_MERGE,         // invalid merge config
+   EPGDB_RELOAD_EXIST,         // file does not exist
+   EPGDB_RELOAD_XML_CNI,       // XMLTV CNI but path unknown
+   EPGDB_RELOAD_XML_MASK = 0x40000000 // XMLTV specific error
+} EPGDB_RELOAD_RESULT;
+
+// macro to compare severity of reload errors
+// (to be used if multiple errors occur in a loop across all databases)
+#define RELOAD_ERR_WORSE(X,Y)  ((X)>(Y))
+
 // ---------------------------------------------------------------------------
 // Declaration of service interface functions
 //
@@ -44,15 +60,12 @@ EPGDB_CONTEXT * EpgContextCtl_OpenDummy( void );
 void EpgContextCtl_Close( EPGDB_CONTEXT * pContext );
 void EpgContextCtl_ClosePeek( EPGDB_CONTEXT * pDbContext );
 
-uint EpgContextCtl_GetProvCount( bool nxtvOnly );
+uint EpgContextCtl_GetProvCount( void );
 const uint * EpgContextCtl_GetProvList( uint * pCount );
-uint EpgContextCtl_GetFreqList( uint ** ppProvList, uint ** ppFreqList, bool withInvalid );
 time_t EpgContextCtl_GetAiUpdateTime( uint cni, bool reload );
-uint EpgContextCtl_Remove( uint cni );
-void EpgContextCtl_ScanDbDir( bool nxtvOnly );
+void EpgContextCtl_ScanDbDir( void );
 
 void EpgContextCtl_SetPiExpireDelay( time_t expireDelay );
-bool EpgContextCtl_UpdateFreq( uint cni, uint freq );
 void EpgContextCtl_LockDump( bool enable );
 
 void EpgContextCtl_Init( void );

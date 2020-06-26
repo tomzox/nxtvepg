@@ -23,7 +23,6 @@
 #define __EPGACQSRV_H
 
 #include "epgdb/epgnetio.h"
-#include "epgdb/epgdbsav.h"
 #include "epgdb/epgdbmerge.h"
 #include "epgctl/epgctxctl.h"
 #include "epgctl/epgacqctl.h"
@@ -34,11 +33,15 @@
 #endif
 
 // ---------------------------------------------------------------------------
+// Connect request
+//
+#define MAGIC_STR      "NEXTVIEW-DB by TOMZO"
+#define MAGIC_STR_LEN  20
+
+// ---------------------------------------------------------------------------
 // Structure for acq stats reports
 //
 #define STATS_REQ_BITS_HIST         0x01   // full acq stats
-#define STATS_REQ_BITS_TSC_REQ      0x02   // timescale for req. CNIs only
-#define STATS_REQ_BITS_TSC_ALL      0x04   // timescale for all CNIs
 #define STATS_REQ_BITS_VPS_PDC_REQ  0x08   // forward VPS/PDC CNI and PIL
 #define STATS_REQ_BITS_VPS_PDC_UPD  0x10   // forward the next new VPS/PDC reading
 
@@ -62,7 +65,6 @@ typedef struct MSG_STRUCT_STATS_IND_STRUCT
    } p;
 
    EPGDB_STATS_UPD_TYPE  type;
-   bool                  aiFollows;
    uint8_t               resv_align1[3];
    EPGACQ_DESCR          descr;
 
@@ -86,11 +88,9 @@ typedef struct MSG_STRUCT_STATS_IND_STRUCT
 
       struct
       {
-         EPGDB_BLOCK_COUNT    count[2];
-         EPGDB_ACQ_AI_STATS   ai;
+         EPGDB_BLOCK_COUNT    count;
          TTX_DEC_STATS        ttx_dec;
          TTX_GRAB_STATS       grabTtxStats;
-         EPG_STREAM_STATS     stream;
          EPG_ACQ_VPS_PDC      vpsPdc;
          EPGDB_HIST           hist;
          uint16_t             histIdx;
@@ -117,7 +117,6 @@ typedef struct
 {
    uchar     magic[MAGIC_STR_LEN];    // magic string to identify the provided service
    uint16_t  endianMagic;             // distinguish big/little endian server
-   uint32_t  blockCompatVersion;      // version of EPG database block format
    uint32_t  protocolCompatVersion;   // protocol version
    uint32_t  swVersion;               // software version (informative only)
    int32_t   daemon_pid;
@@ -128,27 +127,18 @@ typedef struct
 
 typedef struct
 {
-   uint32_t  cniCount;                // number of valid CNIs in list (0 allowed)
-   uint32_t  provCnis[MAX_MERGED_DB_COUNT];    // list of requested provider CNIs
-   time32_t  dumpStartTimes[MAX_MERGED_DB_COUNT];  // client-side time of last db update
    uint32_t  statsReqBits;            // extent of acq stats requested by the GUI
 } MSG_STRUCT_FORWARD_REQ;
 
 typedef struct
 {
-   uint32_t  cniCount;                // copy of REQ msg (to identify the reply): number of CNIs
-   uint32_t  provCnis[MAX_MERGED_DB_COUNT];  // copy of REQ msg: list of requested provider CNIs
+   int       dummy;  //TODO remove message
 } MSG_STRUCT_FORWARD_CNF;
 
 typedef struct
 {
    uint32_t  cni;                     // CNI of the db acq is currently working for
 } MSG_STRUCT_FORWARD_IND;
-
-typedef struct
-{
-   uint32_t  cni;                     // CNI of the dumped db
-} MSG_STRUCT_DUMP_IND;
 
 typedef struct
 {
@@ -172,7 +162,6 @@ typedef union
    MSG_STRUCT_FORWARD_REQ   fwd_req;
    MSG_STRUCT_FORWARD_CNF   fwd_cnf;
    MSG_STRUCT_FORWARD_IND   fwd_ind;
-   MSG_STRUCT_DUMP_IND      dump_ind;
    MSG_STRUCT_STATS_REQ     stats_req;
    MSG_STRUCT_STATS_IND     stats_ind;
    MSG_STRUCT_VPS_PDC_IND   vps_pdc_ind;
@@ -186,7 +175,6 @@ void EpgAcqServer_Init( bool have_tty );
 bool EpgAcqServer_Listen( void );
 void EpgAcqServer_SetMaxConn( uint max_conn );
 void EpgAcqServer_SetAddress( bool do_tcp_ip, const char * pIpStr, const char * pPort );
-void EpgAcqServer_SetProvider( uint cni );
 void EpgAcqServer_SetVpsPdc( bool change );
 void EpgAcqServer_TriggerStats( void );
 void EpgAcqServer_TriggerDbUpdate( time_t mtime );

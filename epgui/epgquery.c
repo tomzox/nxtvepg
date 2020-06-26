@@ -54,7 +54,6 @@ static const char * const pFilterKeywords[] =
    "NETNAME",
    "NETCNI",
    "THEME",
-   "SORTCRIT",
    "SERIES",
    "TITLE",
    "TITLE_WHOLE",
@@ -78,7 +77,6 @@ typedef enum
    FKW_NETNAME,
    FKW_NETCNI,
    FKW_THEMES,
-   FKW_SORTCRIT,
    FKW_SERIES,
    FKW_TITLE,
    FKW_TITLE_WHOLE,
@@ -101,7 +99,7 @@ static const uint pFilterMasks[] =
    FILTER_NETWOP,
    FILTER_NETWOP,
    FILTER_THEMES,
-   FILTER_SORTCRIT,
+   //FILTER_SORTCRIT,
    FILTER_SERIES,
    FILTER_SUBSTR,
    FILTER_SUBSTR,
@@ -409,9 +407,6 @@ static void EpgQuery_FilterInit( FILTER_CONTEXT * fc, int filtType )
       case FKW_THEMES:
          EpgDbFilterInitThemes(fc, 0xff);
          break;
-      case FKW_SORTCRIT:
-         EpgDbFilterInitSortCrit(fc, 0xff);
-         break;
       case FKW_SERIES:
          EpgDbFilterInitSeries(fc);
          break;
@@ -582,18 +577,6 @@ static bool EpgQuery_FilterSet( EPGDB_CONTEXT * pDbContext,
             // not numeric -> try to identify a PDC theme by sub-string search
             EpgDbFilterSetThemes(fc, int1, int1, 1);
             count += 1;
-         }
-         result = (count > 0);
-         break;
-
-      case FKW_SORTCRIT:
-         argOff = 0;
-         count = 0;
-         while (EpgQuery_PopIntRange(pArg, &argOff, &int1, &int2))
-         {
-            dprintf3("EpgQuery-FilterSet: SORTCRIT '%s': %d-%d\n", pArg, int1, int2);
-            EpgDbFilterSetSortCrit(fc, int1, int2, 1);
-            count += int2 - int1 + 1;
          }
          result = (count > 0);
          break;

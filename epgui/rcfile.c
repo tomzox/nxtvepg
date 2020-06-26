@@ -61,7 +61,6 @@
 #include "epgdb/epgdbfil.h"
 #include "epgdb/epgdbif.h"
 #include "epgdb/epgdbmgmt.h"
-#include "epgdb/epgdbsav.h"
 #include "epgdb/epgnetio.h"
 #include "epgctl/epgacqctl.h"
 #include "epgctl/epgacqsrv.h"
@@ -187,7 +186,6 @@ static const RCPARSE_CFG rcParseCfg_db[] =
    { RC_TYPE_HEX,  RC_OFF(db.prov_merge_opts[MERGE_TYPE_DESCR]), "prov_merge_cfdescr", RC_OFF(db.prov_merge_opt_count[MERGE_TYPE_DESCR]), MAX_MERGED_DB_COUNT, NULL },
    { RC_TYPE_HEX,  RC_OFF(db.prov_merge_opts[MERGE_TYPE_THEMES]), "prov_merge_cfthemes", RC_OFF(db.prov_merge_opt_count[MERGE_TYPE_THEMES]), MAX_MERGED_DB_COUNT, NULL},
    { RC_TYPE_HEX,  RC_OFF(db.prov_merge_opts[MERGE_TYPE_SERIES]), "prov_merge_cfseries", RC_OFF(db.prov_merge_opt_count[MERGE_TYPE_SERIES]), MAX_MERGED_DB_COUNT, NULL},
-   { RC_TYPE_HEX,  RC_OFF(db.prov_merge_opts[MERGE_TYPE_SORTCRIT]), "prov_merge_cfsortcrit", RC_OFF(db.prov_merge_opt_count[MERGE_TYPE_SORTCRIT]), MAX_MERGED_DB_COUNT, NULL},
    { RC_TYPE_HEX,  RC_OFF(db.prov_merge_opts[MERGE_TYPE_EDITORIAL]), "prov_merge_cfeditorial", RC_OFF(db.prov_merge_opt_count[MERGE_TYPE_EDITORIAL]), MAX_MERGED_DB_COUNT, NULL},
    { RC_TYPE_HEX,  RC_OFF(db.prov_merge_opts[MERGE_TYPE_PARENTAL]), "prov_merge_cfparental", RC_OFF(db.prov_merge_opt_count[MERGE_TYPE_PARENTAL]), MAX_MERGED_DB_COUNT, NULL},
    { RC_TYPE_HEX,  RC_OFF(db.prov_merge_opts[MERGE_TYPE_SOUND]), "prov_merge_cfsound", RC_OFF(db.prov_merge_opt_count[MERGE_TYPE_SOUND]), MAX_MERGED_DB_COUNT, NULL},
@@ -1301,24 +1299,7 @@ const char * RcFile_GetAcqModeStr( uint mode )
 //
 uint RcFile_GetProvFreqForCni( uint provCni )
 {
-   int   idx;
-   uint  provFreq;
-
-   // list contains pairs of CNI and frequency
-   assert((mainRc.acq.prov_freq_count & 1) == 0);
-   assert(mainRcInit != FALSE);
-
-   provFreq = 0;
-
-   for (idx = 0; idx < mainRc.acq.prov_freq_count; idx += 2)
-   {
-      if (mainRc.acq.prov_freqs[idx] == provCni)
-      {
-         provFreq = mainRc.acq.prov_freqs[idx + 1];
-         break;
-      }
-   }
-   return provFreq;
+   return 0; // TODO obsolete
 }
 
 // ----------------------------------------------------------------------------
@@ -1704,38 +1685,7 @@ bool RcFile_UpdateMergedProvSelection( void )
 //
 bool RcFile_UpdateProvFrequency( uint cni, uint freq )
 {
-   uint  idx;
-   bool  modified = FALSE;
-
-   // search the list for the given CNI
-   for (idx = 0; idx < mainRc.acq.prov_freq_count; idx += 2)
-   {
-      if (mainRc.acq.prov_freqs[idx] == cni)
-      {
-         // provider is already in the list
-         if (mainRc.acq.prov_freqs[idx + 1] != freq)
-         {
-            dprintf3("RcFile-UpdateProvFrequency: changing freq for 0x%04X from %d to %d\n", cni, mainRc.acq.prov_freqs[idx + 1], freq);
-
-            mainRc.acq.prov_freqs[idx + 1] = freq;
-            modified = TRUE;
-         }
-         break;
-      }
-   }
-
-   if ( (idx >= mainRc.acq.prov_freq_count) &&
-        (mainRc.acq.prov_freq_count < RC_MAX_ACQ_CNI_FREQS) )
-   {
-      dprintf2("RcFile-UpdateProvFrequency: new freq for 0x%04X: %d\n", cni, freq);
-
-      // not found in the list -> append new pair to the list
-      mainRc.acq.prov_freqs[mainRc.acq.prov_freq_count]     = cni;
-      mainRc.acq.prov_freqs[mainRc.acq.prov_freq_count + 1] = freq;
-      mainRc.acq.prov_freq_count += 2;
-      modified = TRUE;
-   }
-   return modified;
+   return FALSE;  // TODO obsolete
 }
 
 // ----------------------------------------------------------------------------
@@ -1747,20 +1697,6 @@ void RcFile_RemoveProvider( uint cni )
    uint  type;
    uint  idx;
    uint  count;
-
-   // remove from frequency list
-   count = 0;
-   for (idx = 0; idx + 1 < mainRc.acq.prov_freq_count; idx += 2)
-   {
-      if (mainRc.acq.prov_freqs[idx] != cni)
-      {
-         tmpl[count]     = mainRc.acq.prov_freqs[idx];
-         tmpl[count + 1] = mainRc.acq.prov_freqs[idx + 1];
-         count += 2;
-      }
-   }
-   memcpy(mainRc.acq.prov_freqs, tmpl, count * sizeof(uint));
-   mainRc.acq.prov_freq_count = count;
 
    // remove from provider selection
    count = 0;

@@ -39,7 +39,6 @@ typedef enum
 {
    EPG_GUI_START,
    EPG_CLOCK_CTRL,
-   EPG_CL_PROV_SCAN,
    DAEMON_RUN,
    DAEMON_QUERY,
    DAEMON_STOP
@@ -94,7 +93,6 @@ typedef struct
    EPGACQ_PHASE optAcqOnce;
    bool         optAcqPassive;
    bool         startIconified;
-   uint         startUiCni;
    const char * pXmlDatabase;
    const char * pOptArgv0;
    int          optGuiPipe;

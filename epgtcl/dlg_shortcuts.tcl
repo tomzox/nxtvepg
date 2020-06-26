@@ -218,9 +218,6 @@ proc GetShortcutIdentList {shortcut} {
          theme_class*   {
             lappend idl "themes"
          }
-         sortcrit_class*   {
-            lappend idl "sortcrits"
-         }
          default {
             lappend idl $ident
          }
@@ -615,7 +612,7 @@ proc PopupFilterShortcuts {} {
 
       # fill filter mask menu
       foreach filt {features parental editorial progidx timsel dursel themes series \
-                    sortcrits netwops substr vps_pdc piexpire invert_all} {
+                    netwops substr vps_pdc piexpire invert_all} {
          .fscedit.flags.mb_mask.men add checkbutton -label $pi_attr_labels($filt) -variable fscedit_mask($filt)
       }
 

@@ -39,11 +39,7 @@ void  EpgDbLockDatabase( EPGDB_CONTEXT * dbc, uchar enable );
 bool  EpgDbIsLocked( const EPGDB_CONTEXT * dbc );
 
 const AI_BLOCK * EpgDbGetAi( const EPGDB_CONTEXT * dbc );
-const NI_BLOCK * EpgDbGetNi( const EPGDB_CONTEXT * dbc, uint block_no );
-const OI_BLOCK * EpgDbGetOi( const EPGDB_CONTEXT * dbc, uint block_no );
-const MI_BLOCK * EpgDbGetMi( const EPGDB_CONTEXT * dbc, uint block_no );
-const LI_BLOCK * EpgDbGetLi( const EPGDB_CONTEXT * dbc, uint block_no, uchar netwop_no );
-const TI_BLOCK * EpgDbGetTi( const EPGDB_CONTEXT * dbc, uint block_no, uchar netwop_no );
+const OI_BLOCK * EpgDbGetOi( const EPGDB_CONTEXT * dbc );
 
 const PI_BLOCK * EpgDbGetFirstObsoletePi( const EPGDB_CONTEXT * dbc );
 const PI_BLOCK * EpgDbGetNextObsoletePi( const EPGDB_CONTEXT * dbc, const PI_BLOCK * pPiBlock );
@@ -64,11 +60,7 @@ uint EpgDbCountPrevPi( const EPGDB_CONTEXT * dbc, const FILTER_CONTEXT *fc, cons
 
 bool  EpgDbGetVpsTimestamp( struct tm * pVpsTime, uint pil, time_t startTime );
 uint  EpgDbGetProgIdx( const EPGDB_CONTEXT * dbc, const PI_BLOCK * pPiBlock );
-uchar EpgDbGetStream( const void * pBlock );
 uchar EpgDbGetVersion( const void * pBlock );
-uint  EpgDbGetPiBlockCount( uint startNo, uint stopNo );
-uint  EpgDbGetPiBlockIndex( uint startNo, uint blockNo );
-uchar EpgDbGetStreamByBlockNo( const EPGDB_CONTEXT * dbc, const EPGDB_BLOCK * pBlock );
 uint  EpgDbContextGetCni( const EPGDB_CONTEXT * dbc );
 bool  EpgDbContextIsMerged( const EPGDB_CONTEXT * dbc );
 bool  EpgDbContextIsXmltv( const EPGDB_CONTEXT * dbc );
@@ -76,9 +68,8 @@ time_t EpgDbGetAiUpdateTime( const EPGDB_CONTEXT * dbc );
 time_t EpgDbGetPiUpdateTime( const PI_BLOCK * pPiBlock );
 void EpgDbSetAiUpdateTime( const EPGDB_CONTEXT * dbc, time_t acqTimestamp );
 void EpgDbSetPiAcqCallback( EPGDB_CONTEXT * dbc, EPGDB_PI_ACQ_CB * pCb );
-bool EpgDbComparePiRanges( EPGDB_CONTEXT * dbc, const AI_BLOCK * pOldAi, const AI_BLOCK * pNewAi );
 
-bool  EpgDbGetStat( const EPGDB_CONTEXT * dbc, EPGDB_BLOCK_COUNT * pCount, time_t * acqMinTime, uint maxNowRepCount );
+bool  EpgDbGetStat( const EPGDB_CONTEXT * dbc, EPGDB_BLOCK_COUNT * pCount, time_t acqMinTime, uint maxNowRepCount );
 void  EpgDbResetAcqRepCounters( EPGDB_CONTEXT * dbc );
 void  EpgDbGetNowCycleMaxRepCounter( const EPGDB_CONTEXT * dbc, uint * pMaxVal, uint * pMaxCount );
 

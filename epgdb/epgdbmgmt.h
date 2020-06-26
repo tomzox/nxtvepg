@@ -26,7 +26,6 @@
 typedef struct 
 {
    bool (* pAiCallback)( const AI_BLOCK *pNewAi );
-   bool (* pBiCallback)( const BI_BLOCK *pNewBi );
 } EPGDB_ADD_CB;
 
 
@@ -34,9 +33,6 @@ typedef struct
 // function declarations, to be shared only with other db-internal modules
 //
 bool EpgDbCheckChains( const EPGDB_CONTEXT * dbc );
-bool EpgDbPiCmpBlockNoGt( const EPGDB_CONTEXT * dbc, uint no1, uint no2, uchar netwop );
-uint EpgDbGetGenericMaxCount( const EPGDB_CONTEXT * dbc, BLOCK_TYPE type );
-bool EpgDbPiBlockNoValid( const EPGDB_CONTEXT * dbc, uint block_no, uchar netwop );
 
 void EpgDbPiRemove( EPGDB_CONTEXT * dbc, EPGDB_BLOCK * pObsolete );
 void EpgDbLinkPi( EPGDB_CONTEXT * dbc, EPGDB_BLOCK * pBlock, EPGDB_BLOCK * pPrev, EPGDB_BLOCK * pNext );
@@ -51,7 +47,6 @@ EPGDB_CONTEXT * EpgDbCreate( void );
 void EpgDbDestroy( EPGDB_CONTEXT * dbc, bool keepAiOi );
 void EpgDbExpire( EPGDB_CONTEXT * dbc );
 
-void EpgDbProcessQueueByType( EPGDB_CONTEXT * const * pdbc, EPGDB_QUEUE * pQueue, BLOCK_TYPE type, const EPGDB_ADD_CB * pCb );
 #ifdef __EPGTSCQUEUE_H
 void EpgDbProcessQueue( EPGDB_CONTEXT * const * pdbc, EPGDB_QUEUE * pQueue,
                         EPGDB_PI_TSC * tsc, const EPGDB_ADD_CB * pCb );

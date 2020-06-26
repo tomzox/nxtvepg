@@ -33,7 +33,7 @@
 
 #define FILTER_NETWOP         0x00000010
 #define FILTER_THEMES         0x00000020
-#define FILTER_SORTCRIT       0x00000040
+//#define FILTER_SORTCRIT     0x00000040
 #define FILTER_SERIES         0x00000080
 #define FILTER_SUBSTR         0x00000100
 #define FILTER_CUSTOM         0x00000200
@@ -119,13 +119,9 @@ typedef void CUSTOM_FILTER_FREE  ( void * pArg );
 // ----------------------------------------------------------------------------
 // definition of filter context structure
 //
-#define LI_DESCR_BUFFER_SIZE   (LI_MAX_DESC_COUNT/8)
-#define TI_DESCR_BUFFER_SIZE   (TI_MAX_DESC_COUNT/8)
 #define THEME_CLASS_COUNT       8
 #define FEATURE_CLASS_COUNT     6
 
-typedef uchar EPGDB_FILT_LI[MAX_NETWOP_COUNT][LI_DESCR_BUFFER_SIZE];
-typedef uchar EPGDB_FILT_TI[MAX_NETWOP_COUNT][TI_DESCR_BUFFER_SIZE];
 typedef uchar EPGDB_FILT_SERIES[MAX_NETWOP_COUNT][128];
 
 typedef struct FILTER_CTX_ACT_struct
@@ -147,9 +143,6 @@ typedef struct FILTER_CTX_ACT_struct
    uchar     themeFilterField[256];
    uchar     usedThemeClasses;
    uchar     invertedThemeClasses;
-   uchar     sortCritFilterField[256];
-   uchar     usedSortCritClasses;
-   uchar     invertedSortCritClasses;
    uchar     parentalRating;
    uchar     editorialRating;
    uint      featureFilterFlagField[FEATURE_CLASS_COUNT];
@@ -158,8 +151,6 @@ typedef struct FILTER_CTX_ACT_struct
    uint      vps_pdc_mode;
 
    EPGDB_FILT_SERIES    * pSeriesFilterMatrix;
-   EPGDB_FILT_LI        * pLangDescrTable;
-   EPGDB_FILT_TI        * pSubtDescrTable;
    EPGDB_FILT_SUBSTR    * pSubStrCtx;
    void                 * pCustomArg;
    CUSTOM_FILTER_MATCH  * pCustomFilterFunc;
@@ -203,7 +194,7 @@ void   EpgDbPreFilterEnable( FILTER_CONTEXT *fc, uint mask );
 void   EpgDbPreFilterDisable( FILTER_CONTEXT *fc, uint mask );
 void   EpgDbFilterEnable( FILTER_CONTEXT *fc, uint mask );
 void   EpgDbFilterDisable( FILTER_CONTEXT *fc, uint mask );
-void   EpgDbFilterInvert( FILTER_CONTEXT *fc, uint mask, uchar themeClass, uchar sortCritClass );
+void   EpgDbFilterInvert( FILTER_CONTEXT *fc, uint mask, uchar themeClass );
 
 void   EpgDbFilterInitNetwop( FILTER_CONTEXT *fc );
 void   EpgDbFilterSetNetwop( FILTER_CONTEXT *fc, uchar netwopNo );
@@ -221,8 +212,6 @@ uchar  EpgDbFilterInitThemes( FILTER_CONTEXT *fc, uchar themeClassBitField );
 void   EpgDbFilterSetThemes( FILTER_CONTEXT *fc, uchar firstTheme, uchar lastTheme, uchar themeClassBitField );
 void   EpgDbFilterInitSeries( FILTER_CONTEXT *fc );
 void   EpgDbFilterSetSeries( FILTER_CONTEXT *fc, uchar netwop, uchar series, bool enable );
-uchar  EpgDbFilterInitSortCrit( FILTER_CONTEXT *fc, uchar sortCritClassBitField );
-void   EpgDbFilterSetSortCrit( FILTER_CONTEXT *fc, uchar firstSortCrit, uchar lastSortCrit, uchar sortCritClassBitField );
 void   EpgDbFilterSetParentalRating( FILTER_CONTEXT *fc, uchar parentalRating );
 void   EpgDbFilterSetEditorialRating( FILTER_CONTEXT *fc, uchar editorialRating );
 void   EpgDbFilterSetFeatureFlags( FILTER_CONTEXT *fc, uchar index, uint flags, uint mask );
@@ -239,8 +228,6 @@ void   EpgDbFilterSetSubStr( FILTER_CONTEXT *fc, const char *pStr,
 void   EpgDbFilterSetCustom( FILTER_CONTEXT *fc, CUSTOM_FILTER_MATCH * pMatchCb,
                              CUSTOM_FILTER_FREE * pFreeCb, void * pArg );
 
-void   EpgDbFilterInitNi( FILTER_CONTEXT *fc, NI_FILTER_STATE *pNiState );
-void   EpgDbFilterApplyNi( const EPGDB_CONTEXT *dbc, FILTER_CONTEXT *fc, NI_FILTER_STATE *pNiState, uchar kind, ulong data );
 void   EpgDbFilterFinishNi( FILTER_CONTEXT *fc, NI_FILTER_STATE *pNiState );
 
 bool   EpgDbFilterMatches( const EPGDB_CONTEXT *dbc, const FILTER_CONTEXT *fc, const PI_BLOCK * pi );

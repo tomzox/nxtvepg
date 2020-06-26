@@ -94,8 +94,6 @@
 #include "epgdb/epgblock.h"
 #include "epgdb/epgdbfil.h"
 #include "epgdb/epgdbif.h"
-#include "epgdb/epgqueue.h"
-#include "epgdb/epgtscqueue.h"
 #include "epgdb/epgdbmgmt.h"
 #include "epgui/pidescr.h"
 
@@ -120,7 +118,6 @@ typedef enum
 {
    XMLTV_CAT_SYS_NONE,
    XMLTV_CAT_SYS_PDC,
-   XMLTV_CAT_SYS_SORTCRIT
 } XMLTV_CAT_SYS;
 
 typedef enum
@@ -442,16 +439,13 @@ static EPGDB_BLOCK * XmltvDb_BuildOi( void )
    pBlk = EpgBlockCreate(BLOCK_TYPE_OI, blockLen);
    pOi = (OI_BLOCK *) &pBlk->blk.oi;
    memset(pOi, 0, sizeof(OI_BLOCK));
-   pOi->block_no = 0;
    blockLen = sizeof(OI_BLOCK);
 
    pOi->off_header = blockLen;
-   pOi->header_size = XML_STR_BUF_GET_STR_LEN(oiHeader);
    strcpy((void *) OI_GET_HEADER(pOi), XML_STR_BUF_GET_STR(oiHeader));
    blockLen += XML_STR_BUF_GET_STR_LEN(oiHeader) + 1;
 
    pOi->off_message = blockLen;
-   pOi->msg_size = XML_STR_BUF_GET_STR_LEN(oiMessage);
    strcpy((void *) OI_GET_MESSAGE(pOi), XML_STR_BUF_GET_STR(oiMessage));
    blockLen += XML_STR_BUF_GET_STR_LEN(oiMessage) + 1;
 
@@ -498,7 +492,6 @@ static EPGDB_BLOCK * XmltvDb_BuildAi( const char * pProvName )
    memset(pNetwops, 0, pAi->netwopCount * sizeof(AI_NETWOP));
    blockLen += pAi->netwopCount * sizeof(AI_NETWOP);
 
-   pAi->oiCount = 1;
    pAi->off_serviceNameStr = blockLen;
    strcpy((void *) AI_GET_SERVICENAME(pAi), XML_STR_BUF_GET_STR(aiServiceName));
    blockLen += XML_STR_BUF_GET_STR_LEN(aiServiceName) + 1;
@@ -512,10 +505,6 @@ static EPGDB_BLOCK * XmltvDb_BuildAi( const char * pProvName )
       pNetwops->dayCount = (xds.p_chn_table[idx].pi_max_time -
                             xds.p_chn_table[idx].pi_min_time + 23*60*60) / (24*60*60);
       pNetwops->alphabet = 1; // TODO
-
-      pNetwops->startNo = 0x0000;
-      pNetwops->stopNo = 0xffff;
-      pNetwops->stopNoSwo = 0xffff;
 
       pNetwops->off_name = blockLen;
       strcpy((char *) pAi + blockLen, xds.p_chn_table[idx].p_disp_name);
@@ -547,7 +536,7 @@ static bool XmltvDb_AddPiBlock( EPGDB_CONTEXT * dbc, EPGDB_BLOCK *pBlock )
       netwop = pBlock->blk.pi.netwop_no;
       if ((netwop < xds.chn_count) && (netwop < MAX_NETWOP_COUNT))
       {
-         dprintf5("ADD PI ptr=%lx: netwop=%d, blockno=%d, start=%ld \"%s\"\n", (ulong)pBlock, netwop, pBlock->blk.pi.block_no, pBlock->blk.pi.start_time, PI_GET_TITLE(&pBlock->blk.pi));
+         dprintf4("ADD PI ptr=%lx: netwop=%d, start=%ld \"%s\"\n", (ulong)pBlock, netwop, pBlock->blk.pi.start_time, PI_GET_TITLE(&pBlock->blk.pi));
 
          // search inside network chain for insertion point
          pWalk = dbc->pFirstNetwopPi[netwop];
@@ -1124,16 +1113,6 @@ void Xmltv_PiCatClose( void )
          }
       }
    }
-   else if (xds.pi_cat_system == XMLTV_CAT_SYS_SORTCRIT)
-   {
-      if ( (xds.pi.no_sortcrit < PI_MAX_SORTCRIT_COUNT) &&
-           (xds.pi_cat_code != 0)  && (xds.pi_cat_code < 0x100) )
-      {
-         // copy codes into the PI data struct
-         xds.pi.sortcrits[xds.pi.no_sortcrit] = xds.pi_cat_code;
-         xds.pi.no_sortcrit += 1;
-      }
-   }
    else
    {
       //warn for DTD 0.6 only
@@ -1153,10 +1132,6 @@ void Xmltv_PiCatSetSystem( XML_STR_BUF * pBuf )
    if (strcasecmp(pStr, "pdc") == 0)
    {
       xds.pi_cat_system = XMLTV_CAT_SYS_PDC;
-   }
-   else if (strcasecmp(pStr, "nextview/sorting_criterion") == 0)
-   {
-      xds.pi_cat_system = XMLTV_CAT_SYS_SORTCRIT;
    }
    else
       debug1("Xmltv-PiCatSetSystem: unknown system: %s", pStr);
@@ -1184,8 +1159,7 @@ void Xmltv_PiCatAddText( XML_STR_BUF * pBuf )
 {
    char * pStr = XML_STR_BUF_GET_STR(*pBuf);
 
-   if ( (xds.pi_cat_system != XMLTV_CAT_SYS_PDC) &&
-        (xds.pi_cat_system != XMLTV_CAT_SYS_SORTCRIT) )
+   if (xds.pi_cat_system != XMLTV_CAT_SYS_PDC)
    {
       Xmltv_ParseThemeString(pStr, XML_STR_BUF_GET_LANG(*pBuf));
    }
@@ -1673,7 +1647,9 @@ EPGDB_CONTEXT * XmltvDb_GetDatabase( const char * pProvName )
 
    // finally generate inventory block with channel table
    xds.pDbContext->pAiBlock = XmltvDb_BuildAi(pProvName);
-   xds.pDbContext->pFirstGenericBlock[BLOCK_TYPE_OI] = XmltvDb_BuildOi();
+   xds.pDbContext->pOiBlock = XmltvDb_BuildOi();
+
+   //TODO PI+OI+AI: EpgBlockCheckConsistancy(pBlock)
 
 #if DEBUG_GLOBAL_SWITCH == ON
    EpgDbCheckChains(xds.pDbContext);

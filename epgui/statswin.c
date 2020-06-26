@@ -146,8 +146,8 @@ static void StatsWin_PrintDbStats( EPGDB_CONTEXT * dbc, EPGDB_BLOCK_COUNT * coun
 {
    const AI_BLOCK *pAi;
    time_t lastAiUpdate;
-   char  netname[30+1], datestr[25+1];
-   uchar version, versionSwo;
+   char  netname[60+1], datestr[25+1];
+   uchar version;
    uint  total, allVersionsCount, curVersionCount, obsolete;
    Tcl_DString cmd_dstr;
 
@@ -157,58 +157,53 @@ static void StatsWin_PrintDbStats( EPGDB_CONTEXT * dbc, EPGDB_BLOCK_COUNT * coun
       // default values if database is empty
       strcpy(netname, "none yet");
       strcpy(datestr, "none yet");
-      version = versionSwo = 0;
+      version = 0;
 
       if (dbc != NULL)
-      {  // get provider's network name and db version from AI block
+      {  // get provider name and db version from AI block
          EpgDbLockDatabase(dbc, TRUE);
          pAi = EpgDbGetAi(dbc);
          if (pAi != NULL)
          {
-            strncpy(netname, AI_GET_NETWOP_NAME(pAi, pAi->thisNetwop), sizeof(netname) - 1);
+            strncpy(netname, AI_GET_SERVICENAME(pAi), sizeof(netname) - 1);
             netname[sizeof(netname) - 1] = 0;
             lastAiUpdate = EpgDbGetAiUpdateTime(dbc);
             strftime(datestr, 25, "%H:%M:%S %a %d.%m.", localtime(&lastAiUpdate));
             version = pAi->version;
-            versionSwo = pAi->version_swo;
          }
          EpgDbLockDatabase(dbc, FALSE);
       }
 
-      total            = count[0].ai + count[1].ai;
-      obsolete         = count[0].expired + count[0].defective +
-                         count[1].expired + count[1].defective;
-      allVersionsCount = count[0].allVersions + count[1].allVersions + obsolete;
-      curVersionCount  = count[0].curVersion + count[1].curVersion + obsolete;
+      total            = count->ai;
+      obsolete         = count->expired + count->defective;
+      allVersionsCount = count->allVersions + obsolete;
+      curVersionCount  = count->curVersion + obsolete;
 
       sprintf(comm, "EPG provider:     %s (CNI %04X)\n"
                     "last AI update:   %s\n"
-                    "Database version: %d/%d\n"
-                    "Blocks in AI:     %d (%d + %d swo)\n"
-                    "Block count db:   %d (%d + %d swo)\n"
-                    "current version:  %d (%d + %d swo)\n"
+                    "Database version: %d\n"
+                    "Blocks in AI:     %d\n"
+                    "Block count db:   %d\n"
+                    "current version:  %d\n"
                     "filled:           %d%% / %d%% current version\n"
-                    "expired stream:   %d%%: %d (%d + %d)\n"
+                    "expired stream:   %d%%: %d\n"
                     "expired total:    %d%%: %d\n"
-                    "defective blocks: %d%%: %d (%d + %d)",
+                    "defective blocks: %d%%: %d",
                     netname, EpgDbContextGetCni(dbc),
                     datestr,
-                    version, versionSwo,
-                    total, count[0].ai, count[1].ai,
+                    version,
+                    // TODO blocks in AI no longer exists
+                    total,
                     allVersionsCount,
-                       count[0].allVersions + count[0].expired + count[0].defective,
-                       count[1].allVersions + count[1].expired + count[1].defective,
                     curVersionCount,
-                       count[0].curVersion + count[0].expired + count[0].defective,
-                       count[1].curVersion + count[1].expired + count[1].defective,
                     ((total > 0) ? (int)((double)allVersionsCount * 100.0 / total) : 100),
                     ((total > 0) ? (int)((double)curVersionCount * 100.0 / total) : 100),
-                    ((allVersionsCount > 0) ? ((int)((double)(count[0].expired + count[1].expired) * 100.0 / allVersionsCount)) : 0),
-                       count[0].expired + count[1].expired, count[0].expired, count[1].expired,
-                    ((allVersionsCount + count[0].extra > 0) ? ((int)((double)count[0].extra * 100.0 / (allVersionsCount + count[0].extra))) : 0),
-                       count[0].extra,
-                    ((allVersionsCount > 0) ? ((int)((double)(count[0].defective + count[1].defective) * 100.0 / allVersionsCount)) : 0),
-                       count[0].defective + count[1].defective, count[0].defective, count[1].defective
+                    ((allVersionsCount > 0) ? ((int)((double)(count->expired + count[1].expired) * 100.0 / allVersionsCount)) : 0),
+                       count->expired,
+                    ((allVersionsCount + count->extra > 0) ? ((int)((double)count->extra * 100.0 / (allVersionsCount + count->extra))) : 0),
+                       count->extra,
+                    ((allVersionsCount > 0) ? ((int)(count->defective * 100.0 / allVersionsCount)) : 0),
+                       count->defective
              );
       {
          Tcl_DStringInit(&cmd_dstr);
@@ -224,15 +219,13 @@ static void StatsWin_PrintDbStats( EPGDB_CONTEXT * dbc, EPGDB_BLOCK_COUNT * coun
 
       if (total > 0)
       {
-         sprintf(comm, "DbStatsWin_PaintPie %s %d %d %d %d %d %d %d\n",
+         sprintf(comm, "DbStatsWin_PaintPie %s %d %d %d %d\n",
                        pWid,
-                       (int)((double)(count[0].defective + count[0].expired) / total * 359.9),
-                       (int)((double)(count[0].curVersion + count[0].defective + count[0].expired) / total * 359.9),
-                       (int)((double)(count[0].allVersions + count[0].defective + count[0].expired) / total * 359.9),
-                       (int)((double)count[0].ai / total * 359.9),
-                       (int)((double)(count[0].ai + count[1].defective + count[1].expired) / total * 359.9),
-                       (int)((double)(count[0].ai + count[1].curVersion + count[1].defective + count[1].expired) / total * 359.9),
-                       (int)((double)(count[0].ai + count[1].allVersions + count[1].defective + count[1].expired) / total * 359.9));
+                       (int)((double)(count->defective + count->expired) / total * 359.9),
+                       (int)((double)(count->curVersion + count->defective + count->expired) / total * 359.9),
+                       (int)((double)(count->allVersions + count->defective + count->expired) / total * 359.9),
+                       (int)((double)count->ai / total * 359.9));
+         // TODO ai / total no longer make sense
       }
       else
       {
@@ -243,8 +236,7 @@ static void StatsWin_PrintDbStats( EPGDB_CONTEXT * dbc, EPGDB_BLOCK_COUNT * coun
    else
    {  // Merged database
 
-      allVersionsCount = count[0].allVersions + count[0].expired + count[0].defective + count[0].extra +
-                         count[1].allVersions + count[1].expired + count[1].defective + count[1].extra;
+      allVersionsCount = count->allVersions + count->expired + count->defective + count->extra;
 
       if ( EpgDbContextIsMerged(dbc) )
       {
@@ -344,30 +336,9 @@ static void StatsWin_PrintNxtvAcqStats( EPGDB_CONTEXT * dbc, EPGACQ_DESCR * pAcq
 
    sprintf(comm + strlen(comm),
                  "TTX pkg/frame:    %.1f (%.0f baud)\n"
-                 "EPG data rate:    %d baud (%1.1f%% of TTX)\n"
-                 "EPG page rate:    %1.2f pages/sec (page %03X)\n"
-                 "AI recv. count:   %d (appID %d)\n"
-                 "AI min/avg/max:   %d/%2.2f/%d sec\n"
-                 "PI rx repetition: %d/%.2f/%.2f now/s1/s2\n"
-                 "Decoder quality:  lost/got %d/%d pages, %d/%d pkg\n"
-                 "                  dropped %d of %d blocks (%d%%),\n"
-                 "                  blanked %d of %d chars (%d%%)\n",
+                 "PI rx repetition: %d/%.2f now/next\n",
                  ttxRate, ttxRate * 42 * 8 * 25,
-                 ((sv->ttx_duration > 0) ? (int)((sv->ttx_dec.epgPkgCount*45*8)/sv->ttx_duration) : 0),
-                 ((sv->ttx_dec.ttxPkgCount > 0) ? ((double)sv->ttx_dec.epgPkgCount*100.0/sv->ttx_dec.ttxPkgCount) : 0.0),
-                 ((sv->ttx_duration > 0) ? ((double)sv->ttx_dec.epgPagCount / sv->ttx_duration) : 0),
-                    sv->nxtv.stream.epgPageNo,
-                 sv->nxtv.ai.aiCount, sv->nxtv.stream.epgAppId,
-                 (int)sv->nxtv.ai.minAiDistance,
-                    ((sv->nxtv.ai.aiCount > 1) ? ((double)sv->nxtv.ai.sumAiDistance / (sv->nxtv.ai.aiCount - 1)) : 0),
-                    (int)sv->nxtv.ai.maxAiDistance,
-                 sv->nxtv.nowMaxAcqRepCount, sv->nxtv.count[0].avgAcqRepCount, sv->nxtv.count[1].avgAcqRepCount,
-                 sv->nxtv.stream.epgPagMissing, sv->nxtv.stream.epgPagCount,
-                 sv->nxtv.stream.epgPkgMissing, sv->nxtv.stream.epgPkgCount,
-                 sv->nxtv.stream.epgBlkErr, sv->nxtv.stream.epgBlkCount,
-                 ((sv->nxtv.stream.epgBlkCount > 0) ? (sv->nxtv.stream.epgBlkErr * 100 / sv->nxtv.stream.epgBlkCount) : 0),
-                 sv->nxtv.stream.epgParErr, sv->nxtv.stream.epgStrSum,
-                 ((sv->nxtv.stream.epgStrSum > 0) ? (sv->nxtv.stream.epgParErr * 100 / sv->nxtv.stream.epgStrSum) : 0)
+                 sv->nxtv.nowMaxAcqRepCount, sv->nxtv.count.avgAcqRepCount
           );
 
    EpgAcqCtl_GetAcqModeStr(pAcqState, FALSE, &pAcqModeStr, &pAcqPasvStr);
@@ -383,8 +354,8 @@ static void StatsWin_PrintNxtvAcqStats( EPGDB_CONTEXT * dbc, EPGACQ_DESCR * pAcq
 
    if (ACQMODE_IS_CYCLIC(pAcqState->mode))
    {
-      sprintf(comm + strlen(comm), "Network variance: %1.2f / %1.2f\n",
-                                   sv->nxtv.count[0].variance, sv->nxtv.count[1].variance);
+      sprintf(comm + strlen(comm), "Network variance: %1.2f\n",
+                                   sv->nxtv.count.variance);
    }
 
    {
@@ -410,8 +381,7 @@ static void StatsWin_PrintNxtvAcqStats( EPGDB_CONTEXT * dbc, EPGACQ_DESCR * pAcq
 //
 static void StatsWin_UpdateDbStatsWin( ClientData clientData )
 {
-   EPGDB_BLOCK_COUNT count[2];
-   time_t acqMinTime[2];
+   EPGDB_BLOCK_COUNT count;
    EPGDB_CONTEXT * dbc;
    EPGDB_CONTEXT * pAcqDbContext;
    EPGACQ_DESCR acqState;
@@ -429,26 +399,27 @@ static void StatsWin_UpdateDbStatsWin( ClientData clientData )
    else
       dbc = NULL;
 
-   if (dbStatsWinState[target].open)
+   if ((target < 2) && dbStatsWinState[target].open)
    {
       dprintf1("StatsWin-UpdateDbStatsWin: for %s\n", ((target == DB_TARGET_UI) ? "ui" : "acq"));
 
+#if 0  // TTX?
       if ( (target == DB_TARGET_ACQ) || (pAcqDbContext == pUiDbContext) )
       {
-         EpgAcqCtl_GetDbStats(count, NULL);
+         EpgAcqCtl_GetDbStats(&count, NULL);
       }
       else
+#endif
       {  // acq not running for this database -> display db stats only
-         memset(count, 0, sizeof(count));
+         memset(&count, 0, sizeof(count));
          if (dbc != NULL)
          {
-            memset(acqMinTime, 0, sizeof(acqMinTime));
-            EpgDbGetStat(dbc, count, acqMinTime, 0);
+            EpgDbGetStat(dbc, &count, 0, 0);
          }
       }
 
       // print database statistics and pie chart
-      StatsWin_PrintDbStats(dbc, count, dbswn[target]);
+      StatsWin_PrintDbStats(dbc, &count, dbswn[target]);
 
       if ((target == DB_TARGET_ACQ) || (pAcqDbContext == pUiDbContext))
       {
@@ -483,10 +454,10 @@ static void StatsWin_UpdateDbStatsWin( ClientData clientData )
             Tcl_DeleteTimerHandler(dbStatsWinState[target].updateHandler);
          }
          // set up a timer to re-display the stats in case there's no EPG reception
-         if ((acqState.nxtvState != ACQDESCR_DISABLED) && (acqState.isNetAcq == FALSE))
+         if ((acqState.ttxGrabState != ACQDESCR_DISABLED) && (acqState.isNetAcq == FALSE))
          {
             dbStatsWinState[target].updateHandler =
-               Tcl_CreateTimerHandler(((sv.nxtv.ai.aiCount < 2) ? 2*1000 : 15*1000), StatsWin_UpdateDbStatsWinTimeout, UINT2PVOID(target));
+               Tcl_CreateTimerHandler(10*1000, StatsWin_UpdateDbStatsWinTimeout, UINT2PVOID(target));
          }
       }
       else
@@ -545,10 +516,7 @@ static void StatsWin_UpdateTtxStats( ClientData clientData )
                                    (uint)(acq_duration / 60), (uint)(acq_duration % 60),
                                    acqState.ttxGrabDone, acqState.ttxSrcCount);
 
-      if (sv.nxtvMaster == FALSE)
-         sprintf(comm + strlen(comm), "Channel Name:     %s\n", sv.ttx_grab.srcName);
-      else
-         sprintf(comm + strlen(comm), "Channel Name:     --- (passive)\n");
+      sprintf(comm + strlen(comm), "Channel Name:     %s\n", sv.ttx_grab.srcName);
 
       if (EpgAcqCtl_GetVpsPdc(&vpsPdc, VPSPDC_REQ_STATSWIN, FALSE) && (vpsPdc.cni != 0))
       {
@@ -609,7 +577,7 @@ static void StatsWin_UpdateTtxStats( ClientData clientData )
       if (statsWinTtx.updateHandler != NULL)
          Tcl_DeleteTimerHandler(statsWinTtx.updateHandler);
       // set up a timer to re-display the stats in case there's no EPG reception
-      if ((acqState.nxtvState != ACQDESCR_DISABLED) && (acqState.isNetAcq == FALSE))
+      if ((acqState.ttxGrabState != ACQDESCR_DISABLED) && (acqState.isNetAcq == FALSE))
          statsWinTtx.updateHandler =
             Tcl_CreateTimerHandler(2*1000, StatsWin_UpdateTtxStats, NULL);
    }
@@ -646,7 +614,7 @@ static void StatsWin_UpdateDbStatsWinTimeout( ClientData clientData )
 //
 static void StatsWin_UpdateDbStatusLine( ClientData clientData )
 {
-   EPGDB_BLOCK_COUNT count[2];
+   EPGDB_BLOCK_COUNT count;
    EPGACQ_DESCR acqState;
    EPGDB_CONTEXT * pAcqDbContext;
    const AI_BLOCK *pAi;
@@ -654,7 +622,7 @@ static void StatsWin_UpdateDbStatusLine( ClientData clientData )
    uint  provNetCount;
    uint  nowMaxAcqNetCount;
    ulong aiTotal, nearCount, allCount, expiredCount, expiredBase;
-   time_t dbAge, acqMinTime[2];
+   time_t dbAge;
    bool isPassiveAcq;
    #ifdef USE_DAEMON
    EPGDBSRV_DESCR netState;
@@ -668,15 +636,8 @@ static void StatsWin_UpdateDbStatusLine( ClientData clientData )
        (EpgDbContextIsXmltv(pUiDbContext) == FALSE) &&
        (EpgDbContextGetCni(pUiDbContext) != 0))
    {
-      if (EpgAcqCtl_GetProvCni() == EpgDbContextGetCni(pUiDbContext))
-      {  // acq runs for the same db -> reuse acq statistics
-         EpgAcqCtl_GetDbStats(count, &nowMaxAcqNetCount);
-      }
-      else
-      {  // not the same db or acq not ready yet -> compute statistics now
-         memset(acqMinTime, 0, sizeof(acqMinTime));
-         EpgDbGetStat(pUiDbContext, count, acqMinTime, 0);
-      }
+      // compute statistics
+      EpgDbGetStat(pUiDbContext, &count, 0, 0);
 
       // get name of UI provider network
       EpgDbLockDatabase(pUiDbContext, TRUE);
@@ -687,15 +648,14 @@ static void StatsWin_UpdateDbStatusLine( ClientData clientData )
          strcat(comm, "Browser database");
       EpgDbLockDatabase(pUiDbContext, FALSE);
 
-      aiTotal      = count[0].ai + count[1].ai;
-      allCount     = count[0].allVersions + count[0].expired + count[0].defective +
-                     count[1].allVersions + count[1].expired + count[1].defective;
-      expiredCount = count[0].expired + count[1].expired;
-      expiredBase  = count[0].allVersions + count[1].allVersions + expiredCount;
+      aiTotal      = count.ai;
+      allCount     = count.allVersions + count.expired + count.defective;
+      expiredCount = count.expired;
+      expiredBase  = count.allVersions + expiredCount;
 
       // print fill percentage across all db versions
       if ( (allCount == 0) || (aiTotal == 0) ||
-           (expiredCount + count[0].defective + count[1].defective >= allCount) )
+           (expiredCount + count.defective >= allCount) )
       {
          strcat(comm, " is empty");
       }
@@ -723,11 +683,11 @@ static void StatsWin_UpdateDbStatusLine( ClientData clientData )
       {
          sprintf(comm + strlen(comm), ", %d%% expired", ACQ_COUNT_TO_PERCENT(expiredCount, expiredBase));
       }
-      else if ((allCount > 0) && (allCount < aiTotal) && (count[0].ai > 0) && (aiTotal > 0))
+      else if ((allCount > 0) && (allCount < aiTotal) && (count.ai > 0) && (aiTotal > 0))
       {  // append near percentage
-         if ( ((count[0].allVersions + count[0].defective) / count[0].ai) > (allCount / aiTotal) )
+         if ( ((count.allVersions + count.defective) / count.ai) > (allCount / aiTotal) )
          {
-            sprintf(comm + strlen(comm), ", near data %d%%", ACQ_COUNT_TO_PERCENT(count[0].allVersions + count[0].defective, count[0].ai));
+            sprintf(comm + strlen(comm), ", near data %d%%", ACQ_COUNT_TO_PERCENT(count.allVersions + count.defective, count.ai));
          }
       }
       strcat(comm, ". ");
@@ -757,17 +717,18 @@ static void StatsWin_UpdateDbStatusLine( ClientData clientData )
          }
          EpgDbLockDatabase(pAcqDbContext, FALSE);
 
-         if (acqState.nxtvState == ACQDESCR_RUNNING)
+#if 0  // TTX?
+         if (acqState.ttxGrabState == ACQDESCR_RUNNING)
          {
-            if (EpgAcqCtl_GetDbStats(count, &nowMaxAcqNetCount))
+            if (EpgAcqCtl_GetDbStats(&count, &nowMaxAcqNetCount))
             {
                // evaluate some totals for later use in percentage evaluations
-               aiTotal   = count[0].ai + count[1].ai;
-               nearCount = count[0].curVersion + count[0].expired + count[0].defective;
-               allCount  = nearCount +
-                           count[1].curVersion + count[1].expired + count[1].defective;
+               aiTotal   = count.ai;
+               nearCount = count.curVersion + count.expired + count.defective;
+               allCount  = nearCount; //TODO clean-up
             }
          }
+#endif
       }
       EpgAcqCtl_GetDbContext(FALSE);
    }
@@ -819,7 +780,7 @@ static void StatsWin_UpdateDbStatusLine( ClientData clientData )
                strcat(comm, "Acquisition: connecting to server..");
                break;
             case NETDESCR_RUNNING:
-               if (acqState.nxtvState == ACQDESCR_NET_CONNECT)
+               if (acqState.ttxGrabState == ACQDESCR_NET_CONNECT)
                {  // note: in state RUNNING display "loading" until the first stats report is available
                   strcat(comm, "Acquisition: connecting to server..");
                }
@@ -831,7 +792,7 @@ static void StatsWin_UpdateDbStatusLine( ClientData clientData )
 
          if (netState.state != NETDESCR_RUNNING)
          {  // set acq state to suppress additional output (e.g. acq phase)
-            acqState.nxtvState = ACQDESCR_NET_CONNECT;
+            acqState.ttxGrabState = ACQDESCR_NET_CONNECT;
          }
       }
    }
@@ -840,11 +801,9 @@ static void StatsWin_UpdateDbStatusLine( ClientData clientData )
    isPassiveAcq = (acqState.mode == ACQMODE_PASSIVE) ||
                   (acqState.mode == ACQMODE_EXTERNAL) ||
                   (acqState.passiveReason != ACQPASSIVE_NONE);
-   if (acqState.isTtxSrc == FALSE)
-      isPassiveAcq |= ((acqState.nxtvDbCni != acqState.cycleCni) || (acqState.nxtvDbCni == 0));
 
    // TODO: in passive mode use either source (careful: use matching provname!)
-   switch (acqState.isTtxSrc ? acqState.ttxGrabState : acqState.nxtvState)
+   switch (acqState.isTtxSrc ? acqState.ttxGrabState : acqState.ttxGrabState)
    {
       case ACQDESCR_DISABLED:
          strcat(comm, "Acquisition is disabled");
@@ -903,22 +862,22 @@ static void StatsWin_UpdateDbStatusLine( ClientData clientData )
             //TODO fatal0("StatsWin-UpdateDbStatusLine: no AI block while in state RUNNING");
             sprintf(comm + strlen(comm), "Acquisition in progress..");
             // patch state to prevent further output
-            acqState.nxtvState = ACQDESCR_NET_CONNECT;
+            acqState.ttxGrabState = ACQDESCR_NET_CONNECT;
          }
          break;
 
       default:
-         fatal1("StatsWin-UpdateDbStatusLine: unknown acq state %d", acqState.nxtvState);
+         fatal1("StatsWin-UpdateDbStatusLine: unknown acq state %d", acqState.ttxGrabState);
    }
 
    // describe acq mode, warn the user if passive
-   if ( (acqState.nxtvState != ACQDESCR_NET_CONNECT) &&
-        (acqState.nxtvState != ACQDESCR_DISABLED) &&
-        (acqState.nxtvState != ACQDESCR_SCAN))
+   if ( (acqState.ttxGrabState != ACQDESCR_NET_CONNECT) &&
+        (acqState.ttxGrabState != ACQDESCR_DISABLED) &&
+        (acqState.ttxGrabState != ACQDESCR_SCAN))
    {
       if (acqState.mode == ACQMODE_PASSIVE)
       {
-         if ((acqState.nxtvState == ACQDESCR_RUNNING) && (aiTotal != 0))
+         if ((acqState.ttxGrabState == ACQDESCR_RUNNING) && (aiTotal != 0))
          {
             sprintf(comm + strlen(comm), ", %d%% complete", ACQ_COUNT_TO_PERCENT(allCount, aiTotal));
          }
@@ -926,7 +885,7 @@ static void StatsWin_UpdateDbStatusLine( ClientData clientData )
       }
       else if (acqState.mode == ACQMODE_EXTERNAL)
       {
-         if ((acqState.nxtvState == ACQDESCR_RUNNING) && (aiTotal != 0))
+         if ((acqState.ttxGrabState == ACQDESCR_RUNNING) && (aiTotal != 0))
          {
             sprintf(comm + strlen(comm), ", %d%% complete", ACQ_COUNT_TO_PERCENT(allCount, aiTotal));
          }
@@ -934,17 +893,11 @@ static void StatsWin_UpdateDbStatusLine( ClientData clientData )
       }
       else if (acqState.passiveReason != ACQPASSIVE_NONE)
       {
-         if ((acqState.nxtvState == ACQDESCR_RUNNING) && (aiTotal != 0))
+         if ((acqState.ttxGrabState == ACQDESCR_RUNNING) && (aiTotal != 0))
          {
             sprintf(comm + strlen(comm), ", %d%% complete", ACQ_COUNT_TO_PERCENT(allCount, aiTotal));
          }
          strcat(comm, " (forced passive)");
-      }
-      else if ( (acqState.isTtxSrc == FALSE) &&
-                (acqState.nxtvDbCni != acqState.cycleCni) && (acqState.cycleCni != 0) )
-      {
-         debug2("StatsWin-UpdateDbStatusLine: prov change pending: db %04X  cycle %04X", acqState.nxtvDbCni, acqState.cycleCni);
-         strcat(comm, " (provider change pending)");
       }
       else if ( (acqState.mode == ACQMODE_FOLLOW_UI) ||
                 (acqState.mode == ACQMODE_FOLLOW_MERGED) ||
@@ -961,7 +914,7 @@ static void StatsWin_UpdateDbStatusLine( ClientData clientData )
          switch (acqState.cyclePhase)
          {
             case ACQMODE_PHASE_NOWNEXT:
-               if ((acqState.isTtxSrc == FALSE) && (acqState.nxtvState == ACQDESCR_RUNNING))
+               if ((acqState.isTtxSrc == FALSE) && (acqState.ttxGrabState == ACQDESCR_RUNNING))
                   sprintf(comm + strlen(comm), " phase 'Now', %d%% complete",
                           ACQ_COUNT_TO_PERCENT(nowMaxAcqNetCount, provNetCount));
                else if (acqState.isTtxSrc)
@@ -975,7 +928,7 @@ static void StatsWin_UpdateDbStatusLine( ClientData clientData )
                   sprintf(comm + strlen(comm), " phase 'Near', %d%% complete",
                           ACQ_COUNT_TO_PERCENT(acqState.ttxGrabDone, acqState.ttxSrcCount));
                else if (aiTotal != 0)
-                  sprintf(comm + strlen(comm), " phase 'Near', %d%% complete", ACQ_COUNT_TO_PERCENT(nearCount, count[0].ai));
+                  sprintf(comm + strlen(comm), " phase 'Near', %d%% complete", ACQ_COUNT_TO_PERCENT(nearCount, count.ai));
                else
                   strcat(comm, " phase 'Near'");
                break;
@@ -1003,7 +956,7 @@ static void StatsWin_UpdateDbStatusLine( ClientData clientData )
       }
    }
 
-   switch (acqState.isTtxSrc ? acqState.ttxGrabState : acqState.nxtvState)
+   switch (acqState.ttxGrabState)
    {
       case ACQDESCR_SCAN:
          break;

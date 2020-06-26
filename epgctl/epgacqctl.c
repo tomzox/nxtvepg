@@ -42,8 +42,6 @@
 #include "epgdb/ttxgrab.h"
 #include "epgdb/epgblock.h"
 #include "epgdb/epgdbif.h"
-#include "epgdb/epgqueue.h"
-#include "epgdb/epgtscqueue.h"
 
 #include "epgui/uictrl.h"
 #include "epgui/epgmain.h"
@@ -107,13 +105,11 @@ void EpgAcqCtl_DescribeAcqState( EPGACQ_DESCR * pAcqState )
       if (EpgScan_IsActive())
       {
          memset(pAcqState, 0, sizeof(EPGACQ_DESCR));
-         pAcqState->nxtvState = ACQDESCR_SCAN;
          pAcqState->ttxGrabState = ACQDESCR_DISABLED;
       }
       else if (acqCtl.acqEnabled == FALSE)
       {
          memset(pAcqState, 0, sizeof(EPGACQ_DESCR));
-         pAcqState->nxtvState = ACQDESCR_DISABLED;
          pAcqState->ttxGrabState = ACQDESCR_DISABLED;
       }
       else
@@ -129,14 +125,9 @@ void EpgAcqCtl_DescribeAcqState( EPGACQ_DESCR * pAcqState )
             pAcqState->isNetAcq      = FALSE;
 
             // query grabber states and sources
-            EpgAcqNxtv_DescribeAcqState(pAcqState);
             EpgAcqTtx_DescribeAcqState(pAcqState);
 
-            if ((acqCtl.mode != ACQMODE_PASSIVE) &&
-                (acqCtl.mode != ACQMODE_EXTERNAL))
-               pAcqState->isTtxSrc   = acqCtl.isTtxSrc;
-            else
-               pAcqState->isTtxSrc   = (pAcqState->nxtvState < pAcqState->ttxGrabState);
+            pAcqState->isTtxSrc = acqCtl.isTtxSrc;
          }
          else
          {  // network acq mode -> return info forwarded by acq daemon
@@ -211,7 +202,7 @@ void EpgAcqCtl_GetAcqModeStr( const EPGACQ_DESCR * pAcqState, bool forTtx,
    }
    else
    {
-      if (pAcqState->nxtvState == ACQDESCR_DISABLED)
+      if (pAcqState->ttxGrabState == ACQDESCR_DISABLED)
       {
          *ppModeStr = "disabled";
       }
@@ -242,46 +233,6 @@ void EpgAcqCtl_GetAcqModeStr( const EPGACQ_DESCR * pAcqState, bool forTtx,
 }
 
 // ---------------------------------------------------------------------------
-// Return database block counts: number blocks in AI, number expired, etc.
-// - in network acq mode the info is forwarded by the acquisition daemon
-//   (even if the database is fully open on client-side)
-//
-bool EpgAcqCtl_GetDbStats( EPGDB_BLOCK_COUNT * pDbStats, uint * pNowMaxAcqNetCount )
-{
-   EPG_ACQ_STATS acqStats;
-   bool result = FALSE;
-
-   if (acqCtl.acqEnabled)
-   {
-      if (acqCtl.mode != ACQMODE_NETWORK)
-      {
-         result = EpgAcqNxtv_GetAcqStats(&acqStats.nxtv);
-      }
-      else
-      {
-         #ifdef USE_DAEMON
-         result = EpgAcqClient_GetAcqStats(&acqStats);
-         #endif
-      }
-   }
-
-   if (result)
-   {
-      memcpy(pDbStats, acqStats.nxtv.count, sizeof(EPGDB_BLOCK_COUNT)*2);
-      if (pNowMaxAcqNetCount != NULL)
-         *pNowMaxAcqNetCount = acqStats.nxtv.nowMaxAcqNetCount;
-   }
-   else
-   {
-      memset(pDbStats, 0, sizeof(EPGDB_BLOCK_COUNT)*2);
-      if (pNowMaxAcqNetCount != NULL)
-         *pNowMaxAcqNetCount = 0;
-   }
-
-   return result;
-}
-
-// ---------------------------------------------------------------------------
 // Return complete set of acq state and statistic values
 // - used by "View acq statistics" popup window
 // - in network acq mode it returns info about the remote acquisition process
@@ -299,7 +250,6 @@ bool EpgAcqCtl_GetAcqStats( EPG_ACQ_STATS * pAcqStats )
 
       if (acqCtl.mode != ACQMODE_NETWORK)
       {
-         EpgAcqNxtv_GetAcqStats(&pAcqStats->nxtv);
          EpgAcqTtx_GetAcqStats(&pAcqStats->ttx_grab);
          pAcqStats->lastStatsUpdate = time(NULL);
 
@@ -307,7 +257,6 @@ bool EpgAcqCtl_GetAcqStats( EPG_ACQ_STATS * pAcqStats )
          TtxDecode_GetStatistics(&pAcqStats->ttx_dec, &ttx_start_t);
          pAcqStats->ttx_duration = pAcqStats->lastStatsUpdate - ttx_start_t;
 
-         pAcqStats->nxtvMaster = !acqCtl.isTtxSrc;
          result = TRUE;
       }
       else
@@ -326,22 +275,7 @@ bool EpgAcqCtl_GetAcqStats( EPG_ACQ_STATS * pAcqStats )
 //
 uint EpgAcqCtl_GetProvCni( void )
 {
-   EPGDB_CONTEXT * pDbContext;
-   uint cni = 0;
-
-   if (acqCtl.acqEnabled)
-   {
-      if (acqCtl.mode != ACQMODE_NETWORK)
-         pDbContext = EpgAcqNxtv_GetDbContext();
-      else
-         pDbContext = EpgAcqClient_GetDbContext();
-
-      if (pDbContext != NULL)
-      {
-         cni = EpgDbContextGetCni(pDbContext);
-      }
-   }
-   return cni;
+   return 0; //TODO obsolete
 }
 
 // ---------------------------------------------------------------------------
@@ -350,36 +284,7 @@ uint EpgAcqCtl_GetProvCni( void )
 //
 EPGDB_CONTEXT * EpgAcqCtl_GetDbContext( bool lock )
 {
-   EPGDB_CONTEXT * pDbContext = NULL;
-
-   if (acqCtl.acqEnabled)
-   {
-      if (acqCtl.mode != ACQMODE_NETWORK)
-         pDbContext = EpgAcqNxtv_GetDbContext();
-      else
-         pDbContext = EpgAcqClient_GetDbContext();
-
-      if (pDbContext != NULL)
-      {
-         EpgDbLockDatabase(pDbContext, lock);
-      }
-   }
-   return pDbContext;
-}
-
-// ---------------------------------------------------------------------------
-// Get Pointer to PI timescale queue
-// - used by the GUI to retrieve info from the queue (and thereby emptying it)
-// - returns NULL if acq is off (queue might not be initialized yet)
-//
-EPGDB_PI_TSC * EpgAcqCtl_GetTimescaleQueue( void )
-{
-#ifdef USE_DAEMON
-   if (acqCtl.mode == ACQMODE_NETWORK)
-      return EpgAcqClient_GetTimescaleQueue();
-   else
-#endif
-      return EpgAcqNxtv_GetTimescaleQueue();
+   return NULL; //TODO obsolete
 }
 
 // ---------------------------------------------------------------------------
@@ -395,23 +300,6 @@ void EpgAcqCtl_EnableAcqStats( bool enable )
    // Pass through the setting to the network client (even while acq is off or not
    // in network mode, because it's needed as soon as a connection is established)
    EpgAcqClient_SetAcqStatsMode(enable);
-#endif
-}
-
-// ---------------------------------------------------------------------------
-// En-/Disable sending of PI timescale information
-// - param enable is set to TRUE if any timescale window is open, i.e. UI or ACQ
-// - param allProviders is set to TRUE if the acq timescale window is open;
-//   this flag is only used in network mode; see the epgdbsrv.c module
-//
-void EpgAcqCtl_EnableTimescales( bool enable, bool allProviders )
-{
-   EpgAcqNxtv_EnableTimescales(enable);
-
-#ifdef USE_DAEMON
-   // Pass through the setting to the network client (even while acq is off or not
-   // in network mode, because it's needed as soon as a connection is established)
-   EpgAcqClient_SetAcqTscMode(enable, allProviders);
 #endif
 }
 
@@ -456,7 +344,13 @@ bool EpgAcqCtl_GetVpsPdc( EPG_ACQ_VPS_PDC * pVpsPdc, VPSPDC_REQ_ID clientId, boo
    {
       if (acqCtl.acqEnabled)
       {
-         if (acqCtl.mode != ACQMODE_NETWORK)
+#ifdef USE_DAEMON
+         if (acqCtl.mode == ACQMODE_NETWORK)
+         {  // retrieve data from network client
+            result = EpgAcqClient_GetVpsPdc(pVpsPdc, &acqCtl.acqCniInd[clientId][0]);
+         }
+         else
+#endif
          {
             if (force)
             {
@@ -474,10 +368,6 @@ bool EpgAcqCtl_GetVpsPdc( EPG_ACQ_VPS_PDC * pVpsPdc, VPSPDC_REQ_ID clientId, boo
                pVpsPdc->cni = newCni;
                result = TRUE;
             }
-         }
-         else
-         {  // retrieve data from network client
-            result = EpgAcqClient_GetVpsPdc(pVpsPdc, &acqCtl.acqCniInd[clientId][0]);
          }
       }
    }
@@ -534,7 +424,6 @@ bool EpgAcqCtl_Start( void )
          #ifdef USE_DAEMON
          // VPS/PDC currently always enabled
          EpgAcqClient_SetVpsPdcMode(TRUE, FALSE);
-         EpgAcqClient_SetProviders(acqCtl.cniTab, acqCtl.cniCount);
          result = EpgAcqClient_Start();
          #endif
       }
@@ -581,7 +470,6 @@ void EpgAcqCtl_Stop( void )
       {
          BtDriver_StopAcq();
       }
-      EpgAcqNxtv_Stop();
       EpgAcqTtx_Stop();
 
       UiControlMsg_AcqEvent(ACQ_EVENT_PROV_CHANGE);
@@ -601,7 +489,6 @@ void EpgAcqCtl_Suspend( bool suspend )
    }
    else
    {
-      EpgAcqNxtv_Suspend();
       EpgAcqTtx_Suspend();
 
       acqCtl.acqEnabled = FALSE;
@@ -632,13 +519,13 @@ const char * EpgAcqCtl_GetLastError( void )
 // Set input source and tuner frequency for a provider
 // - errors are reported to the user interface
 //
+// TODO remove isTtx
 bool EpgAcqCtl_TuneProvider( bool isTtx, const EPGACQ_TUNER_PAR * par, uint cni, EPGACQ_PASSIVE * pMode )
 {
    bool isTuner;
    bool result = FALSE;
 
    assert(acqCtl.mode != ACQMODE_PASSIVE);
-   assert(isTtx == acqCtl.isTtxSrc);  // alternate source should be in passive mode
 
    // reset forced-passive state; will be set upon errors below
    acqCtl.passiveReason = ACQPASSIVE_NONE;
@@ -659,24 +546,8 @@ bool EpgAcqCtl_TuneProvider( bool isTtx, const EPGACQ_TUNER_PAR * par, uint cni,
    {
       if (isTuner)
       {
-         if (par->freq != 0)
-         {
-            dprintf2("EpgAcqCtl-TuneProv: tuned freq %d for provider 0x%04X\n", par->freq, cni);
-            result = TRUE;
-         }
-         else
-         {
-            dprintf1("EpgAcqCtl-TuneProv: no freq in db for provider 0x%04X\n", cni);
-            if (cni != 0)
-            {  // inform the user that acquisition will not be possible
-               acqCtl.passiveReason = ACQPASSIVE_NO_FREQ;
-               UiControlMsg_MissingTunerFreq(cni);
-            }
-            else
-            {
-               acqCtl.passiveReason = ACQPASSIVE_NO_DB;
-            }
-         }
+         dprintf2("EpgAcqCtl-TuneProv: tuned freq %ld for provider 0x%04X\n", par->freq, cni);
+         result = TRUE;
       }
       else
       {
@@ -699,10 +570,8 @@ bool EpgAcqCtl_TuneProvider( bool isTtx, const EPGACQ_TUNER_PAR * par, uint cni,
          BtDriver_SelectSlicer(acqCtl.currentSlicerType);
       }
 
-      // inform the other control module about the channel change
-      if (isTtx)
-         EpgAcqNxtv_ChannelChange(TRUE);
-      else
+      // inform the opposite control sub-module about the channel change
+      if (!isTtx)  // == never, after removal of nxtvepg
          EpgAcqTtx_ChannelChange();
    }
    else
@@ -762,25 +631,9 @@ static bool EpgAcqCtl_UpdateProvider( bool changeDb )
 
    if (acqCtl.mode != ACQMODE_NETWORK)
    {
-      if (acqCtl.isTtxSrc == FALSE)
-      {
-         dprintf1("EpgAcqCtl-UpdateProvider: start nxtv CNI 0x%04X\n", EpgAcqCtl_GetReqProv());
+      dprintf0("EpgAcqCtl-UpdateProvider: start TTX acq\n");
 
-         result = EpgAcqNxtv_Start(acqCtl.mode, acqCtl.cyclePhase, EpgAcqCtl_GetReqProv());
-
-         if (acqCtl.ttxSrcCount != 0)
-            EpgAcqTtx_Start(ACQMODE_PASSIVE, acqCtl.cyclePhase);
-         else
-            EpgAcqTtx_Stop();
-      }
-      else
-      {
-         dprintf0("EpgAcqCtl-UpdateProvider: start TTX acq\n");
-
-         result = EpgAcqTtx_Start(acqCtl.mode, acqCtl.cyclePhase);
-
-         EpgAcqNxtv_Start(ACQMODE_PASSIVE, acqCtl.cyclePhase, 0);
-      }
+      result = EpgAcqTtx_Start(acqCtl.mode, acqCtl.cyclePhase);
    }
    else
       result = FALSE;
@@ -901,43 +754,11 @@ static void EpgAcqCtl_AdvanceCyclePhase( void )
    assert((acqCtl.passiveReason == ACQPASSIVE_NONE) || (acqCtl.mode != ACQMODE_PASSIVE));
 }
 
-#ifdef USE_DAEMON
-// ---------------------------------------------------------------------------
-// Update provider list only
-// - used by daemon (server process) if in follow-ui mode (in this case the
-//   connected clients' GUI database selection determine the acq prov. list)
-// - note: this function is a reduced version of "SelectMode"
-//
-void EpgAcqCtl_UpdateProvList( uint cniCount, const uint * pCniTab )
-{
-   if ( (acqCtl.mode == ACQMODE_FOLLOW_UI) ||
-        (acqCtl.mode == ACQMODE_FOLLOW_MERGED) )
-   {
-      if ( (cniCount != acqCtl.cniCount) ||
-           (memcmp(acqCtl.cniTab, pCniTab, cniCount * sizeof(*pCniTab)) != 0) )
-      {
-         // copy the new parameters
-         acqCtl.cniCount = cniCount;
-         memcpy(acqCtl.cniTab, pCniTab, sizeof(acqCtl.cniTab));
-
-         // reset acquisition and start with the new parameters
-         if (acqCtl.acqEnabled)
-         {
-            dprintf2("EpgAcqCtl-UpdateNetProvList: reset acq for new CNI count=%d, CNI#0=%04X\n", cniCount, pCniTab[0]);
-
-            EpgAcqCtl_InitCycle();
-            EpgAcqCtl_UpdateProvider(TRUE);
-         }
-      }
-   }
-}
-#endif  // USE_DAEMON
-
 // ---------------------------------------------------------------------------
 // Select acquisition mode and provider list
 //
 bool EpgAcqCtl_SelectMode( EPGACQ_MODE newAcqMode, EPGACQ_PHASE maxPhase,
-                           uint cniCount, const uint * pCniTab,
+                           uint cniCount, const uint * pCniTab,  //TODO obsolete?
                            uint ttxSrcCount, const char * pTtxNames,
                            const EPGACQ_TUNER_PAR * pTtxFreqs )
 {
@@ -1003,12 +824,6 @@ bool EpgAcqCtl_SelectMode( EPGACQ_MODE newAcqMode, EPGACQ_PHASE maxPhase,
             if (acqCtl.acqEnabled)
             {
                dprintf3("EpgAcqCtl-SelectMode: reset acq with new params: mode=%d, CNI count=%d, CNI#0=%04X\n", newAcqMode, cniCount, pCniTab[0]);
-               if (acqCtl.mode == ACQMODE_NETWORK)
-               {  // send the provider list to the acquisition daemon
-                  #ifdef USE_DAEMON
-                  EpgAcqClient_SetProviders(pCniTab, cniCount);
-                  #endif
-               }
                EpgAcqCtl_InitCycle();
                result = EpgAcqCtl_UpdateProvider(TRUE);
             }
@@ -1090,7 +905,6 @@ static void EpgAcqCtl_ChannelChange( void )
    assert(EpgScan_IsActive() == FALSE);  // EPG scan uses a separate callback
    assert(acqCtl.mode != ACQMODE_NETWORK);  // callback not used by the net client
 
-   EpgAcqNxtv_ChannelChange(FALSE);
    EpgAcqTtx_ChannelChange();
 }
 
@@ -1136,7 +950,9 @@ bool EpgAcqCtl_ProcessVps( void )
 {
    uint newCni, newPil;
    CNI_TYPE cniType;
+   #ifdef USE_DAEMON
    bool change = FALSE;
+   #endif
    bool update = FALSE;
 
    if ( (acqCtl.acqEnabled) &&
@@ -1155,8 +971,9 @@ bool EpgAcqCtl_ProcessVps( void )
             dprintf5("EpgAcqCtl-PollVpsPil: %02d.%02d. %02d:%02d (0x%04X)\n", (newPil >> 15) & 0x1F, (newPil >> 11) & 0x0F, (newPil >>  6) & 0x1F, (newPil      ) & 0x3F, newCni );
 
             UiControlMsg_AcqEvent(ACQ_EVENT_VPS_PDC);
-
+            #ifdef USE_DAEMON
             change = TRUE;
+            #endif
          }
 
          #ifdef USE_DAEMON
@@ -1181,7 +998,6 @@ bool EpgAcqCtl_ProcessVps( void )
 bool EpgAcqCtl_ProcessPackets( void )
 {
    bool slicerOk;
-   bool * pCheckNxtvSlicer;
    bool * pCheckTtxSlicer;
    bool stopped;
    bool result = FALSE;
@@ -1195,16 +1011,12 @@ bool EpgAcqCtl_ProcessPackets( void )
             EpgAcqCtl_CheckDeviceAccess();
 
          // check if the current slicer type is adequate
-         pCheckNxtvSlicer = NULL;
          pCheckTtxSlicer = NULL;
          slicerOk = TRUE;
          if ( (acqCtl.autoSlicerType) &&
               (acqCtl.currentSlicerType + 1 < VBI_SLICER_COUNT) )
          {
-            if (acqCtl.isTtxSrc)
-               pCheckTtxSlicer = &slicerOk;
-            else
-               pCheckNxtvSlicer = &slicerOk;
+            pCheckTtxSlicer = &slicerOk;
          }
 
          // check if new data is available in the VBI ringbuffer
@@ -1213,7 +1025,6 @@ bool EpgAcqCtl_ProcessPackets( void )
 
          if (stopped == FALSE)
          {
-            EpgAcqNxtv_ProcessPackets(pCheckNxtvSlicer);
             EpgAcqTtx_ProcessPackets(pCheckTtxSlicer);
 
             TtxDecoder_ReleasePackets();
@@ -1226,12 +1037,7 @@ bool EpgAcqCtl_ProcessPackets( void )
             }
 
             // check timers (acq. stalls, forced passive mode, ...)
-            if (acqCtl.isTtxSrc == FALSE)
-            {
-               acqCtl.advanceCycle = EpgAcqNxtv_MonitorSource();
-            }
-            else
-               acqCtl.advanceCycle = EpgAcqTtx_MonitorSources();
+            acqCtl.advanceCycle = EpgAcqTtx_MonitorSources();
          }
          else
          {  // acquisition was stopped, e.g. due to death of the acq slave
@@ -1264,26 +1070,12 @@ bool EpgAcqCtl_ProcessPackets( void )
 //
 void EpgAcqCtl_ProcessBlocks( void )
 {
-   bool * pNxtvAdvance = NULL;
-
    if (acqCtl.acqEnabled)
    {
       assert(EpgScan_IsActive() == FALSE);
 
       if (acqCtl.mode != ACQMODE_NETWORK)
       {
-         if ( (acqCtl.advanceCycle == FALSE) &&
-              (acqCtl.isTtxSrc == FALSE) &&
-              ( (acqCtl.stopPhase != ACQMODE_PHASE_COUNT) ||
-                (ACQMODE_IS_CYCLIC(acqCtl.mode) && (acqCtl.cniCount > 1)) ))
-         {
-            // in cyclic mode and when nxtv is master: ask if acq for current provider is done
-            pNxtvAdvance = &acqCtl.advanceCycle;
-         }
-
-         // process incoming Nextview EPG blocks: add to database
-         EpgAcqNxtv_ProcessBlocks(pNxtvAdvance);
-
          if (acqCtl.advanceCycle)
          {
             acqCtl.advanceCycle = FALSE;
@@ -1312,7 +1104,6 @@ void EpgAcqCtl_Destroy( bool isEmergency )
 {
    if (isEmergency == FALSE)
    {
-      EpgAcqNxtv_Destroy();
       EpgAcqTtx_Destroy();
    }
    BtDriver_Exit();
@@ -1325,7 +1116,6 @@ void EpgAcqCtl_Init( void )
 {
    memset(&acqCtl, 0, sizeof(acqCtl));
 
-   EpgAcqNxtv_Init();
    EpgAcqTtx_Init();
 
    BtDriver_Init();

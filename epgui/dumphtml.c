@@ -40,7 +40,6 @@
 #include "epgdb/epgblock.h"
 #include "epgdb/epgdbfil.h"
 #include "epgdb/epgdbif.h"
-#include "epgdb/epgtscqueue.h"
 #include "epgui/epgmain.h"
 #include "epgui/epgsetup.h"
 #include "epgui/pdc_themes.h"

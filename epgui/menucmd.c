@@ -40,7 +40,6 @@
 #include "epgdb/epgdbmgmt.h"
 #include "epgdb/epgdbfil.h"
 #include "epgdb/epgdbif.h"
-#include "epgdb/epgtscqueue.h"
 #include "epgdb/epgdbmerge.h"
 #include "epgctl/epgacqsrv.h"
 #include "epgctl/epgacqclnt.h"
@@ -98,9 +97,6 @@ static int MenuCmd_SetControlMenuStates( ClientData ttp, Tcl_Interp *interp, int
       uiCni = EpgDbContextGetCni(pUiDbContext);
 
       // enable "dump database" only if UI database has at least an AI block
-      sprintf(comm, ".menubar.ctrl entryconfigure \"Dump raw database...\" -state %s\n",
-                    ((uiCni != 0) ? "normal" : "disabled"));
-      eval_check(interp, comm);
       sprintf(comm, ".menubar.ctrl entryconfigure \"Export as text...\" -state %s\n",
                     ((uiCni != 0) ? "normal" : "disabled"));
       eval_check(interp, comm);
@@ -116,10 +112,11 @@ static int MenuCmd_SetControlMenuStates( ClientData ttp, Tcl_Interp *interp, int
                     ((uiCni != 0) ? "normal" : "disabled"));
       eval_check(interp, comm);
 
-      // enable "acq timescales" only if acq running on different db than ui
-      sprintf(comm, ".menubar.ctrl entryconfigure \"Nextview acq. timescales...\" -state %s\n",
-                    ((acqState.nxtvDbCni != 0) ? "normal" : "disabled"));
-      eval_check(interp, comm);
+//TODO teletext?
+//      // enable "acq timescales" only if acq running on different db than ui
+//      sprintf(comm, ".menubar.ctrl entryconfigure \"Nextview acq. timescales...\" -state %s\n",
+//                    ((acqState.nxtvDbCni != 0) ? "normal" : "disabled"));
+//      eval_check(interp, comm);
 
 #ifdef USE_TTX_GRABBER
       sprintf(comm, ".menubar.ctrl entryconfigure \"Teletext grabber statistics...\" -state %s\n",
@@ -128,7 +125,7 @@ static int MenuCmd_SetControlMenuStates( ClientData ttp, Tcl_Interp *interp, int
 #endif
 
       // check button of "Enable Acq" if acq is running
-      sprintf(comm, "set menuStatusStartAcq %d\n", (acqState.nxtvState != ACQDESCR_DISABLED));
+      sprintf(comm, "set menuStatusStartAcq %d\n", (acqState.ttxGrabState != ACQDESCR_DISABLED));
       eval_check(interp, comm);
 
       #ifdef USE_DAEMON
@@ -137,22 +134,29 @@ static int MenuCmd_SetControlMenuStates( ClientData ttp, Tcl_Interp *interp, int
       //   but in "retry" mode after a network error. This must be taken into account
       //   in the callbacks for the "start acq" entries.
       sprintf(comm, "set menuStatusDaemon %d",
-                    ((acqState.nxtvState != ACQDESCR_DISABLED) && acqState.isNetAcq) );
+                    ((acqState.ttxGrabState != ACQDESCR_DISABLED) && acqState.isNetAcq) );
       eval_check(interp, comm);
 
       // enable "Enable acquisition" only if not connected to a non-local daemon
-      allow_opt = ( (acqState.nxtvState == ACQDESCR_DISABLED) ||
-                    (acqState.isNetAcq == FALSE) ||
-                    (acqState.isNetAcq && EpgAcqClient_IsLocalServer()) );
+      if (RcFile_Query()->ttx.ttx_enable)
+      {
+         allow_opt = ( (acqState.ttxGrabState == ACQDESCR_DISABLED) ||
+                       (acqState.isNetAcq == FALSE) ||
+                       (acqState.isNetAcq && EpgAcqClient_IsLocalServer()) );
 #ifdef WIN32
-      allow_opt &= EpgSetup_HasLocalTvCard();
+         allow_opt &= EpgSetup_HasLocalTvCard();
 #endif
+      }
+      else
+      {
+         allow_opt = FALSE;
+      }
       sprintf(comm, ".menubar.ctrl entryconfigure \"Enable acquisition\" -state %s\n",
                     (allow_opt ? "normal" : "disabled"));
       eval_check(interp, comm);
 
       // enable "connect to acq. daemon" only if acq not already running locally
-      allow_opt = ((acqState.nxtvState == ACQDESCR_DISABLED) || acqState.isNetAcq);
+      allow_opt = ((acqState.ttxGrabState == ACQDESCR_DISABLED) || acqState.isNetAcq);
       sprintf(comm, ".menubar.ctrl entryconfigure \"Connect to acq. daemon\" -state %s\n",
                     (allow_opt ? "normal" : "disabled"));
       eval_check(interp, comm);
@@ -257,7 +261,7 @@ void MenuCmd_AcqStatsUpdate( void )
       UpdateRcFile(TRUE);
    }
    else if ( (doNetAcq) && (acqState.isNetAcq == FALSE) &&
-             (acqState.nxtvState >= ACQDESCR_STARTING) )
+             (acqState.ttxGrabState >= ACQDESCR_STARTING) )
    {
       // default is still remote, but acq is running locally -> update
       dprintf0("MenuCmd-AcqStatsUpdate: setting default netacq mode to 0\n");
@@ -446,7 +450,7 @@ static int MenuCmd_ToggleAcq( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_
    {
       EpgAcqCtl_DescribeAcqState(&acqState);
 
-      if (acqState.nxtvState == ACQDESCR_DISABLED)
+      if (acqState.ttxGrabState == ACQDESCR_DISABLED)
       {
          // if network acq is in a "retry connect after error" state, really stop it now
          if (acqState.isNetAcq)
@@ -515,7 +519,7 @@ static int MenuCmd_IsAcqEnabled( ClientData ttp, Tcl_Interp *interp, int objc, T
    else 
    {
       EpgAcqCtl_DescribeAcqState(&acqState);
-      isActive = acqState.nxtvState != ACQDESCR_DISABLED;
+      isActive = acqState.ttxGrabState != ACQDESCR_DISABLED;
 
       Tcl_SetObjResult(interp, Tcl_NewBooleanObj(isActive));
 
@@ -550,7 +554,7 @@ static int MenuCmd_IsNetAcqActive( ClientData ttp, Tcl_Interp *interp, int objc,
       if (strcmp(Tcl_GetString(objv[1]), "clear_errors") == 0)
       {
          // stop acq if network acquisition is in error state
-         if ( (acqState.isNetAcq) && (acqState.nxtvState == ACQDESCR_DISABLED) )
+         if ( (acqState.isNetAcq) && (acqState.ttxGrabState == ACQDESCR_DISABLED) )
          {
             EpgAcqCtl_Stop();
 
@@ -596,7 +600,7 @@ static int MenuCmd_IsAcqExternal( ClientData ttp, Tcl_Interp *interp, int objc, 
    {
       EpgAcqCtl_DescribeAcqState(&acqState);
 
-      if ( (acqState.nxtvState != ACQDESCR_DISABLED) &&
+      if ( (acqState.ttxGrabState != ACQDESCR_DISABLED) &&
            (acqState.passiveReason == ACQPASSIVE_NO_TUNER) )
          isExternal = TRUE;
       else
@@ -787,7 +791,7 @@ static int MenuCmd_GetProvServiceInfos( ClientData ttp, Tcl_Interp *interp, int 
       {
          EpgDbLockDatabase(pPeek, TRUE);
          pAi = EpgDbGetAi(pPeek);
-         pOi = EpgDbGetOi(pPeek, 0);
+         pOi = EpgDbGetOi(pPeek);
 
          if (pAi != NULL)
          {
@@ -912,7 +916,6 @@ static int MenuCmd_GetProvCnisAndNames( ClientData ttp, Tcl_Interp *interp, int 
    const uint * pCniList;
    EPGDB_CONTEXT  * pPeek;
    Tcl_Obj * pResultList;
-   const char * pStr;
    char buf[16+2+1];
    uint idx, cniCount;
    bool nxtv_only;
@@ -928,7 +931,7 @@ static int MenuCmd_GetProvCnisAndNames( ClientData ttp, Tcl_Interp *interp, int 
       pResultList = Tcl_NewListObj(0, NULL);
       nxtv_only = (objc == 1+1);
 
-      EpgContextCtl_ScanDbDir( nxtv_only );
+      EpgContextCtl_ScanDbDir();
 
       pCniList = EpgContextCtl_GetProvList(&cniCount);
       for (idx=0; idx < cniCount; idx++)
@@ -945,14 +948,7 @@ static int MenuCmd_GetProvCnisAndNames( ClientData ttp, Tcl_Interp *interp, int 
                   sprintf(buf, "0x%04X", pCniList[idx]);
                   Tcl_ListObjAppendElement(interp, pResultList, Tcl_NewStringObj(buf, -1));
 
-#ifdef USE_XMLTV_IMPORT
-                  if (EpgDbContextIsXmltv(pPeek))
-                     pStr = AI_GET_SERVICENAME(pAi);
-                  else
-#endif
-                     pStr = AI_GET_NETWOP_NAME(pAi, pAi->thisNetwop);
-
-                  Tcl_ListObjAppendElement(interp, pResultList, TranscodeToUtf8(EPG_ENC_NXTVEPG, NULL, pStr, NULL));
+                  Tcl_ListObjAppendElement(interp, pResultList, TranscodeToUtf8(EPG_ENC_NXTVEPG, NULL, AI_GET_SERVICENAME(pAi), NULL));
                }
                EpgDbLockDatabase(pPeek, FALSE);
             }
@@ -1407,7 +1403,7 @@ static int MenuCmd_UpdateMergeOptions( Tcl_Interp *interp, Tcl_Obj * pAttrListOb
 
    // note order must match that of enum MERGE_ATTRIB_TYPE
    static CONST84 char * pKeywords[] = { "cftitle", "cfdescr", "cfthemes",
-      "cfseries", "cfsortcrit", "cfeditorial", "cfparental",
+      "cfseries", "cfeditorial", "cfparental",
       "cfsound", "cfformat", "cfrepeat", "cfsubt",
       "cfmisc", "cfvps", (char *) NULL };
 
@@ -1535,7 +1531,7 @@ static int MenuCmd_GetMergeOptions( ClientData ttp, Tcl_Interp *interp, int objc
    int  result;
 
    static const char * pKeywords[] = { "cftitle", "cfdescr", "cfthemes",
-      "cfseries", "cfsortcrit", "cfeditorial", "cfparental",
+      "cfseries", "cfeditorial", "cfparental",
       "cfsound", "cfformat", "cfrepeat", "cfsubt",
       "cfmisc", "cfvps", (char *) NULL };
 
@@ -1579,7 +1575,7 @@ static int MenuCmd_GetMergeOptions( ClientData ttp, Tcl_Interp *interp, int objc
 
 // ----------------------------------------------------------------------------
 // Initiate the database merging
-// - called from the 'Merge providers' popup menu
+// - called by the 'Merge XMLTV files' dialog
 // - parameters are taken from global Tcl variables, because the same
 //   update is required at startup
 //
@@ -1833,163 +1829,6 @@ static int MenuCmd_UpdateAcqConfig( ClientData ttp, Tcl_Interp *interp, int objc
 }
 
 // ----------------------------------------------------------------------------
-// Remove the database file of a provider on disk
-// - invoked on user-request for providers on which an EPG scan "refresh" failed
-// - the rc/ini configuration parameters are removed on Tcl level
-//
-static int MenuCmd_RemoveProviderDatabase( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
-{
-   const char * const pUsage = "Usage: C_RemoveProviderDatabase <cni>";
-   int   cni;
-   int   result;
-
-   if (objc != 2)
-   {  // wrong parameter count
-      Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
-      result = TCL_ERROR;
-   }
-   else if (Tcl_GetIntFromObj(interp, objv[1], &cni) != TCL_OK)
-   {
-      result = TCL_ERROR;
-   }
-   else
-   {
-      // remove from rc file (e.g. provider selection, frequencies)
-      RcFile_RemoveProvider(cni);
-
-      EpgSetup_AcquisitionMode(NETACQ_KEEP);
-
-      // rc file is written by GUI after discarding GUI parameters
-      // UpdateRcFile(TRUE);
-
-      // caller already checked that merged db is not open, so no need to re-merge here
-
-      // finally close the database and remove the actual file on disk
-      result = EpgContextCtl_Remove(cni);
-      if (result == EBUSY)
-         Tcl_SetResult(interp, "The database is still opened for the browser or acquisition", TCL_STATIC);
-      else if (result != 0)
-         Tcl_SetResult(interp, strerror(result), TCL_STATIC);
-
-      result = TCL_OK;
-   }
-   return result;
-}
-
-// ----------------------------------------------------------------------------
-// Fetch the list of provider frequencies from all available databases
-// - called when the EPG scan dialog is opened
-// - returns the number of frequencies (after merge with those in rc)
-//   frequencies are copied into the rc file at the same time
-// - required only in case the user deleted the rc file and the frequency list
-//   is gone; else all frequencies should also be available in the rc/ini file
-//
-static int MenuCmd_LoadProvFreqsFromDbs( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
-{
-   const char * const pUsage = "Usage: C_LoadProvFreqsFromDbs";
-   uint  * pDbFreqTab;
-   uint  * pDbCniTab;
-   uint    dbCount;
-   uint    idx;
-   bool    newFreq;
-   int     result;
-
-   if (objc != 1)
-   {  // no arguments expected
-      Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
-      result = TCL_ERROR;
-   }
-   else
-   {
-      pDbCniTab  = NULL;
-      pDbFreqTab = NULL;
-
-      // extract frequencies from database files (even if incompatible version)
-      dbCount = EpgContextCtl_GetFreqList(&pDbCniTab, &pDbFreqTab, FALSE);
-      newFreq = FALSE;
-
-      // update or add the frequencies to the rc file (in case db file gets deleted)
-      for (idx = 0; idx < dbCount; idx++)
-      {
-         if (pDbFreqTab[idx] != 0)
-         {
-            newFreq |= RcFile_UpdateProvFrequency(pDbCniTab[idx], pDbFreqTab[idx]);
-         }
-      }
-
-      // free the intermediate arrays
-      if (pDbCniTab != NULL)
-         xfree(pDbCniTab);
-      if (pDbFreqTab != NULL)
-         xfree(pDbFreqTab);
-
-      if (newFreq)
-         UpdateRcFile(TRUE);
-
-      // return number of frequencies (including zero freq!)
-      Tcl_SetObjResult(interp, Tcl_NewIntObj(dbCount));
-      result = TCL_OK;
-   }
-
-   return result;
-}
-
-// ----------------------------------------------------------------------------
-// Fetch the list of known provider frequencies and CNIs
-// - returns separate arrays for frequencies and CNIs; the length of both lists
-//   is identical, hence there is only one count result
-// - returns if no frequencies are available or upon internal errors
-//
-static uint GetProvFreqTab( uint ** ppFreqTab, uint ** ppCniTab )
-{
-   const RCFILE * pRc;
-   uint  *freqTab;
-   uint  *cniTab;
-   uint  freqCount;
-   int   idx;
-
-   pRc = RcFile_Query();
-   if ((pRc != NULL) && (pRc->acq.prov_freq_count > 0+1))  // fail-safe (odd values should never occur)
-   {
-      freqTab = xmalloc((pRc->acq.prov_freq_count / 2) * sizeof(uint));
-      cniTab  = xmalloc((pRc->acq.prov_freq_count / 2) * sizeof(uint));
-      freqCount = 0;
-
-      for (idx = 0; idx + 1 < pRc->acq.prov_freq_count; idx += 2)
-      {
-         if (pRc->acq.prov_freqs[idx + 1] != 0)
-         {
-            cniTab[freqCount] = pRc->acq.prov_freqs[idx];
-            freqTab[freqCount] = pRc->acq.prov_freqs[idx + 1];
-            freqCount += 1;
-         }
-      }
-   }
-   else
-   {
-      freqTab = NULL;
-      cniTab  = NULL;
-      freqCount = 0;
-   }
-
-   *ppFreqTab = freqTab;
-   *ppCniTab  = cniTab;
-
-   return freqCount;
-}
-
-// ----------------------------------------------------------------------------
-// Insert "Remove provider" button into EPG scan message output text
-//
-static void MenuCmd_AddProvDelButton( uint cni )
-{
-   char strbuf[50 + 16+2+1];
-
-   sprintf(strbuf, "EpgScanAddProvDelButton 0x%04X", cni);
-   eval_check(interp, comm);
-}
-
-// ----------------------------------------------------------------------------
 // Append a line to the EPG scan messages
 //
 static void MenuCmd_AddEpgScanMsg( const char * pMsg, bool bold )
@@ -2037,18 +1876,17 @@ static void MenuCmd_AddEpgScanMsg( const char * pMsg, bool bold )
 //
 static int MenuCmd_StartEpgScan( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
 {
-   const char * const pUsage = "Usage: C_StartEpgScan <slow=0/1> <refresh=0/1> <ftable>";
+   const char * const pUsage = "Usage: C_StartEpgScan <slow=0/1> <ftable>";
    EPGSCAN_START_RESULT scanResult;
    char * pErrMsg;
    char * chnNames;
    EPGACQ_TUNER_PAR * freqTab;
-   uint  *cniTab;
    uint freqCount;
-   int isOptionSlow, isOptionRefresh, ftableIdx;
+   int isOptionSlow, ftableIdx;
    uint rescheduleMs;
    int result;
 
-   if (objc != 1+3)
+   if (objc != 1+2)
    {  // parameter count is invalid
       Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
       result = TCL_ERROR;
@@ -2056,38 +1894,12 @@ static int MenuCmd_StartEpgScan( ClientData ttp, Tcl_Interp *interp, int objc, T
    else
    {
       if ( (Tcl_GetIntFromObj(interp, objv[1], &isOptionSlow) == TCL_OK) &&
-           (Tcl_GetIntFromObj(interp, objv[2], &isOptionRefresh) == TCL_OK) &&
-           (Tcl_GetIntFromObj(interp, objv[3], &ftableIdx) == TCL_OK) )
+           (Tcl_GetIntFromObj(interp, objv[2], &ftableIdx) == TCL_OK) )
       {
          freqCount = 0;
          chnNames = NULL;
          freqTab = NULL;
-         cniTab  = NULL;
-         if (isOptionRefresh)
-         {  // in this mode only previously stored provider frequencies are visited
-            // retrieve provider frequency list from RC file (DB files may be missing)
-            // (note the lists are freed by the EPG scan module)
-            uint *freqOnlyTab = NULL;
-            freqCount = GetProvFreqTab(&freqOnlyTab, &cniTab);
-            if ( (freqCount == 0) || (freqOnlyTab == NULL) || (cniTab == NULL) )
-            {  // it's an error if the provider frequency list is empty
-               // the caller has to check this condition beforehand
-               eval_check(interp, ".epgscan.all.fmsg.msg insert end {Frequency list is empty or invalid - abort\n}");
-               return TCL_OK;
-            }
-            // note: the scan module additionally retrieves a freq. list from the DB cache
-            // to check for dbs with zero freqs and offer provider removal
-
-            // convert provider frequency table into new format with DVB support
-            freqTab = xmalloc(freqCount * sizeof(*freqTab));
-            for (uint idx = 0; idx < freqCount; ++idx)
-            {
-               freqTab[idx].freq = EPGDB_TUNER_GET_FREQ(freqOnlyTab[idx]);
-               freqTab[idx].norm = EPGDB_TUNER_GET_NORM(freqOnlyTab[idx]);
-            }
-            xfree(freqOnlyTab);
-         }
-         else if (ftableIdx == 0)
+         if (ftableIdx == 0)
          {  // in this mode only channels which are defined in the .xawtv file are visited
             pErrMsg = NULL;
             if (WintvCfg_GetFreqTab(&chnNames, &freqTab, &freqCount, &pErrMsg) == FALSE)
@@ -2124,9 +1936,9 @@ static int MenuCmd_StartEpgScan( ClientData ttp, Tcl_Interp *interp, int objc, T
          UpdateRcFile(FALSE);
 
          scanResult = EpgScan_Start(RcFile_Query()->tvcard.input,
-                                    isOptionSlow, (ftableIdx == 0), isOptionRefresh,
-                                    cniTab, chnNames, freqTab, freqCount, &rescheduleMs,
-                                    &MenuCmd_AddEpgScanMsg, &MenuCmd_AddProvDelButton);
+                                    isOptionSlow, (ftableIdx == 0),
+                                    chnNames, freqTab, freqCount, &rescheduleMs,
+                                    &MenuCmd_AddEpgScanMsg);
          switch (scanResult)
          {
             case EPGSCAN_ACCESS_DEV_VBI:
@@ -2761,7 +2573,6 @@ bool MenuCmd_PopupTvCardSetup( void )
 {
    static bool haveWarned = FALSE;
    uint uiCni;
-   uint provCount;
    bool result = FALSE;
 
    // warn only once, to avoid becoming a nuisance
@@ -2770,16 +2581,11 @@ bool MenuCmd_PopupTvCardSetup( void )
       haveWarned = TRUE;
    
       uiCni = EpgDbContextGetCni(pUiDbContext);
-      provCount = EpgContextCtl_GetProvCount(TRUE);
 
       sprintf(comm, "tk_messageBox -type okcancel -default ok -icon info -parent . "
                     "-title {Welcome to nxtvepg} -message {%s%s}",
-                    ((provCount == 0) ?
                               "Before you can start loading Nextview EPG data, you need "
-                              "to configure your TV card type and run an EPG scan. "
-                              :
-                              "Before you can start loading Nextview EPG data, you need "
-                              "to configure your TV card type in the following dialog. "),
+                              "to configure your TV card type in the following dialog. ",
                     ((uiCni == 0) ?
                               "Afterwards please note the instructions in the main window."
                               : "")
@@ -3222,8 +3028,6 @@ void MenuCmd_Init( void )
       Tcl_CreateObjCommand(interp, "C_StartEpgScan", MenuCmd_StartEpgScan, (ClientData) NULL, NULL);
       Tcl_CreateObjCommand(interp, "C_StopEpgScan", MenuCmd_StopEpgScan, (ClientData) NULL, NULL);
       Tcl_CreateObjCommand(interp, "C_SetEpgScanSpeed", MenuCmd_SetEpgScanSpeed, (ClientData) NULL, NULL);
-      Tcl_CreateObjCommand(interp, "C_LoadProvFreqsFromDbs", MenuCmd_LoadProvFreqsFromDbs, (ClientData) NULL, NULL);
-      Tcl_CreateObjCommand(interp, "C_RemoveProviderDatabase", MenuCmd_RemoveProviderDatabase, (ClientData) NULL, NULL);
 
       Tcl_CreateObjCommand(interp, "C_HwCfgScanTvCards", MenuCmd_ScanTvCards, (ClientData) NULL, NULL);
       Tcl_CreateObjCommand(interp, "C_HwCfgGetTvCardNameList", MenuCmd_GetTvCardNameList, (ClientData) NULL, NULL);

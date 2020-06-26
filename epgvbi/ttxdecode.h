@@ -27,10 +27,6 @@
 
 #define MIP_EPG_ID          0xE3
 
-#define EPG_DEFAULT_PAGENO  0x1DF
-#define EPG_ILLEGAL_PAGENO  0
-#define VALID_EPG_PAGENO(X) ((((X)>>8)<8) && ((((X)&0xF0)>=0xA0) || (((X)&0x0F)>=0x0A)))
-
 // constants for calculation of ttx pkg/page running average
 #define TTX_PKG_RATE_FIXP   16   // number of binary digits in fix point arithmetic
 #define TTX_PKG_RATE_FACT   4    // ln2 of forgetting factor, i.e. new values count as 1/(2^FACT)
@@ -55,13 +51,12 @@
 //
 
 // interface to the EPG acquisition control module and EPG scan
-void TtxDecode_StartEpgAcq( uint epgPageNo, bool isEpgScan );
-void TtxDecode_StopEpgAcq( void );
 void TtxDecode_StartTtxAcq( bool enableScan, uint startPageNo, uint stopPageNo );
 void TtxDecode_StopTtxAcq( void );
 void TtxDecode_InitScan( void );
-void TtxDecode_GetScanResults( uint *pCni, bool *pNiWait, uint *pDataPageCnt, char *pDispText, uint textMaxLen );
-uint TtxDecode_GetMipPageNo( void );
+void TtxDecode_StartScan( void );
+void TtxDecode_StopScan( void );
+void TtxDecode_GetScanResults( uint *pCni, bool *pNiWait, char *pDispText, uint textMaxLen );
 uint TtxDecode_GetDateTime( sint * pLto );
 bool TtxDecode_GetPageHeader( uchar * pBuf, uint * pPgNum, uint pkgOff );
 bool TtxDecode_GetMagStats( uint * pMagBuf, sint * pPgDirection, bool reset );

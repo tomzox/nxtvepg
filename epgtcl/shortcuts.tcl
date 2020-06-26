@@ -155,7 +155,6 @@ proc CheckShortcutDeselection {} {
    global shortcuts
    global parental_rating editorial_rating
    global theme_sel theme_class_sel current_theme_class theme_class_count
-   global sortcrit_class sortcrit_class_sel
    global series_sel
    global feature_class_count feature_class_mask feature_class_value
    global progidx_first progidx_last filter_progidx
@@ -184,26 +183,6 @@ proc CheckShortcutDeselection {} {
                } elseif {[info exists theme_class_sel($class)]} {
                   foreach theme $valist {
                      if {[lsearch -exact $theme_class_sel($class) $theme] == -1} {
-                        set undo 1
-                        break
-                     }
-                  }
-               } else {
-                  set undo 1
-               }
-            }
-            sortcrit_class* {
-               scan $ident "sortcrit_class%d" class
-               if {$class == $current_sortcrit_class} {
-                  foreach sortcrit $valist {
-                     if {![info exists sortcrit_sel($sortcrit)] || ($sortcrit_sel($sortcrit) == 0)} {
-                        set undo 1
-                        break
-                     }
-                  }
-               } elseif {[info exists sortcrit_class_sel($class)]} {
-                  foreach sortcrit $valist {
-                     if {[lsearch -exact $sortcrit_class_sel($class) $sortcrit] == -1} {
                         set undo 1
                         break
                      }
@@ -362,10 +341,6 @@ proc SelectSingleShortcut {sc_tag} {
             scan $ident "theme_class%d" class
             C_SelectThemes $class $valist
          }
-         sortcrit_class*   {
-            scan $ident "sortcrit_class%d" class
-            C_SelectSortCrits $class $valist
-         }
          features {
             C_SelectFeatures $valist
          }
@@ -447,7 +422,6 @@ proc SelectSingleShortcut {sc_tag} {
 proc SelectShortcuts {sc_tag_list shortcuts_arr} {
    global parental_rating editorial_rating
    global theme_sel theme_class_sel current_theme_class theme_class_count
-   global sortcrit_class sortcrit_class_sel
    global series_sel
    global feature_class_count feature_class_mask feature_class_value
    global progidx_first progidx_last filter_progidx
@@ -483,7 +457,6 @@ proc SelectShortcuts {sc_tag_list shortcuts_arr} {
          # reset filter menu state; remember which types were reset
          switch -exact $type {
             themes     {ResetThemes;          set reset(themes) 1}
-            sortcrits  {ResetSortCrits;       set reset(sortcrits) 1}
             features   {ResetFeatures;        set reset(features) 1}
             series     {ResetSeries;          set reset(series) 1}
             parental   {ResetParentalRating;  set reset(parental) 1}
@@ -522,15 +495,6 @@ proc SelectShortcuts {sc_tag_list shortcuts_arr} {
                         set tcdesel($class) [concat $tcdesel($class) $valist]
                      } else {
                         set tcdesel($class) $valist
-                     }
-                  }
-                  sortcrit_class*   {
-                     scan $ident "sortcrit_class%d" class
-                     foreach item $valist {
-                        set index [lsearch -exact $sortcrit_class_sel($class) $item]
-                        if {$index != -1} {
-                           set sortcrit_class_sel($class) [lreplace $sortcrit_class_sel($class) $index $index]
-                        }
                      }
                   }
                   features {
@@ -620,10 +584,6 @@ proc SelectShortcuts {sc_tag_list shortcuts_arr} {
                   } else {
                      set tcsel($class) $valist
                   }
-               }
-               sortcrit_class*   {
-                  scan $ident "sortcrit_class%d" class
-                  set sortcrit_class_sel($class) [lsort -int [concat $sortcrit_class_sel($class) $valist]]
                }
                features {
                   foreach {mask value} $valist {
@@ -819,11 +779,6 @@ proc SelectShortcuts {sc_tag_list shortcuts_arr} {
       # set the new filter and menu state
       C_SelectNetwops $all
       UpdateNetwopMenuState $all
-   }
-
-   # set or unset the sortcrit filters
-   for {set class 1} {$class < $theme_class_count} {incr class} {
-      C_SelectSortCrits $class $sortcrit_class_sel($class)
    }
 
    # set the collected feature filters
@@ -1136,7 +1091,6 @@ proc DescribeCurrentFilter {} {
    global feature_class_mask feature_class_value
    global parental_rating editorial_rating
    global theme_class_count current_theme_class theme_sel theme_class_sel
-   global sortcrit_class sortcrit_class_sel
    global series_sel
    global feature_class_count current_feature_class
    global substr_stack
@@ -1165,14 +1119,6 @@ proc DescribeCurrentFilter {} {
       if {[string length $theme_class_sel($class)] > 0} {
          lappend all "theme_class$class" $theme_class_sel($class)
          lappend mask themes
-      }
-   }
-
-   # dump all sortcrit classes
-   for {set class 1} {$class <= $theme_class_count} {incr class} {
-      if {[string length $sortcrit_class_sel($class)] > 0} {
-         lappend all "sortcrit_class$class" $sortcrit_class_sel($class)
-         lappend mask sortcrits
       }
    }
 
@@ -1262,7 +1208,7 @@ proc DescribeCurrentFilter {} {
    }
 
    # dump invert flags, but only for filters which are actually used
-   # (note: do not use mask or theme and sortcrit classes are missed)
+   # (note: do not use mask or theme classes are missed)
    set inv {}
    foreach {invtyp value} [array get filter_invert] {
       if $value {
@@ -1319,12 +1265,6 @@ proc ShortcutPrettyPrint {filter inv_list} {
             scan $ident "theme_class%d" class
             foreach theme $valist {
                append out "${not}Theme, class ${class}: [C_GetPdcString $theme]\n"
-            }
-         }
-         sortcrit_class* {
-            scan $ident "sortcrit_class%d" class
-            foreach sortcrit $valist {
-               append out "${not}Sort.crit., class ${class}: [format 0x%02X $sortcrit]\n"
             }
          }
          series {

@@ -22,7 +22,6 @@
 #ifndef __EPGACQCTL_H
 #define __EPGACQCTL_H
 
-#include "epgdb/epgstream.h"  // for statistic structs
 #include "epgdb/ttxgrab.h"
 #include "epgvbi/btdrv.h"
 
@@ -89,12 +88,10 @@ typedef enum
 
 typedef struct
 {
-   ACQDESCR_STATE nxtvState;
    ACQDESCR_STATE ttxGrabState;
    EPGACQ_MODE    mode;
    EPGACQ_PHASE   cyclePhase;
    EPGACQ_PASSIVE passiveReason;
-   uint32_t       nxtvDbCni;
    uint32_t       cycleCni;
    uint8_t        cycleIdx;
    uint8_t        cniCount;
@@ -134,15 +131,6 @@ typedef struct
 
 typedef struct
 {
-   time32_t  lastAiTime;
-   time32_t  minAiDistance;
-   time32_t  maxAiDistance;
-   uint32_t  sumAiDistance;
-   uint32_t  aiCount;
-} EPGDB_ACQ_AI_STATS;
-
-typedef struct
-{
    uint8_t   cniType;
    uint32_t  cni;
    uint32_t  pil;
@@ -152,15 +140,12 @@ typedef struct
 {
    time32_t            acqStartTime;
 
-   EPGDB_ACQ_AI_STATS  ai;
-   EPG_STREAM_STATS    stream;
-
    EPGDB_HIST          hist[STATS_HIST_WIDTH];
    uint16_t            histIdx;
    uint8_t             resvd_0[6];      // for 64-bit alignment
 
-   EPGDB_BLOCK_COUNT   count[2];
-   EPGDB_VAR_HIST      varianceHist[2];
+   EPGDB_BLOCK_COUNT   count;
+   EPGDB_VAR_HIST      varianceHist;
    uint32_t            nowMaxAcqRepCount;
    uint32_t            nowMaxAcqNetCount;
 } EPG_NXTV_ACQ_STATS;
@@ -178,11 +163,10 @@ typedef struct
 typedef struct
 {
    time32_t            lastStatsUpdate;
-   uint8_t             nxtvMaster;
    TTX_DEC_STATS       ttx_dec;
    EPG_TTX_GRAB_STATS  ttx_grab;
    uint32_t            ttx_duration;
-   EPG_NXTV_ACQ_STATS  nxtv;
+   EPG_NXTV_ACQ_STATS  nxtv;  // TODO port to teletext
 } EPG_ACQ_STATS;
 
 typedef enum
@@ -214,9 +198,6 @@ void EpgAcqCtl_GetAcqModeStr( const EPGACQ_DESCR * pAcqState, bool forTtx,
 void EpgAcqCtl_Suspend( bool suspend );
 bool EpgAcqCtl_IsActive( void );
 
-// interface to acq server
-void EpgAcqCtl_UpdateProvList( uint cniCount, const uint * pCniTab );
-
 // interface to sub-modules
 bool EpgAcqCtl_TuneProvider( bool isTtx, const EPGACQ_TUNER_PAR * par, uint cni, EPGACQ_PASSIVE * pMode );
 
@@ -228,15 +209,9 @@ bool EpgAcqCtl_ProcessVps( void );
 // interface for status, statistics and timescales display
 EPGDB_CONTEXT * EpgAcqCtl_GetDbContext( bool lock );
 uint EpgAcqCtl_GetProvCni( void );
-bool EpgAcqCtl_GetDbStats( EPGDB_BLOCK_COUNT * pDbStats, uint * pNowMaxAcqNetCount );
 bool EpgAcqCtl_GetAcqStats( EPG_ACQ_STATS * pAcqStats );
 void EpgAcqCtl_EnableAcqStats( bool enable );
 bool EpgAcqCtl_GetVpsPdc( EPG_ACQ_VPS_PDC * pVpsPdc, VPSPDC_REQ_ID clientId, bool force );
 void EpgAcqCtl_ResetVpsPdc( void );
-void EpgAcqCtl_EnableTimescales( bool enable, bool allProviders );
-#ifdef __EPGTSCQUEUE_H
-EPGDB_PI_TSC * EpgAcqCtl_GetTimescaleQueue( void );
-#endif
-
 
 #endif  // __EPGACQCTL_H

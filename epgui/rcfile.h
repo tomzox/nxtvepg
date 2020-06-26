@@ -23,7 +23,6 @@
 #define __RCFILE_H
 
 #include "epgdb/epgblock.h"             // b/c epgdbmerge.h
-#include "epgdb/epgtscqueue.h"          // b/c epgdbmerge.h
 #include "epgdb/epgdbmerge.h"           // b/c MERGE_TYPE_COUNT - FIXME
 
 // ---------------------------------------------------------------------------

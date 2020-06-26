@@ -284,9 +284,8 @@ uint PiOutput_PrintColumnItem( const PI_BLOCK * pPiBlock, PIBOX_COL_TYPES type,
             outlen  = strftime(pOutBuffer, maxLen, "%H:%M - ", localtime(&start_time));
             outlen += strftime(pOutBuffer + outlen, maxLen - outlen, "%H:%M",  localtime(&stop_time));
 #ifdef DEBUG_SWITCH_LTO
-            printf("LISTBOX: '%s' #%d block#%d: %ld-%ld: '%s'\n",
-                   PI_GET_TITLE(pPiBlock),
-                   pPiBlock->netwop_no, pPiBlock->block_no,
+            printf("LISTBOX: '%s' #%d %ld-%ld: '%s'\n",
+                   PI_GET_TITLE(pPiBlock), pPiBlock->netwop_no,
                    pPiBlock->start_time, pPiBlock->stop_time, pOutBuffer);
 #endif
             break;

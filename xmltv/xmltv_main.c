@@ -54,13 +54,25 @@
 #include "epgdb/epgblock.h"
 #include "epgdb/epgdbfil.h"
 #include "epgdb/epgdbif.h"
-#include "epgdb/epgdbsav.h"
+#include "epgctl/epgctxctl.h"
 
 #include "xmltv/xml_cdata.h"
 #include "xmltv/xmltv_tags.h"
 #include "xmltv/xmltv_db.h"
 #include "xmltv/xmltv_cni.h"
 #include "xmltv/xmltv_main.h"
+
+
+// ----------------------------------------------------------------------------
+// local definitions
+//
+#ifdef WIN32
+#define PATH_SEPARATOR       '\\'
+#define PATH_SEPARATOR_STR   "\\"
+#else
+#define PATH_SEPARATOR       '/'
+#define PATH_SEPARATOR_STR   "/"
+#endif
 
 // ----------------------------------------------------------------------------
 // Return a human-redable error message
@@ -364,15 +376,10 @@ void Xmltv_ScanDir( const char * pDirPath, const char * pExtension,
 #include "epgui/uictrl.h"
 #include "epgui/dumpraw.h"
 void UiControlMsg_NewProvFreq( uint cni, uint freq ) { }
-uint UiControlMsg_QueryProvFreq( uint cni ) { return 0; }
 void UiControlMsg_ReloadError( uint cni, EPGDB_RELOAD_RESULT dberr, CONTEXT_RELOAD_ERR_HAND errHand, bool isNewDb ) { }
-void UiControlMsg_MissingTunerFreq( uint cni ) { }
 void UiControlMsg_NetAcqError( void ) { }
 void UiControlMsg_AcqPassive( void ) { }
 void UiControlMsg_AcqEvent( ACQ_EVENT acqEvent ) { }
-bool UiControlMsg_AcqQueueOverflow( bool prepare ) { return FALSE; }
-void EpgDumpRaw_IncomingBlock( const EPGDB_BLOCK_UNION * pUnion, BLOCK_TYPE type, uchar stream ) {}
-void EpgDumpRaw_IncomingUnknown( BLOCK_TYPE type, uint size, uchar stream ) {}
 EPGDB_CONTEXT * pUiDbContext;
 
 extern int yydebug;

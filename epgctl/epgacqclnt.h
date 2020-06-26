@@ -74,9 +74,7 @@ char * EpgAcqClient_QueryAcqStatus( char ** ppErrorMsg );
 bool EpgAcqClient_TerminateDaemon( char ** pErrorMsg );
 void EpgAcqClient_HandleSocket( EPGACQ_EVHAND * pAcqEv );
 bool EpgAcqClient_CheckTimeouts( void );
-bool EpgAcqClient_SetProviders( const uint * pCniTab, uint cniCount );
 bool EpgAcqClient_SetAcqStatsMode( bool enable );
-bool EpgAcqClient_SetAcqTscMode( bool enable,  bool allProviders );
 bool EpgAcqClient_SetVpsPdcMode( bool enable, bool update );
 bool EpgAcqClient_IsLocalServer( void );
 bool EpgAcqClient_DescribeNetState( EPGDBSRV_DESCR * pNetState );
@@ -86,9 +84,6 @@ bool EpgAcqClient_GetAcqStats( EPG_ACQ_STATS * pAcqStats );
 bool EpgAcqClient_GetVpsPdc( EPG_ACQ_VPS_PDC * pVpsPdc, uint * pReqInd );
 void EpgAcqClient_DescribeAcqState( EPGACQ_DESCR * pAcqState );
 void EpgAcqClient_ProcessBlocks( void );
-#ifdef __EPGTSCQUEUE_H
-EPGDB_PI_TSC * EpgAcqClient_GetTimescaleQueue( void );
-#endif
 
 
 #endif  // __EPGACQCLNT_H

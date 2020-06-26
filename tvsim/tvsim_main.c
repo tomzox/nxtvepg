@@ -57,7 +57,6 @@
 #include "epgvbi/winshm.h"
 #include "epgvbi/ttxdecode.h"
 #include "epgdb/epgblock.h"
-#include "epgdb/epgtscqueue.h"
 #include "epgdb/epgdbmerge.h"
 #include "epgctl/epgacqctl.h"
 #include "epgui/xiccc.h"

@@ -46,15 +46,14 @@
 #include "epgctl/debug.h"
 #include "epgdb/epgblock.h"
 #include "epgdb/epgdbif.h"
-#include "epgdb/epgdbsav.h"
 #include "epgdb/epgdbmgmt.h"
 #include "epgdb/epgdbif.h"
+#include "epgctl/epgctxmerge.h"
+#include "epgctl/epgctxctl.h"
 #include "epgui/uictrl.h"
 #include "epgui/epgmain.h"
 #include "xmltv/xmltv_main.h"
 #include "xmltv/xmltv_cni.h"
-#include "epgctl/epgctxmerge.h"
-#include "epgctl/epgctxctl.h"
 
 
 // ---------------------------------------------------------------------------
@@ -287,26 +286,17 @@ static EPGDB_RELOAD_RESULT EpgContextCtl_Load( CTX_CACHE * pContext )
 
    dprintf4("EpgContextCtl-Load: CNI 0x%04X, state %s, peek/open refCount %d/%d\n", pContext->provCni, CtxCacheStateStr(pContext->state), pContext->peekRefCount, pContext->openRefCount);
 
-#ifdef USE_XMLTV_IMPORT
-   if ( IS_XMLTV_CNI(pContext->provCni) )
+   const char * pDbPath = XmltvCni_LookupProviderPath(pContext->provCni);
+   if (pDbPath != NULL)
    {
-      const char * pDbPath = XmltvCni_LookupProviderPath(pContext->provCni);
-      if (pDbPath != NULL)
-      {
-         dprintf2("EpgContextCtl-Load: load XMLTV for context 0x%04X %s\n", pContext->provCni, pDbPath);
-         pDbContext = Xmltv_CheckAndLoad(pDbPath, pContext->provCni, FALSE, &dberr, &mtime);
-      }
-      else
-      {  // path vanished from hash table - should never happen
-         debug1("EpgContextCtl-Load: path for XMLTV prov 0x%04X lost\n", pContext->provCni);
-         dberr = EPGDB_RELOAD_ACCESS;
-         pDbContext = NULL;
-      }
+      dprintf2("EpgContextCtl-Load: load XMLTV for context 0x%04X %s\n", pContext->provCni, pDbPath);
+      pDbContext = Xmltv_CheckAndLoad(pDbPath, pContext->provCni, FALSE, &dberr, &mtime);
    }
    else
-#endif
-   {
-      pDbContext = EpgDbReload(pContext->provCni, expireDelayPi, &dberr, &mtime);
+   {  // path vanished from hash table - should never happen
+      debug1("EpgContextCtl-Load: path for XMLTV prov 0x%04X lost\n", pContext->provCni);
+      dberr = EPGDB_RELOAD_ACCESS;
+      pDbContext = NULL;
    }
 
    if (pDbContext != NULL)
@@ -331,8 +321,8 @@ static EPGDB_RELOAD_RESULT EpgContextCtl_Load( CTX_CACHE * pContext )
             // XXX should be done in epgdbmgmt.c
             if (pContext->pDbContext->pAiBlock != NULL)
                xfree(pContext->pDbContext->pAiBlock);
-            if (pContext->pDbContext->pFirstGenericBlock[BLOCK_TYPE_OI] != NULL)
-               xfree(pContext->pDbContext->pFirstGenericBlock[BLOCK_TYPE_OI]);
+            if (pContext->pDbContext->pOiBlock != NULL)
+               xfree(pContext->pDbContext->pOiBlock);
             // overwrite the old context with the new data
             memcpy(pContext->pDbContext, pDbContext, sizeof(EPGDB_CONTEXT));
             // free the now obsolete new context structure
@@ -414,24 +404,15 @@ EPGDB_CONTEXT * EpgContextCtl_Peek( uint cni, int failMsgMode )
       }
       else if (pContext->state == CTX_CACHE_STAT)
       {  // database known, but not yet loaded -> load AI & OI only
-#ifdef USE_XMLTV_IMPORT
-         if ( IS_XMLTV_CNI(pContext->provCni) )
+         const char * pDbPath = XmltvCni_LookupProviderPath(pContext->provCni);
+         if (pDbPath != NULL)
          {
-            const char * pDbPath = XmltvCni_LookupProviderPath(pContext->provCni);
-            if (pDbPath != NULL)
-            {
-               pDbContext = Xmltv_CheckAndLoad(pDbPath, pContext->provCni, TRUE, &dberr, &mtime);
-            }
-            else
-            {  // path vanished from hash table - should never happen
-               debug1("EpgContextCtl-Peek: path for XMLTV prov 0x%04X lost\n", pContext->provCni);
-               pDbContext = NULL;
-            }
+            pDbContext = Xmltv_CheckAndLoad(pDbPath, pContext->provCni, TRUE, &dberr, &mtime);
          }
          else
-#endif
-         {
-            pDbContext = EpgDbPeek(cni, expireDelayPi, &dberr, &mtime);
+         {  // path vanished from hash table - should never happen
+            debug1("EpgContextCtl-Peek: path for XMLTV prov 0x%04X lost\n", pContext->provCni);
+            pDbContext = NULL;
          }
 
          if (pDbContext != NULL)
@@ -635,24 +616,16 @@ EPGDB_CONTEXT * EpgContextCtl_Open( uint cni, bool forceOpen,
       pContext = EpgContextCtl_SearchCni(cni);
       if (pContext == NULL)
       {  // not found during the initial db directory scan
-#ifdef USE_XMLTV_IMPORT
-         if (IS_XMLTV_CNI(cni))
-         {  // do reverse-lookup of the XML file path by CNI
-            const char * pXmlPath = XmltvCni_LookupProviderPath(cni);
-            if (pXmlPath != NULL)
-            {  // known XMLTV provider -> continue as for explicit XML open
-               pContext = EpgContextCtl_AddStat(cni, 0, pXmlPath);
-            }
-            else
-            {  // dangling reference to XMLTV file, i.e. path is unknown -> raise error
-               UiControlMsg_ReloadError(cni, EPGDB_RELOAD_XML_CNI, failMsgMode, TRUE);
-               pContext = NULL;
-            }
+         // do reverse-lookup of the XML file path by CNI
+         const char * pXmlPath = XmltvCni_LookupProviderPath(cni);
+         if (pXmlPath != NULL)
+         {  // known XMLTV provider -> continue as for explicit XML open
+            pContext = EpgContextCtl_AddStat(cni, 0, pXmlPath);
          }
          else
-#endif // USE_XMLTV_IMPORT
-         {  // not found in the cache -> create stat entry (see also comment above)
-            pContext = EpgContextCtl_AddStat(cni, 0, NULL);
+         {  // dangling reference to XMLTV file, i.e. path is unknown -> raise error
+            UiControlMsg_ReloadError(cni, EPGDB_RELOAD_XML_CNI, failMsgMode, TRUE);
+            pContext = NULL;
          }
          isNew = TRUE;
       }
@@ -789,15 +762,6 @@ static void EpgContextCtl_CloseInt( EPGDB_CONTEXT * pDbContext, bool isPeek )
          if ( (pContext->openRefCount == 0) &&
               (pContext->state == CTX_CACHE_OPEN) )
          {
-            // if neccessary dump the database
-            if ((contextLockDump == FALSE) && !IS_XMLTV_CNI(pContext->provCni) )
-            {
-               if (EpgDbDump(pContext->pDbContext) == FALSE)
-               {
-                  // XXX FIXME display error message
-               }
-            }
-
             // free everything except AI and OI
             EpgDbDestroy(pContext->pDbContext, TRUE);
             pContext->state = CTX_CACHE_PEEK;
@@ -912,34 +876,22 @@ time_t EpgContextCtl_GetAiUpdateTime( uint cni, bool reload )
    if ( (pContext != NULL) &&
          (reload == FALSE) &&
         ( (pContext->state == CTX_CACHE_OPEN) ||
-          (pContext->state == CTX_CACHE_PEEK) ||
-          IS_XMLTV_CNI(pContext->provCni) ))
+          (pContext->state == CTX_CACHE_PEEK) ))
    {
-      if ( IS_XMLTV_CNI(pContext->provCni) )
-         lastAiUpdate = pContext->mtime;
-      else
-         lastAiUpdate = EpgDbGetAiUpdateTime(pContext->pDbContext);
+      lastAiUpdate = pContext->mtime;
       dprintf3("EpgContextCtl-GetAiUpdateTime: CNI 0x%04X: use context timestamp %ld = %s", cni, lastAiUpdate, ctime(&lastAiUpdate));
    }
    else
    {
-#ifdef USE_XMLTV_IMPORT
-      if (IS_XMLTV_CNI(cni))
-      {
-         // XMLTV: get file modification time (if the CNI can be mapped to a file)
-         const char * pXmlPath;
+      // XMLTV: get file modification time (if the CNI can be mapped to a file)
+      const char * pXmlPath;
 
-         pXmlPath = XmltvCni_LookupProviderPath(cni);
-         if (pXmlPath != NULL)
-            lastAiUpdate = Xmltv_GetMtime(pXmlPath);
-         else
-            lastAiUpdate = 0;
-      }
+      pXmlPath = XmltvCni_LookupProviderPath(cni);
+      if (pXmlPath != NULL)
+         lastAiUpdate = Xmltv_GetMtime(pXmlPath);
       else
-#endif // USE_XMLTV_IMPORT
-      {  // Nextview: read value from db file header
-         lastAiUpdate = EpgReadAiUpdateTime(cni);
-      }
+         lastAiUpdate = 0;
+
       dprintf3("EpgContextCtl-GetAiUpdateTime: CNI 0x%04X: read file mtime %ld = %s", cni, lastAiUpdate, ctime(&lastAiUpdate));
    }
 
@@ -971,43 +923,10 @@ void EpgContextCtl_SetPiExpireDelay( time_t expireDelay )
 }
 
 // ---------------------------------------------------------------------------
-// Update tuner frequency for a database
-// - allows to change the frequency without loading the complete db
-// - used by EPG scan for already known providers (the provider might have been
-//   found in passive mode when the channel freq. could not be determined)
-//
-bool EpgContextCtl_UpdateFreq( uint cni, uint freq )
-{
-   CTX_CACHE * pContext;
-   bool result;
-
-   assert(EpgContextCtl_CheckConsistancy());
-
-   pContext = EpgContextCtl_SearchCni(cni);
-   if ((pContext != NULL) && (pContext->state == CTX_CACHE_OPEN))
-   {  // db is open -> just set the frequency there
-      dprintf3("EpgContextCtl-UpdateFreq: update freq for opened db 0x%04X: %u -> %u\n", cni, pContext->pDbContext->tunerFreq, freq);
-
-      // set the flag that the db needs to be saved
-      if (pContext->pDbContext->tunerFreq != freq)
-        pContext->pDbContext->modified = TRUE;
-
-      pContext->pDbContext->tunerFreq = freq;
-      result = TRUE;
-   }
-   else
-   {  // db is not open -> write the frequency into the file header
-      debug2("EpgContextCtl-UpdateFreq: update freq for non-open db 0x%04X: %u", cni, freq);
-      result = EpgDbDumpUpdateHeader(cni, freq);
-   }
-   return result;
-}
-
-// ---------------------------------------------------------------------------
 // Get number of available providers
 // - provider databases which are already known to be defective are not counted
 //
-uint EpgContextCtl_GetProvCount( bool nxtvOnly )
+uint EpgContextCtl_GetProvCount( void )
 {
    CTX_CACHE * pContext;
    uint count;
@@ -1017,8 +936,8 @@ uint EpgContextCtl_GetProvCount( bool nxtvOnly )
    // load provider list, if not done yet
    if (contextScanDone == FALSE)
    {
-      dprintf1("EpgContextCtl-GetProvCount: starting scan, nxtvepg-only:%d\n", nxtvOnly);
-      EpgContextCtl_ScanDbDir(nxtvOnly);
+      dprintf0("EpgContextCtl-GetProvCount: starting scan\n");
+      EpgContextCtl_ScanDbDir();
    }
 
    count = 0;
@@ -1048,7 +967,7 @@ const uint * EpgContextCtl_GetProvList( uint * pCount )
    uint count, idx;
 
    // determine the number of providers
-   count = EpgContextCtl_GetProvCount(FALSE);
+   count = EpgContextCtl_GetProvCount();
    if (count > 0)
    {
       // allocate memory for the result table
@@ -1080,143 +999,6 @@ const uint * EpgContextCtl_GetProvList( uint * pCount )
 }
 
 // ---------------------------------------------------------------------------
-// Get list of available providers and their tuner frequencies
-// - the list is dynamically allocated and must be freed by the caller
-// - for databases which are not cached because they are defective or have and
-//   incompatible version, the tuner frequency is read from the header
-// - imported databases are NOT included here (XMLTV databases never have a freq.)
-//
-uint EpgContextCtl_GetFreqList( uint ** ppProvList, uint ** ppFreqList, bool withInvalid )
-{
-   CTX_CACHE * pContext;
-   uint maxCount, idx;
-   uint freq;
-
-   // determine the number of providers, including "error" contexts
-   maxCount = 0;
-   pContext = pContextCache;
-   while (pContext != NULL)
-   {
-      if (IS_XMLTV_CNI(pContext->provCni) == FALSE)
-      {
-         maxCount += 1;
-      }
-      pContext = pContext->pNext;
-   }
-
-   if (maxCount > 0)
-   {
-      // allocate memory for the result lists
-      *ppProvList = xmalloc(maxCount * sizeof(**ppProvList));
-      *ppFreqList = xmalloc(maxCount * sizeof(**ppFreqList));
-
-      // build the lists
-      idx = 0;
-      pContext = pContextCache;
-      while ((pContext != NULL) && (idx < maxCount))
-      {
-         if (IS_XMLTV_CNI(pContext->provCni) == FALSE)
-         {
-            if (pContext->pDbContext != NULL)
-            {  // database header is in the cache -> take frequency from there
-               freq = pContext->pDbContext->tunerFreq;
-            }
-            else
-            {  // database not loaded/not loadable -> read frequency from file header
-               freq = EpgDbReadFreqFromDefective(pContext->provCni);
-            }
-
-            if ((freq != 0) || withInvalid)
-            {  // valid frequency available -> append it to the list
-               (*ppProvList)[idx] = pContext->provCni;
-               (*ppFreqList)[idx] = freq;
-               idx += 1;
-            }
-         }
-         pContext = pContext->pNext;
-      }
-
-      if (idx == 0)
-      {  // not a single database contained a frequency -> free the lists
-         xfree(*ppProvList);
-         xfree(*ppFreqList);
-         *ppProvList = NULL;
-         *ppFreqList = NULL;
-      }
-
-      // return the number of actually available frequencies
-      maxCount = idx;
-   }
-   else
-   {
-      *ppProvList = NULL;
-      *ppFreqList = NULL;
-   }
-
-   // note: the list must be freed by the caller!
-   return maxCount;
-}
-
-// ---------------------------------------------------------------------------
-// Remove a provider from the cache and remove the database
-// - fails if the database is still opened
-// - returns 0 on success, EBUSY if db open, or POSIX error code from file unlink
-//
-uint EpgContextCtl_Remove( uint cni )
-{
-   CTX_CACHE * pPrev;
-   CTX_CACHE * pContext;
-   uint result = 0;
-
-   // search for the context in the cache
-   pContext = pContextCache;
-   pPrev = NULL;
-   while (pContext != NULL)
-   {
-      if (pContext->provCni == cni)
-         break;
-      pPrev = pContext;
-      pContext = pContext->pNext;
-   }
-
-   if (pContext != NULL)
-   {
-      if ( (pContext->openRefCount == 0) &&
-           (pContext->peekRefCount == 0) )
-      {
-         if (pContext->pDbContext != NULL)
-         {
-            EpgDbDestroy(pContext->pDbContext, FALSE);
-            pContext->pDbContext = NULL;
-         }
-
-         // unlink the context from the cache and free it
-         if (pPrev != NULL)
-            pPrev->pNext = pContext->pNext;
-         else
-            pContextCache = pContext->pNext;
-
-         xfree(pContext);
-
-         result = EpgDbRemoveDatabaseFile(cni);
-      }
-      else
-      {  // db still opened -> abort
-         debug3("EpgContextCtl-Remove: cannot remove open db 0x%04X: ref=%d+%d", cni, pContext->openRefCount, pContext->peekRefCount);
-         result = EBUSY;
-      }
-   }
-   else
-      result = EpgDbRemoveDatabaseFile(cni);
-
-   // a missing database file is no error
-   if (result == ENOENT)
-      result = 0;
-
-   return result;
-}
-
-// ---------------------------------------------------------------------------
 // Callback function used during directory scan
 //
 static void EpgContextCtl_DirScanCb( uint cni, const char * pPath, sint mtime )
@@ -1227,8 +1009,7 @@ static void EpgContextCtl_DirScanCb( uint cni, const char * pPath, sint mtime )
    if (pContext != NULL)
    {  // this file is already known
       if ( (pContext->state == CTX_CACHE_ERROR) &&
-           (pContext->mtime != mtime) &&
-           (IS_XMLTV_CNI(cni) || EpgDbDumpCheckFileHeader(pPath)) )
+           (pContext->mtime != mtime) )
       {  // previous syntax error may be gone -> upgrade context status
          dprintf1("EpgContextCtl-DirScanCb: prov 0x%04X from ERROR to STAT\n", pContext->provCni);
          pContext->state = CTX_CACHE_STAT;
@@ -1248,19 +1029,12 @@ static void EpgContextCtl_DirScanCb( uint cni, const char * pPath, sint mtime )
 // Re-scan for new, changed or removed database files
 // - called when the provider selection menu is opened
 //
-void EpgContextCtl_ScanDbDir( bool nxtvOnly )
+void EpgContextCtl_ScanDbDir( void )
 {
-   dprintf1("EpgContextCtl-ScanDbDir: nxtvOnly=%d\n", nxtvOnly);
+   dprintf0("EpgContextCtl-ScanDbDir\n");
    contextScanDone = TRUE;
 
-   EpgDbReloadScan(&EpgContextCtl_DirScanCb);
-
-#ifdef USE_XMLTV_IMPORT
-   if (nxtvOnly == FALSE)
-   {
-      Xmltv_ScanDir(".", ".xml", &EpgContextCtl_DirScanCb);
-   }
-#endif
+   Xmltv_ScanDir(".", ".xml", &EpgContextCtl_DirScanCb);
 
    assert(EpgContextCtl_CheckConsistancy());
 }
@@ -1295,9 +1069,7 @@ void EpgContextCtl_Destroy( void )
    EpgDbDestroy(pContextDummy->pDbContext, FALSE);
    xfree(pContextDummy);
 
-#ifdef USE_XMLTV_IMPORT
    XmltvCni_Destroy();
-#endif
 }
 
 // ---------------------------------------------------------------------------
@@ -1312,9 +1084,7 @@ void EpgContextCtl_Init( void )
 
    pContextDummy = EpgContextCtl_CreateNew();
 
-#ifdef USE_XMLTV_IMPORT
    XmltvCni_Init();
-#endif
 
    assert(EpgContextCtl_CheckConsistancy());
 }

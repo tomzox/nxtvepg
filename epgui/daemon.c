@@ -52,12 +52,10 @@
 #include "epgdb/epgdbfil.h"
 #include "epgdb/epgdbif.h"
 #include "epgdb/epgdbmgmt.h"
-#include "epgdb/epgdbsav.h"
 #include "epgdb/epgnetio.h"
 #include "epgctl/epgacqctl.h"
 #include "epgctl/epgacqsrv.h"
 #include "epgctl/epgacqclnt.h"
-#include "epgctl/epgscan.h"
 #include "epgui/uictrl.h"
 #include "epgui/epgsetup.h"
 #include "epgui/epgquery.h"
@@ -65,7 +63,6 @@
 #include "epgui/pdc_themes.h"
 #include "epgui/pidescr.h"
 #include "epgui/dumptext.h"
-#include "epgui/dumpraw.h"
 #include "epgui/dumpxml.h"
 #include "epgctl/epgctxctl.h"
 
@@ -91,7 +88,6 @@ extern HINSTANCE  hMainInstance;  // copy of win32 instance handle
 //
 void Daemon_SystemClockCmd( EPG_CLOCK_CTRL_MODE clockMode, uint cni )
 {
-   EPGDB_CONTEXT * pPeek;
    bool  isTuner;
    uint  freq;
    uint  waitCnt;
@@ -105,23 +101,8 @@ void Daemon_SystemClockCmd( EPG_CLOCK_CTRL_MODE clockMode, uint cni )
 
    if (BtDriver_StartAcq())
    {
-      if (cni != 0)
-      {
-         freq = RcFile_GetProvFreqForCni(cni);
-         if (freq == 0)
-         {
-            pPeek = EpgContextCtl_Peek(cni, CTX_RELOAD_ERR_ACQ);
-            if (pPeek != NULL)
-            {
-               freq = pPeek->tunerFreq;
-               EpgContextCtl_ClosePeek(pPeek);
-            }
-            else
-               debug1("EpgAcqCtl-UpdateProvider: peek for 0x%04X failed", cni);
-         }
-      }
-      else
-         freq = 0;
+      // TODO pass channel name instead of CNI
+      freq = 0;
 
       EPGACQ_TUNER_PAR par;
       par.freq = EPGDB_TUNER_GET_FREQ(freq);
@@ -267,9 +248,6 @@ void Daemon_StartDump( void )
          case EPG_DUMP_TEXT:
             EpgDumpText_Standalone(pUiDbContext, fc, stdout, mainOpts.optDumpSubMode);
             break;
-         case EPG_DUMP_RAW:
-            EpgDumpRaw_Standalone(pUiDbContext, fc, stdout);
-            break;
          default:
             break;
       }
@@ -279,145 +257,6 @@ void Daemon_StartDump( void )
          EpgDbFilterDestroyContext(fc);
       }
       EpgContextCtl_Close(pUiDbContext);
-   }
-}
-
-// ----------------------------------------------------------------------------
-// Append a line to the EPG scan messages
-//
-static void Daemon_ProvScanAddMsg( const char * pMsg, bool bold )
-{
-   if (pMsg != NULL)
-   {
-      if (bold)
-         printf("\n*** %s ***\n", pMsg);
-      else
-         printf("%s\n", pMsg);
-   }
-}
-
-// dummy function, only used in GUI
-static void Daemon_ProvScanAddProvDelButton( uint cni )
-{
-}
-
-// ----------------------------------------------------------------------------
-// Start EPG scan
-// - during the scan the focus is forced into the .epgscan popup
-//
-static bool Daemon_ProvScanSetup( void )
-{
-   EPGSCAN_START_RESULT scanResult;
-   uint rescheduleMs;
-   bool result;
-
-   result = FALSE;
-
-   // pass the frequency table selection to the TV-channel module
-   TvChannels_SelectFreqTable(mainOpts.optDumpSubMode);
-
-   scanResult = EpgScan_Start(RcFile_Query()->tvcard.input,
-                              FALSE, FALSE, FALSE,
-                              NULL, NULL, NULL, 0, &rescheduleMs,
-                              &Daemon_ProvScanAddMsg, &Daemon_ProvScanAddProvDelButton);
-   switch (scanResult)
-   {
-      case EPGSCAN_ACCESS_DEV_VBI:
-      case EPGSCAN_ACCESS_DEV_VIDEO:
-      {
-         #ifdef WIN32
-         bool isEnabled, hasDriver;
-
-         if ( BtDriver_GetState(&isEnabled, &hasDriver, NULL) &&
-              (isEnabled != FALSE) && (hasDriver == FALSE) )
-         {
-            fprintf(stderr, "Cannot start the EPG scan while the TV application is blocking "
-                            "the TV card.  Terminate the TV application and try again.\n");
-         }
-         else
-         #endif
-         {
-            #ifndef WIN32
-            fprintf(stderr, "Failed to open input device\n");
-            #else
-            fprintf(stderr, "Failed to start the EPG scan due to a TV card driver problem\n");
-            #endif
-         }
-         break;
-      }
-
-      case EPGSCAN_NO_TUNER:
-         fprintf(stderr, "The provider search cannot be used for external video sources.\n"
-                         "Tune an EPG provider's TV channel manually.\n");
-         break;
-
-      case EPGSCAN_INTERNAL:
-         // parameter inconsistancy - should not be reached
-         break;
-
-      case EPGSCAN_OK:
-         result = TRUE;
-         break;
-
-      default:
-         SHOULD_NOT_BE_REACHED;
-         break;
-   }
-   return result;
-}
-
-// ---------------------------------------------------------------------------
-// Console-mode EPG provider scan main loop
-//
-static void Daemon_ProvScanMainLoop( void )
-{
-#ifndef WIN32
-   struct timeval tv;
-   sint    selSockCnt;
-#endif
-   uint    rescheduleMs;
-
-   const char aniChars[] = "-\\|/";
-   uint  aniIdx = 0;
-
-   while ((should_exit == FALSE) && EpgScan_IsActive() )
-   {
-      rescheduleMs = EpgScan_EvHandler();
-      if (rescheduleMs > 0)
-      {
-         // check if output is redirected into a file
-         if (mainOpts.pStdOutFileName == NULL)
-         {
-            // display spinning dash below cursor
-            fprintf(stdout, "%c\b", aniChars[aniIdx]);
-            aniIdx = (aniIdx + 1) % sizeof(aniChars);
-            fflush(stdout);
-         }
-
-#ifndef WIN32
-         tv.tv_sec  = (rescheduleMs / 1000);
-         tv.tv_usec = (rescheduleMs % 1000) * 1000L;
-
-         selSockCnt = select(0, NULL, NULL, NULL, &tv);
-
-         if (selSockCnt == -1)
-         {
-            if (errno != EINTR)
-            {  // select syscall failed
-               debug1("Daemon-MainLoop: select: %s", strerror(errno));
-               break;
-            }
-         }
-#else // WIN32
-         // note: not using select() on Windows to avoid dealing with
-         // winsock library which requires extra setup and shutdown calls
-         Sleep(rescheduleMs);
-#endif
-      }
-      else
-      {  // scan is finished
-         should_exit = TRUE;
-      }
    }
 }
 
@@ -1093,26 +932,6 @@ void Daemon_UpdateRcFile( bool immediate )
 
    if (pGuiBuf != NULL)
       xfree(pGuiBuf);
-}
-
-// ---------------------------------------------------------------------------
-// Run an EPG provider scan across all channels in a TV frequency band
-// - called from main with option -provscan <country>
-// - the country sub-mode defines which bands are scanned and if PAL or SECAM is used
-//
-void Daemon_ProvScanStart( void )
-{
-   EpgSetup_CardDriver(mainOpts.videoCardIndex);
-   BtDriver_SelectSlicer(VBI_SLICER_ZVBI);
-   #ifdef WIN32
-   // create remote control message handler to allow to abort the scan
-   RemoteControlWindowCreate(DaemonControlWindowMsgCb, daemonWndClassname);
-   #endif
-
-   if ( Daemon_ProvScanSetup() )
-   {
-      Daemon_ProvScanMainLoop();
-   }
 }
 
 // ---------------------------------------------------------------------------

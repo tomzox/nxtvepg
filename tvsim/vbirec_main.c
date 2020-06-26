@@ -144,7 +144,8 @@ typedef struct
 
 static TTX_DEC_STATS ttxStats;
 static CNI_DEC_STATS cniStats;
-static uint          epgPageNo;
+static uint          epgPageStart;  // TODO needs to be editable
+static uint          epgPageStop;
 
 // Default TV card index - identifies which TV card is used by the simulator
 // (note that in contrary to the other TV card parameters this value is not
@@ -323,8 +324,10 @@ static int Xawtv_CbStationChange(ClientData ttp, Tcl_Interp *interp, int argc, C
 
       eval_check(interp, "InitGuiVars");
 
-      epgPageNo = pVbiBuf->startPageNo = 0x1DF;
-      Tcl_SetVar(interp, "ttx_pgno", "1DF", TCL_GLOBAL_ONLY);
+      epgPageStart = pVbiBuf->startPageNo = 0x300;
+      epgPageStop = pVbiBuf->stopPageNo = 0x399;
+      sprintf(comm, "%03X-%03X", epgPageStart, epgPageStop);
+      Tcl_SetVar(interp, "ttx_pgno", comm, TCL_GLOBAL_ONLY);
 
       Tcl_SetVar(interp, "tvChanName", argv[1], TCL_GLOBAL_ONLY);
 
@@ -582,8 +585,10 @@ static void VbiRec_CbStationSelected( void )
       Tcl_SetVar(interp, "tvChanName", station, TCL_GLOBAL_ONLY);
    }
 
-   epgPageNo = pVbiBuf->startPageNo = 0x1DF;
-   Tcl_SetVar(interp, "ttx_pgno", "1DF", TCL_GLOBAL_ONLY);
+   epgPageStart = pVbiBuf->startPageNo = 0x300;
+   epgPageStop = pVbiBuf->stopPageNo = 0x399;
+   sprintf(comm, "%03X-%03X", epgPageStart, epgPageStop);
+   Tcl_SetVar(interp, "ttx_pgno", comm, TCL_GLOBAL_ONLY);
 
    // really dirty hack to get the pointer to shared memory from the VBI buffer address
    pTvShm = (TVAPP_COMM *)((uchar *)pVbiBuf - (uchar *)&((TVAPP_COMM *)0)->vbiBuf);
@@ -806,17 +811,6 @@ static void SecTimerEvent( ClientData clientData )
 
    if (pVbiBuf->chanChangeReq == pVbiBuf->chanChangeCnf)
    {
-      if ( (pVbiBuf->mipPageNo != EPG_ILLEGAL_PAGENO) &&
-           (pVbiBuf->mipPageNo != epgPageNo) )
-      {
-         pVbiBuf->chanChangeReq += 1;
-         pVbiBuf->startPageNo = pVbiBuf->mipPageNo;
-         epgPageNo = pVbiBuf->mipPageNo;
-
-         sprintf(comm, "%03X", epgPageNo);
-         Tcl_SetVar(interp, "ttx_pgno", comm, TCL_GLOBAL_ONLY);
-      }
-
       while ((idx = pVbiBuf->reader_idx) != pVbiBuf->writer_idx)
       {
          if (fdTtxFile != -1)
@@ -866,17 +860,17 @@ static void SecTimerEvent( ClientData clientData )
          Tcl_SetVar(interp, "vps_cnt", comm, TCL_GLOBAL_ONLY);
          ttxStats.vpsLineCount = pVbiBuf->ttxStats.vpsLineCount;
       }
-      if (ttxStats.epgPkgCount != pVbiBuf->ttxStats.epgPkgCount)
+      if (ttxStats.ttxPkgGrab != pVbiBuf->ttxStats.ttxPkgGrab)
       {
-         sprintf(comm, "%d", pVbiBuf->ttxStats.epgPkgCount);
+         sprintf(comm, "%d", pVbiBuf->ttxStats.ttxPkgGrab);
          Tcl_SetVar(interp, "epg_pkg", comm, TCL_GLOBAL_ONLY);
-         ttxStats.epgPkgCount = pVbiBuf->ttxStats.epgPkgCount;
+         ttxStats.ttxPkgGrab = pVbiBuf->ttxStats.ttxPkgGrab;
       }
-      if (ttxStats.epgPagCount != pVbiBuf->ttxStats.epgPagCount)
+      if (ttxStats.ttxPagGrab != pVbiBuf->ttxStats.ttxPagGrab)
       {
-         sprintf(comm, "%d", pVbiBuf->ttxStats.epgPagCount);
+         sprintf(comm, "%d", pVbiBuf->ttxStats.ttxPagGrab);
          Tcl_SetVar(interp, "epg_pag", comm, TCL_GLOBAL_ONLY);
-         ttxStats.epgPagCount = pVbiBuf->ttxStats.epgPagCount;
+         ttxStats.ttxPagGrab = pVbiBuf->ttxStats.ttxPagGrab;
       }
 
       UpdateCni(pVbiBuf->cnis + CNI_TYPE_VPS, &cniStats.vps, "cni_vps");
@@ -1390,8 +1384,9 @@ int main( int argc, char *argv[] )
       eval_check(interp, "proc CreateTuneTvButton {} {}\n");
       eval_check(interp, "proc RemoveTuneTvButton {} {}\n");
       Xawtv_Init(NULL, NULL);
-      // pass bt8x8 driver parameters to the driver
-      BtDriver_Configure(videoCardIndex, 0, 0 /*prio*/, 0, 0, 0, 0, 0);
+      // pass driver parameters to the driver
+      BtDriver_Configure(videoCardIndex, BTDRV_SOURCE_DVB, 0 /*prio*/, 0, 0, 0, 0, 0);
+      //TODO BtDriver_TuneDvbPid(230);
       if ( BtDriver_StartAcq() )
       #endif
       {
@@ -1405,12 +1400,13 @@ int main( int argc, char *argv[] )
             pVbiBuf->reader_idx = pVbiBuf->writer_idx;
 
             // pass the configuration variables to the ttx process via IPC
-            epgPageNo = pVbiBuf->startPageNo = 0x1DF;
-            pVbiBuf->isEpgScan = FALSE;
+            epgPageStart = pVbiBuf->startPageNo = 0x300;
+            epgPageStop = pVbiBuf->stopPageNo = 0x399;
+            sprintf(comm, "%03X-%03X", epgPageStart, epgPageStop);
 
             // enable acquisition in the slave process/thread
             pVbiBuf->chanChangeReq = pVbiBuf->chanChangeCnf + 2;
-            pVbiBuf->epgEnabled = TRUE;
+            pVbiBuf->ttxEnabled = TRUE;
             pVbiBuf->ttxHeader.op_mode = EPGACQ_TTX_HEAD_DEC;
 
             #ifdef WIN32
@@ -1466,7 +1462,7 @@ int main( int argc, char *argv[] )
             xfree((void *) pShmErrMsg);
          }
       }
-      #else // WIN32
+      #else // !WIN32
       {  // failed to start VBI acquisition -> display error message
          const char * pErrStr;
          strcpy(comm, "tk_messageBox -type ok -icon error -parent . -message {Failed to start acquisition: ");

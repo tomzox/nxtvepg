@@ -39,7 +39,6 @@
 
 #include "epgdb/epgblock.h"
 #include "epgvbi/ttxdecode.h"
-#include "epgdb/epgstream.h"
 #include "epgdb/epgdbfil.h"
 #include "epgdb/epgdbif.h"
 
@@ -138,16 +137,6 @@ FILTER_CONTEXT * EpgDbFilterCopyContext( const FILTER_CONTEXT * fc )
          newfc->act.pSeriesFilterMatrix = xmalloc(sizeof(*newfc->act.pSeriesFilterMatrix));
          memcpy(newfc->act.pSeriesFilterMatrix, fc->act.pSeriesFilterMatrix, sizeof(*newfc->act.pSeriesFilterMatrix));
       }
-      if (fc->act.pLangDescrTable != NULL)
-      {
-         newfc->act.pLangDescrTable = xmalloc(sizeof(*newfc->act.pLangDescrTable));
-         memcpy(newfc->act.pLangDescrTable, fc->act.pLangDescrTable, sizeof(*newfc->act.pLangDescrTable));
-      }
-      if (fc->act.pSubtDescrTable != NULL)
-      {
-         newfc->act.pSubtDescrTable = xmalloc(sizeof(*newfc->act.pSubtDescrTable));
-         memcpy(newfc->act.pSubtDescrTable, fc->act.pSubtDescrTable, sizeof(*newfc->act.pSubtDescrTable));
-      }
    }
    else
    {
@@ -189,10 +178,6 @@ static void EpgDbFilterDestroyAct( FILTER_CONTEXT * fc, FILTER_CTX_ACT * fc_act 
       // free dynamically allocated filter arrays
       if (fc_act->pSeriesFilterMatrix != NULL)
          xfree(fc_act->pSeriesFilterMatrix);
-      if (fc_act->pSubtDescrTable != NULL)
-         xfree(fc_act->pSubtDescrTable);
-      if (fc_act->pLangDescrTable != NULL)
-         xfree(fc_act->pLangDescrTable);
       if ( (fc_act->pCustomArg != NULL) &&
            (fc_act->pCustomDestroyFunc != NULL) )
          fc_act->pCustomDestroyFunc(fc_act->pCustomArg);
@@ -478,49 +463,6 @@ void EpgDbFilterSetSeries( FILTER_CONTEXT *fc, uchar netwop, uchar series, bool 
 }
 
 // ---------------------------------------------------------------------------
-// Reset the sorting criteria filter state
-// - the meaning of sorting criteria is not fixed by the ETSI spec
-// - it's implicitly defined e.g. by use in NI menus
-//
-uchar EpgDbFilterInitSortCrit( FILTER_CONTEXT *fc, uchar sortCritClassBitField )
-{
-   uint index;
-
-   if (sortCritClassBitField == 0xff)
-   {  // clear all classes
-      memset(fc->pFocus->sortCritFilterField, 0, sizeof(fc->pFocus->sortCritFilterField));
-      fc->pFocus->usedSortCritClasses = 0;
-   }
-   else
-   {  // clear the setting of selected classes only
-      for (index=0; index < 256; index++)
-      {
-         fc->pFocus->sortCritFilterField[index] &= ~ sortCritClassBitField;
-      }
-      fc->pFocus->usedSortCritClasses &= ~ sortCritClassBitField;
-   }
-
-   return fc->pFocus->usedSortCritClasses;
-}
-
-// ---------------------------------------------------------------------------
-// Assign a range of sorting criteria to a class
-//
-void EpgDbFilterSetSortCrit( FILTER_CONTEXT *fc, uchar firstSortCrit, uchar lastSortCrit, uchar sortCritClassBitField )
-{
-   uint index;
-
-   assert(sortCritClassBitField != 0);
-   assert(firstSortCrit <= lastSortCrit);
-
-   for (index = firstSortCrit; index <= lastSortCrit; index++)
-   {
-      fc->pFocus->sortCritFilterField[index] |= sortCritClassBitField;
-   }
-   fc->pFocus->usedSortCritClasses |= sortCritClassBitField;
-}
-
-// ---------------------------------------------------------------------------
 // Set the value for the parental rating filter (see ETS 300 707, Annex F.1)
 // - the value 0 stands for "not rated" and should not be used
 // - the value 1 stands for "any rated programme"
@@ -596,10 +538,12 @@ uchar EpgDbFilterGetNoFeatures( FILTER_CONTEXT *fc )
 //
 void EpgDbFilterInitLangDescr( FILTER_CONTEXT *fc )
 {
+#if 0 // TODO
    if (fc->pFocus->pLangDescrTable == NULL)
       fc->pFocus->pLangDescrTable = xmalloc(sizeof(*fc->pFocus->pLangDescrTable));
 
    memset(fc->pFocus->pLangDescrTable, 0, sizeof(*fc->pFocus->pLangDescrTable));
+#endif
 }
 
 // ---------------------------------------------------------------------------
@@ -611,6 +555,7 @@ void EpgDbFilterInitLangDescr( FILTER_CONTEXT *fc )
 //
 void EpgDbFilterSetLangDescr( CPDBC dbc, FILTER_CONTEXT *fc, const uchar *lg )
 {
+#if 0 // TODO
    const AI_BLOCK *pAiBlock;
    const LI_BLOCK *pLiBlock;
    const LI_DESC  *pDesc;
@@ -657,6 +602,7 @@ void EpgDbFilterSetLangDescr( CPDBC dbc, FILTER_CONTEXT *fc, const uchar *lg )
    }
    else
       fatal0("EpgDbFilter-SetLangDescr: DB not locked");
+#endif
 }
 
 // ---------------------------------------------------------------------------
@@ -664,10 +610,12 @@ void EpgDbFilterSetLangDescr( CPDBC dbc, FILTER_CONTEXT *fc, const uchar *lg )
 //
 void EpgDbFilterInitSubtDescr( FILTER_CONTEXT *fc )
 {
+#if 0
    if (fc->pFocus->pSubtDescrTable == NULL)
       fc->pFocus->pSubtDescrTable = xmalloc(sizeof(*fc->pFocus->pSubtDescrTable));
 
    memset(fc->pFocus->pSubtDescrTable, 0, sizeof(*fc->pFocus->pSubtDescrTable));
+#endif
 }
 
 // ---------------------------------------------------------------------------
@@ -677,6 +625,7 @@ void EpgDbFilterInitSubtDescr( FILTER_CONTEXT *fc )
 //
 void EpgDbFilterSetSubtDescr( CPDBC dbc, FILTER_CONTEXT *fc, const uchar *lg )
 {
+#if 0 // TODO
    const AI_BLOCK *pAiBlock;
    const TI_BLOCK *pTiBlock;
    const TI_DESC  *pDesc;
@@ -723,6 +672,7 @@ void EpgDbFilterSetSubtDescr( CPDBC dbc, FILTER_CONTEXT *fc, const uchar *lg )
    }
    else
       fatal0("EpgDbFilter-SetSubtDescr: DB not locked");
+#endif
 }
 
 // ---------------------------------------------------------------------------
@@ -1108,10 +1058,6 @@ void EpgDbFilterDisable( FILTER_CONTEXT *fc, uint mask )
       EpgDbFilterDestroyParamChain(fc->pFocus->pSubStrCtx);
       fc->pFocus->pSubStrCtx = NULL;
    }
-   if ((mask & FILTER_SORTCRIT) != 0)
-   {
-      fc->pFocus->usedSortCritClasses = 0;
-   }
    if ((mask & FILTER_FEATURES) != 0)
    {
       fc->pFocus->featureFilterCount = 0;
@@ -1123,16 +1069,6 @@ void EpgDbFilterDisable( FILTER_CONTEXT *fc, uint mask )
       xfree(fc->pFocus->pSeriesFilterMatrix);
       fc->pFocus->pSeriesFilterMatrix = NULL;
    }
-   if (((mask & FILTER_SUBTITLES) != 0) && (fc->pFocus->pSubtDescrTable != NULL))
-   {
-      xfree(fc->pFocus->pSubtDescrTable);
-      fc->pFocus->pSubtDescrTable = NULL;
-   }
-   if (((mask & FILTER_LANGUAGES) != 0) && (fc->pFocus->pLangDescrTable != NULL))
-   {
-      xfree(fc->pFocus->pLangDescrTable);
-      fc->pFocus->pLangDescrTable = NULL;
-   }
 
    fc->pFocus->enabledFilters &= ~ mask;
 }
@@ -1142,156 +1078,12 @@ void EpgDbFilterDisable( FILTER_CONTEXT *fc, uint mask )
 // - note: for global inversion of the combined filtering result there is a
 //   separate filter type which is enabled via the regular filter type enable func
 //
-void EpgDbFilterInvert( FILTER_CONTEXT *fc, uint mask, uchar themeClass, uchar sortCritClass )
+void EpgDbFilterInvert( FILTER_CONTEXT *fc, uint mask, uchar themeClass )
 {
    assert((mask & (FILTER_PERM | FILTER_INVERT)) == 0);  // inverting these is not supported
 
    fc->pFocus->invertedFilters         = mask;
    fc->pFocus->invertedThemeClasses    = themeClass;
-   fc->pFocus->invertedSortCritClasses = sortCritClass;
-}
-
-// ----------------------------------------------------------------------------
-// Initialize a filter context and time slot for NI stack processing
-//
-void EpgDbFilterInitNi( FILTER_CONTEXT *fc, NI_FILTER_STATE *pNiState )
-{
-   pNiState->flags = NI_DATE_NONE;
-
-   // reset all filter settings (except pre-filters)
-   fc->pFocus->enabledFilters = 0;
-}
-
-// ----------------------------------------------------------------------------
-// Apply one filter from a NI stack to filter context and time slot
-// - time filters cannot be applied immediately to the filter context,
-//   because they are interdependant; so we have to collect all time
-//   related filters from the NI stack in the time slot state and
-//   process them at the end
-//
-void EpgDbFilterApplyNi( CPDBC dbc, FILTER_CONTEXT *fc, NI_FILTER_STATE *pNiState, uchar kind, ulong data )
-{
-   uchar lg[3];
-   uint  class;
-
-   switch (kind)
-   {
-      case EV_ATTRIB_KIND_PROGNO_START:
-         if ((fc->pFocus->enabledFilters & FILTER_PROGIDX) == FALSE)
-            fc->pFocus->lastProgIdx = (uchar)(data & 0xff);
-         fc->pFocus->firstProgIdx = (uchar)(data & 0xff);
-         fc->pFocus->enabledFilters |= FILTER_PROGIDX;
-         break;
-
-      case EV_ATTRIB_KIND_PROGNO_STOP:
-         if ((fc->pFocus->enabledFilters & FILTER_PROGIDX) == FALSE)
-            fc->pFocus->firstProgIdx = 0;
-         fc->pFocus->lastProgIdx = (uchar)(data & 0xff);
-         fc->pFocus->enabledFilters |= FILTER_PROGIDX;
-         break;
-
-      case EV_ATTRIB_KIND_NETWOP:
-         if ((fc->pFocus->enabledFilters & FILTER_NETWOP) == FALSE)
-            EpgDbFilterInitNetwop(fc);
-         fc->pFocus->netwopFilterField[data & 0xff] = TRUE;
-         fc->pFocus->enabledFilters |= FILTER_NETWOP;
-         break;
-
-      case EV_ATTRIB_KIND_THEME:
-      case EV_ATTRIB_KIND_THEME + 1:
-      case EV_ATTRIB_KIND_THEME + 2:
-      case EV_ATTRIB_KIND_THEME + 3:
-      case EV_ATTRIB_KIND_THEME + 4:
-      case EV_ATTRIB_KIND_THEME + 5:
-      case EV_ATTRIB_KIND_THEME + 6:
-      case EV_ATTRIB_KIND_THEME + 7:
-         if ((fc->pFocus->enabledFilters & FILTER_THEMES) == FALSE)
-            EpgDbFilterInitThemes(fc, 0xff);
-         class = 1 << (kind - EV_ATTRIB_KIND_THEME);
-         fc->pFocus->themeFilterField[data & 0xff] |= class;
-         fc->pFocus->usedThemeClasses |= class;
-         fc->pFocus->enabledFilters |= FILTER_THEMES;
-         break;
-
-      case EV_ATTRIB_KIND_SORTCRIT:
-      case EV_ATTRIB_KIND_SORTCRIT + 1:
-      case EV_ATTRIB_KIND_SORTCRIT + 2:
-      case EV_ATTRIB_KIND_SORTCRIT + 3:
-      case EV_ATTRIB_KIND_SORTCRIT + 4:
-      case EV_ATTRIB_KIND_SORTCRIT + 5:
-      case EV_ATTRIB_KIND_SORTCRIT + 6:
-      case EV_ATTRIB_KIND_SORTCRIT + 7:
-         if ((fc->pFocus->enabledFilters & FILTER_SORTCRIT) == FALSE)
-            EpgDbFilterInitSortCrit(fc, 0xff);
-         class = 1 << (kind - EV_ATTRIB_KIND_SORTCRIT);
-         fc->pFocus->sortCritFilterField[data & 0xff] |= class;
-         fc->pFocus->usedSortCritClasses |= class;
-         fc->pFocus->enabledFilters |= FILTER_SORTCRIT;
-         break;
-
-      case EV_ATTRIB_KIND_EDITORIAL:
-         fc->pFocus->editorialRating = (uchar)(data & 0xff);
-         fc->pFocus->enabledFilters |= FILTER_EDIT_RAT;
-         break;
-
-      case EV_ATTRIB_KIND_PARENTAL:
-         fc->pFocus->parentalRating = (uchar)(data & 0xff);
-         fc->pFocus->enabledFilters |= FILTER_PAR_RAT;
-         break;
-
-      case EV_ATTRIB_KIND_FEATURES:
-         if ((fc->pFocus->enabledFilters & FILTER_FEATURES) == FALSE)
-            fc->pFocus->featureFilterCount = 0;
-         if (fc->pFocus->featureFilterCount < FEATURE_CLASS_COUNT - 1)
-         {
-            fc->pFocus->featureFilterFlagField[fc->pFocus->featureFilterCount] = data & 0xfff;
-            fc->pFocus->featureFilterMaskField[fc->pFocus->featureFilterCount] = data >> 12;
-            fc->pFocus->featureFilterCount += 1;
-            fc->pFocus->enabledFilters |= FILTER_FEATURES;
-         }
-         else
-            debug0("EpgDbFilter-ApplyNi: feature filter count exceeded");
-         break;
-
-      case EV_ATTRIB_KIND_REL_DATE:
-         pNiState->reldate = (uchar)(data & 0xff);
-         pNiState->flags |= NI_DATE_RELDATE;
-         break;
-
-      case EV_ATTRIB_KIND_START_TIME:
-         pNiState->startMoD = EpgBlockBcdToMoD(data);
-         pNiState->flags |= NI_DATE_START;
-         break;
-
-      case EV_ATTRIB_KIND_STOP_TIME:
-         pNiState->stopMoD = EpgBlockBcdToMoD(data);
-         pNiState->flags |= NI_DATE_STOP;
-         break;
-
-      case EV_ATTRIB_KIND_LANGUAGE:
-         if ((fc->pFocus->enabledFilters & FILTER_LANGUAGES) == FALSE)
-            EpgDbFilterInitLangDescr(fc);
-         lg[0] = (uchar)(data & 0xff);
-         lg[1] = (uchar)((data >> 8) & 0xff);
-         lg[2] = (uchar)((data >> 16) & 0xff);
-         EpgDbFilterSetLangDescr(dbc, fc, lg);
-         fc->pFocus->enabledFilters |= FILTER_LANGUAGES;
-         break;
-
-      case EV_ATTRIB_KIND_SUBT_LANG:
-         if ((fc->pFocus->enabledFilters & FILTER_SUBTITLES) == FALSE)
-            EpgDbFilterInitSubtDescr(fc);
-         lg[0] = (uchar)(data & 0xff);
-         lg[1] = (uchar)((data >> 8) & 0xff);
-         lg[2] = (uchar)((data >> 16) & 0xff);
-         EpgDbFilterSetSubtDescr(dbc, fc, lg);
-         fc->pFocus->enabledFilters |= FILTER_SUBTITLES;
-         break;
-
-      default:
-         debug1("EpgDbFilterApplyNi: unknown attrib kind %d", kind);
-         break;
-   }
 }
 
 // ----------------------------------------------------------------------------
@@ -1633,29 +1425,7 @@ static bool EpgDbFilterMatchAct( const EPGDB_CONTEXT *dbc, const FILTER_CONTEXT 
       }
    }
 
-   if (fc_act->enabledFilters & FILTER_SORTCRIT)
-   {
-      for (class=1; class != 0; class <<= 1)
-      {  // AND across all classes
-         if (fc_act->usedSortCritClasses & class)
-         {
-            fail = TRUE;
-            for (index=0; index < pPi->no_sortcrit; index++)
-            {  // OR across all sorting criteria in a class
-               if (fc_act->sortCritFilterField[pPi->sortcrits[index]] & class)
-               {
-                  fail = FALSE;
-                  break;
-               }
-            }
-
-            invert = ((fc_act->invertedSortCritClasses & class) != FALSE);
-            if (fail ^ invert)
-               goto failed;
-         }
-      }
-   }
-
+#if 0 // TODO
    if ( (fc_act->enabledFilters & FILTER_LANGUAGES) &&
         (fc_act->pLangDescrTable != NULL) )
    {
@@ -1695,6 +1465,7 @@ static bool EpgDbFilterMatchAct( const EPGDB_CONTEXT *dbc, const FILTER_CONTEXT 
       if (fail ^ invert)
          goto failed;
    }
+#endif
 
    if ((fc_act->enabledFilters & FILTER_SUBSTR) && (skipSubstr == FALSE))
    {

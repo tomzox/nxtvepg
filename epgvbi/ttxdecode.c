@@ -76,15 +76,6 @@ static struct
 #define NXTV_VALID_PAGE_PER_MAG (1 + 10 + 10)
 #define NXTV_VALID_PAGE_COUNT   (8 * NXTV_VALID_PAGE_PER_MAG)
 
-typedef struct
-{
-   uchar   pkgCount;
-   uchar   lastPkg;
-   uchar   okCount;
-} PAGE_SCAN_STATE;
-
-static PAGE_SCAN_STATE scanState[NXTV_VALID_PAGE_COUNT];
-static int             lastMagIdx[8];
 static time32_t        ttxStatsStart;
 
 // Unknown CNI and obvious invalid values
@@ -95,16 +86,12 @@ static time32_t        ttxStatsStart;
 // ----------------------------------------------------------------------------
 // Start EPG acquisition
 //
-void TtxDecode_StartEpgAcq( uint epgPageNo, bool isEpgScan )
+void TtxDecode_StartScan( void )
 {
-   dprintf2("TtxDecode-StartEpgAcq: page=%03X, isEpgScan=%d\n", epgPageNo, isEpgScan);
-
-   // pass the configuration variables to the ttx process via shared memory
-   pVbiBuf->epgPageNo = epgPageNo;
-   pVbiBuf->isEpgScan = isEpgScan;
+   dprintf0("TtxDecode-StartScan\n");
 
    // enable ttx processing in the slave process/thread
-   pVbiBuf->epgEnabled = TRUE;
+   pVbiBuf->scanEnabled = TRUE;
 
    // skip first VBI frame, reset ttx decoder, then set reader idx to writer idx
    if (pVbiBuf->chanChangeReq == pVbiBuf->chanChangeCnf)
@@ -139,13 +126,12 @@ void TtxDecode_StartTtxAcq( bool enableScan, uint startPageNo, uint stopPageNo )
 // Stop EPG acquisition
 // - the external process may continue to collect data
 //
-void TtxDecode_StopEpgAcq( void )
+void TtxDecode_StopScan( void )
 {
-   dprintf0("TtxDecode-StopEpgAcq\n");
+   dprintf0("TtxDecode-StopScan\n");
 
    // inform writer process/thread
-   pVbiBuf->epgEnabled = FALSE;
-   pVbiBuf->isEpgScan = FALSE;
+   pVbiBuf->scanEnabled = FALSE;
 }
 
 // ----------------------------------------------------------------------------
@@ -164,16 +150,14 @@ void TtxDecode_StopTtxAcq( void )
 // - result values are not invalidized, b/c the caller will change the
 //   channel after a value was read anyways
 //
-void TtxDecode_GetScanResults( uint *pCni, bool *pNiWait, uint *pDataPageCnt, char *pDispText, uint textMaxLen )
+void TtxDecode_GetScanResults( uint *pCni, bool *pNiWait, char *pDispText, uint textMaxLen )
 {
    CNI_TYPE type;
    uint     idx;
    uint     cni;
-   uint     pageCnt;
    bool     niWait  = FALSE;
 
    cni     = 0;
-   pageCnt = 0;
    niWait  = FALSE;
 
    if (textMaxLen > PDC_TEXT_LEN + 1)
@@ -203,8 +187,6 @@ void TtxDecode_GetScanResults( uint *pCni, bool *pNiWait, uint *pDataPageCnt, ch
             niWait = TRUE;
          }
       }
-
-      pageCnt = pVbiBuf->dataPageCount;
 
       if (pDispText != NULL)
       {
@@ -238,11 +220,9 @@ void TtxDecode_GetScanResults( uint *pCni, bool *pNiWait, uint *pDataPageCnt, ch
       *pCni = cni;
    if (pNiWait != NULL)
       *pNiWait = niWait;
-   if (pDataPageCnt != NULL)
-      *pDataPageCnt = pageCnt;
 
-   if ((cni != 0) || (niWait) || (pageCnt > 0) || ((pDispText != NULL) && (pDispText[0] != 0)))
-      dprintf4("TtxDecode-GetScanResults: cni=%04X niWait=%d pageCnt=%d text=%s\n", cni, niWait, pageCnt, pDispText);
+   if ((cni != 0) || (niWait) || ((pDispText != NULL) && (pDispText[0] != 0)))
+      dprintf3("TtxDecode-GetScanResults: cni=%04X niWait=%d text=%s\n", cni, niWait, pDispText);
 }
 
 // ---------------------------------------------------------------------------
@@ -505,6 +485,7 @@ uint TtxDecode_GetDateTime( sint * pLto )
 //
 static void TtxDecode_MipPacket( uchar magNo, uchar pkgNo, const uchar *data )
 {
+#if 0  // unused code
    sint id;
    uint i;
 
@@ -541,21 +522,7 @@ static void TtxDecode_MipPacket( uchar magNo, uchar pkgNo, const uchar *data )
          }
       }
    }
-}
-
-// ---------------------------------------------------------------------------
-// Obtain EPG page number found in MIP
-// - returns 0 if MIP not received or EPG not listed in MIP
-//
-uint TtxDecode_GetMipPageNo( void )
-{
-   if ( (pVbiBuf != NULL) &&
-        (pVbiBuf->chanChangeReq == pVbiBuf->chanChangeCnf) )
-   {
-      return pVbiBuf->mipPageNo;
-   }
-   else
-      return 0;
+#endif
 }
 
 // ---------------------------------------------------------------------------
@@ -755,115 +722,6 @@ void TtxDecode_GetStatistics( TTX_DEC_STATS * pStats, time_t * pStatsStart )
       memset(pStats, 0, sizeof(*pStats));
       *pStatsStart = time(NULL);
    }
-}
-
-// ---------------------------------------------------------------------------
-// Scan EPG page header syntax
-// - checks if page number is suggested EPG page number 0x1DF, mdF or mFd
-//   (where <m> stands for magazine number, <d> for 0..9 and F for 0x0F)
-//   and stream number in page subcode is 0 or 1.
-//
-static void TtxDecode_EpgScanHeader( uint page, uint sub )
-{
-   uint d1, d2;
-   int idx;
-
-   if ( ((sub & 0xf00) >> 8) < 2 )
-   {
-      // Compute an index into the page state array for a potential EPG page
-      d1 = page & 0x0f;
-      d2 = (page >> 4) & 0x0f;
-
-      if ((page & 0xff) == 0xdf)
-         idx = 0;
-      else if ( (d1 == 0xf) && (d2 < 0xa) )
-         idx = 1 + d2;
-      else if ( (d2 == 0xf) && (d1 < 0xa) )
-         idx = 11 + d1;
-      else
-         idx = -1;
-
-      if (idx >= 0)
-      {
-         idx += ((page >> 8) & 0x07) * NXTV_VALID_PAGE_PER_MAG;
-         dprintf2("TtxDecode-EpgScanHeader: found possible EPG page %03X, idx=%d\n", page, idx);
-
-         scanState[idx].pkgCount = ((sub & 0x3000) >> (12-3)) | ((sub & 0x70) >> 4);
-         scanState[idx].lastPkg = 0;
-      }
-   }
-   else
-   {  // invalid stream number
-      idx = -1;
-   }
-
-   lastMagIdx[(page >> 8) & 0x07] = idx;
-}
-
-// ---------------------------------------------------------------------------
-// Scan EPG data packet syntax
-// - this is done in a very limited and simple way: only BP and BS are
-//   checked, plus SH for hamming errors
-// - a page is considered ok if at least two third of the packets are
-//   syntactically correct
-//
-static bool TtxDecode_EpgScanPacket( uchar mag, uchar packNo, const uchar * dat )
-{
-   PAGE_SCAN_STATE *psc;
-   schar bs, bp, c1, c2, c3, c4;
-   bool result = FALSE;
-
-   if ((mag < 8) && (lastMagIdx[mag] >= 0))
-   {
-      psc = &scanState[lastMagIdx[mag]];
-      if (packNo > psc->lastPkg)
-      {
-         if (packNo <= psc->pkgCount)
-         {
-            if ( UnHam84Nibble(dat, &bp) )
-            {
-               if (bp < 0x0c)
-               {
-                  bp = 1 + 3 * bp;
-
-                  if ( UnHam84Nibble(dat + bp, &bs) && (bs == 0x0c) &&
-                       UnHam84Nibble(dat + bp + 1, &c1) &&
-                       UnHam84Nibble(dat + bp + 2, &c2) &&
-                       UnHam84Nibble(dat + bp + 3, &c3) &&
-                       UnHam84Nibble(dat + bp + 4, &c4) )
-                  {
-                     psc->okCount++;
-                  }
-               }
-               else if (bp == 0x0c)
-               {
-                  bp = 1 + 3 * bp;
-
-                  if ( UnHam84Nibble(dat + bp, &bs) && (bs == 0x0c) &&
-                       UnHam84Nibble(dat + bp + 1, &c1) &&
-                       UnHam84Nibble(dat + bp + 2, &c2) )
-                  {
-                     psc->okCount++;
-                  }
-               }
-               else if (bp == 0x0d)
-               {
-                  psc->okCount++;
-               }
-
-               if (psc->okCount >= 16)
-               {  // this page has had enough syntactically correct packages
-                  dprintf2("TtxDecode-EpgScanPacket: syntax ok: mag=%d, idx=%d\n", mag, lastMagIdx[mag]);
-                  lastMagIdx[mag] = -1;
-                  result = TRUE;
-               }
-            }
-         }
-      }
-      else
-         lastMagIdx[mag] = -1;
-   }
-   return result;
 }
 
 // ---------------------------------------------------------------------------
@@ -1196,17 +1054,6 @@ bool TtxDecode_NewVbiFrame( uint frameSeqNo )
          ttxStatsStart = time(NULL);
          pVbiBuf->ttxHeader.fill_cnt = 0;
          pVbiBuf->ttxHeader.magPgResetReq = pVbiBuf->ttxHeader.magPgResetCnf - 1;
-         pVbiBuf->mipPageNo     = 0;
-         pVbiBuf->dataPageCount = 0;
-
-         // Initialize state of EPG syntax scan
-         if (pVbiBuf->isEpgScan)
-         {
-            // set all indices to -1
-            memset(lastMagIdx, 0xff, sizeof(lastMagIdx));
-            // set all ok counters to 0
-            memset(scanState, 0, sizeof(scanState));
-         }
 
          // discard all data in the teletext packet buffer
          // (note: reader_idx can be written safely b/c the reader is locked until the change is confirmed)
@@ -1313,13 +1160,10 @@ void TtxDecode_AddPacket( const uchar * data, uint line )
                   acqSlaveState.mags[acqSlaveState.lastMag].fwdPage = FALSE;
                }
 
-               if ((pVbiBuf->epgEnabled) && (pageNo == pVbiBuf->epgPageNo))
+               if (pVbiBuf->scanEnabled)
                {
-                  acqSlaveState.mags[mag].fwdPage = TRUE;
-                  TtxDecode_BufferAdd(pageNo, ctrlBits, 0, data + 2, line);
-
-                  pVbiBuf->ttxStats.epgPkgCount += 1;
-                  pVbiBuf->ttxStats.epgPagCount += 1;
+                  pVbiBuf->ttxStats.scanPkgCount += 1;
+                  pVbiBuf->ttxStats.scanPagCount += 1;
                }
                else if ((pVbiBuf->ttxEnabled) &&
                         (pageNo >= pVbiBuf->startPageNo) && (pageNo <= pVbiBuf->stopPageNo))
@@ -1337,9 +1181,6 @@ void TtxDecode_AddPacket( const uchar * data, uint line )
                   // magazine inventory page - is decoded immediately by the ttx slave
                   acqSlaveState.mags[mag].isMipPage = ((pageNo & 0xFF) == 0xFD);
                }
-
-               if (pVbiBuf->isEpgScan)
-                  TtxDecode_EpgScanHeader(pageNo, ctrlBits);
 
                // save the last received page header
                TtxDecode_AddPageHeader(pageNo, ctrlBits, data + 2);
@@ -1366,15 +1207,15 @@ void TtxDecode_AddPacket( const uchar * data, uint line )
          else
          {  // regular teletext packet (i.e. not a header)
 
-            if ( ((pVbiBuf->epgEnabled) || (pVbiBuf->ttxEnabled)) && 
+            if ( ((pVbiBuf->scanEnabled) || (pVbiBuf->ttxEnabled)) && 
                  (acqSlaveState.mags[mag].fwdPage) &&
                  (pkgno < 30) )
             {
                TtxDecode_BufferAdd(acqSlaveState.mags[mag].curPageNo, 0, pkgno, data + 2, line);
-               if ((pVbiBuf->epgEnabled) && (acqSlaveState.mags[mag].curPageNo == pVbiBuf->epgPageNo))
-                  pVbiBuf->ttxStats.epgPkgCount += 1;
-               else
-                  pVbiBuf->ttxStats.ttxPkgGrab += 1;
+               if (pVbiBuf->scanEnabled)
+                  pVbiBuf->ttxStats.scanPkgCount += 1;
+
+               pVbiBuf->ttxStats.ttxPkgGrab += 1;
             }
             else if ( acqSlaveState.mags[mag].isMipPage )
             {  // new MIP packet (may be received in parallel for several magazines)
@@ -1384,10 +1225,6 @@ void TtxDecode_AddPacket( const uchar * data, uint line )
             {  // packet 8/30/1
                TtxDecode_GetP830Cni(data + 2);
             }
-
-            if (pVbiBuf->isEpgScan)
-               if (TtxDecode_EpgScanPacket(mag, pkgno, data + 2))
-                  pVbiBuf->dataPageCount += 1;
          }
 
          #if DUMP_TTX_PACKETS == ON

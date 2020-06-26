@@ -1695,7 +1695,7 @@ bool BtDriver_Configure( int cardIndex, int drvType, int prio, int chipType, int
    struct timeval tv;
    bool wasEnabled;
 
-   wasEnabled = (pVbiBuf->epgEnabled || pVbiBuf->ttxEnabled) && !pVbiBuf->hasFailed;
+   wasEnabled = (pVbiBuf->scanEnabled || pVbiBuf->ttxEnabled) && !pVbiBuf->hasFailed;
 
    // pass the new card index to the slave via shared memory
    pVbiBuf->cardIndex = cardIndex;
@@ -2649,7 +2649,7 @@ static void * BtDriver_Main( void * foo )
    #ifdef USE_THREADS
    pVbiBuf->vbiPid = -1;
    #else
-   if (pVbiBuf->epgEnabled || pVbiBuf->ttxEnabled)
+   if (pVbiBuf->scanEnabled || pVbiBuf->ttxEnabled)
    {  // notify the parent that acq has stopped (e.g. after SIGTERM)
       dprintf1("BtDriver-Main: acq slave exiting - signalling parent %d\n", pVbiBuf->epgPid);
       kill(pVbiBuf->epgPid, SIGHUP);

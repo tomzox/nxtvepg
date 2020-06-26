@@ -26,7 +26,6 @@ set provmerge_popup 0
 
 set epgscan_popup 0
 set epgscan_opt_slow 0
-set epgscan_opt_refresh 0
 set epgscan_opt_ftable 0
 
 set tzcfg_default {1 60 0}
@@ -133,7 +132,7 @@ proc ProvWin_Create {} {
 
       # buttons at the bottom of the window
       frame .provwin.cmd
-      button .provwin.cmd.help -text "Help" -width 5 -command {PopupHelp $helpIndex(Configuration) "Select provider"}
+      button .provwin.cmd.help -text "Help" -width 5 -command {PopupHelp $helpIndex(Configuration) "Load XMLTV file"}
       button .provwin.cmd.abort -text "Abort" -width 5 -command {destroy .provwin}
       button .provwin.cmd.ok -text "Ok" -width 5 -command ProvWin_Exit -default active
       bind .provwin.cmd.ok <Return> {tkButtonInvoke .provwin.cmd.ok}
@@ -141,7 +140,7 @@ proc ProvWin_Create {} {
       pack .provwin.cmd.help .provwin.cmd.abort .provwin.cmd.ok -side left -padx 10
       pack .provwin.cmd -side top -pady 5
 
-      bind .provwin <Key-F1> {PopupHelp $helpIndex(Configuration) "Select provider"}
+      bind .provwin <Key-F1> {PopupHelp $helpIndex(Configuration) "Load XMLTV file"}
       bind .provwin.n <Destroy> {+ set provwin_popup 0}
       focus .provwin.cmd.ok
 
@@ -241,10 +240,10 @@ proc PopupProviderMerge {} {
       }
 
       # create the popup window
-      CreateTransientPopup .provmerge "Merging provider databases"
+      CreateTransientPopup .provmerge "Merge XMLTV files"
       set provmerge_popup 1
 
-      message .provmerge.msg -aspect 600 -text "This dialog allows to merge the EPG of multiple providers into a single database. Note the provider order defines their priority in case of conflicts:"
+      message .provmerge.msg -aspect 600 -text "This dialog allows loading and merging multiple XMLTV files. Note the order of files in the list on the right defines their priority in case of conflicts:"
       pack .provmerge.msg -side top -expand 1 -fill x -pady 5
 
       # create the two listboxes for database selection
@@ -258,7 +257,6 @@ proc PopupProviderMerge {} {
          cfdescr "Description text"
          cfthemes "Theme categories"
          cfseries "Series codes"
-         cfsortcrit "Sorting criteria"
          cfeditorial "Editorial rating"
          cfparental "Parental rating"
          cfsound "Sound format"
@@ -276,7 +274,6 @@ proc PopupProviderMerge {} {
       .provmerge.mb.men add command -command {PopupProviderMergeOpt cfdescr} -label $ProvmergeOptLabels(cfdescr)
       .provmerge.mb.men add command -command {PopupProviderMergeOpt cfthemes} -label $ProvmergeOptLabels(cfthemes)
       .provmerge.mb.men add command -command {PopupProviderMergeOpt cfseries} -label $ProvmergeOptLabels(cfseries)
-      .provmerge.mb.men add command -command {PopupProviderMergeOpt cfsortcrit} -label $ProvmergeOptLabels(cfsortcrit)
       .provmerge.mb.men add command -command {PopupProviderMergeOpt cfeditorial} -label $ProvmergeOptLabels(cfeditorial)
       .provmerge.mb.men add command -command {PopupProviderMergeOpt cfparental} -label $ProvmergeOptLabels(cfparental)
       .provmerge.mb.men add command -command {PopupProviderMergeOpt cfsound} -label $ProvmergeOptLabels(cfsound)
@@ -450,8 +447,7 @@ proc ProvMerge_Quit {cause} {
 proc PopupEpgScan {} {
    global is_unix env font_fixed font_normal text_fg text_bg
    global epgscan_popup
-   global epgscan_opt_slow epgscan_opt_refresh epgscan_opt_ftable
-   global epgscan_enable_refresh
+   global epgscan_opt_slow epgscan_opt_ftable
 
    if {$epgscan_popup == 0} {
       if [C_IsNetAcqActive clear_errors] {
@@ -477,7 +473,7 @@ proc PopupEpgScan {} {
       # control commands
       button .epgscan.cmd.start -text "Start scan" -width 12 -command EpgScan_Start
       button .epgscan.cmd.stop -text "Abort scan" -width 12 -command C_StopEpgScan -state disabled
-      button .epgscan.cmd.help -text "Help" -width 12 -command {PopupHelp $helpIndex(Configuration) "Provider scan"}
+      button .epgscan.cmd.help -text "Help" -width 12 -command {PopupHelp $helpIndex(Configuration) "TV channel scan"}
       button .epgscan.cmd.ok -text "Ok" -width 12 -command {destroy .epgscan}
       pack .epgscan.cmd.start .epgscan.cmd.stop .epgscan.cmd.help .epgscan.cmd.ok -side top -padx 10 -pady 10
       pack .epgscan.cmd -side left
@@ -514,33 +510,16 @@ proc PopupEpgScan {} {
 
       # mode buttons
       frame   .epgscan.all.opt -relief sunken -borderwidth 1
-      checkbutton .epgscan.all.opt.refresh -text "Refresh only" -variable epgscan_opt_refresh
       checkbutton .epgscan.all.opt.slow -text "Slow" -variable epgscan_opt_slow -command {C_SetEpgScanSpeed $epgscan_opt_slow}
-      pack    .epgscan.all.opt.refresh .epgscan.all.opt.slow -side left -padx 5
       button .epgscan.all.opt.cfgtvcard -text "Card setup" -command PopupHardwareConfig
       button .epgscan.all.opt.cfgtvpp -text "Select TV app" -command XawtvConfigPopup
       pack   .epgscan.all.opt.cfgtvpp -side right -pady 3
       pack   .epgscan.all.opt.cfgtvcard -side right -pady 3
       pack   .epgscan.all.opt -side top -padx 10 -fill x
 
-
-      # check if provider frequencies are available
-      set freqs_count [C_LoadProvFreqsFromDbs]
-      if {$freqs_count > 0} {
-         set epgscan_enable_refresh 1
-         .epgscan.all.fmsg.msg insert end "To remove obsolete providers or fix database problems\nenable the "
-         checkbutton .epgscan.all.fmsg.msg.refresh -text "Refresh only" -variable epgscan_opt_refresh \
-                                                   -font $font_fixed -foreground $text_fg -background $text_bg -cursor top_left_arrow
-         .epgscan.all.fmsg.msg window create end -window .epgscan.all.fmsg.msg.refresh 
-         .epgscan.all.fmsg.msg insert end "option.\n\n"
-      } else {
-         .epgscan.all.opt.refresh configure -state disabled
-         set epgscan_enable_refresh 0
-      }
-
       pack .epgscan.all -side top -fill both -expand 1
       bind .epgscan.all <Destroy> EpgScan_Quit
-      bind .epgscan <Key-F1> {PopupHelp $helpIndex(Configuration) "Provider scan"}
+      bind .epgscan <Key-F1> {PopupHelp $helpIndex(Configuration) "TV channel scan"}
 
       .epgscan.all.fmsg.msg insert end "Press the <Start scan> button"
 
@@ -568,13 +547,13 @@ proc EpgScan_Start {} {
       set hwcfg [C_GetHardwareConfig]
       if {[lindex $hwcfg 2] == 1} {
          if {![C_Tvapp_Enabled]} {
-            set answer [tk_messageBox -type okcancel -icon error -parent .epgscan -message "Scanning physical frequencies is not supported for Digital TV-cards. Please use \"Select TV app\" for configuring a channel table before starting the EPG scan."]
+            set answer [tk_messageBox -type okcancel -icon error -parent .epgscan -message "Scanning physical frequencies is not supported for digital TV cards. Please use \"Select TV app\" for configuring a channel table before starting the EPG scan."]
             if {[string compare $answer ok] == 0} {
                XawtvConfigPopup
             }
             return
          } else {
-            tk_messageBox -type ok -icon error -parent .epgscan -message "Scanning physical frequencies is not supported for Digital TV-cards. Please check option \"Load from TV app\"."
+            tk_messageBox -type ok -icon error -parent .epgscan -message "Scanning physical frequencies is not supported for digital TV cards. Please check option \"Load from TV app\"."
          }
          return
       }
@@ -586,7 +565,7 @@ proc EpgScan_Start {} {
       destroy $w
    }
 
-   C_StartEpgScan $epgscan_opt_slow $epgscan_opt_refresh $epgscan_opt_ftable
+   C_StartEpgScan $epgscan_opt_slow $epgscan_opt_ftable
 }
 
 # callback for dialog destruction (including "OK" button)
@@ -601,7 +580,6 @@ proc EpgScan_Quit {} {
 # called after start or stop of EPG scan to update button states
 proc EpgScanButtonControl {is_start} {
    global is_unix env
-   global epgscan_enable_refresh
 
    if {[string compare $is_start "start"] == 0} {
       # grab input focus to prevent any interference with the scan
@@ -611,7 +589,6 @@ proc EpgScanButtonControl {is_start} {
       .epgscan.cmd.stop configure -state normal
       .epgscan.cmd.help configure -state disabled
       .epgscan.cmd.ok configure -state disabled
-      .epgscan.all.opt.refresh configure -state disabled
       .epgscan.all.ftable.tab0 configure -state disabled
       .epgscan.all.ftable.tab1 configure -state disabled
       .epgscan.all.ftable.tab2 configure -state disabled
@@ -634,9 +611,6 @@ proc EpgScanButtonControl {is_start} {
             .epgscan.all.opt.cfgtvpp configure -state normal
          }
          # enable option checkboxes only if they were enabled before the scan
-         if $epgscan_enable_refresh {
-            .epgscan.all.opt.refresh configure -state normal
-         }
          if {[C_Tvapp_Enabled]} {
             .epgscan.all.ftable.tab0 configure -state normal
          }
@@ -655,49 +629,3 @@ proc EpgScanAddMessage {msg fmt} {
    .epgscan.all.fmsg.msg insert end $msg $fmt "\n" {}
    .epgscan.all.fmsg.msg see {end linestart - 2 lines}
 }
-
-# called by EPG scan control to add a "Remove provider" button
-proc EpgScanAddProvDelButton {cni} {
-   button .epgscan.all.fmsg.msg.del_prov_$cni \
-                      -text "Remove this provider" -command [list EpgScanDeleteProvider $cni] \
-                      -state disabled -cursor left_ptr
-   .epgscan.all.fmsg.msg window create end -window .epgscan.all.fmsg.msg.del_prov_$cni
-   .epgscan.all.fmsg.msg insert end "\n\n"
-   .epgscan.all.fmsg.msg see {end linestart - 2 lines}
-}
-
-# callback for "Remove provider" button in the scan message window
-proc EpgScanDeleteProvider {cni} {
-
-   if {[string compare [.epgscan.cmd.start cget -state] normal] != 0} {
-      # EPG scan not finished yet
-      return
-   }
-   if {([lsearch -exact [C_GetMergeProviderList] $cni] != -1) &&
-       ([C_GetCurrentDatabaseCni] == 0x00FF)} {
-      tk_messageBox -type ok -icon error -parent .epgscan \
-                    -message "You're still using this provider in the merged database. Please adapt your merge configuration first or select a single provider."
-      return
-   }
-
-   set answer [tk_messageBox -type okcancel -icon info -parent .epgscan \
-                  -message "You're about to remove the provider's database and all it's configuration information."]
-
-   if {[string compare $answer ok] == 0} {
-      # remove the database file
-      set err_str [C_RemoveProviderDatabase $cni]
-
-      if {[string length $err_str] > 0} {
-         # failed to remove the (existing) file
-         tk_messageBox -type ok -icon error -parent .epgscan \
-            -message "Failed to remove the database file: $err_str"
-      } else {
-
-         UpdateRcFile
-
-         # disable the button so that the user can't invoke it again
-         catch [.epgscan.all.fmsg.msg.del_prov_$cni configure -state disabled]
-      }
-   }
-}
-

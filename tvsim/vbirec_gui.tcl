@@ -58,7 +58,7 @@ proc InitGuiVars {} {
    set cni_pdc {---}
    set cni_p8301 {---}
    set cni_name {}
-   set ttx_pgno {1DF}
+   set ttx_pgno {300-399}
    set ttx_head {}
    set tvChanName {}
    set tvChanCni {---}
@@ -141,7 +141,7 @@ label     .stats.lab_p8301 -text "Packet 8/30/1:"
 label     .stats.val_p8301 -textvariable cni_p8301
 grid      .stats.lab_p8301 .stats.val_p8301 -sticky w -padx 5
 
-label     .stats.lab_ttx_pgno -text "EPG teletext page no:"
+label     .stats.lab_ttx_pgno -text "EPG teletext page range:"
 label     .stats.val_ttx_pgno -textvariable ttx_pgno
 grid      .stats.lab_ttx_pgno .stats.val_ttx_pgno -sticky w -padx 5
 

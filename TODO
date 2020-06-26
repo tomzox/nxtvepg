@@ -4,6 +4,14 @@ Your feedback is always welcome, so feel free to mail me if you want to
 boost any item's priority, find more points that need to be fixed or if
 you have ideas for additional features.
 
+Post-Nextview EPG:
+- allow naming multiple XMLTV files on the command line
+- Load XMLTV: allow changing directory & selecting multiple
+- Merge XMLTV: like load, but add selected file to current one
+- automatically reload XMLTV when files are changed on disk
+- remove USE_XMLTV
+- move USE_TTX_GRABBER to exclude all acqusition if not set
+
 release ceveats:
 - now/next acq mode recommended (follow-ui not adapted for TTX yet)
   note: speed of NOW for TTX will be improved later

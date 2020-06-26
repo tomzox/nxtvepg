@@ -33,7 +33,6 @@ typedef enum
    MERGE_TYPE_DESCR,
    MERGE_TYPE_THEMES,
    MERGE_TYPE_SERIES,
-   MERGE_TYPE_SORTCRIT,
    MERGE_TYPE_EDITORIAL,
    MERGE_TYPE_PARENTAL,
    MERGE_TYPE_SOUND,
@@ -63,9 +62,6 @@ typedef struct
 {
    uint            dbCount;
    uint            acqIdx;
-
-   EPGDB_PI_TSC    tscQueue;
-   bool            tscEnable;
 
    EPGDB_MERGE_PROV_CTX prov[MAX_MERGED_DB_COUNT];
    MERGE_ATTRIB_VECTOR max[MERGE_TYPE_COUNT];

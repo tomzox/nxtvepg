@@ -179,8 +179,8 @@ typedef struct
    uint32_t  ttxPkgCount;       // number of ttx packets received
    uint32_t  ttxPkgDrop;        // number of ttx packets dropped b/c Hamming errors
    uint32_t  ttxPkgRate;        // number of ttx packets per frame: running average (.16 bit fix-point)
-   uint32_t  epgPkgCount;       // number of EPG ttx packets received
-   uint32_t  epgPagCount;       // number of EPG ttx pages received
+   uint32_t  scanPkgCount;      // number of EPG ttx packets received
+   uint32_t  scanPagCount;      // number of EPG ttx pages received
    uint32_t  ttxPkgGrab;        // number of ttx packets grabbed (for non-EPG)
    uint32_t  ttxPagGrab;        // number of ttx pages grabbed (for non-EPG)
    uint32_t  reserved_0[4];     // unused, always 0
@@ -257,7 +257,7 @@ typedef struct
 
 // tolerance when comparing DVB frequencies,
 // as driver query may not return exactly the tuned value
-#define EPGACQ_TUNER_DVB_FREQ_TOL 10000
+#define EPGACQ_TUNER_DVB_FREQ_TOL 50000
 
 // ---------------------------------------------------------------------------
 // Structure which is put into shared memory
@@ -269,11 +269,10 @@ typedef struct
 //
 typedef struct
 {
-   uint8_t   epgEnabled;        // In:  en-/disable EPG teletext packet forward
+   uint8_t   scanEnabled;       // In:  en-/disable capturing for channel scan
    uint8_t   ttxEnabled;        // In:  en-/disable teletext grabber
-   uint8_t   isEpgScan;         // In:  en-/disable EPG syntax scan an all potential EPG pages
    uint8_t   reserved0;         // --:  unused; set to 0
-   uint32_t  epgPageNo;         // In:  EPG teletext page number
+   uint8_t   reserved1;         // --:  unused; set to 0
    uint32_t  startPageNo;       // In:  first teletext page number (range 000-7FF)
    uint32_t  stopPageNo;        // In:  last captured teletext page number
 
@@ -282,9 +281,6 @@ typedef struct
  
    uint32_t  chanChangeReq;     // In:  channel change request, i.e. reset of ttx decoder
    uint32_t  chanChangeCnf;     // Out: channel change execution confirmation
-
-   uint32_t  mipPageNo;         // Out: EPG page number as listed in MIP
-   uint32_t  dataPageCount;     // Out: number of TTX pages with EPG syntax
 
    CNI_ACQ_STATE cnis[CNI_TYPE_COUNT];  // Out: CNIs and PILs
 
@@ -297,8 +293,8 @@ typedef struct
    TTX_TIME_BUF   ttxTime;      // Out: teletext time
 
    #ifndef WIN32
-   pid_t     vbiPid;
-   pid_t     epgPid;
+   pid_t     vbiPid;            // In:  Process ID of the VBI acq. child process
+   pid_t     epgPid;            // In:  Process ID of the main (GUI) process
    int       failureErrno;
    # ifndef USE_THREADS
    bool      freeDevice;        // In:  TRUE when acq is stopped

@@ -171,7 +171,7 @@ static void PlaybackVbi( int fdTtxFile )
             memset((void *) &pVbiBuf->ttxStats, 0, sizeof(pVbiBuf->ttxStats));
          }
 
-         if ( (pVbiBuf->epgEnabled) &&
+         if ( (pVbiBuf->ttxEnabled) &&
               (pVbiBuf->reader_idx != ((pVbiBuf->writer_idx + 1) % TTXACQ_BUF_COUNT)) )
          {
             vbl = (VBI_LINE *) &pVbiBuf->line[pVbiBuf->writer_idx];
@@ -181,16 +181,15 @@ static void PlaybackVbi( int fdTtxFile )
             {  // reached end of file -> terminate the loop
                break;
             }
-            pVbiBuf->mipPageNo = vbl->pageno;
 
             pVbiBuf->writer_idx = (pVbiBuf->writer_idx + 1) % TTXACQ_BUF_COUNT;
             pVbiBuf->ttxStats.ttxPkgCount  += 1;
-            pVbiBuf->ttxStats.epgPkgCount  += 1;
+            pVbiBuf->ttxStats.ttxPkgGrab  += 1;
 
             if (vbl->pkgno == 0)
             {
                VBI_LINE * pHead;
-               pVbiBuf->ttxStats.epgPagCount  += 1;
+               pVbiBuf->ttxStats.ttxPagGrab  += 1;
 
                pVbiBuf->ttxHeader.write_ind += 1;
                pVbiBuf->ttxHeader.write_idx = (pVbiBuf->ttxHeader.write_idx + 1) % EPGACQ_ROLL_HEAD_COUNT;

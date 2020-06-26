@@ -1584,7 +1584,7 @@ static void Xawtv_StationSelected( ClientData clientData )
          }
 
          EpgAcqCtl_DescribeAcqState(&acqState);
-         if ( (acqState.nxtvState != ACQDESCR_DISABLED) &&
+         if ( (acqState.ttxGrabState != ACQDESCR_DISABLED) &&
               ((acqState.isNetAcq == FALSE) || acqState.isLocalServer) &&
               ( (acqState.mode == ACQMODE_PASSIVE) ||
                 (acqState.passiveReason == ACQPASSIVE_ACCESS_DEVICE)) &&
