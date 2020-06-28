@@ -87,9 +87,6 @@ static DUMP_XML_MODE EpgDump_QueryXmlDtdVersion( Tcl_Interp *interp )
       case EPGTCL_XMLTV_DTD_5_LTZ:
          dumpMode = DUMP_XMLTV_DTD_5_LTZ;
          break;
-      case EPGTCL_XMLTV_DTD_6:
-         dumpMode = DUMP_XMLTV_DTD_6;
-         break;
       default:
          fatal1("EpgDump-QueryXmlDtdVersion: invalid mode %d\n", value);
          dumpMode = EPGTCL_XMLTV_DTD_5_GMT;

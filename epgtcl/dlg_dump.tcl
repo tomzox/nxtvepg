@@ -54,7 +54,6 @@ set dumpxml_popup 0
 
 #=CONST= ::xmltv_dtd_5_gmt  0
 #=CONST= ::xmltv_dtd_5_ltz  1
-#=CONST= ::xmltv_dtd_6      2
 
 
 # notification by user-defined columns config dialog: columns addition or deletion
@@ -437,10 +436,9 @@ proc PopupDumpXml {} {
       pack   .dumpxml.all.name -side top -pady 10
 
       frame       .dumpxml.all.xml_fmt
-      radiobutton .dumpxml.all.xml_fmt.fmt0 -text "XML DTD 0.5 (UTC)" -variable dumpxml_format -value $::xmltv_dtd_5_gmt
-      radiobutton .dumpxml.all.xml_fmt.fmt1 -text "XML DTD 0.5 (local time zone)" -variable dumpxml_format -value $::xmltv_dtd_5_ltz
-      radiobutton .dumpxml.all.xml_fmt.fmt2 -text "XML DTD 0.6" -variable dumpxml_format -value $::xmltv_dtd_6
-      pack   .dumpxml.all.xml_fmt.fmt0 .dumpxml.all.xml_fmt.fmt1 .dumpxml.all.xml_fmt.fmt2 -side top -anchor w
+      radiobutton .dumpxml.all.xml_fmt.fmt0 -text "Start/stop times in UTC" -variable dumpxml_format -value $::xmltv_dtd_5_gmt
+      radiobutton .dumpxml.all.xml_fmt.fmt1 -text "Start/stop times in local time" -variable dumpxml_format -value $::xmltv_dtd_5_ltz
+      pack   .dumpxml.all.xml_fmt.fmt0 .dumpxml.all.xml_fmt.fmt1 -side top -anchor w
       pack   .dumpxml.all.xml_fmt -side top -pady 10 -anchor w
 
       frame  .dumpxml.all.cmd

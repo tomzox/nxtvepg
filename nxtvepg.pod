@@ -300,9 +300,9 @@ programme database, then exit.  An XML file has to be specified on
 the command line, as this data will be exported.
 
 To export the database in XML format, use keyword I<xml> as mode.
-In this case the last mode (i.e. XMLTV DTD version) which was used
-via the XMLTV export dialog is used.  To export the database in another
-mode, use I<xml5>, I<xml5ltz> or I<xml6>.  For more details see
+In this case the last time format which was used
+via the XMLTV export dialog is used.  To export the database in a
+specific format, use I<xml5utc> or I<xml5ltz>.  For more details see
 L<"CONTROL: Export as XMLTV">.  Note by default this mode exports
 the complete database, including already expired programmes and
 networks which are suppressed in the GUI. To filter the output,
@@ -2420,8 +2420,7 @@ channels and programmes (for details see L<"OPTIONS">.)
 =head2 Export as XMLTV
 
 Open a dialog that allows to export the complete database in XML format,
-as defined by the B<xmltv.dtd> version 0.5
-(see L<http://xmltv.org/>)
+as defined by the B<xmltv.dtd> version 0.5 (see L<http://xmltv.org/>)
 The generated file contains both the channel table and the complete
 TV schedule, including any networks you might have suppressed from the
 listing inside nxtvepg.

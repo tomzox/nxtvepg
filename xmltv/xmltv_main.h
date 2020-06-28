@@ -23,7 +23,7 @@
 #define __XMLTV_MAIN_H
 
 bool Xmltv_CheckHeader( const char * pFilename, uint * pDetection );
-EPGDB_CONTEXT * Xmltv_Load( FILE * fp, uint dtd, uint provCni, const char * pProvName, bool isPeek );
+EPGDB_CONTEXT * Xmltv_Load( FILE * fp, uint provCni, const char * pProvName, bool isPeek );
 EPGDB_CONTEXT * Xmltv_CheckAndLoad( const char * pFilename, uint provCni, bool isPeek, uint * pErrCode, time_t * pMtime );
 const char * Xmltv_TranslateErrorCode( uint detection );
 bool Xmltv_IsXmlDocument( uint detection );

@@ -499,32 +499,3 @@ time_t parse_xmltv_date_v5( const char *date, unsigned int full_len )
     }
     return result;
 }
-
-// ----------------------------------------------------------------------------
-
-time_t parse_xmltv_date_v6( const char *date, unsigned int len )
-{
-   struct tm t;
-   int nscan;
-   int scan_pos;
-   time_t tval;
-
-   nscan = sscanf(date, "%4u-%2u-%2uT%2u:%2u:%2uZ%n",
-                        &t.tm_year, &t.tm_mon, &t.tm_mday,
-                        &t.tm_hour, &t.tm_min, &t.tm_sec, &scan_pos);
-   if ((nscan >= 6) && (date[scan_pos] == 0))
-   {
-      t.tm_year -= 1900;
-      t.tm_mon -= 1;
-      t.tm_isdst = -1;
-      t.tm_sec = 0;
-
-      tval = mktime(&t);
-      tval += 60*60 * t.tm_isdst - timezone;
-   }
-   else
-      tval = 0;
-
-   return tval;
-}
-

@@ -40,13 +40,6 @@ typedef enum
 
 #define IS_XML_ENC_ISO8859(ENC) ((ENC) <= XML_ENC_ISO8859_15)
 
-typedef enum   
-{
-   XMLTV_DTD_UNKNOWN,
-   XMLTV_DTD_5,
-   XMLTV_DTD_6
-} XMLTV_DTD_VERSION;
-
 // bitfield with detection codes
 typedef enum
 {
@@ -57,6 +50,8 @@ typedef enum
    XMLTV_DETECTED_NOT_TV        = (1<<4),    // wrong top-level tag found -> XML but not XMLTV
    XMLTV_DETECTED_SYNTAX        = (1<<5),    // syntax error found
 } XMLTV_DETECTION;
+
+#define XMLTV_DETECTED_OK(D) (((D) & ~(XMLTV_DETECTED_XML | XMLTV_DETECTED_DOCTYPE)) == 0)
 
 // language codes
 typedef uint XML_LANG_CODE;
@@ -93,9 +88,9 @@ void XmltvTags_CheckNmtoken( const char * pStr );
 void XmltvTags_CheckSystemLiteral( const char * pStr );
 
 // Interface to main
-void XmltvTags_StartScan( FILE * fp, XMLTV_DTD_VERSION dtdVersion );
+void XmltvTags_StartScan( FILE * fp, bool load );
 void XmlTags_ScanStop( void );
-XMLTV_DTD_VERSION XmltvTags_QueryVersion( XMLTV_DETECTION * pXmlDetected );
+XMLTV_DETECTION XmltvTags_QueryDetection( void );
 XML_LANG_CODE XmltvTags_GetLanguage( void );
 
 // Interface to xmltv.lex

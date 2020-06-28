@@ -93,68 +93,10 @@ typedef enum
          XMLTV5_PI_PRAT_VAL,
       XMLTV5_PI_ERAT,
          XMLTV5_PI_ERAT_VAL,
-   // tags according DTD 0.6
-   XMLTV6_TOP,
-   XMLTV6_TV,
-   XMLTV6_ABOUT,
-      XMLTV6_SRC_INFO,
-      XMLTV6_SRC_DATA,
-      XMLTV6_GEN_INFO,
-   XMLTV6_CHANNEL,
-      XMLTV6_CHN_DISP_NAME,
-   XMLTV6_TIMESLOT,
-      XMLTV6_TS_CODE_TIME,
-      XMLTV6_TS_CODE_NUM,
-      XMLTV6_TS_PROG_REF,
-      XMLTV6_TS_PROG_UNKNOWN,
-      XMLTV6_TS_PROG,
-         XMLTV6_PI_TITLE,
-         XMLTV6_PI_DESC,
-            XMLTV6_PI_DESC_P,
-         XMLTV6_PI_CREDITS,
-            XMLTV6_PI_CRED_DIR,
-            XMLTV6_PI_CRED_ROLE,
-               XMLTV6_PI_CRED_ROLE_ACTOR,
-               XMLTV6_PI_CRED_ROLE_CHAR,
-            XMLTV6_PI_CRED_WRITER,
-            XMLTV6_PI_CRED_PROD,
-            XMLTV6_PI_CRED_EXPR,
-            XMLTV6_PI_CRED_PRES,
-            XMLTV6_PI_CRED_COMM,
-            XMLTV6_PI_CRED_GUEST,
-            XMLTV6_PI_CRED_NARR,
-            XMLTV6_PI_CRED_COMPANY,
-            XMLTV6_PI_CRED_ADAP,
-               XMLTV6_PI_CRED_ADAP_TYPE,
-               XMLTV6_PI_CRED_ADAP_TITLE,
-               XMLTV6_PI_CRED_ADAP_WRITER,
-         XMLTV6_PI_CAT,
-         XMLTV6_PI_EPISODE,
-            XMLTV6_PI_EPISODE_EP,
-               XMLTV6_PI_EPISODE_EP_TITLE,
-         XMLTV6_PI_VIDEO,
-            XMLTV6_PI_VIDEO_ASPECT,
-            XMLTV6_PI_VIDEO_QUAL,
-         XMLTV6_PI_AUDIO,
-            XMLTV6_PI_AUDIO_MONO,
-            XMLTV6_PI_AUDIO_STEREO,
-            XMLTV6_PI_AUDIO_SURR,
-         XMLTV6_PI_SUBT,
-            XMLTV6_PI_SUBT_TTX,
-            XMLTV6_PI_SUBT_OSD,
-         XMLTV6_PI_PRAT,
-            XMLTV6_PI_PRAT_TEXT,
-         XMLTV6_PI_ERAT,
-   XMLTV6_LINK,
-      XMLTV6_LINK_TEXT,
-      XMLTV6_LINK_BLURB,
-         XMLTV6_LINK_BLURB_P,
-   // DTD auto-detection & catch-all for unrecognized tags
+   // format detection & catch-all for unrecognized tags
    XMLTV_DETECT,
       XMLTV_DETECT_TV,
       XMLTV_DETECT_PROG,
-      XMLTV_DETECT_ABOUT,
-      XMLTV_DETECT_TIMESLOT,
    XMLTV_SKIP,
    XMLTV_TAG_COUNT
 } XMLTV_TAG;
@@ -223,126 +165,7 @@ static const XMLTV_TAG xmltv5_tags_erat[] =
 };
 
 // ----------------------------------------------------------------------------
-// Tag hierarchy for XMLTV DTD 0.6
-
-static const XMLTV_TAG xmltv6_tags_top[] =
-{
-   XMLTV6_TV
-};
-static const XMLTV_TAG xmltv6_tags_tv[] =
-{
-   XMLTV6_TIMESLOT,
-   XMLTV6_CHANNEL,
-   XMLTV6_ABOUT
-};
-static const XMLTV_TAG xmltv6_tags_about[] =
-{
-   XMLTV6_SRC_INFO,
-   XMLTV6_SRC_DATA,
-   XMLTV6_GEN_INFO
-};
-static const XMLTV_TAG xmltv6_tags_src_info[] =
-{
-   XMLTV6_LINK,
-};
-static const XMLTV_TAG xmltv6_tags_gen_info[] =
-{
-   XMLTV6_LINK,
-};
-static const XMLTV_TAG xmltv6_tags_channel[] =
-{
-   XMLTV6_CHN_DISP_NAME
-};
-static const XMLTV_TAG xmltv6_tags_timeslot[] =
-{
-   XMLTV6_TS_PROG,
-   XMLTV6_TS_PROG_REF,
-   XMLTV6_TS_PROG_UNKNOWN,
-   XMLTV6_TS_CODE_TIME,
-   XMLTV6_TS_CODE_NUM
-};
-static const XMLTV_TAG xmltv6_tags_prog[] =
-{
-   XMLTV6_PI_TITLE,
-   XMLTV6_PI_DESC,
-   XMLTV6_PI_CAT,
-   XMLTV6_PI_VIDEO,
-   XMLTV6_PI_AUDIO,
-   XMLTV6_PI_PRAT,
-   XMLTV6_PI_ERAT,
-   XMLTV6_PI_SUBT,
-   XMLTV6_PI_EPISODE,
-   XMLTV6_PI_CREDITS
-};
-static const XMLTV_TAG xmltv6_tags_episode[] =
-{
-   XMLTV6_PI_EPISODE_EP
-};
-static const XMLTV_TAG xmltv6_tags_episode_ep[] =
-{
-   XMLTV6_PI_EPISODE_EP_TITLE
-};
-static const XMLTV_TAG xmltv6_tags_desc[] =
-{
-   XMLTV6_PI_DESC_P
-};
-static const XMLTV_TAG xmltv6_tags_credits[] =
-{
-   XMLTV6_PI_CRED_DIR,
-   XMLTV6_PI_CRED_ROLE,
-   XMLTV6_PI_CRED_WRITER,
-   XMLTV6_PI_CRED_PROD,
-   XMLTV6_PI_CRED_EXPR,
-   XMLTV6_PI_CRED_PRES,
-   XMLTV6_PI_CRED_COMM,
-   XMLTV6_PI_CRED_GUEST,
-   XMLTV6_PI_CRED_NARR,
-   XMLTV6_PI_CRED_COMPANY,
-   XMLTV6_PI_CRED_ADAP
-};
-static const XMLTV_TAG xmltv6_tags_credits_role[] =
-{
-   XMLTV6_PI_CRED_ROLE_ACTOR,
-   XMLTV6_PI_CRED_ROLE_CHAR
-};
-static const XMLTV_TAG xmltv6_tags_credits_adapted_from[] =
-{
-   XMLTV6_PI_CRED_ADAP_TYPE,
-   XMLTV6_PI_CRED_ADAP_TITLE,
-   XMLTV6_PI_CRED_ADAP_WRITER
-};
-static const XMLTV_TAG xmltv6_tags_video[] =
-{
-   XMLTV6_PI_VIDEO_ASPECT,
-   XMLTV6_PI_VIDEO_QUAL
-};
-static const XMLTV_TAG xmltv6_tags_audio[] =
-{
-   XMLTV6_PI_AUDIO_MONO,
-   XMLTV6_PI_AUDIO_STEREO,
-   XMLTV6_PI_AUDIO_SURR
-};
-static const XMLTV_TAG xmltv6_tags_subt[] =
-{
-   XMLTV6_PI_SUBT_TTX,
-   XMLTV6_PI_SUBT_OSD
-};
-static const XMLTV_TAG xmltv6_tags_prat[] =
-{
-   XMLTV6_PI_PRAT_TEXT
-};
-static const XMLTV_TAG xmltv6_tags_link[] =
-{
-   XMLTV6_LINK_TEXT,
-   XMLTV6_LINK_BLURB
-};
-static const XMLTV_TAG xmltv6_tags_link_blurb[] =
-{
-   XMLTV6_LINK_BLURB_P
-};
-
-// ----------------------------------------------------------------------------
-// Tag hierarchy for DTD auto-detection
+// Tag hierarchy for format detection
 
 static const XMLTV_TAG xmltv_auto_detect[] =
 {
@@ -351,15 +174,11 @@ static const XMLTV_TAG xmltv_auto_detect[] =
 static const XMLTV_TAG xmltv_auto_detect_tv[] =
 {
    XMLTV_DETECT_PROG,
-   XMLTV_DETECT_ABOUT,
-   XMLTV_DETECT_TIMESLOT
 };
 
 static void XmltvTags_SetLanguage( XML_STR_BUF * pBuf );
 static void XmltvTags_SetVersion5_ByTag( void );
 static void XmltvTags_SetVersion5_ByAttr( XML_STR_BUF * pBuf );
-static void XmltvTags_SetVersion6_ByTag( void );
-static void XmltvTags_SetVersion6_ByAttr( XML_STR_BUF * pBuf );
 
 // ----------------------------------------------------------------------------
 // Definition of DTD 0.5 tag attributes & their callback functions
@@ -422,127 +241,6 @@ static const XMLTV_ATTS xmltv5_attr_lang_only[] =
 };
 
 // ----------------------------------------------------------------------------
-// Definition of DTD 0.6 tag attributes & their callback functions
-//
-static const XMLTV_ATTS xmltv6_attr_tv[] =
-{
-   { "from", NULL, FALSE },
-   { "until", NULL, FALSE },
-   { "xml:lang", XmltvTags_SetLanguage, FALSE }
-};
-static const XMLTV_ATTS xmltv6_attr_about[] =
-{
-   { "date", NULL, FALSE }
-};
-static const XMLTV_ATTS xmltv6_attr_src_data[] =
-{
-   { "href", Xmltv_AboutSetSourceDataUrl, FALSE }
-};
-static const XMLTV_ATTS xmltv6_attr_channel[] =
-{
-   { "id", Xmltv_ChannelSetId, FALSE }
-};
-static const XMLTV_ATTS xmltv6_attr_ts[] =
-{
-   { "channel", Xmltv_TsSetChannel, FALSE },
-   { "start", Xmltv_TsSetStartTime, FALSE },
-   { "stop", Xmltv_TsSetStopTime, FALSE },
-   { "conditional", NULL, XMLTV_ATT_STRIP },
-   { "uncertain", NULL, XMLTV_ATT_STRIP },
-   { "liveness", Xmltv_TsSetFeatLive, XMLTV_ATT_STRIP },
-   { "encryption", Xmltv_TsSetFeatCrypt, FALSE }
-};
-static const XMLTV_ATTS xmltv6_attr_ts_code_time[] =
-{
-   { "system", Xmltv_TsCodeTimeSetSystem, FALSE },
-   { "start", Xmltv_TsCodeTimeSetStart, FALSE },
-   { "stop", NULL, FALSE }
-};
-static const XMLTV_ATTS xmltv6_attr_ts_code_num[] =
-{
-   { "system", Xmltv_TsCodeTimeSetSystem, FALSE },
-   { "num", Xmltv_TsCodeTimeSetStart, FALSE }
-};
-static const XMLTV_ATTS xmltv6_attr_prog[] =
-{
-   { "newness", NULL, XMLTV_ATT_STRIP },
-   { "will-repeat", NULL, XMLTV_ATT_STRIP },
-   { "xml:lang", XmltvTags_SetLanguage, FALSE }
-};
-static const XMLTV_ATTS xmltv6_attr_title[] =
-{
-   { "original", NULL, XMLTV_ATT_STRIP },
-   { "xml:lang", XmltvTags_SetLanguage, FALSE }
-};
-static const XMLTV_ATTS xmltv6_attr_desc[] =
-{
-   { "type", NULL, XMLTV_ATT_STRIP },
-   { "xml:lang", XmltvTags_SetLanguage, FALSE }
-};
-static const XMLTV_ATTS xmltv6_attr_actor[] =
-{
-   { "guest", NULL, XMLTV_ATT_STRIP }
-};
-static const XMLTV_ATTS xmltv6_attr_adaptor_title[] =
-{
-   { "original", NULL, XMLTV_ATT_STRIP },
-   { "xml:lang", XmltvTags_SetLanguage, FALSE }
-};
-static const XMLTV_ATTS xmltv6_attr_pi_cat[] =
-{
-   { "type", Xmltv_PiCatSetType, XMLTV_ATT_STRIP },
-   { "system", Xmltv_PiCatSetSystem, FALSE },
-   { "code", Xmltv_PiCatSetCode, FALSE },
-   { "xml:lang", XmltvTags_SetLanguage, FALSE }
-};
-static const XMLTV_ATTS xmltv6_attr_pi_aspect[] =
-{
-   { "x", Xmltv_PiVideoAspectSetX, FALSE },
-   { "y", Xmltv_PiVideoAspectSetY, FALSE }
-};
-static const XMLTV_ATTS xmltv6_attr_pi_audio[] =
-{
-   { "channel", NULL, FALSE }
-};
-static const XMLTV_ATTS xmltv6_attr_pi_subt_ttx[] =
-{
-   { "page", Xmltv_PiSubtitlesSetPage, FALSE }
-};
-static const XMLTV_ATTS xmltv6_attr_pi_prat[] =
-{
-   { "system", Xmltv_PiRatingSetSystem, FALSE }
-};
-static const XMLTV_ATTS xmltv6_attr_pi_erat[] =
-{
-   { "stars", Xmltv_PiStarRatingSetValue, FALSE },
-   { "out-of", Xmltv_PiStarRatingSetMax, FALSE }
-};
-static const XMLTV_ATTS xmltv6_attr_link[] =
-{
-   { "href", Xmltv_LinkHrefSet, FALSE }
-};
-static const XMLTV_ATTS xmltv6_attr_lang_only[] =
-{
-   { "xml:lang", XmltvTags_SetLanguage, FALSE }
-};
-
-// ----------------------------------------------------------------------------
-// Definition of tag attributes for DTD version auto-detection
-
-static const XMLTV_ATTS xmltv_auto_detect_attr_tv[] =
-{
-   { "source-info-name", XmltvTags_SetVersion5_ByAttr, FALSE },  // DTD 0.5
-   { "source-info-url", XmltvTags_SetVersion5_ByAttr, FALSE },
-   { "source-data-url", XmltvTags_SetVersion5_ByAttr, FALSE },
-   { "generator-info-name", XmltvTags_SetVersion5_ByAttr, FALSE },
-   { "generator-info-url", XmltvTags_SetVersion5_ByAttr, FALSE },
-   { "date", XmltvTags_SetVersion5_ByAttr, FALSE },
-   { "from", XmltvTags_SetVersion6_ByAttr, FALSE }, // DTD 0.6
-   { "until", XmltvTags_SetVersion6_ByAttr, FALSE },
-   { "xml:lang", XmltvTags_SetVersion6_ByAttr, FALSE }
-};
-
-// ----------------------------------------------------------------------------
 
 typedef enum
 {
@@ -576,6 +274,21 @@ typedef struct
 #define XMLTV_NO_OPEN_CLOSE_CB  { NULL, NULL, NULL, NULL }
 #define XMLTV_ATTR(L)           { (L), sizeof(L)/sizeof((L)[0]) }
 #define XMLTV_NO_ATTR           { NULL, 0 }
+
+// ----------------------------------------------------------------------------
+
+// ----------------------------------------------------------------------------
+// Definition of tag attributes for DTD version auto-detection
+
+static const XMLTV_ATTS xmltv_auto_detect_attr_tv[] =
+{
+   { "source-info-name", XmltvTags_SetVersion5_ByAttr, FALSE },
+   { "source-info-url", XmltvTags_SetVersion5_ByAttr, FALSE },
+   { "source-data-url", XmltvTags_SetVersion5_ByAttr, FALSE },
+   { "generator-info-name", XmltvTags_SetVersion5_ByAttr, FALSE },
+   { "generator-info-url", XmltvTags_SetVersion5_ByAttr, FALSE },
+   { "date", XmltvTags_SetVersion5_ByAttr, FALSE },
+};
 
 // ----------------------------------------------------------------------------
 
@@ -710,230 +423,7 @@ static const XML_TAGDEF xmltv_tag_def[] =
      { NULL, NULL, Xmltv_PiStarRatingAddText, NULL },
      XMLTV_NO_ATTR,
    },
-
-   // DTD 0.6
-   { XMLTV6_TOP, "*root/dtd-0.6*", XML_CHILDS(xmltv6_tags_top), XML_NO_PCDATA,
-     XMLTV_NO_OPEN_CLOSE_CB,
-     XMLTV_NO_ATTR,
-   },
-   { XMLTV6_TV, "tv", XML_CHILDS(xmltv6_tags_tv), XML_NO_PCDATA,
-     XMLTV_NO_OPEN_CLOSE_CB,
-     XMLTV_ATTR(xmltv6_attr_tv),
-   },
-   { XMLTV6_ABOUT, "about", XML_CHILDS(xmltv6_tags_about), XML_NO_PCDATA,
-     XMLTV_NO_OPEN_CLOSE_CB,
-     XMLTV_ATTR(xmltv6_attr_about),
-   },
-   { XMLTV6_SRC_INFO, "source-info", XML_CHILDS(xmltv6_tags_src_info), XML_NO_PCDATA,
-     { Xmltv_SourceInfoOpen, Xmltv_SourceInfoClose, NULL, NULL },
-     XMLTV_NO_ATTR,
-   },
-   { XMLTV6_SRC_DATA, "source-data", XML_NO_CHILDS, XML_NO_PCDATA,
-     XMLTV_NO_OPEN_CLOSE_CB,
-     XMLTV_ATTR(xmltv6_attr_src_data),
-   },
-   { XMLTV6_GEN_INFO, "generator-info", XML_CHILDS(xmltv6_tags_gen_info), XML_NO_PCDATA,
-     { Xmltv_GenInfoOpen, Xmltv_GenInfoClose, NULL, NULL },
-     XMLTV_NO_ATTR,
-   },
-   { XMLTV6_CHANNEL, "channel", XML_CHILDS(xmltv6_tags_channel), XML_NO_PCDATA,
-     { Xmltv_ChannelCreate, Xmltv_ChannelClose, NULL, NULL },
-     XMLTV_ATTR(xmltv6_attr_channel),
-   },
-   { XMLTV6_CHN_DISP_NAME, "display-name", XML_NO_CHILDS, XML_HAS_PCDATA,
-     { NULL, NULL, Xmltv_ChannelAddName, NULL },
-     XMLTV_ATTR(xmltv6_attr_lang_only),
-   },
-   { XMLTV6_TIMESLOT, "timeslot", XML_CHILDS(xmltv6_tags_timeslot), XML_NO_PCDATA,
-     { Xmltv_TsOpen, Xmltv_TsClose, NULL, NULL /*Xmltv_TsFilter*/ },
-     XMLTV_ATTR(xmltv6_attr_ts),
-   },
-   { XMLTV6_TS_CODE_TIME, "code-time", XML_NO_CHILDS, XML_NO_PCDATA,
-     { Xmltv_TsCodeTimeOpen, Xmltv_TsCodeTimeClose, NULL, NULL },
-     XMLTV_ATTR(xmltv6_attr_ts_code_time),
-   },
-   { XMLTV6_TS_CODE_NUM, "code-num", XML_NO_CHILDS, XML_NO_PCDATA,
-     { Xmltv_TsCodeTimeOpen, Xmltv_TsCodeTimeClose, NULL, NULL },
-     XMLTV_ATTR(xmltv6_attr_ts_code_num),
-   },
-   { XMLTV6_TS_PROG_REF, "programme-ref", XML_NO_CHILDS, XML_NO_PCDATA,
-     XMLTV_NO_OPEN_CLOSE_CB,
-     XMLTV_NO_ATTR,
-   },
-   { XMLTV6_TS_PROG_UNKNOWN, "unknown", XML_NO_CHILDS, XML_NO_PCDATA,
-     XMLTV_NO_OPEN_CLOSE_CB,
-     XMLTV_NO_ATTR,
-   },
-   { XMLTV6_TS_PROG, "programme", XML_CHILDS(xmltv6_tags_prog), XML_NO_PCDATA,
-     XMLTV_NO_OPEN_CLOSE_CB,
-     XMLTV_ATTR(xmltv6_attr_prog),
-   },
-   { XMLTV6_PI_TITLE, "title", XML_NO_CHILDS, XML_HAS_PCDATA,
-     { NULL, NULL, Xmltv_PiTitleAdd, NULL },
-     XMLTV_ATTR(xmltv6_attr_title),
-   },
-   { XMLTV6_PI_DESC, "desc", XML_CHILDS(xmltv6_tags_desc), XML_NO_PCDATA,
-     { Xmltv_PiDescOpen, Xmltv_PiDescClose, NULL, NULL },
-     XMLTV_ATTR(xmltv6_attr_desc),
-   },
-   { XMLTV6_PI_DESC_P, "p", XML_NO_CHILDS, XML_HAS_PCDATA,
-     { Xmltv_ParagraphCreate, Xmltv_ParagraphClose, Xmltv_ParagraphAdd, NULL },
-     XMLTV_NO_ATTR,
-   },
-   { XMLTV6_PI_CREDITS, "credits", XML_CHILDS(xmltv6_tags_credits), XML_NO_PCDATA,
-     { Xmltv_PiCreditsOpen, Xmltv_PiCreditsClose, NULL, NULL },
-     XMLTV_NO_ATTR,
-   },
-   { XMLTV6_PI_CRED_DIR, "director", XML_NO_CHILDS, XML_HAS_PCDATA,
-     { NULL, NULL, Xmltv_PiCreditsAddDirector, NULL },
-     XMLTV_NO_ATTR,
-   },
-   { XMLTV6_PI_CRED_ROLE, "role", XML_CHILDS(xmltv6_tags_credits_role), XML_DISCARD_PCDATA,
-     XMLTV_NO_OPEN_CLOSE_CB, /* TODO: open/close: combine actor&role */
-     XMLTV_NO_ATTR,
-   },
-   { XMLTV6_PI_CRED_ROLE_ACTOR, "actor", XML_NO_CHILDS, XML_HAS_PCDATA,
-     { NULL, NULL, Xmltv_PiCreditsAddActor, NULL },
-     XMLTV_ATTR(xmltv6_attr_actor),
-   },
-   { XMLTV6_PI_CRED_ROLE_CHAR, "character", XML_NO_CHILDS, XML_DISCARD_PCDATA,
-     XMLTV_NO_OPEN_CLOSE_CB, /* TODO */
-     XMLTV_ATTR(xmltv6_attr_lang_only),
-   },
-   { XMLTV6_PI_CRED_WRITER, "writer", XML_NO_CHILDS, XML_HAS_PCDATA,
-     { NULL, NULL, Xmltv_PiCreditsAddWriter, NULL },
-     XMLTV_NO_ATTR,
-   },
-   { XMLTV6_PI_CRED_PROD, "producer", XML_NO_CHILDS, XML_HAS_PCDATA,
-     { NULL, NULL, Xmltv_PiCreditsAddProducer, NULL },
-     XMLTV_NO_ATTR,
-   },
-   { XMLTV6_PI_CRED_EXPR, "executive-producer", XML_NO_CHILDS, XML_HAS_PCDATA,
-     { NULL, NULL, Xmltv_PiCreditsAddExecProducer, NULL },
-     XMLTV_NO_ATTR,
-   },
-   { XMLTV6_PI_CRED_PRES, "presenter", XML_NO_CHILDS, XML_HAS_PCDATA,
-     { NULL, NULL, Xmltv_PiCreditsAddPresenter, NULL },
-     XMLTV_NO_ATTR,
-   },
-   { XMLTV6_PI_CRED_COMM, "commentator", XML_NO_CHILDS, XML_HAS_PCDATA,
-     { NULL, NULL, Xmltv_PiCreditsAddCommentator, NULL },
-     XMLTV_NO_ATTR,
-   },
-   { XMLTV6_PI_CRED_GUEST, "guest", XML_NO_CHILDS, XML_HAS_PCDATA,
-     { NULL, NULL, Xmltv_PiCreditsAddGuest, NULL },
-     XMLTV_NO_ATTR,
-   },
-   { XMLTV6_PI_CRED_NARR, "narrator", XML_NO_CHILDS, XML_HAS_PCDATA,
-     { NULL, NULL, Xmltv_PiCreditsAddNarrator, NULL },
-     XMLTV_NO_ATTR,
-   },
-   { XMLTV6_PI_CRED_COMPANY, "company", XML_NO_CHILDS, XML_HAS_PCDATA,
-     { NULL, NULL, Xmltv_PiCreditsAddCompany, NULL },
-     XMLTV_NO_ATTR,
-   },
-   { XMLTV6_PI_CRED_ADAP, "adapted-from", XML_CHILDS(xmltv6_tags_credits_adapted_from), XML_NO_PCDATA,
-     XMLTV_NO_OPEN_CLOSE_CB /*TODO*/,
-     XMLTV_NO_ATTR,
-   },
-   { XMLTV6_PI_CRED_ADAP_TYPE, "type", XML_NO_CHILDS, XML_DISCARD_PCDATA,
-     XMLTV_NO_OPEN_CLOSE_CB /*TODO*/,
-     XMLTV_ATTR(xmltv6_attr_lang_only),
-   },
-   { XMLTV6_PI_CRED_ADAP_TITLE, "title", XML_NO_CHILDS, XML_NO_PCDATA,
-     XMLTV_NO_OPEN_CLOSE_CB /*TODO*/,
-     XMLTV_ATTR(xmltv6_attr_adaptor_title),
-   },
-   { XMLTV6_PI_CRED_ADAP_WRITER, "writer", XML_NO_CHILDS, XML_NO_PCDATA,
-     XMLTV_NO_OPEN_CLOSE_CB /*TODO*/,
-     XMLTV_NO_ATTR,
-   },
-   { XMLTV6_PI_CAT, "category", XML_NO_CHILDS, XML_HAS_PCDATA,
-     { Xmltv_PiCatOpen, Xmltv_PiCatClose, Xmltv_PiCatAddText, NULL },
-     XMLTV_ATTR(xmltv6_attr_pi_cat),
-   },
-   { XMLTV6_PI_EPISODE, "episode-details", XML_CHILDS(xmltv6_tags_episode), XML_NO_PCDATA,
-     XMLTV_NO_OPEN_CLOSE_CB,
-     XMLTV_NO_ATTR,
-   },
-   { XMLTV6_PI_EPISODE_EP, "episode", XML_CHILDS(xmltv6_tags_episode_ep), XML_NO_PCDATA,
-     XMLTV_NO_OPEN_CLOSE_CB,
-     XMLTV_NO_ATTR,
-   },
-   { XMLTV6_PI_EPISODE_EP_TITLE, "title", XML_NO_CHILDS, XML_HAS_PCDATA,
-     { NULL, NULL, Xmltv_PiEpisodeTitleAdd, NULL },
-     XMLTV_NO_ATTR,
-   },
-   { XMLTV6_PI_VIDEO, "video", XML_CHILDS(xmltv6_tags_video), XML_NO_PCDATA,
-     XMLTV_NO_OPEN_CLOSE_CB,
-     XMLTV_NO_ATTR,
-   },
-   { XMLTV6_PI_VIDEO_ASPECT, "aspect", XML_NO_CHILDS, XML_NO_PCDATA,
-     { Xmltv_PiVideoAspectOpen, Xmltv_PiVideoAspectClose, NULL, NULL },
-     XMLTV_ATTR(xmltv6_attr_pi_aspect),
-   },
-   { XMLTV6_PI_VIDEO_QUAL, "quality", XML_NO_CHILDS, XML_HAS_PCDATA,
-     { NULL, NULL, Xmltv_PiVideoQualityAdd, NULL },
-     XMLTV_NO_ATTR,
-   },
-   { XMLTV6_PI_AUDIO, "audio", XML_CHILDS(xmltv6_tags_audio), XML_NO_PCDATA,
-     { Xmltv_PiAudioOpen, Xmltv_PiAudioClose, NULL, NULL },
-     XMLTV_ATTR(xmltv6_attr_pi_audio),
-   },
-   { XMLTV6_PI_AUDIO_MONO, "mono", XML_NO_CHILDS, XML_NO_PCDATA,
-     { Xmltv_PiAudioMonoOpen, NULL, NULL, NULL },
-     XMLTV_NO_ATTR,
-   },
-   { XMLTV6_PI_AUDIO_STEREO, "stereo", XML_NO_CHILDS, XML_NO_PCDATA,
-     { Xmltv_PiAudioStereoOpen, NULL, NULL, NULL },
-     XMLTV_NO_ATTR,
-   },
-   { XMLTV6_PI_AUDIO_SURR, "surround", XML_NO_CHILDS, XML_NO_PCDATA,
-     { Xmltv_PiAudioSurrOpen, NULL, NULL, NULL },
-     XMLTV_NO_ATTR,
-   },
-   { XMLTV6_PI_SUBT, "subtitles", XML_CHILDS(xmltv6_tags_subt), XML_NO_PCDATA,
-     XMLTV_NO_OPEN_CLOSE_CB,
-     XMLTV_NO_ATTR,
-   },
-   { XMLTV6_PI_SUBT_TTX, "teletext", XML_NO_CHILDS, XML_NO_PCDATA,
-     { Xmltv_PiSubtitlesTtx, NULL, NULL, NULL },
-     XMLTV_ATTR(xmltv6_attr_pi_subt_ttx),
-   },
-   { XMLTV6_PI_SUBT_OSD, "superimposed", XML_NO_CHILDS, XML_NO_PCDATA,
-     { Xmltv_PiSubtitlesOsd, NULL, NULL, NULL },
-     XMLTV_NO_ATTR,
-   },
-   { XMLTV6_PI_PRAT, "classification", XML_CHILDS(xmltv6_tags_prat), XML_NO_PCDATA,
-     XMLTV_NO_OPEN_CLOSE_CB,
-     XMLTV_ATTR(xmltv6_attr_pi_prat),
-   },
-   { XMLTV6_PI_PRAT_TEXT, "text", XML_NO_CHILDS, XML_HAS_PCDATA,
-     { NULL, NULL, Xmltv_PiRatingAddText, NULL },
-     XMLTV_NO_ATTR,
-   },
-   { XMLTV6_PI_ERAT, "star-rating", XML_NO_CHILDS, XML_NO_PCDATA,
-     { Xmltv_PiStarRatingOpen, Xmltv_PiStarRatingClose, NULL, NULL },
-     XMLTV_ATTR(xmltv6_attr_pi_erat),
-   },
-   { XMLTV6_LINK, "link", XML_CHILDS(xmltv6_tags_link), XML_NO_PCDATA,
-     XMLTV_NO_OPEN_CLOSE_CB,
-     XMLTV_ATTR(xmltv6_attr_link),
-   },
-   { XMLTV6_LINK_TEXT, "text", XML_NO_CHILDS, XML_HAS_PCDATA,
-     { NULL, NULL, Xmltv_LinkAddText, NULL },
-     XMLTV_ATTR(xmltv6_attr_lang_only),
-   },
-   { XMLTV6_LINK_BLURB, "blurb", XML_CHILDS(xmltv6_tags_link_blurb), XML_NO_PCDATA,
-     XMLTV_NO_OPEN_CLOSE_CB,
-     XMLTV_ATTR(xmltv6_attr_lang_only),
-   },
-   { XMLTV6_LINK_BLURB_P, "p", XML_NO_CHILDS, XML_HAS_PCDATA,
-     { NULL, NULL, Xmltv_LinkBlurbAddText, NULL },
-     XMLTV_NO_ATTR,
-   },
-
-   // DTD auto-detection
+   // format detection
    { XMLTV_DETECT, "*auto-detect*", XML_CHILDS(xmltv_auto_detect), XML_DISCARD_PCDATA,
      XMLTV_NO_OPEN_CLOSE_CB,
      XMLTV_NO_ATTR
@@ -944,14 +434,6 @@ static const XML_TAGDEF xmltv_tag_def[] =
    },
    { XMLTV_DETECT_PROG, "programme", XML_NO_CHILDS, XML_NO_PCDATA,
      { XmltvTags_SetVersion5_ByTag, NULL, NULL, NULL },
-     XMLTV_NO_ATTR
-   },
-   { XMLTV_DETECT_ABOUT, "about", XML_NO_CHILDS, XML_NO_PCDATA,
-     { XmltvTags_SetVersion6_ByTag, NULL, NULL, NULL },
-     XMLTV_NO_ATTR
-   },
-   { XMLTV_DETECT_TIMESLOT, "timeslot", XML_NO_CHILDS, XML_NO_PCDATA,
-     { XmltvTags_SetVersion6_ByTag, NULL, NULL, NULL },
      XMLTV_NO_ATTR
    },
    { XMLTV_SKIP, "*skip*", XML_NO_CHILDS, XML_DISCARD_PCDATA,
@@ -1003,8 +485,9 @@ static void XmltvScan_CheckTablesConsistency( void )
    for (tagIdx = 0; tagIdx < XMLTV_TAG_COUNT; tagIdx++)
    {
       if ( (refTable[tagIdx] == 0) &&
-           (tagIdx != XMLTV5_TOP) && (tagIdx != XMLTV6_TOP) &&
-           (tagIdx != XMLTV_DETECT) && (tagIdx != XMLTV_SKIP) )
+           (tagIdx != XMLTV5_TOP) &&
+           (tagIdx != XMLTV_DETECT) &&
+           (tagIdx != XMLTV_SKIP) )
          debug2("CheckTables: Warning state %d (tag '%s') never referenced", tagIdx, xmltv_tag_def[tagIdx].pTagName);
    }
 #endif // DEBUG_SWITCH
@@ -1025,7 +508,6 @@ typedef struct
    uint                 syntaxError;
    bool                 earlyStop;
    uint                 xmlAttrToken;
-   XMLTV_DTD_VERSION    dtd;
    XML_ENCODING         encoding;
    XMLTV_DETECTION      detected;
 } XML_PARSER_STATE;
@@ -1105,10 +587,7 @@ void XmltvTags_Open( const char * pTagName )
          xps.xmlAttrToken = XML_SKIP_ATTRIB;
          xps.syntaxError = 0;
 
-         if (xps.dtd == XMLTV_DTD_6)
-            xps.lang[xps.stackIdx] = xps.lang[xps.stackIdx - 1];
-         else
-            xps.lang[xps.stackIdx] = XML_LANG_UNKNOWN;
+         xps.lang[xps.stackIdx] = XML_LANG_UNKNOWN;
 
          state = *pChild;
          if (xmltv_tag_def[state].cb.TagOpen != NULL)
@@ -1549,7 +1028,6 @@ void Xmltv_ScanFatalError( const char * pMsg )
 static void XmltvTags_SetVersion5_ByTag( void )
 {
    dprintf0("XmltvTags-SetVersion5: DTD version 5 auto-detected\n");
-   xps.dtd = XMLTV_DTD_5;
    xps.earlyStop = TRUE;
 
    // stop the scanner, i.e. skip the rest of the input file
@@ -1559,19 +1037,6 @@ static void XmltvTags_SetVersion5_ByTag( void )
 static void XmltvTags_SetVersion5_ByAttr( XML_STR_BUF * pBuf )
 {
    XmltvTags_SetVersion5_ByTag();
-}
-
-static void XmltvTags_SetVersion6_ByTag( void )
-{
-   dprintf0("XmltvTags-SetVersion6: DTD version 6 auto-detected\n");
-   xps.dtd = XMLTV_DTD_6;
-   xps.earlyStop = TRUE;
-   XmlScan_Stop();
-}
-
-static void XmltvTags_SetVersion6_ByAttr( XML_STR_BUF * pBuf )
-{
-   XmltvTags_SetVersion6_ByTag();
 }
 
 // ----------------------------------------------------------------------------
@@ -1586,40 +1051,27 @@ void XmlTags_ScanStop( void )
 }
 
 // ----------------------------------------------------------------------------
-// Query version after a run in DTD auto-detection mode
-// - optionally, an additional "detection code" is returned: in case the XMLTV
-//   version auto-detection fails this can be used to check if the file looks
+// Query "detection code" is returned:
+// - in case loading XMLTV fails, this can be used to check if the file looks
 //   like XML at all to produce an appropriate error message
 //
-XMLTV_DTD_VERSION XmltvTags_QueryVersion( XMLTV_DETECTION * pXmlDetected )
+XMLTV_DETECTION XmltvTags_QueryDetection( void )
 {
-   if (pXmlDetected != NULL)
-   {
-      *pXmlDetected = xps.detected;
-   }
-   return xps.dtd;
+   return xps.detected;
 }
 
 // ----------------------------------------------------------------------------
 // Initialize and start the parser and scanner
 //
-void XmltvTags_StartScan( FILE * fp, XMLTV_DTD_VERSION dtdVersion )
+void XmltvTags_StartScan( FILE * fp, bool load )
 {
-   dprintf1("XmltvTags-StartScan: DVD version %d\n", dtdVersion);
-
    XmltvScan_CheckTablesConsistency();
 
    XmlScan_Init();
 
    // push initial state on the element stack
-   if (dtdVersion == XMLTV_DTD_5)
-      xps.tagStack[0] = XMLTV5_TOP;
-   else if (dtdVersion == XMLTV_DTD_6)
-      xps.tagStack[0] = XMLTV6_TOP;
-   else
-      xps.tagStack[0] = XMLTV_DETECT;
+   xps.tagStack[0] = load ? XMLTV5_TOP : XMLTV_DETECT;
    xps.stackIdx = 0;
-   xps.dtd = dtdVersion;
    xps.detected = 0;
    xps.encoding = XML_ENC_UNKNOWN;
 
@@ -1638,4 +1090,3 @@ void XmltvTags_StartScan( FILE * fp, XMLTV_DTD_VERSION dtdVersion )
    }
    XmlScan_Destroy();
 }
-

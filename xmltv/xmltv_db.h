@@ -57,7 +57,6 @@ void Xmltv_TsCodeTimeSetVps( XML_STR_BUF * pBuf );
 void Xmltv_TsCodeTimeSetPdc( XML_STR_BUF * pBuf );
 void Xmltv_TsCodeTimeSetSV( XML_STR_BUF * pBuf );
 void Xmltv_TsCodeTimeSetVP( XML_STR_BUF * pBuf );
-void Xmltv_TsCodeTimeSetStart( XML_STR_BUF * pBuf );
 void Xmltv_TsCodeTimeSetSystem( XML_STR_BUF * pBuf );
 
 void Xmltv_PiDescOpen( void );
@@ -80,20 +79,13 @@ void Xmltv_PiVideoColourAdd( XML_STR_BUF * pBuf );
 void Xmltv_PiVideoQualityAdd( XML_STR_BUF * pBuf );
 void Xmltv_PiAudioOpen( void );
 void Xmltv_PiAudioClose( void );
-void Xmltv_PiAudioMonoOpen( void );
-void Xmltv_PiAudioStereoOpen( void );
 void Xmltv_PiAudioStereoAdd( XML_STR_BUF * pBuf );
-void Xmltv_PiAudioSurrOpen( void );
-void Xmltv_PiSubtitlesOsd( void );
-void Xmltv_PiSubtitlesTtx( void );
 void Xmltv_PiSubtitlesSetType( XML_STR_BUF * pBuf );
-void Xmltv_PiSubtitlesSetPage( XML_STR_BUF * pBuf );
 void Xmltv_PiRatingSetSystem( XML_STR_BUF * pBuf );
 void Xmltv_PiRatingAddText( XML_STR_BUF * pBuf );
 void Xmltv_PiStarRatingOpen( void );
 void Xmltv_PiStarRatingClose( void );
 void Xmltv_PiStarRatingAddText( XML_STR_BUF * pBuf );
-void Xmltv_PiStarRatingSetValue( XML_STR_BUF * pBuf );
 void Xmltv_PiStarRatingSetMax( XML_STR_BUF * pBuf );
 void Xmltv_ParagraphCreate( void );
 void Xmltv_ParagraphClose( void );
@@ -117,7 +109,7 @@ void Xmltv_PiCreditsAddGuest( XML_STR_BUF * pBuf );
 // Interface to main control module
 //
 #ifdef __EPGBLOCK_H
-void XmltvDb_Init( XMLTV_DTD_VERSION dtd, uint provCni, bool isPeek );
+void XmltvDb_Init( uint provCni, bool isPeek );
 void XmltvDb_Destroy( void );
 EPGDB_CONTEXT * XmltvDb_GetDatabase( const char * pProvName );
 #endif

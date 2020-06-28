@@ -45,8 +45,6 @@
 #include "epgui/pdc_themes.h"
 #include "epgui/dumpxml.h"
 
-#define IS_XML_DTD5(X) ((X) != DUMP_XMLTV_DTD_6)
-
 #ifdef USE_UTF8
 #define XML_ENCODING_NAME "\"UTF8\""
 #else
@@ -155,10 +153,7 @@ static void EpgDumpXml_AppendInfoTextCb( void *vp, const char * pDesc, bool addS
 
       if (addSeparator)
       {
-         if ( IS_XML_DTD5(pCbInfo->xmlDtdVersion) )
-            fprintf(fp, "\n");
-         else
-            fprintf(fp, "</p></desc>\n\t<desc><p>");
+         fprintf(fp, "\n");
       }
 
       // replace newline characters with paragraph tags
@@ -167,10 +162,7 @@ static void EpgDumpXml_AppendInfoTextCb( void *vp, const char * pDesc, bool addS
          // print text up to (and excluding) the newline
          EpgDumpXml_HtmlWriteString(fp, pDesc, pNewline - pDesc);
 
-         if ( IS_XML_DTD5(pCbInfo->xmlDtdVersion) )
-            fprintf(fp, "\n");
-         else
-            fprintf(fp, "</p>\n<p>");
+         fprintf(fp, "\n");
 
          // skip to text following the newline
          pDesc = pNewline + 1;
@@ -222,10 +214,6 @@ static void EpgDumpXml_PrintTimestamp( char * pBuf, uint maxLen,
    {
       strftime(pBuf, maxLen, "%Y%m%d%H%M%S +0000", gmtime(&then));
    }
-   else if (xmlDtdVersion == DUMP_XMLTV_DTD_6)
-   {
-      strftime(pBuf, maxLen, "%Y-%m-%dT%H:%M:%SZ", gmtime(&then));
-   }
    else
    {
       debug1("EpgDumpXml-PrintTimestamp: invalid XMLTV DTD version %d", xmlDtdVersion);
@@ -259,60 +247,15 @@ static void EpgDumpXml_WriteHeader( EPGDB_CONTEXT * pDbContext,
    lastAiUpdate = EpgDbGetAiUpdateTime(pDbContext);
    EpgDumpXml_PrintTimestamp(start_str, sizeof(start_str), lastAiUpdate, xmlDtdVersion);
 
-   if ( IS_XML_DTD5(xmlDtdVersion) )
-   {
-      fprintf(fp, "<?xml version=\"1.0\" encoding=" XML_ENCODING_NAME "?>\n"
-                  "<!DOCTYPE tv SYSTEM \"xmltv.dtd\">\n"
-                  "<tv generator-info-name=\"nxtvepg/" EPG_VERSION_STR "\" "
-                       "generator-info-url=\"" NXTVEPG_URL "\" "
-                       "source-info-name=\"");
-      if ((EpgDbContextIsXmltv(pDbContext) == FALSE) || EpgDbContextIsMerged(pDbContext))
-         fprintf(fp, "nexTView ");
-      EpgDumpXml_HtmlWriteString(fp, src_str, -1);
-      fprintf(fp, "\" date=\"%s\">\n", start_str);
-   }
-   else // XML DTD 6
-   {
-      fprintf(fp, "<?xml version=\"1.0\" encoding=" XML_ENCODING_NAME "?>\n"
-                  "<!DOCTYPE tv SYSTEM \"xmltv-0.6.dtd\">\n"
-                  "<tv>\n"
-                  "<about date=\"%s\">\n"
-                  "\t<copying>\n"
-                  "\t\t<p>"
-                  "Copyright by nexTView EPG content providers: ",
-                  start_str);
-      EpgDumpXml_HtmlWriteString(fp, src_str, -1);
-      fprintf(fp, "</p>\n"
-                  "\t</copying>\n"
-                  "\t<source-info><link>\n"
-                  "\t\t<text>");
-      EpgDumpXml_HtmlWriteString(fp, AI_GET_SERVICENAME(pAiBlock), -1);
-      fprintf(fp, "</text>\n");
-      if ((pOiBlock != NULL) && (OI_HAS_HEADER(pOiBlock) || OI_HAS_MESSAGE(pOiBlock)))
-      {
-         fprintf(fp, "\t\t<blurb>\n");
-         if (OI_HAS_HEADER(pOiBlock))
-         {
-            fprintf(fp, "\t\t\t<p>");
-            EpgDumpXml_HtmlWriteString(fp, OI_GET_HEADER(pOiBlock), -1);
-            fprintf(fp, "</p>\n");
-         }
-         if (OI_HAS_MESSAGE(pOiBlock))
-         {
-            fprintf(fp, "\t\t\t<p>");
-            EpgDumpXml_HtmlWriteString(fp, OI_GET_MESSAGE(pOiBlock), -1);
-            fprintf(fp, "</p>\n");
-         }
-         fprintf(fp, "\t\t</blurb>\n");
-      }
-      fprintf(fp, "\t</link></source-info>\n"
-                  "\t<generator-info>\n"
-                  "\t\t<link href=\"" NXTVEPG_URL "\">\n"
-                  "\t\t\t<text>nxtvepg/" EPG_VERSION_STR "</text>\n"
-                  "\t\t</link>\n"
-                  "\t</generator-info>\n"
-                  "</about>\n");
-   }
+   fprintf(fp, "<?xml version=\"1.0\" encoding=" XML_ENCODING_NAME "?>\n"
+               "<!DOCTYPE tv SYSTEM \"xmltv.dtd\">\n"
+               "<tv generator-info-name=\"nxtvepg/" EPG_VERSION_STR "\" "
+                    "generator-info-url=\"" NXTVEPG_URL "\" "
+                    "source-info-name=\"");
+   if ((EpgDbContextIsXmltv(pDbContext) == FALSE) || EpgDbContextIsMerged(pDbContext))
+      fprintf(fp, "nexTView ");
+   EpgDumpXml_HtmlWriteString(fp, src_str, -1);
+   fprintf(fp, "\" date=\"%s\">\n", start_str);
 }
 
 // ----------------------------------------------------------------------------
@@ -329,10 +272,7 @@ static void EpgDumpXml_WriteChannel( const AI_BLOCK * pAiBlock, const char * pCh
 
       fprintf(fp, "<channel id=\"%s\">\n", pChnId);
 
-      if ( IS_XML_DTD5(xmlDtdVersion) == FALSE )
-      {
-         fprintf(fp, "\t<number num=\"%d\" />\n", netwopIdx);
-      }
+      fprintf(fp, "\t<number num=\"%d\" />\n", netwopIdx);
 
       fprintf(fp, "\t<display-name>");
       EpgDumpXml_HtmlWriteString(fp, pNetname, -1);
@@ -362,38 +302,17 @@ static void EpgDumpXml_WriteProgramme( EPGDB_CONTEXT * pDbContext, const AI_BLOC
    EpgDumpXml_PrintTimestamp(start_str, sizeof(start_str), pPiBlock->start_time, xmlDtdVersion);
    EpgDumpXml_PrintTimestamp(stop_str, sizeof(stop_str), pPiBlock->stop_time, xmlDtdVersion);
 
-   if ( IS_XML_DTD5(xmlDtdVersion) )
+   if (EpgDbGetVpsTimestamp(&vpsTime, pPiBlock->pil, pPiBlock->start_time))
    {
-      if (EpgDbGetVpsTimestamp(&vpsTime, pPiBlock->pil, pPiBlock->start_time))
-      {
-         int lto = EpgLtoGet(pPiBlock->start_time);
-         strftime(tmp_str, sizeof(tmp_str) - 7, "pdc-start=\"%Y%m%d%H%M%S", &vpsTime);
-         sprintf(tmp_str + strlen(tmp_str), " %+03d%02d\"", lto / (60*60), abs(lto / 60) % 60);
-      }
-      else
-         tmp_str[0] = 0;
-
-      fprintf(fp, "<programme start=\"%s\" stop=\"%s\" %s channel=\"%s\">\n",
-                  start_str, stop_str, tmp_str, pChnIds[pPiBlock->netwop_no]);
+      int lto = EpgLtoGet(pPiBlock->start_time);
+      strftime(tmp_str, sizeof(tmp_str) - 7, "pdc-start=\"%Y%m%d%H%M%S", &vpsTime);
+      sprintf(tmp_str + strlen(tmp_str), " %+03d%02d\"", lto / (60*60), abs(lto / 60) % 60);
    }
-   else // XML DTD 6
-   {
-      fprintf(fp, "<timeslot start=\"%s\" stop=\"%s\" channel=\"%s\"%s>\n",
-                  start_str, stop_str, pChnIds[pPiBlock->netwop_no],
-                  ((pPiBlock->feature_flags & PI_FEATURE_LIVE) ? " liveness=\"live\"" : ""));
+   else
+      tmp_str[0] = 0;
 
-      if (EpgDbGetVpsTimestamp(&vpsTime, pPiBlock->pil, pPiBlock->start_time))
-      {
-         // VPS/PDC timestamp is in localtime (hence no "Z" suffix)
-         strftime(tmp_str,  sizeof(tmp_str), "%Y-%m-%dT%H:%M:%S", &vpsTime);
-         fprintf(fp, "  <code-time system=\"vps\" start=\"%s\" />\n", tmp_str);
-      }
-
-      fprintf(fp, "  <programme id=\"C%04X.S%d\"%s>\n",
-                  AI_GET_NET_CNI_N(pAiBlock, pPiBlock->netwop_no),
-                  (int)pPiBlock->start_time,
-                  ((pPiBlock->feature_flags & PI_FEATURE_REPEAT) ? " newness=\"repeat\"" : ""));
-   }
+   fprintf(fp, "<programme start=\"%s\" stop=\"%s\" %s channel=\"%s\">\n",
+               start_str, stop_str, tmp_str, pChnIds[pPiBlock->netwop_no]);
 
    // programme title and description (quoting "<", ">" and "&" characters)
    fprintf(fp, "\t<title>");
@@ -404,18 +323,9 @@ static void EpgDumpXml_WriteProgramme( EPGDB_CONTEXT * pDbContext, const AI_BLOC
       cbInfo.fp = fp;
       cbInfo.xmlDtdVersion = xmlDtdVersion;
 
-      if ( IS_XML_DTD5(xmlDtdVersion) )
-      {
-         fprintf(fp, "\t<desc>");
-         PiDescription_AppendShortAndLongInfoText(pPiBlock, EpgDumpXml_AppendInfoTextCb, &cbInfo, EpgDbContextIsMerged(pDbContext));
-         fprintf(fp, "</desc>\n");
-      }
-      else
-      {
-         fprintf(fp, "\t<desc><p>");
-         PiDescription_AppendShortAndLongInfoText(pPiBlock, EpgDumpXml_AppendInfoTextCb, &cbInfo, EpgDbContextIsMerged(pDbContext));
-         fprintf(fp, "</p></desc>\n");
-      }
+      fprintf(fp, "\t<desc>");
+      PiDescription_AppendShortAndLongInfoText(pPiBlock, EpgDumpXml_AppendInfoTextCb, &cbInfo, EpgDbContextIsMerged(pDbContext));
+      fprintf(fp, "</desc>\n");
    }
 
    // theme categories
@@ -424,10 +334,7 @@ static void EpgDumpXml_WriteProgramme( EPGDB_CONTEXT * pDbContext, const AI_BLOC
       pThemeStr = PdcThemeGet(pPiBlock->themes[idx]);
       if (pThemeStr != NULL)
       {
-         if ( IS_XML_DTD5(xmlDtdVersion) )
-            fprintf(fp, "\t<category>");
-         else
-            fprintf(fp, "\t<category system=\"pdc\" code=\"%d\">", pPiBlock->themes[idx]);
+         fprintf(fp, "\t<category>");
 
          EpgDumpXml_HtmlWriteString(fp, pThemeStr, -1);
 
@@ -436,103 +343,58 @@ static void EpgDumpXml_WriteProgramme( EPGDB_CONTEXT * pDbContext, const AI_BLOC
    }
 
    // attributes
-   if ( IS_XML_DTD5(xmlDtdVersion) )
+   if ((pPiBlock->feature_flags & (PI_FEATURE_PAL_PLUS |
+                                   PI_FEATURE_FMT_WIDE |
+                                   PI_FEATURE_VIDEO_HD)) != 0)
    {
-      if ((pPiBlock->feature_flags & (PI_FEATURE_PAL_PLUS |
-                                      PI_FEATURE_FMT_WIDE |
-                                      PI_FEATURE_VIDEO_HD)) != 0)
-      {
-         fprintf(fp, "\t<video>\n");
-         if ((pPiBlock->feature_flags & PI_FEATURE_VIDEO_HD) != 0)  // XMLTV import only
-            fprintf(fp, "\t\t<quality>HDTV</quality>\n");
+      fprintf(fp, "\t<video>\n");
+      if ((pPiBlock->feature_flags & PI_FEATURE_VIDEO_HD) != 0)  // XMLTV import only
+         fprintf(fp, "\t\t<quality>HDTV</quality>\n");
 
-         if ((pPiBlock->feature_flags & PI_FEATURE_PAL_PLUS) != 0)  // always 16:9
-            fprintf(fp, "\t\t<quality>PAL+</quality>\n"
-                        "\t\t<aspect>16:9</aspect>\n");
-         else if ((pPiBlock->feature_flags & PI_FEATURE_FMT_WIDE) != 0)
-            fprintf(fp, "\t\t<aspect>16:9</aspect>\n");
+      if ((pPiBlock->feature_flags & PI_FEATURE_PAL_PLUS) != 0)  // always 16:9
+         fprintf(fp, "\t\t<quality>PAL+</quality>\n"
+                     "\t\t<aspect>16:9</aspect>\n");
+      else if ((pPiBlock->feature_flags & PI_FEATURE_FMT_WIDE) != 0)
+         fprintf(fp, "\t\t<aspect>16:9</aspect>\n");
 
-         if (pPiBlock->feature_flags & PI_FEATURE_VIDEO_BW)  // XMLTV import only
-            fprintf(fp, "\t\t<colour>no</colour>\n");
-         fprintf(fp, "\t</video>\n");
-      }
-
-      if ((pPiBlock->feature_flags & PI_FEATURE_SOUND_MASK) == PI_FEATURE_SOUND_STEREO)
-      {
-         fprintf(fp, "\t<audio>\n\t\t<stereo>stereo</stereo>\n\t</audio>\n");
-      }
-      else if ((pPiBlock->feature_flags & PI_FEATURE_SOUND_MASK) == PI_FEATURE_SOUND_SURROUND)
-      {
-         fprintf(fp, "\t<audio>\n\t\t<stereo>surround</stereo>\n\t</audio>\n");
-      }
-      else if ((pPiBlock->feature_flags & PI_FEATURE_SOUND_MASK) == PI_FEATURE_SOUND_2CHAN)
-      {
-         fprintf(fp, "\t<audio>\n\t\t<stereo>bilingual</stereo>\n\t</audio>\n");
-      }
-
-      if (pPiBlock->feature_flags & PI_FEATURE_REPEAT)
-      {
-         fprintf(fp, "\t<previously-shown />\n");
-      }
-
-      if (pPiBlock->feature_flags & PI_FEATURE_SUBTITLES)
-      {
-         fprintf(fp, "\t<subtitles type=\"teletext\" />\n");
-      }
-
-      if (pPiBlock->parental_rating == 1)
-         fprintf(fp, "\t<rating system=\"age\">\n\t\t<value>general</value>\n\t</rating>\n");
-      else if (pPiBlock->parental_rating > 0)
-         fprintf(fp, "\t<rating system=\"age\">\n\t\t<value>%d</value>\n\t</rating>\n",
-                     pPiBlock->parental_rating * 2);
-      if (pPiBlock->editorial_rating > 0)
-         fprintf(fp, "\t<star-rating>\n\t\t<value>%d/7</value>\n\t</star-rating>\n",
-                     pPiBlock->editorial_rating);
-
-      fprintf(fp, "</programme>\n");
+      if (pPiBlock->feature_flags & PI_FEATURE_VIDEO_BW)  // XMLTV import only
+         fprintf(fp, "\t\t<colour>no</colour>\n");
+      fprintf(fp, "\t</video>\n");
    }
-   else
+
+   if ((pPiBlock->feature_flags & PI_FEATURE_SOUND_MASK) == PI_FEATURE_SOUND_STEREO)
    {
-      if ((pPiBlock->feature_flags & (PI_FEATURE_PAL_PLUS | PI_FEATURE_FMT_WIDE)) != 0)
-      {
-         fprintf(fp, "\t<video>\n");
-         fprintf(fp, "\t\t<aspect x=\"16\" y=\"9\" />\n");
-         if (pPiBlock->feature_flags & PI_FEATURE_PAL_PLUS)
-            fprintf(fp, "\t\t<quality>PAL+</quality>\n");
-         fprintf(fp, "\t</video>\n");
-      }
-
-      if ((pPiBlock->feature_flags & PI_FEATURE_SOUND_MASK) == PI_FEATURE_SOUND_STEREO)
-      {
-         fprintf(fp, "\t<audio><stereo /></audio>\n");
-      }
-      else if ((pPiBlock->feature_flags & PI_FEATURE_SOUND_MASK) == PI_FEATURE_SOUND_SURROUND)
-      {
-         fprintf(fp, "\t<audio><surround /></audio>\n");
-      }
-      else if ((pPiBlock->feature_flags & PI_FEATURE_SOUND_MASK) == PI_FEATURE_SOUND_2CHAN)
-      {
-         fprintf(fp, "\t<audio channel=\"A\"><mono /></audio>\n");
-         fprintf(fp, "\t<audio channel=\"B\"><mono /></audio>\n");
-      }
-
-      if (pPiBlock->feature_flags & PI_FEATURE_SUBTITLES)
-      {
-         fprintf(fp, "\t<subtitles><teletext /></subtitles>\n");
-      }
-
-      if (pPiBlock->parental_rating == 1)
-         fprintf(fp, "\t<classification system=\"age\">\n\t\t<text>general</text>\n\t</classification>\n");
-      else if (pPiBlock->parental_rating > 0)
-         fprintf(fp, "\t<classification system=\"age\">\n\t\t<text>%d</text>\n\t</classification>\n",
-                     pPiBlock->parental_rating * 2);
-
-      if (pPiBlock->editorial_rating > 0)
-         fprintf(fp, "\t<star-rating stars=\"%d\" out-of=\"7\"></star-rating>\n",
-                     pPiBlock->editorial_rating);
-
-      fprintf(fp, "  </programme>\n</timeslot>\n");
+      fprintf(fp, "\t<audio>\n\t\t<stereo>stereo</stereo>\n\t</audio>\n");
    }
+   else if ((pPiBlock->feature_flags & PI_FEATURE_SOUND_MASK) == PI_FEATURE_SOUND_SURROUND)
+   {
+      fprintf(fp, "\t<audio>\n\t\t<stereo>surround</stereo>\n\t</audio>\n");
+   }
+   else if ((pPiBlock->feature_flags & PI_FEATURE_SOUND_MASK) == PI_FEATURE_SOUND_2CHAN)
+   {
+      fprintf(fp, "\t<audio>\n\t\t<stereo>bilingual</stereo>\n\t</audio>\n");
+   }
+
+   if (pPiBlock->feature_flags & PI_FEATURE_REPEAT)
+   {
+      fprintf(fp, "\t<previously-shown />\n");
+   }
+
+   if (pPiBlock->feature_flags & PI_FEATURE_SUBTITLES)
+   {
+      fprintf(fp, "\t<subtitles type=\"teletext\" />\n");
+   }
+
+   if (pPiBlock->parental_rating == 1)
+      fprintf(fp, "\t<rating system=\"age\">\n\t\t<value>general</value>\n\t</rating>\n");
+   else if (pPiBlock->parental_rating > 0)
+      fprintf(fp, "\t<rating system=\"age\">\n\t\t<value>%d</value>\n\t</rating>\n",
+                  pPiBlock->parental_rating * 2);
+   if (pPiBlock->editorial_rating > 0)
+      fprintf(fp, "\t<star-rating>\n\t\t<value>%d/7</value>\n\t</star-rating>\n",
+                  pPiBlock->editorial_rating);
+
+   fprintf(fp, "</programme>\n");
 }
 
 // ----------------------------------------------------------------------------

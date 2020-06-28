@@ -95,15 +95,15 @@ bool Xmltv_IsXmlDocument( uint detection )
 // Entry point
 // - TODO: pass preferred language?
 //
-EPGDB_CONTEXT * Xmltv_Load( FILE * fp, uint dtd, uint provCni, const char * pProvName, bool isPeek )
+EPGDB_CONTEXT * Xmltv_Load( FILE * fp, uint provCni, const char * pProvName, bool isPeek )
 {
    EPGDB_CONTEXT * pDbContext;
 
    // initialize internal state
-   XmltvDb_Init(dtd, provCni, isPeek);
+   XmltvDb_Init(provCni, isPeek);
 
    // parse the XMLTV file
-   XmltvTags_StartScan(fp, dtd);
+   XmltvTags_StartScan(fp, TRUE);
 
    pDbContext = XmltvDb_GetDatabase(pProvName);
 
@@ -113,25 +113,23 @@ EPGDB_CONTEXT * Xmltv_Load( FILE * fp, uint dtd, uint provCni, const char * pPro
 }
 
 // ----------------------------------------------------------------------------
-// Check if a given file is an XMLTV file and determine it's version
+// Check if a given file is an XMLTV file and determine its version
 //
 bool Xmltv_CheckHeader( const char * pFilename, uint * pDetection )
 {
-   XMLTV_DTD_VERSION dtd;
-   XMLTV_DETECTION detection;
+   XMLTV_DETECTION detection = 0;
    FILE * fp;
-
-   dtd = XMLTV_DTD_UNKNOWN;
-   detection = 0;
+   bool result = FALSE;
 
    fp = fopen(pFilename, "r");
    if (fp != NULL)
    {
       // when starting the scanner with version set to "unknown", all data is discarded and
       // the scanner stops as soon as a tag or attribute is found which identifies the version
-      XmltvTags_StartScan(fp, XMLTV_DTD_UNKNOWN);
+      XmltvTags_StartScan(fp, FALSE);
 
-      dtd = XmltvTags_QueryVersion(&detection);
+      detection = XmltvTags_QueryDetection();
+      result = XMLTV_DETECTED_OK(detection);
 
       fclose(fp);
    }
@@ -141,18 +139,16 @@ bool Xmltv_CheckHeader( const char * pFilename, uint * pDetection )
       *pDetection = detection;
    }
 
-   return (dtd != XMLTV_DTD_UNKNOWN);
+   return result;
 }
 
 // ----------------------------------------------------------------------------
-// Load data from an XML file - auto-detect DTD version
+// Load data from an XML file
 //
 EPGDB_CONTEXT * Xmltv_CheckAndLoad( const char * pFilename, uint provCni,
                                     bool isPeek, uint * pErrCode, time_t * pMtime )
 {
    EPGDB_CONTEXT * pDbContext = NULL;
-   XMLTV_DTD_VERSION dtd;
-   XMLTV_DETECTION detection;
    uint result;
    const char * pBaseName;
    FILE * fp;
@@ -171,30 +167,22 @@ EPGDB_CONTEXT * Xmltv_CheckAndLoad( const char * pFilename, uint provCni,
       else
          *pMtime = 0;
 
-      XmltvTags_StartScan(fp, XMLTV_DTD_UNKNOWN);
-      dtd = XmltvTags_QueryVersion(&detection);
+      pBaseName = strrchr(pFilename, PATH_SEPARATOR);
+      if (pBaseName != NULL)
+         pBaseName += 1;
+      else
+         pBaseName = pFilename;
 
-      if (dtd != XMLTV_DTD_UNKNOWN)
+      pDbContext = Xmltv_Load(fp, provCni, pBaseName, isPeek);
+
+      if (pDbContext != NULL)
       {
-         fseek(fp, 0, SEEK_SET);
-
-         pBaseName = strrchr(pFilename, PATH_SEPARATOR);
-         if (pBaseName != NULL)
-            pBaseName += 1;
-         else
-            pBaseName = pFilename;
-
-         pDbContext = Xmltv_Load(fp, dtd, provCni, pBaseName, isPeek);
-
-         if (pDbContext != NULL)
-         {
-            EpgDbSetAiUpdateTime(pDbContext, *pMtime);
-         }
+         EpgDbSetAiUpdateTime(pDbContext, *pMtime);
          result = EPGDB_RELOAD_OK;
       }
       else
       {
-         result = EPGDB_RELOAD_XML_MASK | detection;
+         result = EPGDB_RELOAD_XML_MASK | XmltvTags_QueryDetection();
       }
       fclose(fp);
    }
@@ -246,7 +234,7 @@ void Xmltv_ScanDir( const char * pDirPath, const char * pExtension,
    struct stat st;
    char   *pFilePath;
    uint   extlen, flen;
-   XMLTV_DTD_VERSION dtd;
+   XMLTV_DETECTION detection;
    FILE * fp;
 
    if ((pDirPath != NULL) && (pExtension != NULL) && (pCb != NULL))
@@ -277,9 +265,10 @@ void Xmltv_ScanDir( const char * pDirPath, const char * pExtension,
                      fp = fopen(pFilePath, "r");
                      if (fp != NULL)
                      {
-                        XmltvTags_StartScan(fp, XMLTV_DTD_UNKNOWN);
-                        dtd = XmltvTags_QueryVersion(NULL);
-                        if (dtd != XMLTV_DTD_UNKNOWN)
+                        XmltvTags_StartScan(fp, FALSE);
+
+                        detection = XmltvTags_QueryDetection();
+                        if (XMLTV_DETECTED_OK(detection))
                         {
                            pCb(XmltvCni_MapProvider(pFilePath), pFilePath, st.st_mtime);
                         }
@@ -317,7 +306,7 @@ void Xmltv_ScanDir( const char * pDirPath, const char * pExtension,
    bool bMore;
    uint flen;
    char *pFilePath;
-   XMLTV_DTD_VERSION dtd;
+   XMLTV_DETECTION detection;
    FILE * fp;
 
    if ((pDirPath != NULL) && (pExtension != NULL) && (pCb != NULL))
@@ -336,9 +325,10 @@ void Xmltv_ScanDir( const char * pDirPath, const char * pExtension,
          fp = fopen(pFilePath, "r");
          if (fp != NULL)
          {
-            XmltvTags_StartScan(fp, XMLTV_DTD_UNKNOWN);
-            dtd = XmltvTags_QueryVersion(NULL);
-            if (dtd != XMLTV_DTD_UNKNOWN)
+            XmltvTags_StartScan(fp, FALSE);
+
+            detection = XmltvTags_QueryDetection();
+            if (XMLTV_DETECTED_OK(detection))
             {
                FileTimeToSystemTime(&finddata.ftLastWriteTime, &systime);
                dprintf7("DB %s:  %02d:%02d:%02d - %02d.%02d.%04d\n", finddata.cFileName, systime.wHour, systime.wMinute, systime.wSecond, systime.wDay, systime.wMonth, systime.wYear);
@@ -387,7 +377,6 @@ extern int yydebug;
 int main( int argc, char ** argv )
 {
    EPGDB_CONTEXT * pDbContext;
-   XMLTV_DTD_VERSION dtd;
    uint detection;
    FILE * fp;
 
@@ -403,13 +392,13 @@ int main( int argc, char ** argv )
       fp = fopen(argv[1], "r");
       if (fp != NULL)
       {
-         XmltvTags_StartScan(fp, XMLTV_DTD_UNKNOWN);
-         dtd = XmltvTags_QueryVersion(&detection);
-         if (dtd != XMLTV_DTD_UNKNOWN)
+         XmltvTags_StartScan(fp, TRUE);
+         detection = XmltvTags_QueryDetection();
+         if (XMLTV_DETECTED_OK(detection))
          {
             fseek(fp, 0, SEEK_SET);
 
-            pDbContext = Xmltv_Load(fp, dtd, 0xfe, "XMLTV", FALSE);
+            pDbContext = Xmltv_Load(fp, 0xfe, "XMLTV", FALSE);
 
             EpgDbSavSetupDir("tmp0", NULL);
             pDbContext->modified = TRUE;

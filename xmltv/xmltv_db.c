@@ -61,18 +61,12 @@
  *    all child elements shuld be discarded at parser level. This feature
  *    can be used to skip over unwanted data; it's not used here though.
  *
- *    Note the same callbacks are used both for DTD version 0.5 and 0.6
- *    whenever applicable. In many cases information which was carried as
- *    attribute in DTD 0.5 is carries as content in 0.6 and vice versa.
- *    This explains some of the oddities below.
- *
  *    Building the programme database:
  *
  *    The callback functions fill temporary structures with programme
- *    parameters and data (or timeslot data respectively for XMLTV DTD 0.6)  
- *    The structures are forwarded to a database when the tag is closed.
- *    Also a channel table is generated and forwarded to the database at
- *    the end of the file.
+ *    parameters and data.  The structures are forwarded to a database
+ *    when the tag is closed.  Also a channel table is generated and
+ *    forwarded to the database at the end of the file.
  *
  *  Author: Tom Zoerner
  *
@@ -179,7 +173,6 @@ typedef struct
    XML_STR_BUF  pi_code_sv;
    XML_STR_BUF  pi_code_vp;
 
-   XMLTV_DTD_VERSION dtd;
    EPGDB_CONTEXT * pDbContext;
    bool         isPeek;
    bool         cniCtxInitDone;
@@ -262,16 +255,7 @@ static void Xmltv_ParseThemeString( char * pStr, XML_LANG_CODE lang )
 //
 static time_t XmltvDb_ParseTimestamp( char * pStr, uint len )
 {
-   time_t  tval;
-
-   if (xds.dtd == XMLTV_DTD_6)
-   {
-      tval = parse_xmltv_date_v6(pStr, len);
-   }
-   else
-   {
-      tval = parse_xmltv_date_v5(pStr, len);
-   }
+   time_t tval = parse_xmltv_date_v5(pStr, len);
 
    ifdebug1(tval == 0, "Xmltv-ParseTimestamp: parse error '%s'", pStr);
 
@@ -291,40 +275,21 @@ static uint XmltvDb_ParseVpsPdc( const char * pStr )
    int scan_pos;
 
    pil = VPS_PIL_CODE_SYSTEM;
-   if (xds.dtd == XMLTV_DTD_6)
+   scan_pos = 0;
+   // note: ignoring timezone since VPS/PDC should always be localtime
+   nscan = sscanf(pStr, "%*4u%2u%2u%2u%2u%*2u%n", &month, &mday, &hour, &minute, &scan_pos);
+   if ((nscan >= 4 /*6?*/) && ((pStr[scan_pos] == 0) || (pStr[scan_pos] == ' ')))
    {
-      scan_pos = 0;
-      // note: trailing 'Z' is omitted since VPS/PDC is localtime
-      nscan = sscanf(pStr, "%*4u-%2u-%2uT%2u:%2u:%*2u%n", &month, &mday, &hour, &minute, &scan_pos);
-      if ((nscan >= 4 /*6?*/) && (pStr[scan_pos] == 0))
+      // silently map invalid PIL time codes to the standard VPS system code
+      if ( (minute < 60) && (hour < 24) &&
+           (mday != 0) && (mday <= 31) && (month != 0) && (month <= 12) )
       {
-         // silently map invalid PIL time codes to the standard VPS system code
-         if ( (minute < 60) && (hour < 24) &&
-              (mday != 0) && (mday <= 31) && (month != 0) && (month <= 12) )
-         {
-            pil = (mday << 15) | (month << 11) | (hour << 6) | minute;
-         }
+         pil = (mday << 15) | (month << 11) | (hour << 6) | minute;
       }
-      else
-         debug3("Xmltv-ParseVpsPdc: parse error '%s' after %d tokens (around char #%d)", pStr, nscan, scan_pos);
    }
    else
-   {
-      scan_pos = 0;
-      // note: ignoring timezone since VPS/PDC should always be localtime
-      nscan = sscanf(pStr, "%*4u%2u%2u%2u%2u%*2u%n", &month, &mday, &hour, &minute, &scan_pos);
-      if ((nscan >= 4 /*6?*/) && ((pStr[scan_pos] == 0) || (pStr[scan_pos] == ' ')))
-      {
-         // silently map invalid PIL time codes to the standard VPS system code
-         if ( (minute < 60) && (hour < 24) &&
-              (mday != 0) && (mday <= 31) && (month != 0) && (month <= 12) )
-         {
-            pil = (mday << 15) | (month << 11) | (hour << 6) | minute;
-         }
-      }
-      else
-         debug3("Xmltv-ParseVpsPdc: parse error '%s' after %d tokens (around char #%d)", pStr, nscan, scan_pos);
-   }
+      debug3("Xmltv-ParseVpsPdc: parse error '%s' after %d tokens (around char #%d)", pStr, nscan, scan_pos);
+
    return pil;
 }
 
@@ -632,13 +597,11 @@ static EPGDB_BLOCK * XmltvDb_BuildPi( void )
 
 // ----------------------------------------------------------------------------
 
-// DTD 0.5 only (DTD 0.6 uses <link>)
 void Xmltv_AboutSetSourceInfoUrl( XML_STR_BUF * pBuf )
 {
    XmlCdata_AssignOrAppend(&xds.source_info_url, pBuf);
 }
 
-// DTD 0.5 only (DTD 0.6 uses <link>)
 void Xmltv_AboutSetSourceInfoName( XML_STR_BUF * pBuf )
 {
    XmlCdata_AssignOrAppend(&xds.source_info_name, pBuf);
@@ -1014,7 +977,6 @@ void Xmltv_TsCodeTimeClose( void )
    XmltvDb_TsCodeTimeAssign(xds.pi_code_time_sys, &xds.pi_code_time_str);
 }
 
-// DTD 0.5 only
 void Xmltv_TsCodeTimeSetVps( XML_STR_BUF * pBuf )
 {
    XmltvDb_TsCodeTimeAssign(XMLTV_CODE_VPS, pBuf);
@@ -1033,23 +995,6 @@ void Xmltv_TsCodeTimeSetSV( XML_STR_BUF * pBuf )
 void Xmltv_TsCodeTimeSetVP( XML_STR_BUF * pBuf )
 {
    XmlCdata_AssignOrAppend(&xds.pi_code_vp, pBuf);
-}
-
-// DTD 0.6
-void Xmltv_TsCodeTimeSetStart( XML_STR_BUF * pBuf )
-{
-   if (xds.pi_code_time_sys == XMLTV_CODE_SV)
-   {
-      XmlCdata_Assign(&xds.pi_code_sv, pBuf);
-   }
-   else if (xds.pi_code_time_sys == XMLTV_CODE_VP)
-   {
-      XmlCdata_Assign(&xds.pi_code_vp, pBuf);
-   }
-   else
-   {
-      XmlCdata_Assign(&xds.pi_code_time_str, pBuf);
-   }
 }
 
 void Xmltv_TsCodeTimeSetSystem( XML_STR_BUF * pBuf )
@@ -1115,7 +1060,6 @@ void Xmltv_PiCatClose( void )
    }
    else
    {
-      //warn for DTD 0.6 only
       //debug0("Xmltv-PiCatClose: no type set");
    }
 }
@@ -1154,7 +1098,6 @@ void Xmltv_PiCatSetCode( XML_STR_BUF * pBuf )
 }
 
 // DTD 0.5: themes given as free text
-// DTD 0.6: use text for unknown systems only
 void Xmltv_PiCatAddText( XML_STR_BUF * pBuf )
 {
    char * pStr = XML_STR_BUF_GET_STR(*pBuf);
@@ -1264,7 +1207,7 @@ void Xmltv_PiAudioClose( void )
    }
 }
 
-// DTD 0.5 only: "stereo-ness" specified as free text
+// DTD 0.5: "stereo-ness" specified as free text
 void Xmltv_PiAudioStereoAdd( XML_STR_BUF * pBuf )
 {
    char * pStr = XML_STR_BUF_GET_STR(*pBuf);
@@ -1294,25 +1237,6 @@ void Xmltv_PiAudioStereoAdd( XML_STR_BUF * pBuf )
       debug1("Xmltv-PiAudioStereoAdd: unknown keyword '%s'", pStr);
 }
 
-// DTD 0.6: separate tags
-void Xmltv_PiAudioMonoOpen( void )
-{
-   xds.pi.feature_flags &= ~PI_FEATURE_SOUND_MASK;
-   xds.pi.feature_flags |= PI_FEATURE_SOUND_MONO;
-}
-
-void Xmltv_PiAudioStereoOpen( void )
-{
-   xds.pi.feature_flags &= ~PI_FEATURE_SOUND_MASK;
-   xds.pi.feature_flags |= PI_FEATURE_SOUND_STEREO;
-}
-
-void Xmltv_PiAudioSurrOpen( void )
-{
-   xds.pi.feature_flags &= ~PI_FEATURE_SOUND_MASK;
-   xds.pi.feature_flags |= PI_FEATURE_SOUND_SURROUND;
-}
-
 // DTD 0.5 only: attribute type set as attribute
 void Xmltv_PiSubtitlesSetType( XML_STR_BUF * pBuf )
 {
@@ -1325,22 +1249,6 @@ void Xmltv_PiSubtitlesSetType( XML_STR_BUF * pBuf )
    }
    else
       debug1("Xmltv-PiSubtitlesSetType: unknown subtitles type '%s'", pStr);
-}
-
-// DTD 0.6 only: separate tags for different subtitle types
-void Xmltv_PiSubtitlesOsd( void )
-{
-   xds.pi.feature_flags |= PI_FEATURE_SUBTITLES;
-}
-
-void Xmltv_PiSubtitlesTtx( void )
-{
-   xds.pi.feature_flags |= PI_FEATURE_SUBTITLES;
-}
-
-void Xmltv_PiSubtitlesSetPage( XML_STR_BUF * pBuf )
-{
-   // not supported by database struct
 }
 
 void Xmltv_PiRatingSetSystem( XML_STR_BUF * pBuf )
@@ -1495,22 +1403,6 @@ void Xmltv_PiStarRatingOpen( void )
 void Xmltv_PiStarRatingClose( void )
 {
    Xmltv_PiStarRatingSet(xds.pi_star_rating_val, xds.pi_star_rating_max);
-}
-
-// DTD 0.6 only: rating value and max. values as attributes
-void Xmltv_PiStarRatingSetValue( XML_STR_BUF * pBuf )
-{
-   char * pStr = XML_STR_BUF_GET_STR(*pBuf);
-   char * p;
-   long val;
-
-   val = strtol(pStr, &p, 0);
-   if ((*pStr != 0) && (*p == 0))
-   {
-      xds.pi_star_rating_val = val;
-   }
-   else
-      debug1("Xmltv-PiStarRatingSetValue: parse error '%s'", pStr);
 }
 
 void Xmltv_PiStarRatingSetMax( XML_STR_BUF * pBuf )
@@ -1714,7 +1606,7 @@ void XmltvDb_Destroy( void )
 // ----------------------------------------------------------------------------
 // Initialize the local module state
 //
-void XmltvDb_Init( XMLTV_DTD_VERSION dtd, uint provCni, bool isPeek )
+void XmltvDb_Init( uint provCni, bool isPeek )
 {
    memset(&xds, 0, sizeof(xds));
    xds.pChannelHash = XmlHash_Init();
@@ -1727,7 +1619,6 @@ void XmltvDb_Init( XMLTV_DTD_VERSION dtd, uint provCni, bool isPeek )
    XmlCdata_Init(&xds.pi_code_vp, 256);
    XmlCdata_Init(&xds.pi_desc, 4096);
 
-   xds.dtd = dtd;
    xds.isPeek = isPeek;
 
    // create empty database

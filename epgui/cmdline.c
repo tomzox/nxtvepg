@@ -405,7 +405,7 @@ static bool CmdLine_GetDumpMode( char * argv[], int argIdx )
          mainOpts.optDumpMode = EPG_DUMP_XMLTV;
          mainOpts.optDumpSubMode = DUMP_XMLTV_ANY;
       }
-      else if (strcasecmp("xml5", pModeStr) == 0)
+      else if (strcasecmp("xml5utc", pModeStr) == 0)
       {
          mainOpts.optDumpMode = EPG_DUMP_XMLTV;
          mainOpts.optDumpSubMode = DUMP_XMLTV_DTD_5_GMT;
@@ -414,11 +414,6 @@ static bool CmdLine_GetDumpMode( char * argv[], int argIdx )
       {
          mainOpts.optDumpMode = EPG_DUMP_XMLTV;
          mainOpts.optDumpSubMode = DUMP_XMLTV_DTD_5_LTZ;
-      }
-      else if (strcasecmp("xml6", pModeStr) == 0)
-      {
-         mainOpts.optDumpMode = EPG_DUMP_XMLTV;
-         mainOpts.optDumpSubMode = DUMP_XMLTV_DTD_6;
       }
       else if (strncasecmp("html", pModeStr, 4) == 0)
       {

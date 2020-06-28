@@ -24,7 +24,6 @@ extern "C" {
 #endif
 
 time_t parse_xmltv_date_v5( const char *date, unsigned int len );
-time_t parse_xmltv_date_v6( const char *date, unsigned int len );
 
 #ifdef __cplusplus
 } /* end of extern "C" */

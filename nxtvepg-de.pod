@@ -173,7 +173,7 @@ Falls Sie nach dem Schließen von nxtvepg ein anderes Programm starten möchten, v
 
 Mit diesem Argument exportiert nxtvepg nur die Datenbank und beendigt sich danach ohne den Browser zu starten.  Dieses Argument muss mit I<-provider> kombiniert werden, um die zu exportierende Datenbank auszuwählen.
 
-Verwenden Sie das Schlüsselwort I<xml> als Modus, um die Datenbank in das XML-Format zu exportieren. Benötigen Sie eine andere als die zuletzt im "Export"-Dialog des Control-Menüs eingestellte XMLTV-Version, verwenden Sie I<xml5>, I<xml5ltz> oder I<xml6> um eine Version direkt auszuwählen. Weitere Details siehe L<"CONTROL: Export as XMLTV">.
+Verwenden Sie das Schlüsselwort I<xml> als Modus, um die Datenbank in das XML-Format zu exportieren. Benötigen Sie eine andere als die zuletzt im "Export"-Dialog des Control-Menüs eingestellte XMLTV-Variante, verwenden Sie I<xml5utc> oder I<xml5ltz> um die Variante direkt festzulegen. Weitere Details siehe L<"CONTROL: Export as XMLTV">.
 
 Verwenden Sie das Schlüsselwort I<html> als Modus, um Programmdaten in ein HTML Dokument zu exportieren.  Es werden die zuletzt im HTML-Export Dialog eingestellten Optionen verwendet. (Es sei denn "nxtvepgd", d.h. der reine Akquisitions-Daemon wird für den export verwendet.)  Weitere Details siehe L<"CONTROL: Export as HTML">.  Zusätzlich können Sie die Zahl der exportierten Programme limitieren indem Sie das Limit durch Doppelpunkt getrennt anhängen (z.B. C<-dump html:50>.)  Das Format der Programmliste ist jedoch nicht über Kommandozeilenparameter konfigurierbar.
 
