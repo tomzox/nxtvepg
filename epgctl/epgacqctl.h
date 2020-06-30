@@ -35,24 +35,16 @@ typedef enum
    ACQMODE_PASSIVE,         // do not touch /dev/video
    ACQMODE_NETWORK,         // connect to remote server
    ACQMODE_EXTERNAL,        // set input source, then passive
-   ACQMODE_FOLLOW_UI,       // change acq db to follow browser
-   ACQMODE_FOLLOW_MERGED,   // substate of follow-ui for merged db, equiv to cyclic-2
    ACQMODE_CYCLIC_2,        // cyclic: full only
-   ACQMODE_CYCLIC_012,      // cyclic: now->near->all
    ACQMODE_CYCLIC_02,       // cyclic: now->all
-   ACQMODE_CYCLIC_12,       // cyclic: near->all
    ACQMODE_COUNT
 } EPGACQ_MODE;
-
-#define ACQMODE_IS_CYCLIC(X)  ((X) >= ACQMODE_FOLLOW_MERGED)
-#define ACQMODE_IS_FOLLOW(X)  (((X) == ACQMODE_FOLLOW_UI) || ((X) == ACQMODE_FOLLOW_MERGED) || ((X) == ACQMODE_NETWORK))
 
 // acquisition phases 0,1,2 that make up one full cycle
 typedef enum
 {
    ACQMODE_PHASE_NOWNEXT,
-   ACQMODE_PHASE_STREAM1,
-   ACQMODE_PHASE_STREAM2,
+   ACQMODE_PHASE_FULL,
    ACQMODE_PHASE_MONITOR,
    ACQMODE_PHASE_COUNT
 } EPGACQ_PHASE;
@@ -62,8 +54,6 @@ typedef enum
 {
    ACQPASSIVE_NONE,             // not in forced passive mode (unused)
    ACQPASSIVE_NO_TUNER,         // input source is not TV tuner
-   ACQPASSIVE_NO_FREQ,          // selected database has no tuner frequency
-   ACQPASSIVE_NO_DB,            // no db yet or database file is missing
    ACQPASSIVE_ACCESS_DEVICE     // failed to tune channel (access /dev/video)
 } EPGACQ_PASSIVE;
 
@@ -80,8 +70,6 @@ typedef enum
    ACQDESCR_STARTING,
    ACQDESCR_TTX_PG_SEQ_SCAN,
    ACQDESCR_NO_RECEPTION,
-   ACQDESCR_DEC_ERRORS,
-   ACQDESCR_STALLED,
    ACQDESCR_IDLE,
    ACQDESCR_RUNNING,
 } ACQDESCR_STATE;
@@ -92,16 +80,11 @@ typedef struct
    EPGACQ_MODE    mode;
    EPGACQ_PHASE   cyclePhase;
    EPGACQ_PASSIVE passiveReason;
-   uint32_t       cycleCni;
-   uint8_t        cycleIdx;
-   uint8_t        cniCount;
    uint16_t       ttxSrcCount;
    int16_t        ttxGrabIdx;
    uint16_t       ttxGrabDone;
-   bool           isTtxSrc;
    bool           isNetAcq;
    bool           isLocalServer;
-   bool           reserved_1;
 } EPGACQ_DESCR;
 
 // ---------------------------------------------------------------------------
@@ -187,19 +170,18 @@ bool EpgAcqCtl_Start( void );
 void EpgAcqCtl_Stop( void );
 const char * EpgAcqCtl_GetLastError( void );
 bool EpgAcqCtl_SelectMode( EPGACQ_MODE newAcqMode, EPGACQ_PHASE maxPhase,
-                           uint cniCount, const uint * pCniTab,
                            uint ttxSrcCount, const char * pTtxNames,
                            const EPGACQ_TUNER_PAR * pTtxFreqs );
 bool EpgAcqCtl_SetInputSource( uint inputIdx, uint slicerType );
 bool EpgAcqCtl_CheckDeviceAccess( void );
 void EpgAcqCtl_DescribeAcqState( EPGACQ_DESCR * pAcqState );
-void EpgAcqCtl_GetAcqModeStr( const EPGACQ_DESCR * pAcqState, bool forTtx,
+void EpgAcqCtl_GetAcqModeStr( const EPGACQ_DESCR * pAcqState,
                               const char ** ppModeStr, const char ** ppPasvStr );
 void EpgAcqCtl_Suspend( bool suspend );
 bool EpgAcqCtl_IsActive( void );
 
 // interface to sub-modules
-bool EpgAcqCtl_TuneProvider( bool isTtx, const EPGACQ_TUNER_PAR * par, uint cni, EPGACQ_PASSIVE * pMode );
+bool EpgAcqCtl_TuneProvider( const EPGACQ_TUNER_PAR * par, EPGACQ_PASSIVE * pMode );
 
 // timer events used during acquisition
 bool EpgAcqCtl_ProcessPackets( void );
@@ -207,8 +189,6 @@ void EpgAcqCtl_ProcessBlocks( void );
 bool EpgAcqCtl_ProcessVps( void );
 
 // interface for status, statistics and timescales display
-EPGDB_CONTEXT * EpgAcqCtl_GetDbContext( bool lock );
-uint EpgAcqCtl_GetProvCni( void );
 bool EpgAcqCtl_GetAcqStats( EPG_ACQ_STATS * pAcqStats );
 void EpgAcqCtl_EnableAcqStats( bool enable );
 bool EpgAcqCtl_GetVpsPdc( EPG_ACQ_VPS_PDC * pVpsPdc, VPSPDC_REQ_ID clientId, bool force );

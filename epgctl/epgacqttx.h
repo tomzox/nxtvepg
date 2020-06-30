@@ -33,7 +33,7 @@ bool EpgAcqTtx_CompareParams( uint ttxSrcCount, const char * pTtxNames, const EP
 bool EpgAcqTtx_ProcessPackets( bool * pCheckSlicer );
 bool EpgAcqTtx_MonitorSources( void );
 void EpgAcqTtx_ChannelChange( void );
-void EpgAcqTtx_InitCycle( bool isTtxSrc, EPGACQ_PHASE phase );
+void EpgAcqTtx_InitCycle( EPGACQ_PHASE phase );
 
 bool EpgAcqTtx_GetAcqStats( EPG_TTX_GRAB_STATS * pTtxGrabStats );
 void EpgAcqTtx_DescribeAcqState( EPGACQ_DESCR * pAcqState );

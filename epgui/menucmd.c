@@ -196,7 +196,8 @@ static int MenuCmd_SetControlMenuStates( ClientData ttp, Tcl_Interp *interp, int
 //
 void AutoStartAcq( void )
 {
-   if (RcFile_Query()->acq.acq_start == ACQ_START_AUTO)
+   if ( (RcFile_Query()->acq.acq_start == ACQ_START_AUTO) &&
+        (RcFile_Query()->ttx.ttx_enable) )
    {
 #ifndef WIN32
       EpgSetup_AcquisitionMode(NETACQ_DEFAULT);
@@ -1727,11 +1728,8 @@ static int MenuCmd_GetAcqConfig( ClientData ttp, Tcl_Interp *interp, int objc, T
 {
    const char * const pUsage = "Usage: C_GetAcqConfig";
    const RCFILE * pRc;
-   char cni_buf[16+2+1];
    Tcl_Obj * pResultList;
-   Tcl_Obj * pCniList;
    const char * pAcqModeStr;
-   uint idx;
    int  result;
 
    if (objc != 1)
@@ -1753,14 +1751,6 @@ static int MenuCmd_GetAcqConfig( ClientData ttp, Tcl_Interp *interp, int objc, T
             pAcqModeStr = "";
          Tcl_ListObjAppendElement(interp, pResultList, Tcl_NewStringObj(pAcqModeStr, -1));
 
-         pCniList = Tcl_NewListObj(0, NULL);
-         for (idx = 0; idx < pRc->acq.acq_cni_count; idx++)
-         {
-            sprintf(cni_buf, "0x%04X", pRc->acq.acq_cnis[idx]);
-            Tcl_ListObjAppendElement(interp, pCniList, Tcl_NewStringObj(cni_buf, -1));
-         }
-         Tcl_ListObjAppendElement(interp, pResultList, pCniList);
-
          Tcl_ListObjAppendElement(interp, pResultList, Tcl_NewIntObj(pRc->acq.acq_start));
 
          Tcl_SetObjResult(interp, pResultList);
@@ -1778,42 +1768,19 @@ static int MenuCmd_GetAcqConfig( ClientData ttp, Tcl_Interp *interp, int objc, T
 //
 static int MenuCmd_UpdateAcqConfig( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
 {
-   const char * const pUsage = "Usage: C_UpdateAcqConfig <mode> <cni-list> <auto>";
-   Tcl_Obj  ** pCniArgv;
-   uint      * pCniList;
-   int  idx;
-   int  cni, cniCount;
+   const char * const pUsage = "Usage: C_UpdateAcqConfig <mode> <auto>";
    int  autoStart;
    int  result;
 
-   if ( (objc != 1+3) ||
-        (Tcl_ListObjGetElements(interp, objv[2], &cniCount, &pCniArgv) != TCL_OK) ||
-        (Tcl_GetBooleanFromObj(interp, objv[3], &autoStart) != TCL_OK) )
+   if ( (objc != 1+2) ||
+        (Tcl_GetBooleanFromObj(interp, objv[2], &autoStart) != TCL_OK) )
    {  // parameter count is invalid
       Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
       result = TCL_ERROR;
    }
    else
    {
-      pCniList = NULL;
-      if (cniCount > 0)
-      {
-         pCniList = xmalloc(cniCount * sizeof(uint));
-         for (idx = 0; idx < cniCount; idx++)
-         {
-            if (Tcl_GetIntFromObj(interp, pCniArgv[idx], &cni) == TCL_OK)
-            {
-               pCniList[idx] = cni;
-            }
-            else
-               break;
-         }
-      }
-
-      RcFile_SetAcqMode(Tcl_GetString(objv[1]), pCniList, cniCount);
-
-      if (pCniList != NULL)
-         xfree(pCniList);
+      RcFile_SetAcqMode(Tcl_GetString(objv[1]));
 
       EpgSetup_AcquisitionMode(NETACQ_KEEP);
 

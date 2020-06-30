@@ -30,8 +30,7 @@ set netacqcf_view "both"
 
 # Used for return values of proc C_GetAcqConfig
 #=CONST= ::acqcf_ret_mode_idx 0
-#=CONST= ::acqcf_ret_cnilist_idx 1
-#=CONST= ::acqcf_ret_start_idx 2
+#=CONST= ::acqcf_ret_start_idx 1
 
 #=LOAD=PopupAcqMode
 #=LOAD=PopupNetAcqConfig
@@ -44,7 +43,7 @@ set netacqcf_view "both"
 ##
 proc PopupAcqMode {} {
    global acqmode_popup
-   global acqmode_ailist acqmode_selist acqmode_names acqmode_start
+   global acqmode_ailist acqmode_names acqmode_start
    global acqmode_sel
    global is_unix
 
@@ -64,38 +63,23 @@ proc PopupAcqMode {} {
       # initialize popup with current settings
       set tmpl [C_GetAcqConfig]
       set acqmode_sel [lindex $tmpl $::acqcf_ret_mode_idx]
-      set acqmode_selist [lindex $tmpl $::acqcf_ret_cnilist_idx]
       set acqmode_start [lindex $tmpl $::acqcf_ret_start_idx]
 
-      if {[llength $acqmode_selist] > 0} {
-         RemoveObsoleteCnisFromList acqmode_selist $acqmode_ailist
-      } else {
-         set acqmode_selist $acqmode_ailist
-      }
-
       # info text
-      label .acqmode.info1 -text "If you have more than one EPG provider, you can\nselect here in which order their data is acquired:" -justify left
-      pack  .acqmode.info1 -side top -pady 5 -padx 10 -anchor w
+      #label .acqmode.info1 -text "If you have more than one EPG provider, you can\nselect here in which order their data is acquired:" -justify left
+      #pack  .acqmode.info1 -side top -pady 5 -padx 10 -anchor w
 
       # checkbuttons for modes
       frame .acqmode.mode
       if $is_unix {
-         radiobutton .acqmode.mode.mode0 -text "Passive (no input selection)" -variable acqmode_sel -value "passive" -command UpdateAcqModePopup
+         radiobutton .acqmode.mode.mode0 -text "Passive (no tuning or input selection)" -variable acqmode_sel -value "passive"
          pack .acqmode.mode.mode0 -side top -anchor w
       }
-      radiobutton .acqmode.mode.mode1 -text "External (don't touch TV tuner)" -variable acqmode_sel -value "external" -command UpdateAcqModePopup
-      radiobutton .acqmode.mode.mode2 -text "Follow browser database" -variable acqmode_sel -value "follow-ui" -command UpdateAcqModePopup
-      radiobutton .acqmode.mode.mode3 -text "Manually selected (Cyclic: All)" -variable acqmode_sel -value "cyclic_2" -command UpdateAcqModePopup
-      radiobutton .acqmode.mode.mode4 -text "Cyclic: Now->Near->All" -variable acqmode_sel -value "cyclic_012" -command UpdateAcqModePopup
-      radiobutton .acqmode.mode.mode5 -text "Cyclic: Now->All" -variable acqmode_sel -value "cyclic_02" -command UpdateAcqModePopup
-      radiobutton .acqmode.mode.mode6 -text "Cyclic: Near->All" -variable acqmode_sel -value "cyclic_12" -command UpdateAcqModePopup
-      pack .acqmode.mode.mode1 .acqmode.mode.mode2 .acqmode.mode.mode3 .acqmode.mode.mode4 .acqmode.mode.mode5 .acqmode.mode.mode6 -side top -anchor w
+      radiobutton .acqmode.mode.mode1 -text "External (input selection only)" -variable acqmode_sel -value "external"
+      radiobutton .acqmode.mode.mode3 -text "Cyclic: Full" -variable acqmode_sel -value "cyclic_2"
+      radiobutton .acqmode.mode.mode5 -text "Cyclic: Now->Full" -variable acqmode_sel -value "cyclic_02"
+      pack .acqmode.mode.mode1 .acqmode.mode.mode3 .acqmode.mode.mode5 -side top -anchor w
       pack .acqmode.mode -side top -pady 10 -padx 10 -anchor w
-
-      # create two listboxes for provider database selection
-      frame .acqmode.lb
-      UpdateAcqModePopup
-      pack .acqmode.lb -side top
 
       # check-button to disable automatic acq-start upon program start (note "auto enabled" = 0)
       checkbutton .acqmode.auto_acq -text "Start acquisition automatically" -variable acqmode_start -onvalue 0 -offvalue 1
@@ -119,58 +103,24 @@ proc PopupAcqMode {} {
    }
 }
 
-# add or remove database selection popups after mode change
-proc UpdateAcqModePopup {} {
-   global acqmode_ailist acqmode_selist acqmode_names
-   global acqmode_sel
-
-   if {[string compare -length 6 "cyclic" $acqmode_sel] == 0} {
-      # manual selection -> add listboxes to allow selection of multiple databases and priority
-      if {[string length [info commands .acqmode.lb.ai.ailist]] == 0} {
-         # listbox does not yet exist
-         foreach widget [info commands .acqmode.lb.*] {
-            destroy $widget
-         }
-         SelBoxCreate .acqmode.lb acqmode_ailist acqmode_selist acqmode_names
-      }
-   } else {
-      foreach widget [info commands .acqmode.lb.*] {
-         destroy $widget
-      }
-      # passive or ui mode -> remove listboxes
-      # (the frame is added to trigger the shrink of the window around the remaining widgets)
-      frame .acqmode.lb.foo
-      pack .acqmode.lb.foo
-   }
-}
-
 # extract, apply and save the settings
 proc QuitAcqModePopup {} {
-   global acqmode_ailist acqmode_selist acqmode_names acqmode_start
+   global acqmode_ailist acqmode_names acqmode_start
    global acqmode_sel
-
-   if {[string compare -length 6 "cyclic" $acqmode_sel] == 0} {
-      if {[llength $acqmode_selist] == 0} {
-         tk_messageBox -type ok -default ok -icon error -parent .acqmode -message "You have not selected any providers."
-         return
-      }
-      set acq_mode_cnis $acqmode_selist
-   }
 
    if {[C_IsNetAcqActive default]} {
       set tmpl [C_GetAcqConfig]
       set old_acqmode_sel [lindex $tmpl $::acqcf_ret_mode_idx]
-      set old_acqmode_selist [lindex $tmpl $::acqcf_ret_cnilist_idx]
-      if {($old_acqmode_sel ne $acqmode_sel) || ($old_acqmode_selist ne $acqmode_selist)} {
+      if {$old_acqmode_sel ne $acqmode_sel} {
          # warn that params do not affect acquisition running remotely
          tk_messageBox -type ok -icon info -message "Please note that this does not update the acquisition mode on server side."
       }
    }
 
-   C_UpdateAcqConfig $acqmode_sel $acqmode_selist $acqmode_start
+   C_UpdateAcqConfig $acqmode_sel $acqmode_start
 
    # free memory
-   unset acqmode_ailist acqmode_selist acqmode_sel acqmode_start
+   unset acqmode_ailist acqmode_sel acqmode_start
    if {[info exists acqmode_names]} {unset acqmode_names}
 
    # close the popup window
@@ -452,7 +402,7 @@ proc PopupTtxGrab {} {
             }
          } else {
             set answer [tk_messageBox -type okcancel -default ok -icon info -parent . \
-                                      -message "Before you can enable the teletext grabber you must configure a TV application, because a TV channel table is required. Configure a TV app. now?"]
+                                      -message "Before you can enable the teletext grabber, you must configure a TV application from which to load a channel table. Configure a TV app. now?"]
             if {[string compare $answer "ok"] == 0} {
                XawtvConfigPopup
             }
@@ -526,6 +476,37 @@ proc PopupTtxGrab {} {
       raise .ttxgrab
    }
 }
+
+#X#   # create two listboxes for provider database selection
+#X#   frame .acqmode.lb
+#X#   UpdateAcqModePopup
+#X#   pack .acqmode.lb -side top
+#X#
+#X## add or remove database selection popups after mode change
+#X#proc UpdateAcqModePopup {} {
+#X#   global acqmode_ailist acqmode_names
+#X#   global acqmode_sel
+#X#
+#X#   if {[string compare -length 6 "cyclic" $acqmode_sel] == 0} {
+#X#      # manual selection -> add listboxes to allow selection of multiple databases and priority
+#X#      if {[string length [info commands .acqmode.lb.ai.ailist]] == 0} {
+#X#         # listbox does not yet exist
+#X#         foreach widget [info commands .acqmode.lb.*] {
+#X#            destroy $widget
+#X#         }
+#X#         SelBoxCreate .acqmode.lb acqmode_ailist acqmode_names
+#X#      }
+#X#   } else {
+#X#      foreach widget [info commands .acqmode.lb.*] {
+#X#         destroy $widget
+#X#      }
+#X#      # passive or ui mode -> remove listboxes
+#X#      # (the frame is added to trigger the shrink of the window around the remaining widgets)
+#X#      frame .acqmode.lb.foo
+#X#      pack .acqmode.lb.foo
+#X#   }
+#X#}
+
 
 # callback for "enable" button
 proc TtxGrab_Enabled {} {

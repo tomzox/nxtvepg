@@ -25,51 +25,23 @@
 
 =head1 NAME
 
-nxtvepg - Empfang, Anzeige und Analyse von NexTView EPG
+nxtvepg - Anzeige von EPG aus XMLTV Dateien und Teletext EPG Grabber
 
 =head1 SYNOPSIS
 
-B<nxtvepg> S<[ options ]> S<[ database ]>
+B<nxtvepg> S<[ options ]> S<[ databases ... ]>
+
+B<nxtvepgd> S<[ daemon options ]>
 
 =head1 DESCRIPTION
 
-B<nxtvepg> ist eine X11- und Windows-Anwendung zum Empfang, Anzeige und Analyse von TV-Programmzeitschriften, die über analoge TV-Kanäle gemäß Standard ETS 300 707 ("Protocol for a TV Guide using electronic data transmission") übertragen werden. Dieser offene Standard wurde vom European Telecommunications Standards Institute in den Jahren 1995-1997 entwickelt und ist bei L<http://www.etsi.org/> frei verfügbar.
+B<nxtvepg> ist eine X11- und Windows-Anwendung zur Anzeige von Programminformationen aus Dateien in XMLTV Format. Wenn eine TV-Karte vorhanden ist, kann nxtvepg zusätzlich Programminformationen aus Teletext verschiedener TV-Programme extrahieren und in XMLTV Format speichern.
 
-NexTView EPG wurde für den Gebrauch in Fernsehgeräten entwickelt, jedoch können die Daten auch in einem PC empfangen und verwendet werden. Voraussetzung ist lediglich eine Teletext-fähige TV-Tuner-Karte und natürlich der Empfang eines TV-Senders auf dem das EPG ausgestrahlt wird.
-
-Bis ca. 2012 ermöglichte B<nxtvepg> den Empfang kostenloser TV-Programmlisten für alle bzw. die meisten überregionalen Fernsehsender in Deutschland, Österreich, Frankreich, Belgien und der Schweiz. Zu seiner Hochzeit wurde NexTView EPG von folgenden Sendern übertragen:
-
-=over 4
-
-=item *
-
-In Deutschland und Österreich: Kabel1 (Abdeckung: ca. 32 Sender)
-
-=item *
-
-In der Schweiz: SF1, TSR1, TSI1, EuroNews (Abdeckung: ca. 37 Sender)
-
-=item *
-
-In Frankreich: Canal+, M6, TV5, EuroNews (Abdeckung: 8 Sender)
-
-=item *
-
-In Belgien: M6, TV5 (Abdeckung: 32 Sender)
-
-=item *
-
-In der Türkei: TRT (Abdeckung: ca. 17 Sender)
-
-=back
-
-Zusammengenommen deckten diese Anbieter das TV-Programm aller ueberregionalen TV-Sender ab. Nextview wird jedoch nicht ueber DVB ausgestrahlt; daher ist Nextview EPG seit Abschaltung der analogen Uebertragung nicht mehr empfangbar. Der von DVB verwendete EPG Standard wird von nxtvepg bisher nicht unterstuetzt.
-
-Unabhaengig von Nextview EPG ermoeglicht nxtvepg auch EPG Daten aus dem Teletext auszulesen oder von externen Quellen im XMLTV Format zu importieren und zu vereinigen. Bitte beachten Sie beim Import (genauso wie beim Datenexport) stets die geltenden Copyright-Bestimmungen. Insbesondere ist es in Deutschland nach der aktuellen Gesetzeslage selbst zu privaten Zwecken nicht erlaubt, ohne ausdrückliche Genehmigung Programmdaten von Internet (Web-) Seiten von Online-Programmzeitschriften maschinell auszulesen und weiterzuverarbeiten.
+B<nxtvepgd> ist eine reduzierte Variante von nxtvepg, die nur den Teletext EPG Grabber beinhaltet. Das Programm hat keine graphische Oberfläche, sondern arbeitet im Hinterdrund als sogenannter "daemon" Prozess. Der Prozess akquiriert kontinuierlich EPG aus Teletext und aktualisiert XMLTV Dateien, die dann im nxtveog GUI geladen werden können.
 
 =head1 OPTIONS
 
-Der I<database> Parameter auf der Kommandozeile kann eine von nxtvepg generierte Datenbankdatei sein, oder eine Datei im XMLTV Format. Die EPG Daten aus der angegebenen Datei werden in der Benutzeroberflaeche angezeigt. (Es kann nur eine Datei angegeben werden; verwenden Sie den "Merge" Konfigurationsdialog um Daten mehrerer Nextview EPG oder XMLTV Anbieter zu vereinigen.)
+Als I<database ...> Parameter auf der Kommandozeile können eine oder mehrere Dateien im XMLTV Format angegeben werden. Falls mehr als eine Datei angegeben ist, werden sie zusammengeführt wie im Kapitel L<"MERGED DATABASES"> beschrieben.  Die Daten aus den XMLTV Dateien werden dann im GUI angezeigt.
 
 Zusammenfassung der Befehlszeilen-Optionen:
 
@@ -117,9 +89,9 @@ Starte mit abgeschalteter Akquisition. Die Akquisition kann später immer noch üb
 
 =item B<-daemon>
 
-Starte ohne grafische Oberfläche. Der Prozess wird von der Oberfläche getrennt (d.h. ohne sichtbares Fenster auf dem Desktop) und führt die Akquisition im Hintergrund aus. Wenn keine anderen Optionen angegeben sind, wird der gleiche Provider und Akquisitionsmodus wie in der GUI konfiguriert benutzt. Wenn die Option -provider angegeben ist, wird die Akquisition nur für diesen Provider gestartet (Achtung: im Unterschied zum Normalmodus, in welchem diese Option die Browser-Datenbank wählt) Die Option I<-daemon> kann nicht mit I<-noacq>, I<remctrl> oder anderen GUI-bezogenen Optionen kombiniert werden.
+Starte ohne grafische Oberfläche. Der Prozess wird von der Oberfläche getrennt (d.h. ohne sichtbares Fenster auf dem Desktop) und führt die Akquisition im Hintergrund aus. Wenn keine anderen Optionen angegeben sind, wird der gleiche Akquisitionsmodus wie in der GUI konfiguriert benutzt. Die Option I<-daemon> kann nicht mit I<-noacq>, I<-remctrl> oder anderen GUI-bezogenen Optionen kombiniert werden.
 
-Der Daemon erzeugt immer einen Socket im Verzeichnis I</tmp> (nur UNIX) und optional einen TCP/IP-Socket, um Browserprozessen Verbindungen zu erlauben. Wenn verbunden, empfängt der Browser Updates für die geöffneten NexTView-Datenbanken und berichtet über den Akquisitionsprozess; besteht keine Verbindung, kann es sein, dass die Programmdaten des Browsers unvollständig oder veraltet sind.
+Der Daemon erzeugt immer einen Socket im Verzeichnis I</tmp> (nur UNIX) und optional einen TCP/IP-Socket, um Browserprozessen Verbindungen zu erlauben. Wenn verbunden, wird der Browser benachrichtigt wenn der Teletext EPG grabber XMLTV Dateien aktualisiert; Wenn die Verbindung nicht besteht kann es vorkommen, dass die Programmdaten des Browsers unvollständig oder veraltet bleiben.
 
 Es ist wichtig zu bemerken, dass der Browser das gleiche Verzeichnis I<-dbdir> nutzen B<muss>, weil der Daemon nur Unterschiede an den im selben Verzeichnis gespeicherten Datenbank-Dateien sendet. Weitere Details siehe L<"CONFIGURATION">, Kapitel "Client/Server".
 
@@ -165,7 +137,7 @@ Im Daemon-Modus überschreibt diese Option die Akquisitionseinstellung der Konfig
 
 =item B<-acqonce> I<phase>
 
-Im Daemon-Modus hält diese Option automatisch die Akquisition an und beendet den Daemon nachdem die vorgegebene Phase für alle Provider abgeschlossen wurde. Die Phasen sind die gleichen wie unter L<"ACQUISITION MODES"> definiert, z.B. I<now>, I<near> und I<full>. Falls Sie den Akquisitionsmodus I<follow-ui> verwenden ist diese Option jedoch nicht sinnvoll, da der Daemon in diesem Modus die Akquisition mit jedem Anbieterwechsel in einem verbundenen Browser neu startet. Anders gesagt, die Option ist nur in Verbindung mit einer fest eingestellten Liste von Anbietern sinnvoll.
+Im Daemon-Modus hält diese Option automatisch die Akquisition an und beendet den Daemon nachdem die vorgegebene Phase für alle Provider abgeschlossen wurde. Die Phasen sind die gleichen wie unter L<"ACQUISITION MODES"> definiert, d.h. I<now> oder I<full>.
 
 Falls Sie nach dem Schließen von nxtvepg ein anderes Programm starten möchten, verwenden Sie Option I<-nodetach> (nur auf UNIX verfügbar). In diesem Fall wird die aufrufende Shell mit dem Start des nächsten Kommandos in Ihrem Skript warten bis nxtvepg beendet ist. Auf Windows gibt es keinen einfachen Weg um dies zu erreichen, da nxtvepg keine so genannte "Console"-Applikation ist und somit immer im Hintergrund gestartet wird. Deshalb benötigen Sie eine Skript-Sprache die es erlaubt darauf zu warten, dass nxtvepg terminiert.
 
@@ -191,10 +163,10 @@ Diese Option ist insbesondere für Windows-Nutzer hilfreich, da dieses Betriebssy
 
 B<Tipp:> Anstelle der Option -outfile können Sie die Ausgabe auch mit ">" oder "|" umleiten.  Dies funktioniert unter UNIX in jedem beliebigen Terminal bzw. jeder Shell und unter Windows in einem MS-DOS Kommandofenster oder einer Batch-Datei. Beispiele:
 
-  nxtvepg -dump ai -prov d92 > networks.txt
-  nxtvepg -dump ai -prov d92 | more
+  nxtvepg -dump ai tv.xml > networks.txt
+  nxtvepg -dump ai tv.xml | more
 
-Das erste Beispiel schreibt die Sendertabelle des Providers I<Kabel1> (CNI I<0xd92>) in eine Datei namens I<networks.txt>; das zweite lenkt sie zum Programm "more" um, einem Programm zur Textanzeige.
+Das erste Beispiel schreibt die Sendertabelle der XMLTV Datei "tv.xml" in eine Datei namens I<networks.txt>; das zweite lenkt die Ausgabe zum Programm "more" um, einem Programm zur Textanzeige.
 
 =item B<-remctrl> I<command>
 
@@ -204,9 +176,9 @@ Folgende Befehle sind verfügbar: I<quit> beendet den anderen nxtvepg-Prozess; I<
 
 =item B<-clock> I<mode>
 
-Mit dieser Option startet nxtvepg in einem besonderen Betriebsmodus in dem nur Datum und Uhrzeit aus dem Teletext ermittelt werden. Danach beendet sich das Programm wieder. Um anzugeben von welchem Sender die Zeit gelesen wird sollten sie I<-prov> angeben. (Falls Sie einen Sender verwenden wollen der kein Nextview-EPG-Anbieter ist, müssen Sie den Sender zuvor mit einem anderen Programm einstellen; mit Ausnahme von I<v4lctl setstation> auf Linux ist dies jedoch nicht offiziell unterstützt und wird eventuell nicht ohne weiteres funktionieren.)
+Mit dieser Option startet nxtvepg in einem besonderen Betriebsmodus in dem nur Datum und Uhrzeit aus dem Teletext ermittelt werden. Danach beendet sich das Programm wieder. Als Quelle wird das erste Programm in der Programmtabelle der konfigurierten TV-applikation verwendet.
 
-B<Wichtige Einschränkung:> nxtvepg kann die Zeit nur von Sendern lesen die im Teletext ein so genanntes I<packet 8/30/1> ausstrahlen. Dieses enthält Datum, Zeit und Zeitzone in einer genau festgelegten Binärkodierung.  nxtvepg wird niemals die Uhrzeit aus der Teletextkopfzeile verwenden, da diese wegen Laufschriften, unterschiedlichen Formaten uvm. sehr unzuverlässig ist. Alle Nextview-EPG-Anbieter strahlen packet 8/30/1 aus und einige andere Sender ebenso (in Deutschland z.B. ARD und ZDF).
+B<Wichtige Einschränkung:> nxtvepg kann die Zeit nur von Sendern lesen die im Teletext ein so genanntes I<packet 8/30/1> ausstrahlen. Dieses enthält Datum, Zeit und Zeitzone in einer genau festgelegten Binärkodierung.  nxtvepg wird niemals die Uhrzeit aus der Teletextkopfzeile verwenden, da diese wegen Laufschriften, unterschiedlichen Formaten uvm. sehr unzuverlässig ist.
 
 Mit dem Modus I<print> wird Datum und Zeit ermittelt und auf das Terminal ausgegeben. Auch hier empfiehlt sich die Umlenkung der Ausgaben, wie bei Option I<-outfile> beschrieben.
 
@@ -220,15 +192,15 @@ Gibt eine kurze Übersicht aller verfügbaren Befehlszeilen-Optionen aus.
 
 =back
 
-Am Ende der Optionen können Sie einen Dateinamen hinzufügen. Im Fall von Nextview EPG Datenbankdateien entspricht das Angabe von B<-dbdir> und B<-provider>: Die Provider-Kennung (CNI) wird dann aus dem Dateinamen ermittelt. Alternativ können Sie hier den Namen einer Datei mit EPG Daten im XMLTV Format angeben.
-
-Dies ist besonders nützlich für Nutzer grafischer Dateimanager (wie dem Windows Explorer), da man so eine Datenbankdatei einfach auf eine ausführbare Datei ziehen und fallenlassen kann (Drag & Drop). Auf Windows-Systemen wird das Arbeitsverzeichnis auf den Ordner gesetzt, der die ausführbare Datei enthält. (Da der Explorer sonst offenbar den Desktop-Ordner verwendet, so dass keine der DLLs und Treiber gefunden werden). Dies bedeutet, dass die Datei nxtvepg.ini im selben Verzeichnis erwartet wird.
+Wenn Sie XMLTV Dateien auf der Kommandozeile angeben, müssen diese an letzter Stelle sein, d.h. nach allen Optionen.
 
 Hinweis für Windows-Benutzer: alle diese Optionen sind - sofern nicht anders angegeben - auch in der Windows-Version verfügbar. Sie können die Optionen entweder an der "MS-DOS"-Eingabeaufforderung oder in einer Batchdatei übergeben, oder durch Anhängen an Pfad und Namen der ausführbaren Datei in einer Verknüpfungsdefinition (engl. "shortcut").
 
 =head1 GETTING STARTED
 
-Bevor Sie TV-Programmdaten eines Nextview-EPG-Anbieters einlesen können (im Folgenden I<Akquisition> genannt), müssen Sie noch einige Einstellungen vornehmen. Welche das sind, hängt von der Ausstattung des Rechners ab und wird in diesem Kapitel beschrieben. Solange das Browserfenster keine Daten enthält, wird ein gelb unterlegter Hilfetext angezeigt.
+Bevor Sie TV-Programmdaten aus dem Teletext laden können (im Folgenden I<Akquisition> genannt), müssen Sie noch einige Einstellungen vornehmen. Welche das sind, hängt von der Ausstattung des Rechners ab und wird in diesem Kapitel beschrieben. Solange das Browserfenster keine Daten enthält, wird ein gelb unterlegter Hilfetext angezeigt.
+
+Um nur XMLTV Dateien aus anderen Quellen zu laden und anzuzeigen sind jedoch keinerlei Einstellungen erforderlich.
 
 Dieses Handbuch beschreibt alle Eigenschaften von nxtvepg im Detail. Sie müssen nicht alles davon auf einmal lesen, um die Software bedienen zu können. Es empfiehlt sich jedoch, wenigstens die Abschnitte L<"BASIC BROWSING">, L<"DATA ACQUISITION"> und L<"FILTERING"> durchzugehen.
 
@@ -268,25 +240,11 @@ Bei Karten, die mit einem Brooktree-Chip (Bt878 u.a.) ausgestattet sind, muss di
 
 Bevor nxtvepg mit der Akquisition von EPG-Daten beginnen kann, muss eingetragen werden, ob das Videosignal vom internen TV-Tuner der TV-Karte (bei Anschluss über Kabel oder terrestrischer Antenne) stammt oder von einer externen Quelle (etwa von einem Satellitenempfänger verbunden über ein Composite- oder S-Video-Kabel). Dies kann im Dialog "I<TV card input>" des Konfigurationsmenüs eingestellt werden (detailliertere Information siehe unter L<"CONFIGURATION">, Kapitel "TV card input").
 
-Normalerweise verwendet nxtvepg den TV-Tuner-Eingang. Das ist die gängige Arbeitsweise, da nxtvepg zwischen Kanälen von verschiedenen NexTView-Anbietern wechseln kann. Bei einer externen Quelle muss zwischen Kanälen jedoch manuell umgeschaltet werden (siehe auch L<"DATA ACQUISITION">). In Frankreich sollte die französische Kanalliste eingesetzt werden (die bereits die Secam-TV-Norm anstatt PAL B/G/I nutzt); diese Information wird im nächsten Schritt angewandt: Der EPG-Suchlauf.
+Normalerweise verwendet nxtvepg den TV-Tuner-Eingang. Das ist die gängige Arbeitsweise, da nxtvepg nur so automatisch zwischen Kanälen verschiedener Teletext-Anbietern wechseln kann. Bei einer externen Quelle müßte zwischen Kanälen manuell umgeschaltet werden (siehe auch L<"DATA ACQUISITION">).
 
-Ist kein TV-Tuner sondern ein Satellitenreceiver über den Composite- oder S-Video-Eingang im Einsatz, ist die entsprechende Einstellung im "I<video input>"-Dropdown-Menü auszuwählen. Schließen Sie den Dialog mit OK und öffnen Sie den Dialog für die Konfiguration des Akquisitionsmodus im selben Menü. Dort sollte in den Modus I<external> gewechselt werden: In diesem Modus schaltet nxtvepg beim Start der Akquisition zum eingestellten Video-Eingangskanal der externen Video-Quelle um. Dabei sollte an der externen Video-Quelle ein NexTView-Anbieter-Kanal empfangen werden können. Um wie bei einem EPG-Suchlauf alle vorhandenen Provider zu erhalten, sollten Sie alle Anbieter-Kanäle auslesen (eine Liste gibt es am Anfang der Hilfe oder auf der Homepage) und warten, bis der Text in der Statuszeile von "starting up" auf "working on" wechselt.
+Ist kein TV-Tuner sondern ein Satellitenreceiver über den Composite- oder S-Video-Eingang im Einsatz, ist die entsprechende Einstellung im "I<video input>"-Dropdown-Menü auszuwählen. Schließen Sie den Dialog mit OK und öffnen Sie den Dialog für die Konfiguration des Akquisitionsmodus im selben Menü. Dort sollte in den Modus I<external> gewechselt werden: In diesem Modus schaltet nxtvepg beim Start der Akquisition zum eingestellten Video-Eingangskanal der externen Video-Quelle um. Danach müssen Sie die Kanäle manuell zu den TV-Sendern umstellen von denen sie EPG Daten laden wollen.
 
-Obwohl es möglich ist, den Satellitenreceiver über ein Antennenkabel anzuschließen, ist von dieser Variante abzuraten, da das Signal oft so stark beeinträchtigt wird, dass nxtvepg den EPG-Datenstrom nicht mehr dekodieren kann. Wenn Sie dennoch diese Verbindungsart wählen, nehmen Sie den Tuner als Quelle und starten Sie einen EPG-Suchlauf, um den Kanal zu finden auf dem der Satellitenreceiver das Signal überträgt. Bitte stellen Sie sicher, dass die Option "I<Use .xawtv>" im Dialog des Providersuchlaufs ausgeschaltet ist, es sei denn, der Kanal des Satellitenreceivers (d.h. die Frequenz, auf die das Satellitensignal aufmoduliert wird) ist als ein Eingangskanal in xawtv definiert. Stellen Sie einen Kanal eines NexTView-Anbieters ein, bevor Sie den EPG-Suchlauf starten. Der Suchlauf wird nur diesen einen Anbieter finden. Wenn Sie alle Anbieter laden wollen, müssen Sie wie oben beschrieben manuell vorgehen. Es empfiehlt sich, den Akquisitionsmodus auf "I<Follow browser database>" zu stellen. Obwohl nxtvepg mit der Akquisition in Wirklichkeit nicht Ihrer Anbieterauswahl folgen kann, da es den Fernsehkanal am externen Eingang nicht umschalten kann, wird dieser Modus nxtvepg anweisen, den TV-Tuner auf den Kanal des Receivers zu setzen (nähere Details sind in L<"ACQUISITION MODES"> zu finden).
-
-=head2 EPG scan: Search for Nextview providers
-
-Dieser Abschnitt ist nur relevant, wenn der interne Tuner der TV-Karte verwendet werden soll. In diesem Fall besteht der nächste Schritt darin, eine Anbietersuche aus dem Konfigurationsmenü heraus zu starten. Während der Suche werden alle Fernsehkanäle auf das Vorhandensein von NexTView-Übertragungen geprüft und aus den Ergebnissen wird eine Liste von NexTView-Anbietern erstellt.
-
-Der Suchlauf kann beschleunigt werden, indem die Kanalliste einer Fernsehapplikation verwendet wird. In diesem Fall wird der Suchlauf auf die Frequenzen in der Kanalliste der TV-Anwendung beschränkt. Dieser Modus wird mit dem Button "I<Use TV app freq. table>" gewählt. Er ist inaktiv, solange keine Fernsehapplikation im Dialog "I<TV app. interaction>", der im nächsten Kapitel beschrieben wird, ausgewählt ist. Dieser Dialog kann durch Druck auf den Button am unteren Rand des Dialogfensters des EPG-Suchlaufs geöffnet werden.
-
-Am Ende der Suche steht eine kurze Zusammenfassung aus der hervorgeht, wie viele Provider gefunden wurden. Wurden Provider gefunden, kann das Dialogfenster geschlossen werden. Mittels der Providerauswahl aus dem Konfigurationsmenü kann der bevorzugte Provider gewählt werden. Bitte warten Sie, während der Kanal des Providers eingestellt und Daten empfangen werden.
-
-Findet die Providersuche keinen oder nicht alle NexTView-Providerkanäle (möglicherweise wegen schwachen Empfangs - es handelt sich um einen relativ einfachen Suchlauf, der keine Feinabstimmung vornimmt), aktivieren Sie den Button I<Slow> und versuchen Sie es erneut. Bringt dies keine Abhilfe, können Sie die fehlenden Anbieter auch manuell hinzufügen. Stellen Sie den Akquisitionsmodus auf I<external> oder I<passive> (nur unter UNIX). Dann stellen Sie mittels einer externen Applikation den Kanal ein (Windows-Benutzer müssen zunächst die Akquisition stoppen, dann die TV-Anwendung starten, anschließend den Kanal einstellen, die TV-Anwendung beenden und die Akquisition erneut starten).
-
-Im externen Modus beeinflusst nxtvepg den Tuner nicht und wartet beliebig lange auf den Empfang von NexTView auf dem aktuellen Kanal. Unter Windows (und Linux mit bttv-Treibern der Versionen 0.7.50 und älter) hat diese Methode den Nachteil, dass Kanalnummer und Frequenz des Providers nicht bekannt sind. In diesem Fall muss der Kanal des Providers bei jedem Start der Akquisition manuell eingestellt werden.
-
-Die Akquisition einer kompletten Datenbank dauert etwa 20 Minuten. Programme die in naher Zukunft liegen sind jedoch viel schneller verfügbar, da sie häufiger übertragen werden. Gewöhnlich sind die gerade laufenden und unmittelbar nachfolgenden Programme aller Sender nach maximal 2-3 Minuten vorhanden.
+Obwohl es möglich ist, den Satellitenreceiver über ein Antennenkabel anzuschließen, ist von dieser Variante abzuraten, da das Signal oft so stark beeinträchtigt wird, dass nxtvepg den EPG-Datenstrom nicht mehr dekodieren kann.
 
 =head2 Configuring a TV application
 
@@ -296,11 +254,11 @@ nxtvepg kann wie folgt mit TV-Anwendungen zusammenarbeiten:
 
 =item *
 
-Laden der Kanaltabelle der TV-Anwendung: die Verwendung der TV-Tunerfrequenzen kann die EPG-Suche erheblich beschleunigen (wie oben bereits erwähnt). Die eingelesenen Sendernamen werden vom Dialog "I<Network name>" im Konfigurationsmenü (siehe L<"CONFIGURATION">, Kapitel "Network names") genutzt, um die Sendernamen zwischen nxtvepg und der TV-Anwendung zu synchronisieren.
+Laden der Kanaltabelle der TV-Anwendung: die Verwendung der TV-Tunerfrequenzen aus einer externen Kanaltabelle ist Voraussetzung für die Verwendung des Teletext Grabbers. Die eingelesenen Sendernamen werden außerdem vom Dialog "I<Network name>" im Konfigurationsmenü (siehe L<"CONFIGURATION">, Kapitel "Network names") genutzt, um die Sendernamen zwischen nxtvepg und der TV-Anwendung zu synchronisieren.
 
 =item *
 
-Die Interaktion zwischen nxtvepg und der TV-Anwendung, um Ihnen nützliche Features zur Verfügung zu stellen, wie z.B. ein On-Screen-Display des Titels der aktuell laufenden Sendung nach dem Kanalwechsel, wenn Sie aus nxtvepg heraus mit dem Button "I<Tune TV>" den Kanal ändern, sowie auch z.B. die im Hintergrund laufende Akquisition der NexTView-Daten während Sie Ihr TV-Programm ansehen.
+Die Interaktion zwischen nxtvepg und der TV-Anwendung, um Ihnen nützliche Features zur Verfügung zu stellen, wie z.B. ein On-Screen-Display des Titels der aktuell laufenden Sendung nach dem Kanalwechsel, wenn Sie aus nxtvepg heraus mit dem Button "I<Tune TV>" den Kanal ändern, sowie auch z.B. die im Hintergrund laufende Akquisition der EPG Daten während Sie Ihr TV-Programm ansehen.
 
 =back
 
@@ -340,19 +298,18 @@ I<Beachten Sie:> Die meisten Provider übertragen Inhaltsbeschreibungen (d.h. den
 
 =head1 DATA ACQUISITION
 
-So lange die Akquisition aktiviert ist, werden Programmdaten permanent im Hintergrund nachgeladen und damit die Datenbank aktualisiert. Alle eingehenden Programminformationen werden außerdem sofort in die angezeigte Programmliste eingefügt. Dabei wird versucht die Cursorposition bzw. Titelwahl nicht zu verändern, es sei denn, der Cursor steht auf dem allerersten Eintrag - in diesem Fall bleibt der Cursor ganz oben.
+Das Grundprinzip des Teletext EPG Grabbers ist der Reihe nach alle in der Kanaltabelle gefundenen TV-Kanäle einzustellen und deren Teletext zu laden. Für jeden Kanal dessen Teletext geladen wurde werden die Seiten danach analysiert und EPG Informationen extrahiert, um diese in Dateien im XMLTV Format zu speichern.
 
-Standardmäßig arbeitet die Akquisition immer für den Provider dessen Datenbank Sie in den Browser geladen haben. Deshalb wird der TV-Tuner beim Programmstart oder immer dann, wenn Sie die Provider wechseln, auf die Frequenz des TV-Kanals des Providers eingestellt. (Beachten Sie, dass dieser Modus nur nach einer Providersuche möglich ist, da dies der einzige Weg ist, die Frequenzen herauszufinden.) Siehe L<"ACQUISITION MODES"> in Bezug auf fortgeschrittenere Akquisitionsstrategien.
+Programminformationen werden im Browser aktualisiert sobald eine XMLTV Datei aktualisiert wurde. Dabei wird versucht die Cursorposition bzw. Titelwahl nicht zu verändern, es sei denn, der Cursor steht auf dem allerersten Eintrag - in diesem Fall wir der Cursor auf das gegebenenfalls neue ersten Programm in der Datenbank gesetzt.
 
-Wenn Sie nicht den TV-Tuner als Eingang wählen (d.h. Sie wählen eine externe Quelle über den Composite- oder S-Video-Eingang) oder der TV-Tuner durch eine andere Anwendung in Beschlag genommen wird (nur bei UNIX, z.B. wenn man TV sieht), werden zwar trotzdem Daten akquiriert, es ist Ihnen aber nicht mehr möglich automatisch den TV-Sender zu wechseln. Folglich sind Sie selbst für die Auswahl des TV-Kanals des Providers verantwortlich, dessen Datenbank Sie laden oder auffrischen wollen. Wird ein zu einem anderen als dem im Browser ausgewählten Provider gehörender Datenstrom erkannt, wird automatisch eine zweite Datenbank im Hintergrund geöffnet um die hereinkommenden Daten zu speichern.
+Wenn Sie nicht den TV-Tuner als Eingang wählen (d.h. Sie wählen eine externe Quelle über den Composite- oder S-Video-Eingang) oder der TV-Tuner durch eine andere Anwendung in Beschlag genommen wird (nur bei UNIX, z.B. wenn man TV sieht), werden zwar trotzdem Daten akquiriert, es ist Ihnen aber nicht mehr möglich automatisch den TV-Sender zu wechseln. Folglich sind Sie selbst für die Auswahl des TV-Kanals des Providers verantwortlich, dessen Datenbank Sie laden oder auffrischen wollen.
 
-Die übermittelte Datenbank ist ständig im Wandel: Abgelaufene Titel werden entfernt, neue Titel angehängt und diejenigen Titel, die der aktuellen Uhrzeit am nächsten liegen, mit einer zunehmenden Anzahl an Beschreibungen ausgestattet. (Der Grund warum keine komplette Beschreibung für alle Titel übermittelt wird ist ganz einfach der, dass die Größe der Datenbank reduziert werden muss - diese sollte innerhalb maximal 20 Minuten übermittelbar sein.) Deshalb sollten Sie die Akquisition so oft wie möglich starten, etwa alle 2-3 Stunden, zumindest einige Minuten bevor sie das Programm durchstöbern.
-
+TV-Programmtabellen in Teletext werden üblicherweise nur einmal täglich aktualisiert (es sei den es treten aktuelle Programmänderungen auf). Von daher ist es ausreichend die Akquisition einmal täglich laufen zu lassen.
 Sie können den Fortschritt der Akquisition über das Fenster mit der Zeitskalen- und Datenbankstatistik über das Control-Menü beobachten. Siehe L<"STATISTICS"> für Details.
 
 =head1 ACQUISITION MODES
 
-Der Dialog zur Konfiguration des Akquisitionsmodus ermöglicht es Ihnen, zu kontrollieren, für welche Provider Daten gesammelt werden und in welcher Reihenfolge. Dies ist hauptsächlich für Anwender gedacht, die Datenbanken von mehr als einem Provider nutzen, beispielsweise in einer zusammengeführten (engl. "merged") Datenbank, oder ihre Startzeit optimieren wollen. Sind Sie mit einer einzigen Datenbank zufrieden oder wollen Sie nicht unmittelbar nach dem Programmstart blättern, sollten Sie beim Standard bleiben, welcher Daten nur für den im Browser gewählten Provider lädt.
+Der Dialog zur Konfiguration des Akquisitionsmodus ermöglicht es Ihnen die Strategie für Akquisition von EPG Daten zu beeinflussen: Die ersten beiden Modi sind nur für den Spezialfall dass sie nicht den Tuner der TV-KArte verwenden, so dass nxtveog keine TV-Sender umschalten kann. Die anderen Modi bestimmen die zeitliche Abfolge in der Daten gesucht werden.
 
 =over 4
 
@@ -368,69 +325,49 @@ Dies ist der für Composite- oder S-Video-Input-Quellen empfohlene Modus. Nur die
 
 Auf Windows-Systemen kann dieser Modus verwendet werden, falls der Tuner nxtvepg nicht bekannt ist, d.h. wenn der EPG-Suchlauf mit allen Tuner-Typen keine Kanäle findet. In diesem Fall stellen Sie den Provider-Kanal mittels der TV-Anwendung ein; danach beenden Sie diese Anwendung und starten nxtvepg. Wenn Sie daraufhin über das Control-Menü in die Akquisitionsstatistik sehen, sollte der VPS/PDC-Code des eingestellten Kanals in der unteren Hälfte des Fensters erscheinen.
 
-=item B<Follow-UI>
+=item B<Cyclic: Full>
 
-Dies ist der Standard-Modus: die Akquisition arbeitet immer für den Provider, den Sie für den Browser (d.h. die Benutzerschnittstelle) gewählt haben. Ändern Sie den Provider im Browserfenster, folgt die Akquisition dem neu eingestellten Kanal. Natürlich wird dazu mindestens ein EPG-Suchlauf benötigt, damit die Tuner-Frequenzen aller Provider bekannt sind. Verwenden Sie im Browser eine zusammengeführte (engl. "merged") Datenbank, arbeitet die Akquisition bei jedem der zusammengeführten Provider nacheinander, ähnlich dem Modus, der als Nächstes beschrieben wird.
+Dieser Modus ist der Default. Der Modus arbeitet wie bei L<"DATA ACQUISITION"> schon beschrieben. Das heisst, EPG wird der Reihe nach von den TV-Sendern in der geladenen Sendertabelle empfangen und verarbeitet. Für jeden Sender wird solange empfangen wie nötig alle vom EPG verwendeten Seiten und Unterseiten zu laden. Die EPG Akquisition ist beendet nach einem Durchlauf über alle Sender.
 
-=item B<Manually selected (Cyclic: All>
+Technische Details: Da mit Übertragungsfehlern gerechnet werden muss, wird tatsächlich nicht versucht, jede einzelne Unterseite der von EPG verwendeten Teletext Seiten zu laden bevor der EPG Grabber zum nächsten Sender schaltet. Stattdessen empfängt der Grabber so viele Seitenzyklen wie maximal an Unterseiten im EPG Bereich verwendet werden. (Die meisten Teletextanbieter verwenden keine Unterseiten für die heutige Programmtabelle; oft wird jedoch für Folgetage nur eine Seite für den ganzen Tag verwendet und die Tabellen dann auf soviele Unterseiten verteilt wie nötig um die gesamte Liste darzustellen. In jedem Seitenzyklus wird nur eine Unterseite pro Teletextseite übertragen; die Dauer eines Zyklus hängt von der Gesamt zahl der Seiten im Teletext ab; ein typischer Wert is 20 Sekunden.)
 
-Dieser Modus ermöglicht es Ihnen, manuell auszuwählen, für welchen Provider die Akquisition arbeiten soll. Sollten Sie mehr als einen Provider auswählen, werden diese Provider einer nach dem anderen in der von Ihnen festgelegten Reihenfolge geladen. Warnung: falls Sie für den Browser einen Provider wählen, der nicht in der Liste steht, werden keine Daten in den Browser geladen, auch wenn die Liste vollkommen leer ist.
+=item B<Cyclic: Now - Full>
 
-Da mit Übertragungsfehlern gerechnet werden muss, wird nicht versucht, jeden einzelnen Datensatz von einem Provider zu laden bevor die Akquisition zum Nächsten wechselt. Stattdessen wurde ein statistisches Kriterium definiert, welches die Varianz in der Berichterstattung aller in der Datenbank enthaltenen Sender sowie die Tendenz dieser Varianz berücksichtigt.
+In diesem Modus werden die EPG Daten in zwei Durchläufen geladen: Im ersten Durchlauf wird Teletext nur kurz von jedem Sender geladen, nämlich nur solange wie nötig um den EPG Seitenbereich einmal zu empfangen (d.h. nur eine Unterseite wird geladen, siehe vorheriger Abschnitt). Dies ist ausreichend für das Programm des heutigen Tages, da für dieses üblicherweise keine Unterseiten verwendet werden. Nach dem ersten Durchlauf wird ein weiterer gestartet, der dann genau wie bei I<Cyclic: Full> beschrieben arbeitet.
 
-=item B<Cyclic: Now - Near - All>
-
-Wie im vorherigen Modus ermöglicht Ihnen dieser, eine Liste von Providern zu spezifizieren, für die Daten geladen werden sollen. Diese werden jedoch nicht nacheinander komplett geladen. Stattdessen wurde eine 3-stufige Abfrage implementiert. In der ersten Stufe werden nur I<Now>-Daten geladen, d.h. die der aktuell laufenden und der nächsten 2-3 Sendungen. Ist dies bei allen Providern geschehen beginnt die nächste Stufe, welche I<Near>-Daten lädt, d.h. die aller Sendungen, die innerhalb der nächsten 12-24 Stunden laufen. Ist dies wiederum fertig gestellt, lädt die letzte Stufe die unerledigten Blöcke aller Provider. Siehe Erklärung unten, wofür dieser Modus gut ist.
-
-=item B<Cyclic: Now - All>
-
-Dies ist derselbe Modus wie zuvor, außer dass die I<Near>-Stufe übersprungen wird.
-
-=item B<Cyclic: Near - All>
-
-Dies ist derselbe Modus wie zuvor, außer dass die I<Now>-Stufe übersprungen wird.
+Technische Details: Der erste Durchlauf ist weiterhin optimiert um die Laufzeit zu minimieren indem nach jedem Senderwechsel kontrolliert wird welche Seite im Zyklus gerade übertragen wird. Ist der Abstand zum Beginn der EPG Seiten groß, wird zwischenzeitlich ein anderer Sender probiert um unnötige Wartezeit zu vermeiden.
 
 =back
 
-Welcher Modus der Beste für Sie ist, hängt davon ab wie Sie Ihren Browser nutzen. Wenn Sie - wie oben erwähnt - hauptsächlich einen einzelnen Provider verwenden, halten Sie sich an den Follow-UI-Modus. Nutzen Sie eine zusammengeführte (engl. "merged") Datenbank, werden die Daten automatisch für alle enthaltenen Provider geladen. Wechseln Sie jedoch manuell zwischen mehreren Providern, sollten Sie einen der manuellen Akquisitions-Modi vorziehen.
-
-Die zyklischen Modi ermöglichen es Ihnen, die Startzeit zu optimieren. Während im manuellen Modus (Standardmodus) die erste Datenbank komplett geladen wird bevor die Nächste gestartet wird, können Sie in den zyklischen Modi bestimmen, dass zuerst nur I<Now>-Daten aller Provider geladen werden. Infolgedessen werden Sie bereits nach ein paar Minuten die I<Now>-Informationen aller Provider aktualisiert haben. Benötigen Sie mehr Vorschau als die nächsten 2-3 Sendungen, z.B. den kompletten Abend, verwenden Sie bitte den zyklischen Modus, der mit der I<Near>-Stufe beginnt.
-
-Verwenden Sie die manuelle Akquisition gemeinsam mit einer zusammengeführten Datenbank, sollten Sie sicherstellen, dass sich der gleiche Provider in beiden Listen oben befindet, d.h. die Akquisition sollte immer mit der "Haupt-Datenbank" der Zusammenführung (engl. "merge") beginnen.
-
-Bitte beachten Sie, dass die Zeit bis alle Datenbanken komplettiert sind, in den zyklischen Modi länger ist als im standardmäßig manuellen Modus. Generell kommt die für die I<Now>- und I<Next>-Stufen benötigte Zeit zur Vervollständigungszeit der Datenbank hinzu.
-
-Beachten Sie außerdem, dass die zyklischen Modi von den Übermittlungszyklen der Provider abhängen. Dies bedeutet erstens, dass sich die von den zyklischen Modi belegten Zeitspannen von Provider zu Provider unterscheiden. Zweitens werden die Zykluszeiten differieren. Im schlimmsten Fall läuft der I<Near>-Zyklus so lange wie der Zyklus für die gesamte Datenbank (z.B. der des deutschen Anbieters RTL2). In diesem Fall gewinnen Sie nichts durch die Wahl eines Modus, der eine I<Near>-Stufe enthält.
+Welcher Modus der Beste für Sie ist, hängt davon ab wie Sie Ihren Browser nutzen. Falls Sie hautpsächlich am aktuellen Programm interessiert sind, ist "Now - Full" ideal. Falls Sie die gesamt Übersicht benötigen, ist es schneller "Full" zu verwenden, da der "Now - Full" Modus länger braucht um alle Daten komplett zu laden. (Genauer gesagt, der "Full" Durchlauf dauert in beiden Modi genauso lange, so dass die Zeit für den "Now" Durchlauf zur Gesamtlaufzeit hinzukommt.)
 
 =head1 STATISTICS
 
-Es gibt zurzeit drei Möglichkeiten, Informationen zum Status der Datenbank und des Akquisitions-Prozesses zu erhalten: Der Erste und prägnanteste ist die Statuszeile am unteren Rand des Hauptfensters (nur wenn diese auch aktiviert ist, siehe L<"CONFIGURATION">). Der Zweite besteht in den Zeitskalen-Fenstern ("timescale"), welche die mit TV-Programmdaten belegten Zeitspannen jedes TV-Senders visualisieren. Der Dritte besteht aus den Fenstern mit den Datenbankstatistiken, welche technische Details über die Datenbank liefern (wie z.B. welcher Prozentsatz an Einträgen bereits geladen ist usw.) jeweils in Textform und als Grafik.
-
-Die beiden letzteren Fenster stehen jeweils getrennt für die Browser- und die Akquisitionsdatenbanken zur Verfügung. (Standardmäßig sind beides dieselben Datenbanken, jedoch können Sie eine Hintergrundakquisition für mehrere Datenbanken einstellen, siehe L<"ACQUISITION MODES">). Alle Statistiktypen werden während der laufenden Akquisition regelmäßig aktualisiert. Während einer bestehenden Verbindung zu einem Akquisitions-Daemon, verweisen alle Statistikausgaben auf die im Daemon laufende Akquisition (siehe L<"CONTROL: Connect to acq. daemon">)
+Es gibt eine Reihe von Optionan, Informationen zum Status der Datenbank und des Akquisitions-Prozesses zu erhalten: Der Erste und prägnanteste ist die Statuszeile am unteren Rand des Hauptfensters (nur wenn diese auch aktiviert ist, siehe L<"CONFIGURATION">). Der Zweite besteht aus dem Zeitskalen-Fenster ("timescale"), welche die mit TV-Programmdaten belegten Zeitspannen jedes TV-Senders visualisiert. Der Dritte besteht aus der Datenbankstatistik, welche technische Details über die im Browser geladene Datenbank liefern (wie z.B. welcher Prozentsatz an Einträgen bereits aktualisiert ist usw.). Weiterhin gibt es ein Fenster das Status und Historie des EPG Grabbers wiederspiegelt.
 
 =head2 Status line
 
 Die Statuszeile fasst separat den Status der Browserdatenbank (außer bei einer zusammengeführten Datenbank) und den des Akquisitionsprozesses zusammen. Aus Platzgründen enthält sie nur die relevanteste Information, d.h. die angezeigte Information hängt vom jeweiligen Status ab.
 
-Zur Browserdatenbank sehen Sie normalerweise den Sendernamen des Inhaltproviders und einen Prozentsatz, der beschreibt, wie viele Blöcke (d.h. TV-Sendungen) bereits in der Providerdatenbank empfangen wurden.
+Zur Browserdatenbank sehen Sie normalerweise den Namen der XMLTV Datei. Falls die Akquisition aktiv ist, wird der Prozentsatz der erledigten TV-Sender und der Name des aktuell bearbeiteten Senders angezeigt.
 
-Liegen mehr als 10% der Einträge der Programmdatenbank in der Vergangenheit, werden Sie zusätzlich einen Hinweis über den Prozentsatz der abgelaufenen Blöcke sehen. Beachten Sie, dass eine zu 100% geladene Datenbank komplett leer erscheinen kann, wenn alle Blöcke abgelaufen sind. Sobald Sie die Akquisition starten, wird der prozentuale Füllgrad auf 0 fallen, weil ein neuer Bestand geladen wird, der diese verfallenen Blöcke nicht mehr enthält.
+Liegen mehr als 10% der Einträge der Programmdatenbank in der Vergangenheit, werden Sie zusätzlich einen Hinweis über den Prozentsatz der abgelaufenen Einträge sehen. Beachten Sie, dass eine zu 100% geladene Datenbank komplett leer erscheinen kann, wenn alle enthaltenen Programme abgelaufen sind. Sobald Sie die Akquisition starten, wird der prozentuale Füllgrad auf 0 fallen, weil ein neuer Bestand geladen wird, der diese verfallenen Blöcke nicht mehr enthält.
 
 Hat die Akquisition der Browserdatenbank mehr als 60 Minuten zuvor angehalten, wird der Statuszeile ein Hinweis beigefügt. In diesem Fall kann es angebracht sein, die Akquisition für diese Datenbank zu starten, um Beschreibungen für in der "I<Near>"-Zeitspanne enthaltene Sendungen zu laden (siehe L<"DATA ACQUISITION">).
 
-Ist die Akquisition derzeit nicht aktiv, wird darauf hingewiesen. Gegebenenfalls erscheint auch ein Hinweis auf den Grund (z.B. "no reception" wenn ein Sender manuell eingestellt wurde der kein NexTView übermittelt).
+Ist die Akquisition derzeit nicht aktiv, wird darauf hingewiesen. Gegebenenfalls erscheint auch ein Hinweis auf den Grund (z.B. "no reception" oder "forced passive" wenn der Senderwechsel durch eine andere Applikation blockiert wird.)
 
 Andernfalls werden Sie den Sendernamen des Inhaltproviders sehen und einen Prozentsatz, der den Akquisitionsprozess beschreibt. Zu bemerken ist, dass sich dieser Prozentsatz von der prozentualen Gesamtfüllrate unterscheiden kann, die mit der Browserdatenbank übergeben wird, da sie ebenso Blöcke widerspiegelt, die aufgrund von Versions-Änderungen neu geladen werden müssen.
 
 Zusätzlich kann ein Hinweis über den aktuellen Modus der Akquisition erscheinen, wie die aktuelle Phase für zyklische Akquisitionsmodi oder "I<forced passive>" wenn nxtvepg nicht in der Lage ist, den TV-Kanal zu wechseln (u.U. weil eine TV-Anwendung parallel läuft). Siehe L<"ACQUISITION MODES"> für Details.
 
-=head2 Timescale popup windows
+=head2 Timescale popup window
 
-Das Zeitskalenfenster spiegelt für jeden TV-Sender wieder, welche Zeitspannen mit TV-Programminformationen in der Datenbank belegt sind. Arbeitet die Akquisition an der Datenbank, können Sie die Fortschritt bzw. den Füllstand der TV-Programmdatenbank beobachten.
+Das Zeitskalenfenster spiegelt für jeden TV-Sender wieder, welche Zeitspannen mit TV-Programminformationen in der Datenbank belegt sind. Arbeitet die Akquisition an der Datenbank, können Sie die Fortschritt bzw. den Aktualisierungsgrad der TV-Programmdatenbank beobachten.
 
-Die Fenster besitzen eine Skala für jeden TV-Sender, der vom gewählten EPG-Anbieter abgedeckt wird. Das linke Ende der Skalen verweist auf die Startzeit der ältesten in der Datenbank vorhandenen TV-Sendung. Abhängig davon wie lange das letzte Update der Datenbank zurückliegt und abhängig von der eingestellten Verzögerung bis zur automatischen Löschung abgelaufener Programme (siehe L<"FILTERING: Expired Programmes Display">), können die Sendungen teilweise oder sogar ganz in der Vergangenheit liegen. Die exakten Datierungen werden in der Datumsskala am oberen Rand des Fensters ausgegeben, wobei die aktuelle Zeit zusätzlich durch einen mit "now" gekennzeichneten kleinen Pfeil markiert ist.
+Das Fenster besitzt eine Skala für jeden TV-Sender, der von der geladenen XMLTV Datei abgedeckt wird. Das linke Ende der Skalen verweist auf die Startzeit der ältesten in der Datenbank vorhandenen TV-Sendung. Abhängig davon wie lange das letzte Update der Datenbank zurückliegt und abhängig von der eingestellten Verzögerung bis zur automatischen Löschung abgelaufener Programme (siehe L<"FILTERING: Expired Programmes Display">), können die Sendungen teilweise oder sogar ganz in der Vergangenheit liegen. Die exakten Datierungen werden in der Datumsskala am oberen Rand des Fensters ausgegeben, wobei die aktuelle Zeit zusätzlich durch einen mit "now" gekennzeichneten kleinen Pfeil markiert ist.
 
-Bereiche die von Sendungen des jeweiligen Senders in der Datenbank belegt werden, sind durch rote oder blaue Farbe markiert, nicht belegte Bereiche sind schwarz belassen. Die unterschiedlichen Farben spiegeln den Sub-Datenstrom (engl. "stream") wieder, in dem die Daten empfangen wurden, oder weisen auf Inkonsistenzen hin. Sub-Datenströme sind mit den unter L<"ACQUISITION MODES"> erwähnten Zyklusphasen identisch; abgesehen davon ist die Unterscheidung während des normalen Betriebs nicht relevant.
+Bereiche die von Sendungen des jeweiligen Senders in der Datenbank belegt werden, sind durch rote oder blaue Farbe markiert, nicht belegte Teilbereiche sind grau. Der Bereich jenseits des letzten bekannten Programms ist schwarz. (Die Länge der unbelegten Bereiche unterscheidet sich für jeden Sender da diese direkt mit der Länge der Programmübersicht im Teletext abhängen.) Die Bedeutung der unterschiedlichen Farben sind in der folgenden Liste beschrieben. (Aktuell werden nicht mehr alle dieser Farben verwendet, da nicht alle für den Teletext-EPG grabber anwendbar sind.)
 
 =over 4
 
@@ -464,33 +401,21 @@ Fehlende PI-Blöcke. Zu bemerken ist, dass deren Zahl nur ungefähr geschätzt werd
 
 =item I<Schwarz:>
 
-Zeitspanne die vom Provider nicht abgedeckt wird.
+Zeitspanne die vom Inhaltsanbieter nicht abgedeckt wird.
 
 =back
 
-Sendungen für die momentan Beschreibungstexte verfügbar sind werden zusätzlich durch eine größere Höhe der Skala innerhalb der belegten Zeitspanne markiert. Für kurze Infos ist die Fläche nach oben hin erweitert, für lange Infos nach unten hin (die Unterscheidung zwischen kurzer und langer Info bezieht sich nur auf die NexTView-Übertragungs-Spezifikation und nicht notwendigerweise auf die tatsächliche Länge des Beschreibungstextes; ebenso ist zu bemerken, dass bei zusammengeführten Datenbanken keine Unterscheidung zwischen kurzer und langer Info gemacht wird, da alle Texte in einen verwoben sind).
-
-Vor den Skalen befinden sich 5 separate Felder, welche auf die ersten 5 Sendungen (PI-Blöcke) in der Bestandsliste (AI-Block) verweisen. Diese haben zweierlei Bedeutungen: erstens können Sie während der Akquisition sehen, wenn der "Now"-Zyklus abgeschlossen ist; zweitens können Sie überprüfen, ob die Daten des I<Now>-Zyklus abgelaufen sind (orange markiert). Sind alle 5 orange, wird es Zeit die Datenbank zu aktualisieren.
+Sendungen für die momentan Beschreibungstexte verfügbar sind werden zusätzlich durch eine größere Höhe der Skala innerhalb der belegten Zeitspanne markiert.
 
 =head2 Database statistics
 
 Es stehen zwei Fenster vom Control-Menü aus zur Verfügung, welche statistische Informationen über die Browserdatenbank und die Akquisitionsdatenbank und deren Fortschritt enthalten. Das Fenster ist horizontal in zwei Teile aufgeteilt: der obere Teil listet statistische Informationen auf; der untere Teil listet dynamische Informationen auf und ist nur während einer aktiven Akquisition verfügbar.
-
-Die Akquisitionsstatistik wird jedes Mal aktualisiert, wenn ein neuer AI-Block (Bestandsliste, welche alle belegten Sender und die Anzahl Blöcke pro Sender auflistet; gewöhnlich alle 10 Sekunden übermittelt) empfangen wird.
 
 =over 4
 
 =item I<Last AI update:>
 
 Die (lokale) Uhrzeit zu welcher der letzte Bestandslistenblock empfangen wurde. Da dieser Block auf regulärer Basis zu übermitteln ist, gibt er zugleich an, wann die Akquisition für diese Datenbank zuletzt fehlerfrei aktiv gewesen ist.
-
-=item I<Database version:>
-
-Die Versionsnummer wird vom Provider jeden Tag oder nach Veränderungen am Inhalt erhöht. Ein Versionswechsel erzwingt ein komplettes Neuladen der Datenbank.
-
-=item I<Blocks in AI:>
-
-Wie viele Blöcke sind insgesamt übertragen worden. Diese Zahl stammt vom AI-Block des Providers, d.h. von der Bestandsliste. Zusätzlich separat aufgelistet für Sub-Datenstrom 1 und 2 (siehe weiter oben)
 
 =item I<Block count db:>
 
@@ -500,15 +425,7 @@ Wie viele Blöcke sind in der lokalen Datenbank. Maximal kann dies der Anzahl der
 
 Wie viele Blöcke sind in der lokalen Datenbank vorhanden und haben die neueste Version.
 
-=item I<Filled:>
-
-Der Prozentsatz der Blöcke in der Datenbank unter Berücksichtigung der Gesamtzahl im AI-Block, d.h. "Block count db" dividiert durch "Blocks in AI". Der zweite Prozentsatz in der Zeile spiegelt lediglich die Blöcke der aktuellen Version und somit den Grad der Vervollständigung wieder.
-
-=item I<Expired stream:>
-
-Anzahl der Sendungsblöcke, die eine in der Vergangenheit liegende Stopzeit besitzen, aber dennoch in der Bestandsliste des Providers (AI) registriert sind. Ist die Akquisition angehalten, kann die Zahl ziemlich groß sein. Während der Akquisition werden die abgelaufenen Sendungen üblicherweise mit dem Start jedes Zyklus ausgeschnitten, d.h. normalerweise alle 20-25 Minuten. Der hier angegebene Prozentsatz bezieht sich auf die aktuelle Anzahl Blöcke in der lokalen Datenbank (alle Versionen), nicht auf die der AI.
-
-=item I<Expired total:>
+=item I<Expired:>
 
 Gesamtzahl und Prozentsatz abgelaufener Blöcke in der Datenbank. Dieser Wert hängt von der vom Nutzer konfigurierten Löschverzögerung ab, d.h. davon wie lange abgelaufene Blöcke behalten werden bis sie aus der Datenbank entfernt werden. Normalerweise verschwinden solche Blöcke aus der Liste der Sendungen, dies kann jedoch über den Filter "I<expire time>" im Filter-Menü (siehe auch L<"FILTERING">) geändert werden.
 
@@ -520,8 +437,6 @@ Anzahl der Blöcke mit ungültiger oder überlappender Startzeit. Diese Blöcke tauc
 
 Das Tortendiagramm zur Linken des Fensters visualisiert diese Zahlen. Der Kreis repräsentiert 100% der in der AI aufgelisteten Blöcke. Er ist aufgeteilt in Stream 1 (rot) und Stream 2 (blau). Die schraffierten Segmente stellen die Blöcke dar, die in der lokalen Datenbank noch fehlen, die gelben Segmente den Prozentsatz an abgelaufenen und/oder fehlerhaften Blöcken.
 
-Erinnern Sie sich bitte beim Interpretieren dieser Werte daran, dass Blöcke dem Übertragungszyklus angehängt werden könnten, wenn Sendungen abgelaufen sind (in einer leichten Verletzung des NexTView-Standards wird dies bewerkstelligt, ohne die Datenbankversion zu ändern). Deshalb kann es sein, dass Sie von Zeit zu Zeit den prozentualen Füllgrad während der Akquisition einen Schritt zurückfallen sehen. Ebenso ist zu bemerken, dass abgelaufene PI von der Benutzeroberfläche aus nicht erreichbar sind, obschon sie in der Anzeige des Datenbankinhalts (engl. "dump") über das I<Control>-Menü enthalten sind.
-
 =head2 Acquisition statistics
 
 =over 4
@@ -529,6 +444,14 @@ Erinnern Sie sich bitte beim Interpretieren dieser Werte daran, dass Blöcke dem 
 =item I<Acq. runtime:>
 
 Wie lange die Akquisition durchgehend für diese Datenbank gelaufen ist. Dieser Wert wird bei einem Providerwechsel oder einem Wechsel der Datenbankversion zurückgesetzt oder auch wenn ein externer Kanalwechsel bemerkt wird.
+
+=item I<Channel Index:>
+
+Index des Senders innerhalb der Sendertabelle an dem der Teletext-EPG grabber gerade arbeitet.
+
+=item I<Channel Name:>
+
+Name des Senders innerhalb der Sendertabelle an dem der Teletext-EPG grabber gerade arbeitet.
 
 =item I<Channel VPS/PDC:>
 
@@ -540,25 +463,13 @@ Wurde ein gültiger VPS/PDC-Code (Programme Identification Label, PIL) zusammen m
 
 Die Rate in Baud, d.h. Bits pro Sekunde, mit welcher Teletext-Datenzeilen im aktuellen Kanal empfangen werden. Jede Teletextzeile hat 45 Bytes.
 
-=item I<EPG data rate:>
+=item I<Captured range:>
 
-Das gleiche wie die TTX-Datenrate, jedoch werden nur Teletextzeilen zur Seite gezählt, die NexTView-Daten enthalten.
+Nummern der ersten und letzten Teletextseite die vom aktuell bearbeiteten Sender geladen werden.
 
-=item I<EPG page rate:>
+=item I<Captured pages:>
 
-Das Sekundenmittel der empfangenen Teletextseiten, welche NexTView-Daten übertragen. Viele Provider übermitteln eine Seite pro Sekunde tagsüber und bis zu 1.5 oder 2 Seiten Pro Sekunde nachts.
-
-=item I<AI recv. count:>
-
-Die Anzahl empfangener AI-Blöcke seit dem Start der Akquisition. Solange dieser Zähler auf Null bleibt, werden keine Daten der Datenbank hinzugefügt (da der AI-Block zur Identifikation des Providers zwingend notwendig ist).
-
-=item I<AI min/avg/max:>
-
-Der minimale, mittlere und der maximale Abstand zwischen dem Empfang von AI-Blöcken. Das Mittel sollte üblicherweise 10 Sekunden betragen. Das Maximum sollte nicht viel höher sein, andernfalls könnte ein EPG-Suchlauf lange Zeit benötigen, um einen Provider zu finden; ebenso wäre die Startzeit der Akquisition höher, weil zuerst ein AI-Block abgewartet werden muss.
-
-=item I<PI rx repetition:>
-
-Das Mittel der Anzahl davon wie oft jeder Block in der AI seit dem Start der Akquisition empfangen wurde. Aufgeteilt in Now, Stream 1 und Stream 2. Dieser Wert wird zur Akquisitionskontrolle im Abbruchkriterium der Akquisitionsphasen verwendet, falls der Akquisitionsmodus ein zyklischer ist.
+Anzahl der bereits geladenen Seiten (inklusive Wiederholungen und Unterseiten).
 
 =item I<Decoder quality:>
 
@@ -571,10 +482,6 @@ Die letzte Zeile listet die Anzahl dekodierter Zeichen innerhalb des Textes auf 
 =item I<Acq mode:>
 
 Der derzeitige Akquisitionsmodus wie vom Benutzer konfiguriert oder "forced passive" (erzwungenermaßen passiv) falls nxttvepg nicht zum Kanal wechseln konnte.
-
-=item I<Network variance:>
-
-Die statistische Varianz des Block-Sendebereichs über alle Sender hinweg. Dieser Wert wird von der Akquisitionskontrolle im Abbruchkriterium für Akquisitionsphasen verwendet, wenn der Akquisitionsmodus zyklisch ist. Er wird für jeden Sender in der Datenbank durch separates Zählen der Anzahl an Blöcken ermittelt; danach wird für jeden Sender der Prozentsatz an verfügbaren Blöcken hinsichtlich der zu erwartenden Blöcke berechnet; daraufhin wird der Mittelwert und abschließend die Varianz dieser Prozentsätze errechnet.
 
 =back
 
@@ -622,7 +529,7 @@ Die folgenden Filtertypen sind verfügbar:
 
 =item B<Theme categories>
 
-Begrenzt die Auflistung auf Sendungen, denen eines der vorgegebenen Themenkategorien zugeordnet ist (logisches ODER). Der NexTView-Standard enthält eine Liste von 76 vordefinierten Themen, die in 11 Hauptkategorien strukturiert sind. Einer Sendung können bis zu 7 Themen-Deskriptoren zugeordnet werden.
+Begrenzt die Auflistung auf Sendungen, denen eines der vorgegebenen Themenkategorien zugeordnet ist (logisches ODER). Aktuell wird eine Liste von 76 vordefinierten Themen verwendet, die in 11 Hauptkategorien strukturiert sind. Kategorien in XMLTV Dateien werden auf diese einheitliche Liste abgebildet.
 
 Wollen Sie die Auflistung auf Sendungen begrenzen, die mehr als eines der vorgegebenen Themen besitzen (logisches UND), müssen Sie diese in unterschiedlichen Themenklassen spezifizieren. Zum Beispiel: um eine Auflistung aller Sendungen zu erhalten, die beides sind Sci-Fi und Komödie, wählen Sie die Themenkategorie Sci-Fi, dann wechseln Sie zu einer anderen Themenklasse und wählen die Themenkategorie Komödie. Die aktuellen Klassennummern spielen keine Rolle, Sie sollten einfach nur zwei verschiedene verwenden (d.h. Sie können entweder #1 und #2 oder #5 und #6 etc. anwenden).
 
@@ -892,20 +799,6 @@ Wenn Sie versuchen zu verbinden, aber der Daemon läuft noch nicht, wird Ihnen an
 
 Zu bemerken ist, dass das Trennen der Verbindung zum Daemon oder das Beenden des Browsers die Akquisition nicht stoppt und infolgedessen das Gerät nicht freigibt. Ist dies das, was Sie wollen, wählen Sie stattdessen den Befehl "I<Enable acquisition>", welcher den Daemon beendet. Natürlich ist diese Option nur verfügbar, wenn Ihr Daemon auf demselben Host und mit derselben Benutzerkennung läuft wie der Browserprozess.
 
-=head2 Dump stream
-
-Nur UNIX: Der Inhalt aller eingehenden Nextview-Datenblöcke wird in einem freien Textformat auf das Terminal ausgegeben. Dies ist hauptsächlich für Entwickler vorgesehen, kann jedoch auch bei der Fehleranalyse von Empfangsproblemen behilflich sein. In der Ausgabe findet sich jeder Block, der fehlerfrei dekodiert werden konnte, sogar bevor ein Bestandslisten-Block (AI) empfangen wurde. Dies kann helfen, wenn Sie einen sehr schlechten Empfang haben, weil es lange dauern kann bis eine fehlerfreie Kopie des gewöhnlich relativ großen AI-Blocks empfangen wurde.
-
-Besteht eine Verbindung zum Akquisitions-Daemon, werden nur Blöcke ausgegeben die entweder neu für die Datenbank sind oder deren Inhalt sich geändert hat (weil nur solche vom Daemon zum Client weitergeleitet werden).
-
-=head2 Dump raw database
-
-Öffnet einen Dialog, der es erlaubt alle Blöcke in der Datenbank in einem freien Textformat auf das Terminal (nur UNIX) oder in eine bestimmte Datei auszugeben.  Das Format ist identisch mit dem des Befehls I<Dump stream>.  Auch dieses Feature ist hauptsächlich für Entwickler vorgesehen. Um alle Infos in der Ausgabe zu verstehen, müssen Sie in den Quelltext in F<epgui/epgtxtdump.c> des nxtvepg-Source-Pakets nachsehen.
-
-Eine Reihe von Checkboxen erlauben Ihnen zu bestimmen welche Art von Blöcken geschrieben werden: Die Informationsblöcke der Sendungen (I<Programme Information Blocks> oder PI) enthalten die eigentlichen Programmbeschreibungen; "I<Defective PI>" enthalten solche PI, die wegen Inkonsistenzen wie z.B. überlappenden Laufzeiten nicht für die Datenbank akzeptiert wurden. Für eine Erklärung der anderen Blocktypen sehen Sie bitte die ETSI-Spezifikation 707 ein.
-
-B<Tipp:> Die Ausgabe kann auch direkt über die Befehlszeile mittels des Schalters B<-dump raw> erfolgen (siehe auch L<"OPTIONS">).  In diesem Fall werden die zuletzt im Dialog eingestellten Parameter verwendet.
-
 =head2 Export as text
 
 Öffnet einen Dialog, der es erlaubt, alle Programminformationen in einem fixen Textformat in eine Datei zu exportieren. Jede Zeile dieser Datei wird einen Eintrag in der Datenbank repräsentieren. Die einzelnen Datenfelder der Zeilen sind durch Tabulator-Zeichen getrennt; die Zeile wird durch ein einziges new-line-Zeichen abgeschlossen (d.h. UNIX-Textformat, auch auf Windows). Fehlende Werte werden in einigen Fällen durch C<\N> repräsentiert, welches den MySQL-NULL-Identifier darstellt (zurzeit nur für das VPS/PDC-Feld verwendet).
@@ -1008,7 +901,7 @@ Blendet das Zeitskalenfenster für die Browserdatenbank ein und aus. Das Fenster 
 
 =item B<View statistics>
 
-Blendet das Statistikfenster für die Browser-Datenbank ein oder aus (d.h. für den Anbieter dessen Daten Sie aktuell im Hauptfenster verwenden).  Die Statistik gibt Auskunft über die Anzahl der Programmeinträge in der Datenbank, den prozentualen Füllungsgrad, den Prozentsatz der abgelaufenen Einträge, das Datum des letzten Updates usw.  Läuft die Akquisition auf der gleichen Datenbank, enthält es zusätzlich Information zu Status und Fortschritt der Akquisition. Für Details siehe L<"STATISTICS: Timescale popup windows">.
+Blendet das Statistikfenster für die Browser-Datenbank ein oder aus (d.h. für den Anbieter dessen Daten Sie aktuell im Hauptfenster verwenden).  Die Statistik gibt Auskunft über die Anzahl der Programmeinträge in der Datenbank, den prozentualen Füllungsgrad, den Prozentsatz der abgelaufenen Einträge, das Datum des letzten Updates usw.  Läuft die Akquisition auf der gleichen Datenbank, enthält es zusätzlich Information zu Status und Fortschritt der Akquisition. Für Details siehe L<"STATISTICS: Timescale popup window">.
 
 =item B<View acq timescales>
 
@@ -1052,7 +945,7 @@ Falls Sie noch keine TV-Applikation konfiguriert haben wird beim Start des Grabb
 
 Tipp: Wenn der Akquisitionsmodus "Cyclic: Now - All" selektiert ist (siehe auch L<"ACQUISITION MODES">) wird während der "Now" Phase eine optimierte Strategie verwendet bei der die Reihenfolge der Sender so gelegt wird dass Wartezeiten minimiert werden. Damit kann ein Schnitt von 15-20 Sekunden pro Sender erreicht werden.  In der "Full" Phase werden dann immer für die bei I<capture duration> angegebene Zeit Teletext-Daten gelesen; normalerweise sind dies 90 Sekunden (solch eine lange Zeit ist nötig da viele Sender die Programminfos auf Unterseiten legen, die nicht in jedem Teletextzyklus enthalten sind.)
 
-Um die vom Teletext gelesenen EPG Daten zu verwenden, müssen Sie zuerst warten bis der grabber alle Sender einmal ausgelesen hat. Danach sollten Sie für jeden Sender eine XML Datei im nxtvepg Verzeichnis vorfinden (mit Namen im Muster "ttx-XXX.xml" wobei XXX die jeweiligen Sendernamen sind.) Diese Dateien tauchen dann in den Providerauswahllisten auf und können wie Nextview EPG Daten verwendet werden, insbesondere auch für den Provider-Merge (siehe L<"MERGED DATABASES">)
+Um die vom Teletext gelesenen EPG Daten zu verwenden, müssen Sie zuerst warten bis der grabber alle Sender einmal ausgelesen hat. Danach sollten Sie für jeden Sender eine XML Datei im nxtvepg Verzeichnis vorfinden (mit Namen im Muster "ttx-XXX.xml" wobei XXX die jeweiligen Sendernamen sind.) Diese Dateien tauchen dann in der Liste des "Load XMLTV file" Dialogs auf und können wie anderen XMLTV Dateien verwendet werden, insbesondere auch für die Zusammenführung via "Merge" (siehe L<"MERGED DATABASES">)
 
 
 =head2 TV channel scan
@@ -1061,11 +954,11 @@ Um die vom Teletext gelesenen EPG Daten zu verwenden, müssen Sie zuerst warten b
 
 Der Button "I<Use TV app.>" wird automatisch ausgewählt, wenn eine TV-Anwendung im Dialog "I<TV app. interaction>" eingestellt wurde. Anstatt alle möglichen TV-Kanäle oder -Frequenzen in allen Bändern zu durchsuchen, wird nxtvepg dann lediglich die dort definierten TV-Kanäle überprüfen. So wird die Suche nicht nur verkürzt, sondern auch zuverlässiger.
 
-Andernfalls wird die Suche auf allen möglichen Empfangsfrequenzen in verschiedenen Frequenzbändern durchgeführt. Dies ist nur bei analogen TV-KArten unterstützt. In Frankreich sollte die französische Frequenztabelle (welche gleichzeitig die I<Secam L> TV-Norm impliziert) für die Sendersuche ausgewählt werden. In allen anderen Ländern sollte die Standard-Frequenztabelle ausgewählt werden. Letztere deckt alle üblichen westeuropäischen Frequenzen in Kabel- und Antennenausstrahlung mit PAL TV-Norm ab. Andere Länder werden zurzeit nicht unterstützt, da hier keine NexTView-Provider bekannt sind. In einer Gegend, in der sowohl PAL- als auch SECAM-Sender empfangen werden können, sollte die Suche zweimal mit verschiedenen Frequenztabellen ausgeführt werden.
+Andernfalls wird die Suche auf allen möglichen Empfangsfrequenzen in verschiedenen Frequenzbändern durchgeführt. Dies ist nur bei analogen TV-KArten unterstützt. In Frankreich sollte die französische Frequenztabelle (welche gleichzeitig die I<Secam L> TV-Norm impliziert) für die Sendersuche ausgewählt werden. In allen anderen Ländern sollte die Standard-Frequenztabelle ausgewählt werden. Letztere deckt alle üblichen westeuropäischen Frequenzen in Kabel- und Antennenausstrahlung mit PAL TV-Norm ab. Andere Länder werden für diesen Modus zurzeit nicht unterstützt. In einer Gegend, in der sowohl PAL- als auch SECAM-Sender empfangen werden können, sollte die Suche zweimal mit verschiedenen Frequenztabellen ausgeführt werden.
 
 Setzen Sie ein Häkchen an der Checkbox I<Slow>, wenn Sie auf manchen Kanälen einen schlechten Empfang haben. Im Slow-Modus wird der Suchlauf Kanäle mit "instabilem" Videosignal nicht überspringen (d.h. kein PLL H-lock innerhalb 150 Millisekunden) und auf alles doppelt so lange als sonst warten, d.h. bis zu 4 Sekunden auf eine VPS/PDC-Kanal-Identifikation und bis zu 90 Sekunden auf ein EPG wenn potentielle EPG-Datenpakete gefunden wurden. Zu bemerken ist, dass Sie die Einstellung "Slow" auch während des Suchlaufs ändern können.
 
-Technische Details des EPG-Suchlaufs: Der Suchlauf wird jede physikalische TV-Frequenz (oder Teilmengen davon, wenn Sie eine der unten beschriebenen Optionen verwenden) aufsuchen und auf ein TV-Signal überprüfen. Wird ein solches innerhalb 150 ms erkannt oder wurde mindestens ein Teletext-Paket empfangen, wird der Suchlauf bis zu zwei Sekunden auf eine gültige VPS/PDC-Kanal-Identifizierung warten. Gleichzeitig empfängt er Pakete aller potenziellen EPG-Teletextseiten. Wird ein VPS/PDC-Code gelesen, der einem der bekannten EPG-Provider zugeordnet werden kann oder wurden gültige Datenpakete empfangen (was nicht notwendigerweise bedeutet dass dort EPG gesendet wird, weil andere Dienste dieselbe Codierung verwenden könnten), wartet der Scan bis zu 45 Sekunden auf Nachrichten von EPG-Bestandslisten (BI- und AI-Blöcke). Sie können dieses Verfahren im Nachrichtenfenster mitverfolgen.
+Technische Details des EPG-Suchlaufs: Der Suchlauf wird jede physikalische TV-Frequenz (oder Teilmengen davon, wenn Sie eine der unten beschriebenen Optionen verwenden) aufsuchen und auf ein TV-Signal überprüfen. Wird ein solches innerhalb 150 ms erkannt oder wurde mindestens ein Teletext-Paket empfangen, wird der Suchlauf bis zu zwei Sekunden auf eine gültige VPS/PDC-Kanal-Identifizierung warten. Diese Information erscheint dann im Protokollfenster. Die gefundenen Informationen werden von nxtvepg aktuell nicht ausgewertet, sind also nur zur Information des Benutzers.
 
 =head2 TV card input
 
@@ -1237,9 +1130,9 @@ B<Tipp:> Sie können diesen Dialog (und alle anderen Dialoge mit vergleichbaren L
 
 Zuerst sollten Sie auswählen, mit welcher TV-Anwendung Sie synchronisieren wollen und wo sich die Konfigurationsdateien befinden. Dies geschieht über den Dialog "I<TV app. interaction>" im Configure-Menü (siehe L<"CONFIGURATION">, Kapitel "TV application interaction").
 
-Ein weiterer Zweck dieses Dialoges ist es, die Namen der Sender über alle NexTView-Provider hinweg einheitlich zu machen. Die hier angegebenen Namen, werden unabhängig vom Provider, in der Programmübersicht und allen Filter-Menüs verwendet.
+Ein weiterer Zweck dieses Dialoges ist es, die Namen der Sender über alle XMLTV Quellen hinweg einheitlich zu machen. Die hier angegebenen Namen, werden unabhängig vom Provider, in der Programmübersicht und allen Filter-Menüs verwendet.
 
-Auf der linken Seite des Dialogs finden Sie eine Liste aller Sender jedes NexTView bekannten Providers. Die hier benutzten Namen sind jene, welche Sie zuvor konfiguriert haben, oder falls Sie dies noch nicht getan haben, welche am besten auf die Stationsnamen Ihrer TV-Anwendung zutreffen. Nicht zutreffende Namen sind rot markiert. Ist keine TV-Anwendung konfiguriert, werden die vom aktuell eingestellten Nextview-Anbieter gewählten Namen übernommen.
+Auf der linken Seite des Dialogs finden Sie eine Liste aller Sender jeder zuvor geladenen XMLTV Datei (soweit die Datei noch existiert). Die hier benutzten Namen sind jene, welche Sie zuvor konfiguriert haben, oder falls Sie dies noch nicht getan haben, welche am besten auf die Stationsnamen Ihrer TV-Anwendung zutreffen. Nicht zutreffende Namen sind rot markiert. Ist keine TV-Anwendung konfiguriert, werden die von der aktuell geladenen XMLTV Datei gewählten Namen übernommen.
 
 Auf der rechten Seite werden Ihnen vier Möglichkeiten angeboten, den Namen zu ändern: zuoberst liegt ein Eingabefeld, in das Sie einen beliebigen Namen eintippen können. Darunter befindet sich ein Popupmenü, welches alle in der Kanaltabelle Ihrer TV-Anwendung definierten Sendernamen enthält. Darunter liegt ein Button, der einen ähnlichen Namen aus der Kanaltabelle Ihrer TV-Anwendung enthält, oder I<none>. Er ist rot markiert, solange er sich durch Leerzeichen, Bindestriche oder ähnliches vom Eingabefeld unterscheidet. Durch einen Klick auf den Button können Sie den Namen in das Eingabefeld kopieren. Darunter liegt ein Listenfeld mit den Originalnamen, die in den verschiedenen Provider-Datenbanken benutzt werden. Wenn Sie einen Namen aus dem Menü oder dem Listenfeld wählen, wird er in das Eingabefeld und in die Liste der Sendernamen links daneben kopiert.
 
@@ -1439,16 +1332,16 @@ Diese Datei wird beim Import von EPG Daten aus XMLTV Dateien verwendet um Sender
 
 Der Inhalt der Datei ist in Sektionen eingeteilt: Sektion C<[GLOBAL]> wird für alle XMLTV Dateien gelesen. Weiter Sektionen werden nur gelesen wenn das in den Klammern angegebene Muster zum Anbieternamen paßt, genauer gesagt zum in der Datei in den C<source-info-name> oder C<source-data-url> tags angegebenen Namen. Für weitere Details siehe auch die Kommentare innerhalb der Datei selbst.
 
-Sektionen C<[EXPORT|...]> werden für die umgekehrte Richtung verwendet, d.h. den Export von Nextview EPG Daten in XMLTV Dateien. Details dazu siehe L<"CONTROL: Export as XMLTV">.
+Sektionen C<[EXPORT|...]> werden für die umgekehrte Richtung verwendet, d.h. den Export von EPG Daten in XMLTV Dateien. Details dazu siehe L<"CONTROL: Export as XMLTV">.
 
 =item B</dev/dvb/adapter0/frontend0>, B</dev/dvb/adapter0/demux0>
 
-Gerätedateien, aus denen die Teletext oder NexTView-Daten während der Akquisition gelesen werden wenn eine DVB-Karte konfiguriert wurde. (Das erste Gerät wird zum Einstellen der Empfangsfrequenz verwendet, das zweite zum Lesen der Daten.) Der Index des "adapter" Unterverzeichnisses kann mit der Befehlszeilenoption B<-card> (siehe L<"OPTIONS">) spezifiziert werden.
+Gerätedateien, aus denen die Teletext während der Akquisition gelesen wird wenn eine DVB-Karte konfiguriert wurde. (Das erste Gerät wird zum Einstellen der Empfangsfrequenz verwendet, das zweite zum Lesen des Datenstroms.) Der Index des "adapter" Unterverzeichnisses kann mit der Befehlszeilenoption B<-card> (siehe L<"OPTIONS">) spezifiziert werden.
 
 
 =item B</dev/vbi0>, B</dev/vbi1>, etc.
 
-Gerätedateien, aus denen die NexTView-Daten während der Akquisition gelesen werden wenn eine analoge TV-Karte konfiguriert wurde. Der Index von Postfix kann mit der Befehlszeilenoption B<-card> (siehe L<"OPTIONS">) spezifiziert werden. Sie müssen Lese-/Schreibzugriff auf diese Dateien haben; standardmäßig ist dies bei vielen Linux-Distributionen aus Sicherheitsgründen nicht der Fall (da Sie eine Webcam angeschlossen haben könnten und Mike oder sonst wer Sie aus der Ferne ausspionieren könnte). Auf einem Einzelplatzsystem ist es aber sicher, diese world-readable und writable zu machen, geben Sie dazu in der Root-Shell ein:
+Gerätedateien, aus denen Teletext während der Akquisition gelesen wird wenn eine analoge TV-Karte konfiguriert wurde. Der Index von Postfix kann mit der Befehlszeilenoption B<-card> (siehe L<"OPTIONS">) spezifiziert werden. Sie müssen Lese-/Schreibzugriff auf diese Dateien haben; standardmäßig ist dies bei vielen Linux-Distributionen aus Sicherheitsgründen nicht der Fall (da Sie eine Webcam angeschlossen haben könnten und Mike oder sonst wer Sie aus der Ferne ausspionieren könnte). Auf einem Einzelplatzsystem ist es aber sicher, diese world-readable und writable zu machen, geben Sie dazu in der Root-Shell ein:
 
   chmod 666 /dev/vbi
 
@@ -1526,12 +1419,6 @@ Diese versteckte Datei wird verwendet, um gemeinsam genutzten Arbeitsspeicher ei
 
 =back
 
-=head1 SEE ALSO
-
-Detaillierte Informationen über NexTView sind in den Spezifikationen ETS 300 707 (data structures and basic principles), ETS 300 708 (transmission protocol) und ETR 288 (code of practice) enthalten. Diese Spezifikationen sind erhältlich unter L<http://www.etsi.org/>
-
-Sie können NexTView auch direkt im TV-Set haben - zu ersehen aus den Katalogen von Grundig, Loewe, Metz, Sony, Philips, Thompson, Telefunken oder Quelle Universum. Beachten Sie jedoch, dass nicht alle Modelle dieselben Eigenschaften von NexTView unterstützen.
-
 =head1 KNOWN BUGS
 
 Unter Windows besteht das Risiko eines Systemabsturzes ("blue screen"), wenn die Anwendung mit Gewalt beendet wird, z.B. über den Task-Manager. Dies ist unvermeidbar, weil in diesem Fall keine Chance besteht, den Treiber zu stoppen und die TV-Karte daher fortfährt, Daten in den RAM einzulesen. Bei normalem Arbeitsablauf sollte dies sehr unwahrscheinlich sein, da alle Software-Ausnahmefehler (z.B. page faults) und Meldungen beim Herunterfahren aufgefangen werden und der Treiber vor dem Beenden gestoppt wird.
@@ -1564,6 +1451,8 @@ an Gerd Knorr für xawtv und das Warten der Debian- und SuSE-nxtvepg-Packages;
 an Ralph Metzler für seinen Teletext-Dekoder;
 an Edgar Toernig für die Latin-1 Konvertierungstabellen in alevt;
 und nicht zuletzt an die Autoren von bttv und v4l für ihre exzellente Arbeit, und die Autoren der Cygwin GNU & XFree86, ohne die nxtvepg nie nach Windows portiert worden wäre.
+
+Ursprünglich wurde nxtvepg als Dekoder für das vom European Telecommunications Standards Institute (ETSI) standardisierte I<nexTView> EPG Protokoll entwickelt (ETS 300 707: "Protocol for a TV Guide using electronic data transmission"). Bis 2012 wurden über das Protokoll von verschiedenen Anbietern in Deutschland, Österreich, Frankreich, Belgien und der Schweiz Programmübersichten für alle überregionalen TV-Sender übertragen. Mit dem Wechsel zu digitaler TV-Übertragung wurde dieser Service jedoch eingestellt, da z.B. DVB einen eigenen EPG Standard beinhaltet. Aufgrund dessen ist der Nextview Standard heute obsolet, und wurde aus nxtvepg mit Release 3.0 entfernt.
 
 =head1 COPYRIGHT
 

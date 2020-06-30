@@ -197,8 +197,7 @@ int main( int argc, char *argv[] )
    }
    else if (mainOpts.optDaemonMode == EPG_CLOCK_CTRL)
    {
-      // TODO pass channel name instead of CNI
-      Daemon_SystemClockCmd(mainOpts.optDumpSubMode, 0);
+      Daemon_SystemClockCmd(mainOpts.optDumpSubMode);
    }
    else if ( IS_DUMP_MODE(mainOpts) )
    {

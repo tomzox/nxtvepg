@@ -115,11 +115,11 @@ EPGDB_CONTEXT * Xmltv_Load( FILE * fp, uint provCni, const char * pProvName, boo
 // ----------------------------------------------------------------------------
 // Check if a given file is an XMLTV file and determine its version
 //
-bool Xmltv_CheckHeader( const char * pFilename, uint * pDetection )
+EPGDB_RELOAD_RESULT Xmltv_CheckHeader( const char * pFilename )
 {
    XMLTV_DETECTION detection = 0;
    FILE * fp;
-   bool result = FALSE;
+   EPGDB_RELOAD_RESULT result;
 
    fp = fopen(pFilename, "r");
    if (fp != NULL)
@@ -129,14 +129,20 @@ bool Xmltv_CheckHeader( const char * pFilename, uint * pDetection )
       XmltvTags_StartScan(fp, FALSE);
 
       detection = XmltvTags_QueryDetection();
-      result = XMLTV_DETECTED_OK(detection);
+
+      if (XMLTV_DETECTED_OK(detection))
+         result = EPGDB_RELOAD_OK;
+      else
+         result = EPGDB_RELOAD_XML_MASK | detection;
 
       fclose(fp);
    }
-
-   if (pDetection != NULL)
+   else
    {
-      *pDetection = detection;
+      if (errno == EACCES)
+         result = EPGDB_RELOAD_ACCESS;
+      else
+         result = EPGDB_RELOAD_EXIST;
    }
 
    return result;

@@ -91,7 +91,6 @@ typedef struct CTX_CACHE_struct
 static CTX_CACHE * pContextCache;       // anchor of the list of all db contexts
 static CTX_CACHE * pContextDummy;       // empty context, used when no provider is available
 static bool contextScanDone;            // at least one dbdir scan done
-static bool contextLockDump;            // block automatic Nextview db updates
 static time_t expireDelayPi;            // PI expire time threshold for new databases
 
 
@@ -854,15 +853,6 @@ void EpgContextCtl_IsLoaded( uint cni )
 #endif
 
 // ---------------------------------------------------------------------------
-// Lock automatic dump
-// - used by GUI in network acquisition mode
-//
-void EpgContextCtl_LockDump( bool enable )
-{
-   contextLockDump = enable;
-}
-
-// ---------------------------------------------------------------------------
 // Query database for a modification timestamp
 // - XMLTV: capture time is equivalent with the file modification time
 //   XXX this is not correct for TTX grabber on channels with multiple networks (e.g. Arte/Kika)
@@ -1078,7 +1068,6 @@ void EpgContextCtl_Destroy( void )
 void EpgContextCtl_Init( void )
 {
    contextScanDone = FALSE;
-   contextLockDump = FALSE;
    pContextDummy = NULL;
    pContextCache = NULL;
 

@@ -4,13 +4,31 @@ Your feedback is always welcome, so feel free to mail me if you want to
 boost any item's priority, find more points that need to be fixed or if
 you have ideas for additional features.
 
+Release 2.9.0pre5
+- convert README to mark-down format
+- update WWW with "news" about 2.9.0pre5 and 3.0 development in git
+
 Post-Nextview EPG:
-- allow naming multiple XMLTV files on the command line
 - Load XMLTV: allow changing directory & selecting multiple
 - Merge XMLTV: like load, but add selected file to current one
 - automatically reload XMLTV when files are changed on disk
 - remove USE_XMLTV
 - move USE_TTX_GRABBER to exclude all acqusition if not set
+- remove support for !USE_THREAD
+- apply expire only when merging new data into db by acq
+  always load all data & allow unmasking expired PI via filter dialog
+- XMLTV load: don't drop overlapping blocks; load as "defective"?
+- DVB: automatic detection of teletext PID (in channel scan or otherwise)
+- DVB-S support
+- mplayer & VDR plugin for EPG display
+- store TTX DBs in the dbdir
+- DE manual: sync "DATA ACQUISITION" and "ACQUISITION MODES"
+- remove use of PDC theme table: create table from themes found in XMLTV
+- replace "series" filter with "recurring titles"
+- teletext: concurrent acquisition of multiple PID per transponder
+- teletext: store cycle index & phase in RC file for restarting from that point
+- teletext: use TV channel name as XMLTV display name
+- teletext acq stats: percentage cycle loaded (i.e. cycles done vs. max. sub-page count)
 
 release ceveats:
 - now/next acq mode recommended (follow-ui not adapted for TTX yet)
@@ -18,6 +36,7 @@ release ceveats:
 - doc: wait one cycle, then merge ttx XML file with Nextview
 - ttx starts at first chan again after stop
 - config params not used (with exception if chan count, perl path)
+- option -clock: provide channel name
 
 Missing documentation:
 - TV Tune config in context menu dialog

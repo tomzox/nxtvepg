@@ -104,6 +104,7 @@
 #include "epgvbi/ttxdecode.h"
 #include "epgvbi/syserrmsg.h"
 #include "epgui/epgmain.h"
+#include "xmltv/xmltv_cni.h"
 
 
 #ifndef USE_PRECOMPILED_TCL_LIBS
@@ -377,17 +378,28 @@ static void Main_PopupTvCardSetup( ClientData clientData )
 //
 static void MainStartDump( void )
 {
-   uint provCni;
+   const char * const * pXmlFiles;
+   uint provCnt;
 
-   provCni = CmdLine_GetStartProviderCni();
-   if (provCni == MERGED_PROV_CNI)
+   provCnt = CmdLine_GetXmlFileNames(&pXmlFiles);
+   if (provCnt > 1)
    {
+      uint cniList[MAX_MERGED_DB_COUNT];
+      assert(provCnt <= MAX_MERGED_DB_COUNT);  // checked by command line parser
+
+      for (uint idx = 0; idx < provCnt; ++idx)
+      {
+         cniList[idx] = XmltvCni_MapProvider(pXmlFiles[idx]);
+      }
+      RcFile_UpdateDbMergeCnis(cniList, provCnt);
+
       pUiDbContext = EpgSetup_MergeDatabases();
       if (pUiDbContext == NULL)
          printf("<!-- nxtvepg database merge failed: check merge configuration -->\n");
    }
-   else if (provCni != 0)
+   else if (provCnt > 0)
    {
+      uint provCni = XmltvCni_MapProvider(pXmlFiles[0]);
       pUiDbContext = EpgContextCtl_Open(provCni, FALSE, CTX_FAIL_RET_NULL, CTX_RELOAD_ERR_REQ);
       if (pUiDbContext == NULL)
          printf("<!-- nxtvepg failed to load database %04X -->\n", provCni);
@@ -2271,7 +2283,7 @@ int main( int argc, char *argv[] )
       }
       else if (mainOpts.optDaemonMode == EPG_CLOCK_CTRL)
       {
-         Daemon_SystemClockCmd(mainOpts.optDumpSubMode, CmdLine_GetStartProviderCni());
+         Daemon_SystemClockCmd(mainOpts.optDumpSubMode);
       }
       else
       {
@@ -2294,7 +2306,7 @@ int main( int argc, char *argv[] )
       EpgSetup_DbExpireDelay();
 
       // open the database given by -prov or the last one used
-      EpgSetup_OpenUiDb( CmdLine_GetStartProviderCni() );
+      EpgSetup_OpenUiDb();
 
       #ifdef USE_DAEMON
       EpgAcqClient_Init(&EventHandler_NetworkUpdate);

@@ -319,14 +319,14 @@ static bool EpgAcqTtx_UpdateProvider( void )
          {
             acqCtl.chanChangeTime = now;
 
-            result = EpgAcqCtl_TuneProvider(TRUE, par, XMLTV_TTX_PROV_CNI, &acqCtl.passiveReason);
+            result = EpgAcqCtl_TuneProvider(par, &acqCtl.passiveReason);
          }
       }
       else
       {  // no channel to be tuned onto -> set at least the input source
          acqCtl.chanChangeTime = now;
 
-         result = EpgAcqCtl_TuneProvider(TRUE, par, 0, &acqCtl.passiveReason);
+         result = EpgAcqCtl_TuneProvider(par, &acqCtl.passiveReason);
       }
    }
    else
@@ -348,7 +348,7 @@ static bool EpgAcqTtx_UpdateProvider( void )
 // Initialize the state machine which cycles through TTX sources
 // - called upon start and when switching from Nextview to teletext
 //
-void EpgAcqTtx_InitCycle( bool isTtxSrc, EPGACQ_PHASE phase )
+void EpgAcqTtx_InitCycle( EPGACQ_PHASE phase )
 {
    uint idx;
 

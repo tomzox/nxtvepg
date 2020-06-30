@@ -197,16 +197,11 @@ FFEF MTV
 # Eurosport transmits an unofficial code in VPS: map to official code
 1D91 CNI0FE2
 
-# --- REVERSE MAPPING: Nextview-EPG CNI (AI) -> ETSI PDC CNI ---
+# --- REVERSE MAPPING: internal CNI codes -> ETSI PDC CNI ---
 # Note in the following the left side of the assignment must be unique
 # instead of the right side. Hence channel IDs used above may be used
 # again here. CNI values already assigned above can be overridden below.
 
-# used for XML export of any Nextview EPG provider (in addition to GLOBAL)
+# used for XML export
 [EXPORT|GLOBAL]
 #empty
-
-# used for XML export of Kabel1 Nextview EPG by "tvtv"
-[EXPORT|NexTView DE]
-FFF1 m6.fr
-FFEF mtv.de

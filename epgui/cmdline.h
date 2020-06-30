@@ -93,7 +93,8 @@ typedef struct
    EPGACQ_PHASE optAcqOnce;
    bool         optAcqPassive;
    bool         startIconified;
-   const char * pXmlDatabase;
+   uint         xmlDatabaseCnt;
+   const char * const * ppXmlDatabases;
    const char * pOptArgv0;
    int          optGuiPipe;
    bool         daemonOnly;
@@ -114,7 +115,7 @@ extern char epg_rcs_id_str[];
 // Interface to main modules
 //
 void CmdLine_Process( int argc, char * argv[], bool daemonOnly );
-uint CmdLine_GetStartProviderCni( void );
+uint CmdLine_GetXmlFileNames( const char * const ** pppList );
 void CmdLine_Destroy( void );
 
 void CmdLine_AddRcFilePostfix( const char * pPostfix );

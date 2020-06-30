@@ -500,9 +500,7 @@ static void CmdLine_Parse( int argc, char * argv[] )
             if (argIdx + 1 < argc)
             {
                if (!strcmp(argv[argIdx + 1], "full"))
-                  mainOpts.optAcqOnce = ACQMODE_PHASE_STREAM2;
-               else if (!strcmp(argv[argIdx + 1], "near"))
-                  mainOpts.optAcqOnce = ACQMODE_PHASE_STREAM1;
+                  mainOpts.optAcqOnce = ACQMODE_PHASE_FULL;
                else if (!strcmp(argv[argIdx + 1], "now"))
                   mainOpts.optAcqOnce = ACQMODE_PHASE_NOWNEXT;
                else
@@ -692,24 +690,35 @@ static void CmdLine_Parse( int argc, char * argv[] )
          else
             MainOptionError(argv[0], argv[argIdx], "unknown command line option");
       }
-      else if (argIdx + 1 == argc)
-      {  // database file argument -> determine dbdir and provider from path
-         if ( Xmltv_CheckHeader(argv[argIdx], &errCode) )
-         {
-            mainOpts.pXmlDatabase = argv[argIdx];
-         }
-         else if ( Xmltv_IsXmlDocument(errCode) || (strstr(argv[argIdx], "xml") != NULL) )
-         {
-            MainOptionError(argv[0], argv[argIdx], Xmltv_TranslateErrorCode(errCode));
-         }
-         else
-         {
-            MainOptionError(argv[0], argv[argIdx], "not an XML file");
-         }
-         argIdx += 1;
-      }
       else
-         MainOptionError(argv[0], argv[argIdx], "Too many arguments");
+      {  // database file arguments
+         mainOpts.ppXmlDatabases = (const char * const *) &argv[argIdx];
+         mainOpts.xmlDatabaseCnt = argc - argIdx;
+
+         if (mainOpts.xmlDatabaseCnt > MAX_MERGED_DB_COUNT)
+         {
+            char str_buf[200];
+            snprintf(str_buf, sizeof(str_buf), "too many XML files (max. %d)", MAX_MERGED_DB_COUNT);
+            str_buf[sizeof(str_buf) - 1] = 0;
+            MainOptionError(argv[0], argv[argIdx], str_buf);
+         }
+
+         for ( ; argIdx < argc; ++argIdx)
+         {
+            errCode = Xmltv_CheckHeader(argv[argIdx]);
+            if (errCode != EPGDB_RELOAD_OK)
+            {
+               if (errCode == EPGDB_RELOAD_EXIST)
+                  MainOptionError(argv[0], argv[argIdx], "database file does not exist");
+               else if (errCode == EPGDB_RELOAD_ACCESS)
+                  MainOptionError(argv[0], argv[argIdx], "database file cannot be opened");
+               else
+                  MainOptionError(argv[0], argv[argIdx], Xmltv_TranslateErrorCode(errCode & ~EPGDB_RELOAD_XML_MASK));
+            }
+         }
+         // all remaining arguments are assumed to be file parameters
+         break;
+      }
    }
 
    // Check for disallowed option combinations
@@ -722,6 +731,8 @@ static void CmdLine_Parse( int argc, char * argv[] )
          MainOptionError(argv[0], "-dump", "Cannot be combined with -daemon/-clock");
       else if (IS_REMCTL_MODE(mainOpts))
          MainOptionError(argv[0], "-remctrl", "Cannot be combined with -daemon/-clock");
+      else if (mainOpts.xmlDatabaseCnt > 0)
+         MainOptionError(argv[0], mainOpts.ppXmlDatabases[0], "no database files with -daemon/-clock");
    }
    else if (mainOpts.daemonOnly)
    {
@@ -729,6 +740,8 @@ static void CmdLine_Parse( int argc, char * argv[] )
          MainOptionError(argv[0], "-noacq", "Cannot be used with daemon executable");
       else if (IS_REMCTL_MODE(mainOpts))
          MainOptionError(argv[0], "-remctrl", "Cannot be used with daemon executable");
+      else if (mainOpts.xmlDatabaseCnt > 0)
+         MainOptionError(argv[0], mainOpts.ppXmlDatabases[0], "Database files not loaded by daemon executable");
    }
    else
    #endif
@@ -739,7 +752,7 @@ static void CmdLine_Parse( int argc, char * argv[] )
          MainOptionError(argv[0], "-acqonce", "Only meant for -daemon mode");
    }
 
-   if ( IS_DUMP_MODE(mainOpts) && (mainOpts.pXmlDatabase == NULL) )
+   if ( IS_DUMP_MODE(mainOpts) && (mainOpts.ppXmlDatabases == NULL) )
       MainOptionError(argv[0], "-dump", "Must also specify a database file to load");
    if ( !IS_DUMP_MODE(mainOpts) && (*mainOpts.optDumpFilter != NULL) )
       MainOptionError(argv[0], "-epgquery", "only useful together with -dump");
@@ -809,19 +822,12 @@ static void CmdLine_SetDefaults( bool daemonOnly )
 }
 
 // ---------------------------------------------------------------------------
-// Genereric retrieval function for the provider cni
-// - works for -prov and XML files given as command line arguments
+// Retrieval function for the XMLTV file name(s) listed on the command line
 //
-uint CmdLine_GetStartProviderCni( void )
+uint CmdLine_GetXmlFileNames( const char * const ** pppList )
 {
-   uint cni;
-
-   if (mainOpts.pXmlDatabase != NULL)
-      cni = XmltvCni_MapProvider(mainOpts.pXmlDatabase);
-   else
-      cni = 0;
-
-   return cni;
+   *pppList = mainOpts.ppXmlDatabases;
+   return mainOpts.xmlDatabaseCnt;
 }
 
 // ---------------------------------------------------------------------------

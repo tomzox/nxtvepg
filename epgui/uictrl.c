@@ -72,10 +72,8 @@ typedef enum
    EPGDB_NOT_INIT,
    EPGDB_TVCARD_CFG,
    EPGDB_WAIT_SCAN,
-   EPGDB_PROV_SCAN,
-   EPGDB_PROV_TUNE_EXT,
+   EPGDB_PROV_NONE,
    EPGDB_PROV_SEL,
-   EPGDB_ACQ_NO_FREQ,
    EPGDB_ACQ_NO_TUNER,
    EPGDB_ACQ_ACCESS_DEVICE,
    EPGDB_ACQ_PASSIVE,
@@ -116,50 +114,29 @@ static const char * UiControl_GetDbStateMsg( EPGDB_STATE state )
          break;
 
       case EPGDB_WAIT_SCAN:
-         pMsg = "Please wait until the provider scan has finished.";
+         pMsg = "Please wait until the channel scan has finished.";
          break;
 
-      case EPGDB_PROV_SCAN:
-         pMsg = "There are no EPG providers known yet. "
-                "Please start an EPG provider scan via the Configure menu "
-                "(you only have to do this once). "
-                "During the scan all TV channels are checked for Nextview EPG "
-                "transmissions. Among the found ones you then can select your "
-                "favorite provider and start reading in its TV programme database.";
-         break;
-
-      case EPGDB_PROV_TUNE_EXT:
-         pMsg = "There are no EPG providers known yet. "
-                "Since you have configured an external video input source, "
-                "you have to manually select a provider's TV channel at the "
-                "external video equipment. nxtvepg should then automatically "
-                "detect the provider in apx. 10-20 seconds. For a list of providers "
-                "see the README file or the nxtvepg Internet Homepage.";
+      case EPGDB_PROV_NONE:
+         pMsg = "No EPG data is loaded. If you have XMLTV files with EPG data, "
+                "use the Control menu for loading them. Else configure the Teletext EPG "
+                "grabber for creating XMLTV files via acquisition from a TV capture card.";
          break;
 
       case EPGDB_PROV_SEL:
-         pMsg = "Please select your favorite provider via the Configure menu.";
-         break;
-
-      case EPGDB_ACQ_NO_FREQ:
-         pMsg = "The database of the currently selected provider is empty (or all programmes expired) "
-                "and the provider's TV channel is unknown. Please do start "
-                "a provider scan via the Configure menu to find out the frequency "
-                "(this has to be done only this one time). Else, please make sure "
-                "you have tuned the TV channel of the selected EPG provider "
-                "or select a EPG different provider via the Configure menu.";
+         pMsg = "No XMLTV file selected. Please load one or more via the Control menu.";
          break;
 
       case EPGDB_ACQ_NO_TUNER:
-         pMsg = "The database of the currently selected provider is empty (or all programmes expired). "
+         pMsg = "The loaded database is empty, or all programmes are expired. "
                 "Since you have configured an external video input source, "
-                "you have to manually select a provider's TV channel at the "
+                "you have to manually select a TV channel at the "
                 "external video equipment to enable nxtvepg to refresh its database. "
                 "After channel changes wait apx. 20 seconds for acquisition to start.";
          break;
 
       case EPGDB_ACQ_ACCESS_DEVICE:
-         pMsg = "The database of the currently selected provider is empty (or all programmes expired). "
+         pMsg = "The loaded database is empty, or all programmes are expired. "
                 "The TV channel could not be changed because the video device is "
                 "kept busy by another application. Therefore you have to make sure "
                 "you have tuned the TV channel of the selected EPG provider "
@@ -167,36 +144,36 @@ static const char * UiControl_GetDbStateMsg( EPGDB_STATE state )
          break;
 
       case EPGDB_ACQ_PASSIVE:
-         pMsg = "The database of the currently selected provider is empty (or all programmes expired). "
+         pMsg = "The loaded database is empty, or all programmes are expired. "
                 "You have configured acquisition mode to passive, so data for "
                 "this provider can only be acquired if you use another application "
                 "to tune to it's TV channel.";
          break;
 
       case EPGDB_ACQ_WAIT:
-         pMsg = "The database of the currently selected provider is empty (or all programmes expired). "
+         pMsg = "The loaded database is empty, or all programmes are expired. "
                 "Please wait a few seconds until EPG data is received "
                 "or select a different provider via the Configure menu.";
          break;
 
       case EPGDB_ACQ_WAIT_DAEMON:
-         pMsg = "The database of the currently selected provider is empty (or all programmes expired). "
+         pMsg = "The loaded database is empty, or all programmes are expired. "
                 "The acquisition daemon is currently working on a different provider. "
                 "Either change the daemon's acquisition mode to \"Follow-UI\" "
                 "or select a different provider via the Configure menu.";
          break;
 
       case EPGDB_ACQ_OTHER_PROV:
-         pMsg = "The database of the currently selected provider is empty (or all programmes expired). "
+         pMsg = "The loaded database is empty, or all programmes are expired. "
                 "This provider is not in your selection for acquisition! "
                 "Please choose a different provider, or change the "
                 "acquisition mode via the Configure menu.";
          break;
 
       case EPGDB_EMPTY:
-         pMsg = "The database of the currently selected provider is empty (or all programmes expired). "
-                "Start the acquisition via the Control menu or select a "
-                "different provider via the Configure menu.";
+         pMsg = "The loaded database is empty, or all programmes are expired. "
+                "Load EPG data from a different XMLTV file via the Control menu, "
+                "or enable EPG acquisition from teletext for updating the EPG data.";
          break;
 
       case EPGDB_PREFILTERED_EMPTY:
@@ -245,14 +222,8 @@ static EPGDB_STATE UiControl_GetDbState( void )
       }
       else
 #endif
-      if (EpgContextCtl_GetProvCount(/*nxtvOnly:=TRUE*/) == 0)
-      {
-         if ( (acqState.ttxGrabState != ACQDESCR_DISABLED) &&
-              (acqState.passiveReason == ACQPASSIVE_NO_TUNER) )
-            dbState = EPGDB_PROV_TUNE_EXT;
-         else
-            dbState = EPGDB_PROV_SCAN;
-      }
+      if (EpgContextCtl_GetProvCount() == 0)
+         dbState = EPGDB_PROV_NONE;
       else
          dbState = EPGDB_PROV_SEL;
    }
@@ -300,12 +271,6 @@ static EPGDB_STATE UiControl_GetDbState( void )
             case ACQPASSIVE_NO_TUNER:
                dbState = EPGDB_ACQ_NO_TUNER;
                break;
-            case ACQPASSIVE_NO_FREQ:
-               dbState = EPGDB_ACQ_NO_FREQ;
-               break;
-            case ACQPASSIVE_NO_DB:
-               dbState = EPGDB_ACQ_PASSIVE;
-               break;
             case ACQPASSIVE_ACCESS_DEVICE:
                dbState = EPGDB_ACQ_ACCESS_DEVICE;
                break;
@@ -315,7 +280,7 @@ static EPGDB_STATE UiControl_GetDbState( void )
                break;
          }
       }
-      else if ( (ACQMODE_IS_CYCLIC(acqState.mode) == FALSE) || acqWorksOnUi )
+      else if (acqWorksOnUi)
       {  // acq is running for the same provider as the UI
          dbState = EPGDB_ACQ_WAIT;
       }
@@ -406,7 +371,6 @@ void UiControl_CheckDbState( void )
 void UiControl_AiStateChange( ClientData clientData )
 {
    uint target = PVOID2UINT(clientData);
-   uint acqCni;
    const AI_BLOCK *pAiBlock;
    Tcl_DString cmd_dstr;
 
@@ -428,10 +392,7 @@ void UiControl_AiStateChange( ClientData clientData )
 #endif
 
    // check if the message relates to the browser db
-   acqCni = EpgAcqCtl_GetProvCni();
-   if ( (pUiDbContext != NULL) &&
-        ( (target == DB_TARGET_UI) ||
-          ((acqCni == EpgDbContextGetCni(pUiDbContext)) && (acqCni != 0)) ))
+   if ((pUiDbContext != NULL) && (target == DB_TARGET_UI))
    {
       EpgDbLockDatabase(pUiDbContext, TRUE);
       pAiBlock = EpgDbGetAi(pUiDbContext);
@@ -682,11 +643,6 @@ void UiControl_ReloadError( ClientData clientData )
       case EPGDB_RELOAD_ACCESS:
          pReason = "of file access permissions";
          pHint = "Please make this file readable and writable for all users. ";
-         break;
-      case EPGDB_RELOAD_VERSION:
-         pReason = "it's an incompatible version";
-         if (IS_XMLTV_CNI(pMsg->cni) == FALSE)
-            pHint = "You should start an EPG scan from the Configure menu. ";
          break;
       case EPGDB_RELOAD_EXIST:
          pReason = "the database file does not exist";

@@ -123,11 +123,11 @@ static const RCPARSE_ENUM rcEnum_AcqMode[] =
 {
    { "passive", ACQMODE_PASSIVE },
    { "external", ACQMODE_EXTERNAL },
-   { "follow-ui", ACQMODE_FOLLOW_UI },
    { "cyclic_2", ACQMODE_CYCLIC_2 },
-   { "cyclic_012", ACQMODE_CYCLIC_012 },
    { "cyclic_02", ACQMODE_CYCLIC_02 },
-   { "cyclic_12", ACQMODE_CYCLIC_12 },
+   { "follow-ui", ACQMODE_CYCLIC_2 /*ACQMODE_FOLLOW_UI*/ },  // obsolete
+   { "cyclic_012", ACQMODE_CYCLIC_2 /*ACQMODE_CYCLIC_012*/ },  // obsolete
+   { "cyclic_12", ACQMODE_CYCLIC_2 /*ACQMODE_CYCLIC_12*/ },  // obsolete
    { (const char *) NULL, ACQMODE_COUNT }
 };
 
@@ -168,8 +168,8 @@ static const RCPARSE_CFG rcParseCfg_version[] =
 };
 static const RCPARSE_CFG rcParseCfg_acq[] =
 {
-   { RC_TYPE_INT,  RC_OFF(acq.prov_freqs), "prov_freqs", RC_OFF(acq.prov_freq_count), RC_CNT(acq.prov_freqs), NULL },
-   { RC_TYPE_HEX,  RC_OFF(acq.acq_cnis), "acq_mode_cnis", RC_OFF(acq.acq_cni_count), RC_CNT(acq.acq_cnis), NULL },
+   { RC_TYPE_OBS,  0, "prov_freqs", RC_OFF_NONE(), 0, NULL },
+   { RC_TYPE_OBS,  0, "acq_mode_cnis", RC_OFF_NONE(), 0, NULL },
    { RC_TYPE_ENUM, RC_OFF(acq.acq_mode), "acq_mode", RC_OFF_NONE(), 0, rcEnum_AcqMode },
    { RC_TYPE_ENUM, RC_OFF(acq.acq_start), "acq_start", RC_OFF_NONE(), 0, rcEnum_AcqStart },
    { RC_TYPE_INT,  RC_OFF(acq.epgscan_opt_ftable), "epgscan_opt_ftable", RC_OFF_NONE(), 0, NULL },
@@ -1185,7 +1185,7 @@ void RcFile_SetTvCard( const RCFILE_TVCARD * pRcTvCard )
    mainRc.tvcard = *pRcTvCard;
 }
 
-void RcFile_SetAcqMode( const char * pAcqModeStr, const uint * pCniList, uint cniCount )
+void RcFile_SetAcqMode( const char * pAcqModeStr )
 {
    uint  mode;
 
@@ -1193,11 +1193,6 @@ void RcFile_SetAcqMode( const char * pAcqModeStr, const uint * pCniList, uint cn
    if (mode < ACQMODE_COUNT)
    {
       mainRc.acq.acq_mode = mode;
-
-      if (cniCount > RC_MAX_ACQ_CNI_PROV)
-         cniCount = RC_MAX_ACQ_CNI_PROV;
-      memcpy(mainRc.acq.acq_cnis, pCniList, cniCount * sizeof(uint));
-      mainRc.acq.acq_cni_count = cniCount;
    }
    else
       debug1("RcFile-SetAcqMode: unknown mode '%s'", pAcqModeStr);
@@ -1736,19 +1731,6 @@ void RcFile_RemoveProvider( uint cni )
       mainRc.db.prov_merge_opt_count[type] = count;
    }
 
-   // remove from manual/cyclic acquisition mode provider list
-   count = 0;
-   for (idx = 0; idx < mainRc.acq.acq_cni_count; idx++)
-   {
-      if (mainRc.acq.acq_cnis[idx] != cni)
-      {
-         tmpl[count] = mainRc.acq.acq_cnis[idx];
-         count += 1;
-      }
-   }
-   memcpy(mainRc.acq.acq_cnis, tmpl, count * sizeof(uint));
-   mainRc.acq.acq_cni_count = count;
-
    // remove network selection
    for (idx = 0; idx < mainRc.net_order_count; /* no increment */ )
    {
@@ -1761,10 +1743,6 @@ void RcFile_RemoveProvider( uint cni )
       else
          idx += 1;
    }
-
-   // fall back to non-cyclic mode if the list is empty
-   if ((count == 0) && ACQMODE_IS_CYCLIC(mainRc.acq.acq_mode))
-      mainRc.acq.acq_mode = ACQ_DFLT_ACQ_MODE;
 
    // TODO: remove net selection
 }

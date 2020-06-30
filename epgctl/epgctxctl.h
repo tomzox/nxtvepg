@@ -38,7 +38,6 @@ typedef enum
 {
    EPGDB_RELOAD_OK,            // no error
    EPGDB_RELOAD_ACCESS,        // file open failed
-   EPGDB_RELOAD_VERSION,       // incompatible version
    EPGDB_RELOAD_MERGE,         // invalid merge config
    EPGDB_RELOAD_EXIST,         // file does not exist
    EPGDB_RELOAD_XML_CNI,       // XMLTV CNI but path unknown
@@ -66,7 +65,6 @@ time_t EpgContextCtl_GetAiUpdateTime( uint cni, bool reload );
 void EpgContextCtl_ScanDbDir( void );
 
 void EpgContextCtl_SetPiExpireDelay( time_t expireDelay );
-void EpgContextCtl_LockDump( bool enable );
 
 void EpgContextCtl_Init( void );
 void EpgContextCtl_Destroy( void );

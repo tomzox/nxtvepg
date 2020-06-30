@@ -66,16 +66,12 @@ typedef struct
    EPGACQ_PASSIVE passiveReason;
    EPGACQ_PHASE   cyclePhase;
    EPGACQ_PHASE   stopPhase;
-   uint           cycleIdx;
-   uint           cniCount;
-   uint           cniTab[MAX_MERGED_DB_COUNT];
    uint           ttxSrcCount;
    uint           inputSource;
    uint           currentSlicerType;
    bool           autoSlicerType;
    bool           haveWarnedInpSrc;
    bool           advanceCycle;
-   bool           isTtxSrc;
    ACQ_VPS_PIL_IND  acqCniInd[VPSPDC_REQ_COUNT];
    ACQ_VPS_PIL_IND  acqPilInd[VPSPDC_REQ_COUNT];
    EPG_ACQ_VPS_PDC  acqVpsPdc;
@@ -85,7 +81,6 @@ static EPGACQCTL_STATE    acqCtl;
 
 
 static void EpgAcqCtl_InitCycle( void );
-static uint EpgAcqCtl_GetReqProv( void );
 static void EpgAcqCtl_ChannelChange( void );
 static bool EpgAcqCtl_UpdateProvider( bool changeDb );
 
@@ -119,15 +114,10 @@ void EpgAcqCtl_DescribeAcqState( EPGACQ_DESCR * pAcqState )
             pAcqState->mode          = acqCtl.mode;
             pAcqState->passiveReason = acqCtl.passiveReason;
             pAcqState->cyclePhase    = acqCtl.cyclePhase;
-            pAcqState->cniCount      = acqCtl.cniCount;
-            pAcqState->cycleIdx      = acqCtl.cycleIdx;
-            pAcqState->cycleCni      = EpgAcqCtl_GetReqProv();
             pAcqState->isNetAcq      = FALSE;
 
             // query grabber states and sources
             EpgAcqTtx_DescribeAcqState(pAcqState);
-
-            pAcqState->isTtxSrc = acqCtl.isTtxSrc;
          }
          else
          {  // network acq mode -> return info forwarded by acq daemon
@@ -145,7 +135,7 @@ void EpgAcqCtl_DescribeAcqState( EPGACQ_DESCR * pAcqState )
 // ----------------------------------------------------------------------------
 // Return text strings line which describes the current acq mode
 //
-void EpgAcqCtl_GetAcqModeStr( const EPGACQ_DESCR * pAcqState, bool forTtx,
+void EpgAcqCtl_GetAcqModeStr( const EPGACQ_DESCR * pAcqState,
                               const char ** ppModeStr, const char ** ppPasvStr )
 {
    if (pAcqState->passiveReason == ACQPASSIVE_NONE)
@@ -158,40 +148,17 @@ void EpgAcqCtl_GetAcqModeStr( const EPGACQ_DESCR * pAcqState, bool forTtx,
          case ACQMODE_EXTERNAL:
             *ppModeStr = "external";
             break;
-         case ACQMODE_FOLLOW_UI:
-         case ACQMODE_FOLLOW_MERGED:
-            if ((forTtx ?
-                  (pAcqState->cniCount - ((pAcqState->ttxSrcCount > 0) ? 1 : 0)) :
-                  (pAcqState->ttxSrcCount)) == 0)
-               *ppModeStr = "follow browser database";
-            else
-               *ppModeStr = "follow browser database (merged)";
-            break;
-         case ACQMODE_CYCLIC_2:
-            if (pAcqState->cniCount <= 1)
-               *ppModeStr = "manual";
-            else
-            {
-               if (pAcqState->cyclePhase == ACQMODE_PHASE_STREAM2)
-                  *ppModeStr = "manual, phase 'All'";
-               else
-                  *ppModeStr = "manual, phase 'Complete'";
-            }
-            break;
          default:
             switch (pAcqState->cyclePhase)
             {
                case ACQMODE_PHASE_NOWNEXT:
-                  *ppModeStr = "cyclic, phase 'Now'";
+                  *ppModeStr = "acq. phase 'Now'";
                   break;
-               case ACQMODE_PHASE_STREAM1:
-                  *ppModeStr = "cyclic, phase 'Near'";
-                  break;
-               case ACQMODE_PHASE_STREAM2:
-                  *ppModeStr = "cyclic, phase 'All'";
+               case ACQMODE_PHASE_FULL:
+                  *ppModeStr = "acq. phase 'Full'";
                   break;
                case ACQMODE_PHASE_MONITOR:
-                  *ppModeStr = "cyclic, phase 'Complete'";
+                  *ppModeStr = "acq. phase 'Complete'";
                   break;
                default:
                   break;
@@ -214,12 +181,6 @@ void EpgAcqCtl_GetAcqModeStr( const EPGACQ_DESCR * pAcqState, bool forTtx,
          {
             case ACQPASSIVE_NO_TUNER:
                *ppPasvStr = "input source is not a tuner";
-               break;
-            case ACQPASSIVE_NO_FREQ:
-               *ppPasvStr = "frequency unknown";
-               break;
-            case ACQPASSIVE_NO_DB:
-               *ppPasvStr = "database missing";
                break;
             case ACQPASSIVE_ACCESS_DEVICE:
                *ppPasvStr = "video device busy";
@@ -268,23 +229,6 @@ bool EpgAcqCtl_GetAcqStats( EPG_ACQ_STATS * pAcqStats )
    }
 
    return result;
-}
-
-// ---------------------------------------------------------------------------
-// Query CNI of the current provider
-//
-uint EpgAcqCtl_GetProvCni( void )
-{
-   return 0; //TODO obsolete
-}
-
-// ---------------------------------------------------------------------------
-// Get acquisition database context
-// - must be called twice: once with lock set to TRUE, then FALSE
-//
-EPGDB_CONTEXT * EpgAcqCtl_GetDbContext( bool lock )
-{
-   return NULL; //TODO obsolete
 }
 
 // ---------------------------------------------------------------------------
@@ -519,8 +463,7 @@ const char * EpgAcqCtl_GetLastError( void )
 // Set input source and tuner frequency for a provider
 // - errors are reported to the user interface
 //
-// TODO remove isTtx
-bool EpgAcqCtl_TuneProvider( bool isTtx, const EPGACQ_TUNER_PAR * par, uint cni, EPGACQ_PASSIVE * pMode )
+bool EpgAcqCtl_TuneProvider( const EPGACQ_TUNER_PAR * par, EPGACQ_PASSIVE * pMode )
 {
    bool isTuner;
    bool result = FALSE;
@@ -546,7 +489,7 @@ bool EpgAcqCtl_TuneProvider( bool isTtx, const EPGACQ_TUNER_PAR * par, uint cni,
    {
       if (isTuner)
       {
-         dprintf2("EpgAcqCtl-TuneProv: tuned freq %ld for provider 0x%04X\n", par->freq, cni);
+         dprintf1("EpgAcqCtl-TuneProv: tuned freq %ld\n", par->freq);
          result = TRUE;
       }
       else
@@ -569,10 +512,6 @@ bool EpgAcqCtl_TuneProvider( bool isTtx, const EPGACQ_TUNER_PAR * par, uint cni,
          acqCtl.currentSlicerType = VBI_SLICER_TRIVIAL;
          BtDriver_SelectSlicer(acqCtl.currentSlicerType);
       }
-
-      // inform the opposite control sub-module about the channel change
-      if (!isTtx)  // == never, after removal of nxtvepg
-         EpgAcqTtx_ChannelChange();
    }
    else
    {
@@ -583,39 +522,6 @@ bool EpgAcqCtl_TuneProvider( bool isTtx, const EPGACQ_TUNER_PAR * par, uint cni,
    *pMode = acqCtl.passiveReason;
 
    return result;
-}
-
-// ---------------------------------------------------------------------------
-// Chooses a provider for the acquisition
-//
-static uint EpgAcqCtl_GetReqProv( void )
-{
-   uint cni;
-
-   // use original user configured mode to ignore possible current error state
-   // because the caller wants to know which TV channel ought to be tuned
-   switch (acqCtl.mode)
-   {
-      case ACQMODE_FOLLOW_UI:
-      case ACQMODE_FOLLOW_MERGED:
-      case ACQMODE_CYCLIC_2:
-      case ACQMODE_CYCLIC_012:
-      case ACQMODE_CYCLIC_02:
-      case ACQMODE_CYCLIC_12:
-         if (acqCtl.cycleIdx < acqCtl.cniCount)
-            cni = acqCtl.cniTab[acqCtl.cycleIdx];
-         else
-            cni = 0;
-         break;
-
-      case ACQMODE_NETWORK:
-      case ACQMODE_EXTERNAL:
-      case ACQMODE_PASSIVE:
-      default:
-         cni = 0;
-         break;
-   }
-   return cni;
 }
 
 // ---------------------------------------------------------------------------
@@ -653,24 +559,18 @@ static void EpgAcqCtl_InitCycle( void )
 
    switch (acqCtl.mode)
    {
-      case ACQMODE_CYCLIC_012:
       case ACQMODE_CYCLIC_02:
          acqCtl.cyclePhase = ACQMODE_PHASE_NOWNEXT;
          break;
-      case ACQMODE_CYCLIC_12:
-         acqCtl.cyclePhase = ACQMODE_PHASE_STREAM1;
-         break;
-      case ACQMODE_FOLLOW_UI:
-      case ACQMODE_FOLLOW_MERGED:
       case ACQMODE_CYCLIC_2:
-         acqCtl.cyclePhase = ACQMODE_PHASE_STREAM2;
+         acqCtl.cyclePhase = ACQMODE_PHASE_FULL;
          break;
       case ACQMODE_PASSIVE:
       case ACQMODE_EXTERNAL:
       case ACQMODE_NETWORK:
       default:
          // phase value not used in these modes; set arbritrary value
-         acqCtl.cyclePhase = ACQMODE_PHASE_STREAM2;
+         acqCtl.cyclePhase = ACQMODE_PHASE_FULL;
          break;
    }
 
@@ -681,11 +581,9 @@ static void EpgAcqCtl_InitCycle( void )
    }
 
    // use the first provider in the list
-   acqCtl.cycleIdx = 0;
-   acqCtl.isTtxSrc = IS_TTX_ACQ_CNI(acqCtl.cniTab[0]);
    acqCtl.advanceCycle = FALSE;
 
-   EpgAcqTtx_InitCycle(acqCtl.isTtxSrc, acqCtl.cyclePhase);
+   EpgAcqTtx_InitCycle(acqCtl.cyclePhase);
 }
 
 // ---------------------------------------------------------------------------
@@ -698,14 +596,7 @@ static void EpgAcqCtl_InitCycle( void )
 //
 static void EpgAcqCtl_AdvanceCyclePhase( void )
 {
-   if (acqCtl.cycleIdx + 1 < acqCtl.cniCount)
-   {
-      acqCtl.cycleIdx += 1;
-      dprintf2("EpgAcqCtl: advance to CNI #%d of %d\n", acqCtl.cycleIdx, acqCtl.cniCount);
-      acqCtl.isTtxSrc = IS_TTX_ACQ_CNI(acqCtl.cniTab[acqCtl.cycleIdx]);
-      EpgAcqTtx_InitCycle(acqCtl.isTtxSrc, acqCtl.cyclePhase);
-   }
-   else if (acqCtl.cyclePhase >= acqCtl.stopPhase)
+   if (acqCtl.cyclePhase >= acqCtl.stopPhase)
    {  // max. phase reached -> stop acq.
       EpgAcqCtl_Stop();
    }
@@ -714,23 +605,12 @@ static void EpgAcqCtl_AdvanceCyclePhase( void )
       // determine next phase
       switch (acqCtl.mode)
       {
-         case ACQMODE_CYCLIC_012:
-            if (acqCtl.cyclePhase < ACQMODE_PHASE_MONITOR)
-               acqCtl.cyclePhase += 1;
-            break;
          case ACQMODE_CYCLIC_02:
             if (acqCtl.cyclePhase == ACQMODE_PHASE_NOWNEXT)
-               acqCtl.cyclePhase = ACQMODE_PHASE_STREAM2;
+               acqCtl.cyclePhase = ACQMODE_PHASE_FULL;
             else
                acqCtl.cyclePhase = ACQMODE_PHASE_MONITOR;
             break;
-         case ACQMODE_CYCLIC_12:
-            if (acqCtl.cyclePhase == ACQMODE_PHASE_STREAM1)
-               acqCtl.cyclePhase = ACQMODE_PHASE_STREAM2;
-            else
-               acqCtl.cyclePhase = ACQMODE_PHASE_MONITOR;
-            break;
-         case ACQMODE_FOLLOW_MERGED:
          case ACQMODE_CYCLIC_2:
             acqCtl.cyclePhase = ACQMODE_PHASE_MONITOR;
             break;
@@ -738,10 +618,8 @@ static void EpgAcqCtl_AdvanceCyclePhase( void )
             break;
       }
       dprintf1("EpgAcqCtl: advance to phase #%d\n", acqCtl.cyclePhase);
-      // restart with first database
-      acqCtl.cycleIdx = 0;
-      acqCtl.isTtxSrc = IS_TTX_ACQ_CNI(acqCtl.cniTab[0]);
-      EpgAcqTtx_InitCycle(acqCtl.isTtxSrc, acqCtl.cyclePhase);
+      // start new phase with first database
+      EpgAcqTtx_InitCycle(acqCtl.cyclePhase);
    }
 
    if (acqCtl.acqEnabled)
@@ -758,7 +636,6 @@ static void EpgAcqCtl_AdvanceCyclePhase( void )
 // Select acquisition mode and provider list
 //
 bool EpgAcqCtl_SelectMode( EPGACQ_MODE newAcqMode, EPGACQ_PHASE maxPhase,
-                           uint cniCount, const uint * pCniTab,  //TODO obsolete?
                            uint ttxSrcCount, const char * pTtxNames,
                            const EPGACQ_TUNER_PAR * pTtxFreqs )
 {
@@ -767,20 +644,9 @@ bool EpgAcqCtl_SelectMode( EPGACQ_MODE newAcqMode, EPGACQ_PHASE maxPhase,
 
    if (newAcqMode < ACQMODE_COUNT)
    {
-      if ( !ACQMODE_IS_CYCLIC(newAcqMode) || ((cniCount > 0) && (pCniTab != NULL)) )
       {
          result = TRUE;
 
-         // special handling for merged database: more than one provider despite follow-ui mode
-         if ((newAcqMode == ACQMODE_FOLLOW_UI) && (cniCount > 1))
-         {
-            newAcqMode = ACQMODE_FOLLOW_MERGED;
-         }
-         if (cniCount > MAX_MERGED_DB_COUNT)
-         {
-            debug2("EpgAcqCtl-SelectMode: WARNING: max CNI count exceeded: %d>%d", cniCount, MAX_MERGED_DB_COUNT);
-            cniCount = MAX_MERGED_DB_COUNT;
-         }
          if ((ttxSrcCount != 0) && ((pTtxFreqs == NULL) || (pTtxNames == NULL)))
          {
             fatal3("EpgAcqCtl-SelectMode: no name or freq table for %d TTX sources: %lX,%lX", ttxSrcCount, (long)pTtxNames, (long)pTtxFreqs);
@@ -797,8 +663,6 @@ bool EpgAcqCtl_SelectMode( EPGACQ_MODE newAcqMode, EPGACQ_PHASE maxPhase,
          // note: compare actual mode instead of user mode, to reset if acq is stalled
          if ( (newAcqMode != acqCtl.mode) ||
               (maxPhase   != acqCtl.stopPhase) ||
-              (cniCount   != acqCtl.cniCount) ||
-              (memcmp(acqCtl.cniTab, pCniTab, cniCount * sizeof(*pCniTab)) != 0) ||
               (EpgAcqTtx_CompareParams(ttxSrcCount, pTtxNames, pTtxFreqs) == FALSE) )
          {
             // if network mode was toggled, acq must be completely restarted because different "drivers" are used
@@ -807,15 +671,10 @@ bool EpgAcqCtl_SelectMode( EPGACQ_MODE newAcqMode, EPGACQ_PHASE maxPhase,
             if (restart)
                EpgAcqCtl_Stop();
 
-            // lock automatic database dump for network mode (only the server may write the db)
-            EpgContextCtl_LockDump(newAcqMode == ACQMODE_NETWORK);
-
             // save the new parameters
-            acqCtl.cniCount         = cniCount;
             acqCtl.ttxSrcCount      = ttxSrcCount;
             acqCtl.mode             = newAcqMode;
             acqCtl.stopPhase        = maxPhase;
-            memcpy(acqCtl.cniTab, pCniTab, sizeof(acqCtl.cniTab));
 
             // pass through teletext params
             EpgAcqTtx_SetParams(ttxSrcCount, pTtxNames, pTtxFreqs);
@@ -823,13 +682,13 @@ bool EpgAcqCtl_SelectMode( EPGACQ_MODE newAcqMode, EPGACQ_PHASE maxPhase,
             // reset acquisition and start with the new parameters
             if (acqCtl.acqEnabled)
             {
-               dprintf3("EpgAcqCtl-SelectMode: reset acq with new params: mode=%d, CNI count=%d, CNI#0=%04X\n", newAcqMode, cniCount, pCniTab[0]);
+               dprintf1("EpgAcqCtl-SelectMode: reset acq with new mode=%d\n", newAcqMode);
                EpgAcqCtl_InitCycle();
                result = EpgAcqCtl_UpdateProvider(TRUE);
             }
             else if (restart)
             {
-               dprintf3("EpgAcqCtl-SelectMode: restart acq with new params: mode=%d, CNI count=%d, CNI#0=%04X\n", cniCount, newAcqMode, pCniTab[0]);
+               dprintf1("EpgAcqCtl-SelectMode: restart acq with new mode=%d\n", newAcqMode);
                EpgAcqCtl_Start();
             }
 
@@ -837,8 +696,6 @@ bool EpgAcqCtl_SelectMode( EPGACQ_MODE newAcqMode, EPGACQ_PHASE maxPhase,
             UiControlMsg_AcqEvent(ACQ_EVENT_STATS_UPDATE);
          }
       }
-      else
-         debug2("EpgAcqCtl-SelectMode: cyclic mode without provider list (count=%d,ptr=0x%lx)", cniCount, (ulong)pCniTab);
    }
    else
       debug1("EpgAcqCtl-SelectMode: called with illegal acq mode: %d", newAcqMode);
@@ -1031,7 +888,7 @@ bool EpgAcqCtl_ProcessPackets( void )
 
             if (slicerOk == FALSE)
             {
-               debug3("EpgAcqCtl: upgrading slicer type to #%d (provider #%d of %d)", acqCtl.currentSlicerType + 1, acqCtl.cycleIdx, acqCtl.cniCount);
+               debug1("EpgAcqCtl: upgrading slicer type to #%d", acqCtl.currentSlicerType + 1);
                acqCtl.currentSlicerType += 1;
                BtDriver_SelectSlicer(acqCtl.currentSlicerType);
             }
@@ -1091,7 +948,7 @@ void EpgAcqCtl_ProcessBlocks( void )
          // once connection is established, network errors are no longer reported by popups
          acqCtl.haveWarnedInpSrc = TRUE;
       }
-      //dprintf4("EpgAcqCtl: state=%d, phase=%d, CNI-idx=%d, cyCni=0x%04X\n", acqCtl.state, acqCtl.cyclePhase, acqCtl.cycleIdx, acqCtl.cniTab[acqCtl.cycleIdx]);
+      //dprintf2("EpgAcqCtl: state=%d, phase=%d\n", acqCtl.state, acqCtl.cyclePhase);
    }
 }
 

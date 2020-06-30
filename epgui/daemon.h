@@ -57,7 +57,7 @@ void Daemon_Stop( void );
 void Daemon_StatusQuery( void );
 bool Daemon_RemoteStop( void );
 void Daemon_ForkIntoBackground( void );
-void Daemon_SystemClockCmd( EPG_CLOCK_CTRL_MODE clockMode, uint cni );
+void Daemon_SystemClockCmd( EPG_CLOCK_CTRL_MODE clockMode );
 void Daemon_ProvScanStart( void );
 void Daemon_StartDump( void );
 void Daemon_UpdateRcFile( bool immediate );

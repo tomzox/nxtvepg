@@ -67,7 +67,7 @@ typedef enum
 #define ACQ_START_AUTO 0
 #define ACQ_START_MANUAL 1
 
-#define ACQ_DFLT_ACQ_MODE ACQMODE_FOLLOW_UI
+#define ACQ_DFLT_ACQ_MODE ACQMODE_CYCLIC_2
 
 #define RC_MAX_ACQ_CNI_PROV     (2 * MAX_MERGED_DB_COUNT)
 #define RC_MAX_ACQ_CNI_FREQS    (4 * MAX_MERGED_DB_COUNT)  // list contains pairs of CNI and freq
@@ -94,10 +94,10 @@ typedef struct
 {
    uint         acq_mode;
    uint         acq_start;
-   uint         acq_cni_count;
-   uint         acq_cnis[RC_MAX_ACQ_CNI_PROV];
-   uint         prov_freq_count;
-   uint         prov_freqs[RC_MAX_ACQ_CNI_FREQS];
+   //uint         acq_cni_count;  // obsolete
+   //uint         acq_cnis[RC_MAX_ACQ_CNI_PROV];  // obsolete
+   //uint         prov_freq_count;
+   //uint         prov_freqs[RC_MAX_ACQ_CNI_FREQS];
    uint         epgscan_opt_ftable;
 } RCFILE_ACQ;
 
@@ -229,7 +229,7 @@ bool RcFile_WriteCloseFile( FILE * fp, bool writeOk, const char * pRcPath, char 
 void RcFile_SetNetAcqEnable( bool isEnabled );
 void RcFile_SetNetAcq( const RCFILE_NETACQ * pRcNetAcq );
 void RcFile_SetTvCard( const RCFILE_TVCARD * pRcTvCard );
-void RcFile_SetAcqMode( const char * pAcqModeStr, const uint * pCniList, uint cniCount );
+void RcFile_SetAcqMode( const char * pAcqModeStr );
 void RcFile_SetAcqAutoStart( int autoStart );
 void RcFile_SetAcqScanOpt( uint optFtable );
 void RcFile_SetDbExpireDelay( uint delay );

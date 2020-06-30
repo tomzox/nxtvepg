@@ -56,6 +56,7 @@
 #include "epgui/cmdline.h"
 #include "epgui/wintvcfg.h"
 #include "epgui/epgsetup.h"
+#include "xmltv/xmltv_cni.h"
 
 #define NORM_CNI(C)  (IS_NXTV_CNI(C) ? CniConvertUnknownToPdc(C) : (C))
 
@@ -519,55 +520,71 @@ EPGDB_CONTEXT * EpgSetup_MergeDatabases( void )
 
 // ----------------------------------------------------------------------------
 // Open the initial database after program start
-// - provider can be chosen by the -provider flag: warn if it does not exist
+// - files can be chosen on the command line
 // - else try all dbs in list list of previously opened ones (saved in rc/ini file)
 // - else scan the db directory or create an empty database
 //
-void EpgSetup_OpenUiDb( uint startUiCni )
+void EpgSetup_OpenUiDb( void )
 {
    const RCFILE * pRc;
+   const char * const * pXmlFiles;
+   uint provCnt;
    uint cni;
 
    // prepare list of previously opened databases
    pRc = RcFile_Query();
 
-   cni = 0;
+   // get list of names on the command line, if any
+   provCnt = CmdLine_GetXmlFileNames(&pXmlFiles);
 
-   {
-      if (startUiCni != 0)
-      {  // use the CNI given on the command line
-         cni = startUiCni;
+   if (provCnt > 1)
+   {  // merge all files given on the command line
+      uint cniList[MAX_MERGED_DB_COUNT];
+      assert(provCnt <= MAX_MERGED_DB_COUNT);  // checked by command line parser
+
+      for (uint idx = 0; idx < provCnt; ++idx)
+      {
+         cniList[idx] = XmltvCni_MapProvider(pXmlFiles[idx]);
       }
-      else if (pRc->db.prov_sel_count > 0)
+      RcFile_UpdateDbMergeCnis(cniList, provCnt);
+      cni = MERGED_PROV_CNI;
+   }
+   else if (provCnt > 0)
+   {
+      cni = XmltvCni_MapProvider(pXmlFiles[0]);
+   }
+   else  // use previously selected provider
+   {
+      if (pRc->db.prov_sel_count > 0)
       {  // try the last used provider
          cni = pRc->db.prov_selection[0];
       }
       else
-      {  // open any database found in the dbdir or create an empty one
-         // (the CNI 0 has a special handling in the context open function)
+      {  // create an empty dummy database
+         // (CNI value 0 has a special handling in the context open function)
          cni = 0;
       }
+   }
 
-      if (cni == MERGED_PROV_CNI)
-      {  // special case: merged db
-         pUiDbContext = EpgSetup_MergeDatabases();
-         if (pUiDbContext == NULL)
-            pUiDbContext = EpgContextCtl_OpenDummy();
-      }
-      else if (cni != 0)
-      {  // regular database
-         pUiDbContext = EpgContextCtl_Open(cni, FALSE, CTX_FAIL_RET_DUMMY, CTX_RELOAD_ERR_REQ);
+   if (cni == MERGED_PROV_CNI)
+   {  // special case: merged db
+      pUiDbContext = EpgSetup_MergeDatabases();
+      if (pUiDbContext == NULL)
+         pUiDbContext = EpgContextCtl_OpenDummy();
+   }
+   else if (cni != 0)
+   {  // regular database
+      pUiDbContext = EpgContextCtl_Open(cni, FALSE, CTX_FAIL_RET_DUMMY, CTX_RELOAD_ERR_REQ);
 
-         if (EpgDbContextGetCni(pUiDbContext) == cni)
-         {
-            RcFile_UpdateXmltvProvAtime(cni, time(NULL), TRUE);
-         }
+      if (EpgDbContextGetCni(pUiDbContext) == cni)
+      {
+         RcFile_UpdateXmltvProvAtime(cni, time(NULL), TRUE);
       }
-      else
-      {  // no CNI specified -> load any db or use dummy
-         pUiDbContext = EpgContextCtl_OpenAny(CTX_RELOAD_ERR_REQ);
-         cni = EpgDbContextGetCni(pUiDbContext);
-      }
+   }
+   else
+   {  // no CNI specified -> load any db or use dummy
+      pUiDbContext = EpgContextCtl_OpenAny(CTX_RELOAD_ERR_REQ);
+      cni = EpgDbContextGetCni(pUiDbContext);
    }
 
    // note: the usual provider change events are not triggered here because
@@ -652,72 +669,6 @@ static bool EpgSetup_GetTtxConfig( uint * pCount, char ** ppNames, EPGACQ_TUNER_
 #endif // USE_TTX_GRABBER
 
 // ----------------------------------------------------------------------------
-// If the UI db is empty, move the UI CNI to the front of the list
-// - only if a manual acq mode is configured
-//
-static void EpgSetup_SortAcqCniList( uint cniCount, uint * cniTab )
-{
-   FILTER_CONTEXT  * pfc;
-   const PI_BLOCK  * pPiBlock;
-   uint uiCni;
-   uint idx, mergeIdx;
-   uint mergeCniCount, mergeCniTab[MAX_MERGED_DB_COUNT];
-   sint startIdx;
-
-   uiCni = EpgDbContextGetCni(pUiDbContext);
-   if ((uiCni != 0) && (cniCount > 1))
-   {  // provider present -> check for PI
-
-      EpgDbLockDatabase(pUiDbContext, TRUE);
-      // create a filter context with only an expire time filter set
-      pfc = EpgDbFilterCreateContext();
-      EpgDbFilterSetExpireTime(pfc, time(NULL));
-      EpgDbPreFilterEnable(pfc, FILTER_EXPIRE_TIME);
-
-      // check if there are any non-expired PI in the database
-      pPiBlock = EpgDbSearchFirstPi(pUiDbContext, pfc);
-      if (pPiBlock == NULL)
-      {  // no PI in database
-         if (EpgDbContextIsMerged(pUiDbContext) == FALSE)
-         {
-            for (startIdx=0; startIdx < (sint)cniCount; startIdx++)
-               if (cniTab[startIdx] == uiCni)
-                  break;
-         }
-         else
-         {  // Merged database
-            startIdx = -1;
-            if (EpgContextMergeGetCnis(pUiDbContext, &mergeCniCount, mergeCniTab))
-            {
-               // check if the current acq CNI is one of the merged
-               for (mergeIdx=0; mergeIdx < mergeCniCount; mergeIdx++)
-                  if (cniTab[0] == mergeCniTab[mergeIdx])
-                     break;
-               if (mergeIdx >= mergeCniCount)
-               {  // current CNI is not part of the merge -> search if any other is
-                  for (mergeIdx=0; (mergeIdx < mergeCniCount) && (startIdx == -1); mergeIdx++)
-                     for (idx=0; (idx < cniCount) && (startIdx == -1); idx++)
-                        if (cniTab[idx] == mergeCniTab[mergeIdx])
-                           startIdx = idx;
-               }
-            }
-         }
-
-         if ((startIdx > 0) && (startIdx < (sint)cniCount))
-         {  // move the UI CNI to the front of the list
-            dprintf2("EpgSetup-SortAcqCniList: moving provider 0x%04X from idx %d to 0\n", cniTab[startIdx], startIdx);
-            uiCni = cniTab[startIdx];
-            for (idx=1; idx <= (uint)startIdx; idx++)
-               cniTab[idx] = cniTab[idx - 1];
-            cniTab[0] = uiCni;
-         }
-      }
-      EpgDbFilterDestroyContext(pfc);
-      EpgDbLockDatabase(pUiDbContext, FALSE);
-   }
-}
-
-// ----------------------------------------------------------------------------
 // Pass acq mode and CNI list to acquisition control
 // - called after the user leaves acq mode dialog or client/server dialog
 //   with "Ok", plus whenever the browser database provider is changed
@@ -729,29 +680,24 @@ static void EpgSetup_SortAcqCniList( uint cniCount, uint * cniTab )
 //
 void EpgSetup_AcquisitionMode( NETACQ_SET_MODE netAcqSetMode )
 {
+#ifdef USE_TTX_GRABBER
    const RCFILE * pRc;
    EPGACQ_TUNER_PAR * pTtxFreqs;
    char       * pTtxNames;
    uint         ttxFreqCount;
-   uint         cniCount;
-   uint         cniTab[MAX_MERGED_DB_COUNT];
    bool         isNetAcqDefault;
    bool         doNetAcq;
    EPGACQ_DESCR acqState;
    EPGACQ_MODE  mode;
 
    pRc = RcFile_Query();
-   if ((pRc != NULL) && (pRc->acq.acq_mode < ACQMODE_COUNT) &&
-                        (pRc->acq.acq_cni_count < MAX_MERGED_DB_COUNT))
+   if ((pRc != NULL) && (pRc->acq.acq_mode < ACQMODE_COUNT))
    {
       mode = pRc->acq.acq_mode;
-      cniCount = pRc->acq.acq_cni_count;
-      memcpy(cniTab, pRc->acq.acq_cnis, sizeof(cniTab[0]) * pRc->acq.acq_cni_count);
    }
    else
-   {  // unrecognized mode or other param error -> fall back to default mode
-      mode = ACQMODE_FOLLOW_UI;
-      cniCount = 0;
+   {  // unrecognized mode -> fall back to default mode
+      mode = ACQMODE_CYCLIC_2;
    }
 
    // check if network client mode is enabled
@@ -787,58 +733,20 @@ void EpgSetup_AcquisitionMode( NETACQ_SET_MODE netAcqSetMode )
    if (doNetAcq)
       mode = ACQMODE_NETWORK;
 
-   if ((mode == ACQMODE_FOLLOW_UI) || (mode == ACQMODE_NETWORK))
-   {
-      if ( EpgDbContextIsMerged(pUiDbContext) )
-      {
-         if (EpgContextMergeGetCnis(pUiDbContext, &cniCount, cniTab))
-         {
-            uint rdIdx, wrIdx;
-
-            // remove XMLTV pseudo-CNIs from the CNI list
-            for (rdIdx = 0, wrIdx = 0; rdIdx < cniCount; rdIdx++)
-               if (IS_NXTV_CNI(cniTab[rdIdx]))
-                  cniTab[wrIdx++] = cniTab[rdIdx];
-            cniCount = wrIdx;
-         }
-         else // error
-            cniCount = 0;
-      }
-      else if ( EpgDbContextIsXmltv(pUiDbContext) )
-      {
-         cniCount = 0;
-      }
-      else
-      {
-         cniTab[0] = EpgDbContextGetCni(pUiDbContext);
-         cniCount  = ((cniTab[0] != 0) ? 1 : 0);
-      }
-   }
-
-   // move browser provider's CNI to the front if the db is empty
-   EpgSetup_SortAcqCniList(cniCount, cniTab);
-
-   // apppend teletext pseudo-CNI
    pTtxFreqs = NULL;
    pTtxNames = NULL;
    ttxFreqCount = 0;
-#ifdef USE_TTX_GRABBER
    if (EpgSetup_GetTtxConfig(&ttxFreqCount, &pTtxNames, &pTtxFreqs))
    {
-      if (cniCount >= MAX_MERGED_DB_COUNT)
-         cniCount = MAX_MERGED_DB_COUNT - 1;
-      cniTab[cniCount] = XMLTV_TTX_PROV_CNI;
-      cniCount += 1;
+      // pass the params to the acquisition control module
+      EpgAcqCtl_SelectMode(mode, ACQMODE_COUNT, ttxFreqCount, pTtxNames, pTtxFreqs);
    }
-#endif
-
-   // pass the params to the acquisition control module
-   EpgAcqCtl_SelectMode(mode, ACQMODE_COUNT, cniCount, cniTab, ttxFreqCount, pTtxNames, pTtxFreqs);
 
    if (pTtxNames != NULL)
       xfree(pTtxNames);
    if (pTtxFreqs != NULL)
       xfree(pTtxFreqs);
+#endif
 }
 
 // ----------------------------------------------------------------------------
@@ -846,140 +754,46 @@ void EpgSetup_AcquisitionMode( NETACQ_SET_MODE netAcqSetMode )
 // - in Follow-UI mode the browser CNI must be determined here since
 //   no db is opened for the browser
 //
-bool EpgSetup_DaemonAcquisitionMode( uint cmdLineCni, bool forcePassive, int maxPhase )
+bool EpgSetup_DaemonAcquisitionMode( bool forcePassive, int maxPhase )
 {
    bool result = FALSE;
+#ifdef USE_TTX_GRABBER
 #ifdef USE_DAEMON
    const RCFILE * pRc = RcFile_Query();
    EPGACQ_MODE   mode;
    EPGACQ_TUNER_PAR * pTtxFreqs;
    char        * pTtxNames;
    uint          ttxFreqCount;
-   const uint  * pProvList;
-   uint cniCount, cniTab[MAX_MERGED_DB_COUNT];
-   uint rdIdx, wrIdx;
 
-   if (cmdLineCni != 0)
-   {  // CNI given on command line with -provider option
-      assert(forcePassive == FALSE);  // checked by argv parser
-      mode      = ACQMODE_CYCLIC_2;
-      cniCount  = 1;
-      cniTab[0] = cmdLineCni;
-
-      // Merged database -> retrieve CNI list
-      if (cniTab[0] == MERGED_PROV_CNI)
-      {
-         if (pRc->db.prov_merge_count > 0)
-         {
-            cniCount = pRc->db.prov_merge_count;
-            memcpy(cniTab, pRc->db.prov_merge_cnis, sizeof(cniTab));
-         }
-         else
-         {
-            EpgNetIo_Logger(LOG_ERR, -1, 0, "no network list found for merged database", NULL);
-            mode = ACQMODE_COUNT;
-         }
-      }
-   }
-   else if (forcePassive)
+   if (forcePassive)
    {  // -acqpassive given on command line
-      mode      = ACQMODE_PASSIVE;
-      cniCount  = 0;
+      mode = ACQMODE_PASSIVE;
    }
    else
    {  // else use acq mode from rc/ini file
       mode = pRc->acq.acq_mode;
-      switch (mode)
-      {
-         case ACQMODE_CYCLIC_2:
-         case ACQMODE_CYCLIC_012:
-         case ACQMODE_CYCLIC_02:
-         case ACQMODE_CYCLIC_12:
-            cniCount = pRc->acq.acq_cni_count;
-            memcpy(cniTab, pRc->acq.acq_cnis, sizeof(cniTab));
-            break;
-         default:
-            cniCount = 0;
-            break;
-      }
-      if (mode == ACQMODE_FOLLOW_UI)
-      {
-         if (pRc->db.prov_sel_count > 0)
-         {
-            cniCount = pRc->db.prov_sel_count;
-            memcpy(cniTab, pRc->db.prov_selection, sizeof(cniTab));
-         }
-         else
-         {  // last used provider not known (e.g. right after the initial scan) -> use all providers
-            pProvList = EpgContextCtl_GetProvList(&cniCount);
-            if (pProvList != NULL)
-            {
-               if (cniCount > MAX_MERGED_DB_COUNT)
-                  cniCount = MAX_MERGED_DB_COUNT;
-               memcpy(cniTab, pProvList, cniCount * sizeof(uint));
-               xfree((void *) pProvList);
-            }
-            else
-            {  // no providers known yet -> set count to zero, acq starts in passive mode
-               cniCount = 0;
-            }
-         }
-         if ((cniCount > 0) && (cniTab[0] == 0x00ff))
-         {
-            // Merged database -> retrieve CNI list
-            if (pRc->db.prov_merge_count > 0)
-            {
-               cniCount = pRc->db.prov_merge_count;
-               memcpy(cniTab, pRc->db.prov_merge_cnis, sizeof(cniTab));
-            }
-            else
-            {
-               EpgNetIo_Logger(LOG_ERR, -1, 0, "no network list found for merged database", NULL);
-               mode = ACQMODE_COUNT;
-            }
-         }
-         else // error
-            cniCount = 0;
-
-         // remove XMLTV pseudo-CNIs from the CNI list
-         for (rdIdx = 0, wrIdx = 0; rdIdx < cniCount; rdIdx++)
-            if (IS_NXTV_CNI(cniTab[rdIdx]))
-               cniTab[wrIdx++] = cniTab[rdIdx];
-         cniCount = wrIdx;
-      }
-      else if (mode >= ACQMODE_COUNT)
-      {
+      if (mode >= ACQMODE_COUNT)
          EpgNetIo_Logger(LOG_ERR, -1, 0, "acqmode parameters error", NULL);
-      }
    }
 
    if (mode < ACQMODE_COUNT)
    {
-      // apppend teletext pseudo-CNI
       pTtxFreqs = NULL;
       pTtxNames = NULL;
       ttxFreqCount = 0;
-#ifdef USE_TTX_GRABBER
       if (EpgSetup_GetTtxConfig(&ttxFreqCount, &pTtxNames, &pTtxFreqs))
       {
-         if (cniCount >= MAX_MERGED_DB_COUNT)
-            cniCount = MAX_MERGED_DB_COUNT - 1;
-         cniTab[cniCount] = XMLTV_TTX_PROV_CNI;
-         cniCount += 1;
+         // pass the params to the acquisition control module
+         result = EpgAcqCtl_SelectMode(mode, maxPhase, ttxFreqCount, pTtxNames, pTtxFreqs);
       }
-#endif
-
-      // pass the params to the acquisition control module
-      result = EpgAcqCtl_SelectMode(mode, maxPhase, cniCount, cniTab, ttxFreqCount, pTtxNames, pTtxFreqs);
 
       if (pTtxNames != NULL)
          xfree(pTtxNames);
       if (pTtxFreqs != NULL)
          xfree(pTtxFreqs);
    }
-   else
-      result = FALSE;
 #endif  // USE_DAEMON
+#endif  // USE_TTX_GRABBER
 
    return result;
 }

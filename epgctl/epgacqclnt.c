@@ -183,8 +183,6 @@ static void EpgAcqClient_SwapEpgAcqDescr( EPGACQ_DESCR * pDescr )
    swap32(&pDescr->mode);
    swap32(&pDescr->cyclePhase);
    swap32(&pDescr->passiveReason);
-   swap32(&pDescr->cycleCni);
-   swap16(&pDescr->cniCount);
    swap16(&pDescr->ttxSrcCount);
    swap16(&pDescr->ttxGrabIdx);
    swap16(&pDescr->ttxGrabDone);
@@ -1219,7 +1217,7 @@ static bool EpgAcqClient_ProcessStats( void )
 
             break;
       }
-      dprintf6("ProcessStats-ProcessStats: type %d, AI follows=%d, acqstate=%d, cyCni=%04X, dbCni=%04X, histIdx=%d\n", pUpd->type, pUpd->aiFollows, pUpd->descr.ttxGrabState, pUpd->descr.cycleCni, pUpd->descr.nxtvDbCni, pAcqStats->nxtv.histIdx);
+      dprintf4("ProcessStats-ProcessStats: type %d, AI follows=%d, acqstate=%d, histIdx=%d\n", pUpd->type, pUpd->aiFollows, pUpd->descr.ttxGrabState, pAcqStats->nxtv.histIdx);
 
       // free the message
       pNext = clientState.pStatsMsg->stats_ind.p.pNext;

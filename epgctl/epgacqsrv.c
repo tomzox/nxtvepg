@@ -240,7 +240,7 @@ static char * EpgAcqServer_BuildAcqDescrStr( void )
    EpgAcqCtl_GetAcqStats(&sv);
    /*newVpsPdc =*/ EpgAcqCtl_GetVpsPdc(&vpsPdc, VPSPDC_REQ_DAEMON, TRUE);
 
-   EpgAcqCtl_GetAcqModeStr(&acqState, TRUE, &pAcqModeStr, &pAcqPasvStr);
+   EpgAcqCtl_GetAcqModeStr(&acqState, &pAcqModeStr, &pAcqPasvStr);
    off += snprintf(pMsg + off, 10000 - off, "Acq mode:               %s\n", pAcqModeStr);
    if (pAcqPasvStr != NULL)
       off += snprintf(pMsg + off, 10000 - off, "Passive reason:         %s\n", pAcqPasvStr);
@@ -250,9 +250,6 @@ static char * EpgAcqServer_BuildAcqDescrStr( void )
    else
       acq_duration = 0;
 
-   off += snprintf(pMsg + off, 10000 - off, "Acq working for:        %s EPG\n",
-                                            acqState.isTtxSrc ? "Teletext" : "Nextview");
-
    off += snprintf(pMsg + off, 10000 - off, "Channel VPS/PDC CNI:    %04X\n"
                                             "Channel VPS/PDC PIL:    %02d.%02d. %02d:%02d\n",
                                      vpsPdc.cni,
@@ -260,17 +257,12 @@ static char * EpgAcqServer_BuildAcqDescrStr( void )
                                      (vpsPdc.pil >>  6) & 0x1F, (vpsPdc.pil) & 0x3F);
 
    off += snprintf(pMsg + off, 10000 - off, "Nextview acq duration:  %d\n"
-                                            "Providers done:         %d of %d\n"
                                             "Block total in DB:      %d\n",
                                acq_duration,
-                               acqState.cycleIdx, acqState.cniCount,
                                sv.nxtv.count.allVersions + sv.nxtv.count.expired + sv.nxtv.count.defective
                   );
-   if (ACQMODE_IS_CYCLIC(acqState.mode))
-   {
-      off += snprintf(pMsg + off, 10000 - off, "Network variance:       %1.2f\n",
-                                   sv.nxtv.count.variance);
-   }
+   off += snprintf(pMsg + off, 10000 - off, "Network variance:       %1.2f\n",
+                                sv.nxtv.count.variance);
 
    off += snprintf(pMsg + off, 10000 - off,
                  "TTX pkg/frame:          %.1f\n"
@@ -487,7 +479,7 @@ static bool EpgAcqServer_TakeMessage( EPGDBSRV_STATE *req, EPGDBSRV_MSG_BODY * p
          // the client submits a list of providers of which he wants all incoming blocks
          // this message is sent initially and after a GUI provider change
          // note: if acq is working on a provider not in this list, AI and OI#0 are forwarded anyways
-         dprintf1("EpgAcqServer-TakeMessage: fwd req for %d CNIs\n", pMsg->fwd_req.cniCount);
+         dprintf0("EpgAcqServer-TakeMessage: fwd req\n");
          if ( (req->state == SRV_STATE_WAIT_FWD_REQ) ||
               (req->state == SRV_STATE_FORWARD) )
          {

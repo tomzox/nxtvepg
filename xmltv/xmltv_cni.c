@@ -334,12 +334,11 @@ uint XmltvCni_MapNetCni( XMLTV_CNI_CTX * pCniCtx, const char * pChannelId )
 
 // ----------------------------------------------------------------------------
 // Creates a table for mapping CNIs to XMLTV channel IDs during Nextview EPG export
-// - uses the GLOBAL section of the XMLTV->CNI mapping table, plus provider
-//   specific extensions in sections names "EXPORT|....", according to the given
-//   src name; in case of duplicate CNIs the last definition is used
+// - uses the GLOBAL section of the XMLTV->CNI mapping table;
+//   in case of duplicate CNIs the last definition is used
 // - the caller must call the "free" function when done
 //
-bool XmltvCni_InitMapCni2Ids( XMLTV_CNI_REV_CTX * pCtx, const char * pSrcName )
+bool XmltvCni_InitMapCni2Ids( XMLTV_CNI_REV_CTX * pCtx )
 {
    const char * pFileName;
    char line[256], value[256];
@@ -375,9 +374,7 @@ bool XmltvCni_InitMapCni2Ids( XMLTV_CNI_REV_CTX * pCtx, const char * pSrcName )
          if (sscanf(line,"[%99[^]]]", value) == 1)
          {
             skip = (strcmp(value, "GLOBAL") != 0) &&
-                   (strcmp(value, "EXPORT|GLOBAL") != 0) &&
-                   ( (strncmp(value, "EXPORT|", 7) != 0) ||
-                     !XmltvCni_MatchSectionName(value + 7, pSrcName) );
+                   (strcmp(value, "EXPORT|GLOBAL") != 0);
          }
          else if ( (sscanf(line," %x %250[^\n\r]", &cni, value) == 2) &&
                    (skip == FALSE) )

@@ -74,6 +74,8 @@
 #include "epgui/cmdline.h"
 #include "epgui/epgmain.h"
 #include "epgui/daemon.h"
+#include "epgui/wintvcfg.h"
+#include "xmltv/xmltv_cni.h"
 
 
 #ifdef USE_DAEMON
@@ -86,13 +88,16 @@ extern HINSTANCE  hMainInstance;  // copy of win32 instance handle
 // ---------------------------------------------------------------------------
 // Fetch current time from teletext
 //
-void Daemon_SystemClockCmd( EPG_CLOCK_CTRL_MODE clockMode, uint cni )
+void Daemon_SystemClockCmd( EPG_CLOCK_CTRL_MODE clockMode )
 {
    bool  isTuner;
-   uint  freq;
    uint  waitCnt;
    sint  lto;
    time_t ttxTime;
+   char * pNameList;
+   EPGACQ_TUNER_PAR * pFreqTab;
+   uint   freqCount;
+   char * pErrMsg;
 
    EpgSetup_CardDriver(mainOpts.videoCardIndex);
 
@@ -101,23 +106,22 @@ void Daemon_SystemClockCmd( EPG_CLOCK_CTRL_MODE clockMode, uint cni )
 
    if (BtDriver_StartAcq())
    {
-      // TODO pass channel name instead of CNI
-      freq = 0;
-
-      EPGACQ_TUNER_PAR par;
-      par.freq = EPGDB_TUNER_GET_FREQ(freq);
-      par.norm = EPGDB_TUNER_GET_NORM(freq);
-
-      if ( BtDriver_TuneChannel(RcFile_Query()->tvcard.input, &par, FALSE, &isTuner) )
+      if (WintvCfg_GetFreqTab(&pNameList, &pFreqTab, &freqCount, &pErrMsg) == FALSE)
       {
-         if ( isTuner && (freq == 0) && (cni != 0) )
-         {
-            fprintf(stderr, "nxtvepg: warning: cannot tune channel for provider 0x%04X: "
-                            "frequency unknown\n", cni);
-         }
+         fprintf(stderr, "nxtvepg: FATAL: failed to load channel table: %s\n", pErrMsg);
+         exit(1);
       }
-      else
-         fprintf(stderr, "Failed to tune provider channel: %s\n", BtDriver_GetLastError());
+      else if (freqCount == 0)
+      {
+         fprintf(stderr, "nxtvepg: FATAL: no valid channels found in TV channel table\n");
+         exit(1);
+      }
+
+      if (BtDriver_TuneChannel(RcFile_Query()->tvcard.input, &pFreqTab[0], FALSE, &isTuner) == FALSE)
+      {
+         fprintf(stderr, "nxtveog: FATAL: Tuning channel \"%s\": %s\n", pNameList, BtDriver_GetLastError());
+         exit(1);
+      }
 
       ttxTime = 0;
       waitCnt = 0;
@@ -196,6 +200,9 @@ void Daemon_SystemClockCmd( EPG_CLOCK_CTRL_MODE clockMode, uint cni )
          fprintf(stderr, "No time packets received from teletext - giving up.\n");
 
       BtDriver_StopAcq();
+
+      xfree(pNameList);
+      xfree(pFreqTab);
    }
    else
       fprintf(stderr, "Failed to start acquisition: %s\n", BtDriver_GetLastError());
@@ -207,22 +214,38 @@ void Daemon_SystemClockCmd( EPG_CLOCK_CTRL_MODE clockMode, uint cni )
 void Daemon_StartDump( void )
 {
    FILTER_CONTEXT * fc;
-   uint provCni;
+   const char * const * pXmlFiles;
+   uint provCnt;
 
    EpgSetup_DbExpireDelay();
 
-   provCni = CmdLine_GetStartProviderCni();
-   if (provCni == MERGED_PROV_CNI)
+   provCnt = CmdLine_GetXmlFileNames(&pXmlFiles);
+   if (provCnt > 1)
    {
+      uint cniList[MAX_MERGED_DB_COUNT];
+      assert(provCnt <= MAX_MERGED_DB_COUNT);  // checked by command line parser
+
+      for (uint idx = 0; idx < provCnt; ++idx)
+      {
+         cniList[idx] = XmltvCni_MapProvider(pXmlFiles[idx]);
+      }
+      RcFile_UpdateDbMergeCnis(cniList, provCnt);
+
       pUiDbContext = EpgSetup_MergeDatabases();
       if (pUiDbContext == NULL)
          printf("<!-- nxtvepg database merge failed: check merge configuration -->\n");
    }
-   else
+   else if (provCnt > 0)
    {
+      uint provCni = XmltvCni_MapProvider(pXmlFiles[0]);
       pUiDbContext = EpgContextCtl_Open(provCni, FALSE, CTX_FAIL_RET_NULL, CTX_RELOAD_ERR_REQ);
       if (pUiDbContext == NULL)
          printf("<!-- nxtvepg failed to load database %04X -->\n", provCni);
+   }
+   else
+   {  // this case should be prevented in the command line parameter check
+      printf("<!-- no provider specified -->\n");
+      pUiDbContext = NULL;
    }
 
    if (pUiDbContext != NULL)
@@ -1010,8 +1033,7 @@ void Daemon_Start( void )
    EpgSetup_TtxGrabber();
 #endif
 
-   if (EpgSetup_DaemonAcquisitionMode(CmdLine_GetStartProviderCni(),
-                                      mainOpts.optAcqPassive, mainOpts.optAcqOnce))
+   if (EpgSetup_DaemonAcquisitionMode(mainOpts.optAcqPassive, mainOpts.optAcqOnce))
    {
       #ifndef WIN32
       Daemon_SignalSetup();

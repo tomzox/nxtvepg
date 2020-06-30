@@ -721,26 +721,26 @@ proc CreateMenubar {} {
    .menubar add cascade -label "Help" -menu .menubar.help -underline 0
    # Control menu
    menu .menubar.ctrl -tearoff 0 -postcommand C_SetControlMenuStates
+   .menubar.ctrl add command -label "Load XMLTV file..." -command ProvWin_Create
+   .menubar.ctrl add command -label "Merge XMLTV files..." -command PopupProviderMerge
+   .menubar.ctrl add separator
    .menubar.ctrl add checkbutton -label "Enable acquisition" -variable menuStatusStartAcq -command {C_ToggleAcq $menuStatusStartAcq $menuStatusDaemon}
    .menubar.ctrl add checkbutton -label "Connect to acq. daemon" -variable menuStatusDaemon -command {C_ToggleAcq $menuStatusStartAcq $menuStatusDaemon}
+   .menubar.ctrl add separator
+   .menubar.ctrl add checkbutton -label "View coverage timescales..." -command {C_TimeScale_Toggle} -variable menuStatusTscaleOpen
+   .menubar.ctrl add checkbutton -label "View database statistics..." -command {C_StatsWin_ToggleDbStats ui} -variable menuStatusStatsOpen(ui)
+   #.menubar.ctrl add checkbutton -label "Acquisition statistics..." -command {C_StatsWin_ToggleDbStats acq} -variable menuStatusStatsOpen(acq) # obsolete - TODO port to TTX?
+#=IF=defined(USE_TTX_GRABBER)
+   .menubar.ctrl add checkbutton -label "Teletext grabber statistics..." -command {C_StatsWin_ToggleTtxStats} -variable menuStatusStatsOpen(ttx_acq)
+#=ENDIF=
    .menubar.ctrl add separator
    .menubar.ctrl add command -label "Export as text..." -command PopupDumpDbTabs
    .menubar.ctrl add command -label "Export as XMLTV..." -command PopupDumpXml
    .menubar.ctrl add command -label "Export as HTML..." -command PopupDumpHtml
    .menubar.ctrl add separator
-   .menubar.ctrl add checkbutton -label "View coverage timescales..." -command {C_TimeScale_Toggle} -variable menuStatusTscaleOpen
-   .menubar.ctrl add checkbutton -label "View database statistics..." -command {C_StatsWin_ToggleDbStats ui} -variable menuStatusStatsOpen(ui)
-   .menubar.ctrl add checkbutton -label "Nextview acq. statistics..." -command {C_StatsWin_ToggleDbStats acq} -variable menuStatusStatsOpen(acq)
-#=IF=defined(USE_TTX_GRABBER)
-   .menubar.ctrl add checkbutton -label "Teletext grabber statistics..." -command {C_StatsWin_ToggleTtxStats} -variable menuStatusStatsOpen(ttx_acq)
-#=ENDIF=
-   .menubar.ctrl add separator
    .menubar.ctrl add command -label "Quit" -command {destroy .; update}
    # Config menu
    menu .menubar.config -tearoff 0
-   .menubar.config add command -label "Load XMLTV file..." -command ProvWin_Create
-   .menubar.config add command -label "Merge XMLTV files..." -command PopupProviderMerge
-   .menubar.config add separator
    .menubar.config add command -label "Acquisition mode..." -command PopupAcqMode
 #=IF=defined(USE_TTX_GRABBER)
    .menubar.config add command -label "Teletext grabber..." -command PopupTtxGrab

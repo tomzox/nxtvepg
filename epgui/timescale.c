@@ -185,8 +185,6 @@ static void TimeScale_UpdateStatusLine( ClientData dummy )
          eval_check(interp, comm);
       }
    }
-
-   EpgAcqCtl_GetDbContext(FALSE);
 }
 
 // ----------------------------------------------------------------------------
@@ -306,14 +304,7 @@ static int TimeScale_GetTime( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_
    {
       if ( tscaleState.open )
       {
-        if (EpgAcqCtl_GetProvCni() == EpgDbContextGetCni(pUiDbContext))
-        {
-           reqtime = tscaleState.startTime + (poff * tscaleState.secsPerPixel);
-        }
-        else
-        {  // not the UI database -> return error code
-           reqtime = 0;
-        }
+        reqtime = tscaleState.startTime + (poff * tscaleState.secsPerPixel);
       }
       else
       {
@@ -336,11 +327,11 @@ static int TimeScale_GetTime( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_
 //
 static void TimeScale_RequestAcq( void )
 {
+#if 0 // TODO
    bool isForAcq;
-   bool enable;
    bool allProviders;
 
-   enable = allProviders = FALSE;
+   allProviders = FALSE;
 
    if (tscaleState.open)
    {
@@ -348,7 +339,6 @@ static void TimeScale_RequestAcq( void )
            (EpgDbContextIsXmltv(pUiDbContext) == FALSE) )
       {  // normal db -> forward incoming data if it's for the same db
          isForAcq = (EpgAcqCtl_GetProvCni() == EpgDbContextGetCni(pUiDbContext));
-         enable |= isForAcq;
          // remember request state in the timscale state struct
          tscaleState.isForAcq = isForAcq;
       }
@@ -357,6 +347,7 @@ static void TimeScale_RequestAcq( void )
          tscaleState.isForAcq = FALSE;
       }
    }
+#endif
 }
 
 #if 0 //TODO TTX
@@ -794,6 +785,7 @@ void TimeScale_ProvChange( void )
 //
 void TimeScale_VersionChange( void )
 {
+#if 0  // TODO
    bool update = FALSE;
 
    dprintf0("TimeScale-VersionChange: called\n");
@@ -823,6 +815,7 @@ void TimeScale_VersionChange( void )
    //   so we do not need to pass this information here; this makes handling
    //   redundant calls easier too.
    if (update)
+#endif
    {
       AddMainIdleEvent(TimeScale_CreateOrRebuild, NULL, TRUE);
    }

@@ -420,7 +420,7 @@ void EpgDumpXml_Standalone( EPGDB_CONTEXT * pDbContext, FILTER_CONTEXT * fc,
       {
 #ifdef USE_XMLTV_IMPORT
          XMLTV_CNI_REV_CTX xmlIdMap;
-         XmltvCni_InitMapCni2Ids(&xmlIdMap, AI_GET_SERVICENAME(pAiBlock));
+         XmltvCni_InitMapCni2Ids(&xmlIdMap);
 #endif
          // get "OSD information" with service name and message
          pOiBlock = EpgDbGetOi(pDbContext);

@@ -271,7 +271,7 @@ uint EpgScan_EvHandler( void )
             if (dispText[0] != 0)
                sprintf(msgbuf, "Channel %s: CNI 0x0000 \"%s\"", chanName, dispText);
             else
-               sprintf(msgbuf, "Channel %s: no network ID received - skipping", chanName);
+               sprintf(msgbuf, "Channel %s: no network ID received", chanName);
             scanCtl.MsgCallback(msgbuf, FALSE);
          }
 
