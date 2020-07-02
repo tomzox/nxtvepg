@@ -293,12 +293,8 @@ typedef struct
    TTX_TIME_BUF   ttxTime;      // Out: teletext time
 
    #ifndef WIN32
-   pid_t     vbiPid;            // In:  Process ID of the VBI acq. child process
-   pid_t     epgPid;            // In:  Process ID of the main (GUI) process
+   bool      vbiSlaveRunning;   // --:  TRUE while slave thread is running
    int       failureErrno;
-   # ifndef USE_THREADS
-   bool      freeDevice;        // In:  TRUE when acq is stopped
-   # endif
 
    uchar     cardIndex;
    bool      cardIsDvb;

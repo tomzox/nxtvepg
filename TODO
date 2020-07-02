@@ -14,7 +14,6 @@ Post-Nextview EPG:
 - automatically reload XMLTV when files are changed on disk
 - remove USE_XMLTV
 - move USE_TTX_GRABBER to exclude all acqusition if not set
-- remove support for !USE_THREAD
 - apply expire only when merging new data into db by acq
   always load all data & allow unmasking expired PI via filter dialog
 - XMLTV load: don't drop overlapping blocks; load as "defective"?

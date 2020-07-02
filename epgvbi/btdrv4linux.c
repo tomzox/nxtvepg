@@ -72,10 +72,7 @@
 #include <sys/resource.h>
 #include <sys/wait.h>
 #include <dirent.h>
-
-#ifdef USE_THREADS
-# include <pthread.h>
-#endif
+#include <pthread.h>
 
 #include "epgctl/mytypes.h"
 #include "epgctl/debug.h"
@@ -166,15 +163,9 @@ typedef enum
 
 volatile EPGACQ_BUF *pVbiBuf;
 
-#ifndef USE_THREADS
-// vars used in both processes
-static bool isVbiProcess;
-static int  shmId;
-#else
 static pthread_t        vbi_thread_id;
 static pthread_cond_t   vbi_start_cond;
 static pthread_mutex_t  vbi_start_mutex;
-#endif
 
 // vars used in the acq slave process
 static bool acqShouldExit;
@@ -758,20 +749,12 @@ static void BtDriver_OpenVbi( void )
       fp = fopen(tmpName, "w");
       if (fp != NULL)
       {
-         #ifndef USE_THREADS
-         fprintf(fp, "%d", pVbiBuf->vbiPid);
-         #else
-         fprintf(fp, "%d", pVbiBuf->epgPid);
-         #endif
+         fprintf(fp, "%d", getpid());
          fclose(fp);
       }
       // allocate memory for the VBI data buffer
       BtDriver_OpenVbiBuf();
    }
-   #ifndef USE_THREADS
-   // notify the parent that the operation is completed
-   kill(pVbiBuf->epgPid, SIGUSR1);
-   #endif
 }
 
 // ---------------------------------------------------------------------------
@@ -966,17 +949,15 @@ static bool BtDriver_SetInputSource( int inputIdx, EPGACQ_TUNER_NORM norm, bool 
 //
 static void BtDriver_MasterTuneChannel( ZVBI_CHN_MSG cmd )
 {
-   if ((pVbiBuf != NULL) && (pVbiBuf->vbiPid != -1))
+   if ((pVbiBuf != NULL) && pVbiBuf->vbiSlaveRunning)
    {
       assert(pVbiBuf->slaveChnSwitch == ZVBI_CHN_MSG_NONE);
 
-      #ifdef USE_THREADS
       pthread_mutex_lock(&vbi_start_mutex);
-      #endif
       pVbiBuf->slaveChnSwitch = cmd;
 
       recvWakeUpSig = FALSE;
-      #ifdef USE_THREADS
+
       // wake the process/thread up from being blocked in read (Linux only)
       if (pthread_kill(vbi_thread_id, SIGUSR1) == 0)
       {
@@ -996,28 +977,9 @@ static void BtDriver_MasterTuneChannel( ZVBI_CHN_MSG cmd )
          // wait for signal from slave on condition variable
          pthread_cond_timedwait(&vbi_start_cond, &vbi_start_mutex, &tsp);
       }
-      #else  // not USE_THREADS
-      if (kill(pVbiBuf->vbiPid, SIGUSR1) != -1)
-      {
-         if ((recvWakeUpSig == FALSE) && (pVbiBuf->slaveChnSwitch == cmd))
-         {
-            struct timeval tv;
-            int repeat;
-
-            for (repeat = 5; (repeat > 0) && (pVbiBuf->slaveChnSwitch != ZVBI_CHN_MSG_DONE); repeat--)
-            {
-               tv.tv_sec = 0;
-               tv.tv_usec = 200*1000;
-               select(0, NULL, NULL, NULL, &tv);
-            }
-         }
-      }
-      #endif
       pVbiBuf->slaveChnSwitch = ZVBI_CHN_MSG_NONE;
 
-      #ifdef USE_THREADS
       pthread_mutex_unlock(&vbi_start_mutex);
-      #endif
    }
 }
 
@@ -1028,9 +990,7 @@ static void BtDriver_SlaveTuneChannel( void )
 {
    vbi_channel_profile prof;
 
-   #ifdef USE_THREADS
    pthread_mutex_lock(&vbi_start_mutex);
-   #endif
 
    if (pProxyClient != NULL)
    {
@@ -1071,12 +1031,8 @@ static void BtDriver_SlaveTuneChannel( void )
 
    pVbiBuf->slaveChnSwitch = ZVBI_CHN_MSG_DONE;
 
-   #ifdef USE_THREADS
    pthread_cond_signal(&vbi_start_cond);
    pthread_mutex_unlock(&vbi_start_mutex);
-   #else  // not USE_THREADS
-   kill(pVbiBuf->epgPid, SIGUSR1);
-   #endif
 }
 #endif  // defined(USE_VBI_PROXY)
 
@@ -1515,15 +1471,10 @@ void BtDriver_TuneDvbPid( int pid )
    pVbiBuf->dvbPid = pid;
 
    // interrupt the slave thread if blocked in read()
-   if (pVbiBuf->vbiPid != -1)
+   if (pVbiBuf->vbiSlaveRunning)
    {
-#ifdef USE_THREADS
       if (pthread_kill(vbi_thread_id, SIGUSR1) != 0)
          debug2("BtDriver-TuneDvbPid: failed to notify slave thread (%d) %s\n", errno, strerror(errno));
-#else
-      if (kill(pVbiBuf->vbiPid, SIGUSR1) != 0)
-         debug3("BtDriver-TuneDvbPid: failed to wake up child process %d: errno %d: %s", pVbiBuf->vbiPid, errno, strerror(errno));
-#endif
    }
 }
 
@@ -1771,81 +1722,6 @@ static void BtDriver_SignalWakeUp( int sigval )
 }
 
 // ---------------------------------------------------------------------------
-// The Acquisition process bows out on the usual signals
-//
-#ifndef USE_THREADS
-static void BtDriver_SignalHandler( int sigval )
-{
-   dprintf2("Received signal %d in %s process\n", sigval, isVbiProcess ? "VBI" : "EPG");
-   acqShouldExit = TRUE;
-   signal(sigval, BtDriver_SignalHandler);
-}
-#endif
-
-// ---------------------------------------------------------------------------
-// Receive signal to free or take vbi device
-// - if threads are used, the signal is received by the master thread
-//
-#ifndef USE_THREADS
-static void BtDriver_SignalHangup( int sigval )
-{
-   if (pVbiBuf != NULL)
-   {
-      if (isVbiProcess && (pVbiBuf->epgPid != -1))
-      {  // just pass the signal through to the master process
-         kill(pVbiBuf->epgPid, SIGHUP);
-      }
-   }
-   signal(sigval, BtDriver_SignalHangup);
-}
-#endif
-
-// ---------------------------------------------------------------------------
-// Check upon the acq slave after being signaled for death of a child
-// - if threads are used, the signal is ignored
-//
-#ifndef USE_THREADS
-static void BtDriver_SignalDeathOfChild( int sigval )
-{
-   pid_t pid;
-   int   status;
-
-   assert(isVbiProcess == FALSE);
-
-   pid = waitpid(-1, &status, WNOHANG);
-   if ((pid != -1) && (pid != 0) && (WIFEXITED(status) || WIFSIGNALED(status)))
-   {
-      if (pVbiBuf != NULL)
-      {
-         if (pid == pVbiBuf->vbiPid)
-         {  // slave died from an uncaught signal (e.g. SIGKILL)
-            debug1("BtDriver-SignalDeathOfChild: acq slave pid %d crashed - disable acq", pid);
-            pVbiBuf->vbiPid = -1;
-            if (pVbiBuf->failureErrno == 0)
-               SystemErrorMessage_Set(&pSysErrorText, 0, "acquisition child process was killed", NULL);
-            pVbiBuf->hasFailed = TRUE;
-         }
-         else if ((pVbiBuf->vbiPid == -1) && (pVbiBuf->hasFailed == FALSE))
-         {  // slave caught deadly signal and cleared his pid already
-            dprintf1("BtDriver-SignalDeathOfChild: acq slave %d terminated - disable acq", pid);
-            if (pVbiBuf->failureErrno == 0)
-               SystemErrorMessage_Set(&pSysErrorText, 0, "acquisition child process was killed", NULL);
-            pVbiBuf->hasFailed = TRUE;
-         }
-         else
-            dprintf2("BtDriver-SignalDeathOfChild: pid %d: %s\n", pid, ((pVbiBuf->hasFailed == FALSE) ? "not the VBI slave" : "acq already disabled"));
-      }
-      else
-         debug0("BtDriver-SignalDeathOfChild: no VbiBuf allocated");
-   }
-   else
-      dprintf2("BtDriver-SignalDeathOfChild: nothing to do: wait returned pid %d, flags 0x%02X\n", pid, status);
-
-   signal(sigval, BtDriver_SignalDeathOfChild);
-}
-#endif  // USE_THREADS
-
-// ---------------------------------------------------------------------------
 // If one tries to read from /dev/vbi while theres no video capturing, 
 // the read() will block forever. Therefore it's surrounded by an alarm()
 // This SignalHandler will close /dev/vbi in this case and thus forces a 
@@ -1868,10 +1744,9 @@ static void BtDriver_SignalAlarm( int sigval )
 bool BtDriver_StartAcq( void )
 {
    bool result = FALSE;
-#ifdef USE_THREADS
    sigset_t sigmask;
 
-   if ((pVbiBuf != NULL) && (pVbiBuf->vbiPid == -1))
+   if ((pVbiBuf != NULL) && (pVbiBuf->vbiSlaveRunning == FALSE))
    {
       dprintf0("BtDriver-StartAcq: starting thread\n");
 
@@ -1900,35 +1775,6 @@ bool BtDriver_StartAcq( void )
       result = TRUE;
    }
 
-#else
-   struct timeval tv;
-   int repeat;
-
-   if ((pVbiBuf != NULL) && (pVbiBuf->vbiPid != -1))
-   {
-      SystemErrorMessage_Set(&pSysErrorText, 0, NULL);
-      pVbiBuf->hasFailed = FALSE;
-      pVbiBuf->failureErrno = 0;
-      pVbiBuf->freeDevice = FALSE;
-      recvWakeUpSig = FALSE;
-      if (kill(pVbiBuf->vbiPid, SIGUSR1) != -1)
-      {
-         if ((recvWakeUpSig == FALSE) && (pVbiBuf->hasFailed == FALSE))
-         {
-            dprintf1("BtDriver-StartAcq: waiting for response from slave pid=%d\n", pVbiBuf->vbiPid);
-            for (repeat = 5; (repeat > 0) && (pVbiBuf->hasFailed == FALSE); repeat--)
-            {
-               tv.tv_sec = 0;
-               tv.tv_usec = 200*1000;
-               select(0, NULL, NULL, NULL, &tv);
-            }
-         }
-         dprintf3("BtDriver-StartAcq: slave pid=%d %s; state=%s\n", pVbiBuf->vbiPid, (recvWakeUpSig ? "replied" : "did not reply"), (pVbiBuf->hasFailed ? "failed" : "ok"));
-         pVbiBuf->freeDevice = pVbiBuf->hasFailed;
-         result = !pVbiBuf->hasFailed;
-      }
-   }
-#endif
    return result;
 }
 
@@ -1937,8 +1783,7 @@ bool BtDriver_StartAcq( void )
 //
 void BtDriver_StopAcq( void )
 {
-#ifdef USE_THREADS
-   if (pVbiBuf->vbiPid != -1)
+   if (pVbiBuf->vbiSlaveRunning)
    {
       dprintf0("BtDriver-StopAcq: killing thread\n");
 
@@ -1949,22 +1794,6 @@ void BtDriver_StopAcq( void )
    }
    else
       debug0("BtDriver-StopAcq: acq not running");
-
-#else
-   if (pVbiBuf != NULL)
-   {
-      pVbiBuf->freeDevice = TRUE;
-
-      if (pVbiBuf->vbiPid != -1)
-      {  // wake up the child
-         if (kill(pVbiBuf->vbiPid, SIGUSR1) != 0)
-         {
-            debug3("BtDriver-StopAcq: failed to wake up child process %d: errno %d: %s", pVbiBuf->vbiPid, errno, strerror(errno));
-            pVbiBuf->vbiPid = -1;
-         }
-      }
-   }
-#endif
 }
 
 // ---------------------------------------------------------------------------
@@ -2003,98 +1832,13 @@ const char * BtDriver_GetLastError( void )
 //
 void BtDriver_Exit( void )
 {
-#ifndef USE_THREADS
-   struct timeval tv;
-   uint max_wait;
-   uint wret;
-   struct shmid_ds stat;
-
-   if (pVbiBuf != NULL)
-   {
-      if ((isVbiProcess == FALSE) && (pVbiBuf->vbiPid != -1))
-      {  // this is the parent process -> kill the child process first
-         dprintf1("BtDriver-Exit: terminate child process %d\n", pVbiBuf->vbiPid);
-
-         signal(SIGCHLD, SIG_DFL);
-         if (kill(pVbiBuf->vbiPid, SIGTERM) == 0)
-         {
-            max_wait = 10;
-            while ((pVbiBuf->vbiPid != -1) && (max_wait > 0))
-            {
-               dprintf0("BtDriver-Exit: waiting for child process...\n");
-               wret = waitpid(pVbiBuf->vbiPid, NULL, WNOHANG);
-               if (wret == 0)
-               {  // sleep until child signals its death
-                  tv.tv_sec =  0;
-                  tv.tv_usec = 100 * 1000;
-                  select(0, NULL, NULL, NULL, &tv);
-                  max_wait -= 1;
-               }
-               else
-                  max_wait = 0;
-            }
-         }
-         else
-         {
-            debug3("BtDriver-Exit: failed to kill child process %d: errno %d: %s", pVbiBuf->vbiPid, errno, strerror(errno));
-            pVbiBuf->vbiPid = -1;
-         }
-      }
-
-      if (isVbiProcess == FALSE)
-      {
-         pVbiBuf->epgPid = -1;
-      }
-      else
-         dprintf1("BtDriver-Exit: child process %d terminated\n", (int)getpid());
-
-      // detatch and free the shared memory
-      shmdt((void *) pVbiBuf);
-      if (shmctl(shmId, IPC_STAT, &stat) == 0)
-      {
-         if (stat.shm_nattch == 0)
-         {  // the last one switches off the light
-            shmctl(shmId, IPC_RMID, NULL);
-         }
-      }
-
-      pVbiBuf = NULL;
-   }
-#else  // USE_THREADS
    if (pVbiBuf != NULL)
    {
       xfree((void *) pVbiBuf);
       pVbiBuf = NULL;
    }
-#endif
    SystemErrorMessage_Set(&pSysErrorText, 0, NULL);
 }
-
-#ifndef USE_THREADS
-// ---------------------------------------------------------------------------
-// Terminate acq main loop if the parent is no longer alive
-// - not required for threaded mode since we only care for program crashes,
-//   i.e. if the main thread dies, the acq thread dies too
-//
-static void BtDriver_CheckParent( void )
-{
-   if ((pVbiBuf != NULL) && (isVbiProcess == TRUE))
-   {
-      if (pVbiBuf->epgPid != -1)
-      {
-         if ((kill(pVbiBuf->epgPid, 0) == -1) && (errno == ESRCH))
-         {  // process no longer exists -> kill acquisition
-            debug1("parent is dead - terminate acq pid %d", pVbiBuf->vbiPid);
-            acqShouldExit = TRUE;
-         }
-         //else
-         //   dprintf0("BtDriver-CheckParent: parent is alive\n");
-      }
-      else
-         acqShouldExit = TRUE;
-   }
-}
-#endif
 
 // ---------------------------------------------------------------------------
 // Determine the size of the VBI buffer
@@ -2528,22 +2272,15 @@ int BtDriver_StartCapture(void)
 //
 static void * BtDriver_Main( void * foo )
 {
-   #ifdef USE_THREADS
    sigset_t sigmask;
-   #else
-   struct timeval tv;
-   uint parentCheckCounter;
-   uint lastReaderIdx;
-   #endif
 
-   pVbiBuf->vbiPid = getpid();
+   pVbiBuf->vbiSlaveRunning = TRUE;
    vbi_fdin = -1;
    #if defined(__NetBSD__) || defined(__FreeBSD__)
    video_fd = -1;
    #endif
 
    acqShouldExit = FALSE;
-   #ifdef USE_THREADS
    sigemptyset(&sigmask);
    sigaddset(&sigmask, SIGHUP);
    pthread_sigmask(SIG_BLOCK, &sigmask, NULL);
@@ -2560,20 +2297,10 @@ static void * BtDriver_Main( void * foo )
       acqShouldExit = TRUE;
    pthread_cond_signal(&vbi_start_cond);
    pthread_mutex_unlock(&vbi_start_mutex);
-   #else
-   // notify parent that child is ready
-   kill(pVbiBuf->epgPid, SIGUSR1);
-   parentCheckCounter = 0;
-   lastReaderIdx = pVbiBuf->reader_idx;
-   #endif
 
    while (acqShouldExit == FALSE)
    {
-      if ( (pVbiBuf->hasFailed == FALSE)
-           #ifndef USE_THREADS
-           && (pVbiBuf->freeDevice == FALSE)
-           #endif
-         )
+      if (pVbiBuf->hasFailed == FALSE)
       {
          #if !defined (__NetBSD__) && !defined (__FreeBSD__)
          if ((vbi_fdin != -1) &&
@@ -2595,42 +2322,12 @@ static void * BtDriver_Main( void * foo )
          else
          {  // device is open -> capture the VBI lines of this frame
             BtDriver_DecodeFrame();
-
-            #ifndef USE_THREADS
-            // if acq is stalled or the reader is not processing its data anymore
-            // check every 15 secs if the master process is still alive
-            if (lastReaderIdx == pVbiBuf->reader_idx)
-            {
-               parentCheckCounter += 1;
-               if (parentCheckCounter > 15 * 25)
-               {
-                  BtDriver_CheckParent();
-                  parentCheckCounter = 0;
-               }
-            }
-            else
-               parentCheckCounter = 0;
-            lastReaderIdx = pVbiBuf->reader_idx;
-            #endif
          }
       }
       else
       {  // acq was switched off -> close device
-         #ifndef USE_THREADS
-         BtDriver_CloseVbi(FALSE);
-
-         // sleep until signal; check parent every 30 secs
-         if (acqShouldExit == FALSE)
-         {
-            tv.tv_sec = 30;
-            tv.tv_usec = 0;
-            select(0, NULL, NULL, NULL, &tv);
-            BtDriver_CheckParent();
-         }
-         #else
          // the thread terminates when acq is stopped
          acqShouldExit = TRUE;
-         #endif
       }
 
 #if defined(USE_VBI_PROXY)
@@ -2645,18 +2342,7 @@ static void * BtDriver_Main( void * foo )
    BtDriver_CloseVbi(FALSE);
 
    pVbiBuf->hasFailed = TRUE;
-
-   #ifdef USE_THREADS
-   pVbiBuf->vbiPid = -1;
-   #else
-   if (pVbiBuf->scanEnabled || pVbiBuf->ttxEnabled)
-   {  // notify the parent that acq has stopped (e.g. after SIGTERM)
-      dprintf1("BtDriver-Main: acq slave exiting - signalling parent %d\n", pVbiBuf->epgPid);
-      kill(pVbiBuf->epgPid, SIGHUP);
-   }
-   else
-      dprintf0("BtDriver-Main: acq slave exiting\n");
-   #endif
+   pVbiBuf->vbiSlaveRunning = FALSE;
 
    return NULL;
 }
@@ -2669,90 +2355,6 @@ static void * BtDriver_Main( void * foo )
 //
 bool BtDriver_Init( void )
 {
-#ifndef USE_THREADS
-   struct timeval tv;
-   int dbTaskPid;
-
-   pVbiBuf = NULL;
-   isVbiProcess = FALSE;
-   video_fd = -1;
-
-#ifdef USE_LIBZVBI
-   pZvbiCapt = NULL;
-   pZvbiRawDec = NULL;
-   pZvbiData = NULL;
-#endif
-
-   shmId = shmget(IPC_PRIVATE, sizeof(EPGACQ_BUF), IPC_CREAT|IPC_EXCL|0600);
-   if (shmId == -1)
-   {  // failed to create a new segment with this key
-      perror("shmget");
-      return FALSE;
-   }
-   pVbiBuf = shmat(shmId, NULL, 0);
-   if (pVbiBuf == (EPGACQ_BUF *) -1)
-   {
-      perror("shmat");
-      return FALSE;
-   }
-
-   memset((void *) pVbiBuf, 0, sizeof(EPGACQ_BUF));
-   pVbiBuf->epgPid = getpid();
-   pVbiBuf->freeDevice = TRUE;
-   pVbiBuf->slicerType = VBI_SLICER_TRIVIAL;
-
-   #if defined(__NetBSD__) || defined(__FreeBSD__)
-   // scan cards and inputs
-   BtDriver_ScanDevices(TRUE);
-   #endif
-
-   recvWakeUpSig = FALSE;
-   signal(SIGUSR1, BtDriver_SignalWakeUp);
-   signal(SIGCHLD, BtDriver_SignalDeathOfChild);
-
-   dbTaskPid = fork();
-   if (dbTaskPid == -1)
-   {
-      perror("fork");
-      return FALSE;
-   }
-   else if (dbTaskPid != 0)
-   {  // parent
-      // wait until child is ready
-      pVbiBuf->vbiPid = dbTaskPid;
-      if (recvWakeUpSig == FALSE)
-      {
-         tv.tv_sec = 2;
-         tv.tv_usec = 0;
-         select(0, NULL, NULL, NULL, &tv);
-      }
-      // slightly lower priority to relatively raise prio of the acq process
-      setpriority(PRIO_PROCESS, getpid(), getpriority(PRIO_PROCESS, getpid()) + 1);
-      // return TRUE if slave signaled USR1
-      return recvWakeUpSig;
-   }
-   else
-   {
-      signal(SIGINT,  BtDriver_SignalHandler);
-      signal(SIGTERM, BtDriver_SignalHandler);
-      signal(SIGQUIT, BtDriver_SignalHandler);
-      signal(SIGHUP,  BtDriver_SignalHangup);
-
-      #if defined(__NetBSD__) || defined(__FreeBSD__)
-      // install signal handler to implement read timeout on /dev/vbi
-      signal(SIGALRM,  BtDriver_SignalAlarm);
-      #endif
-
-      isVbiProcess = TRUE;
-
-      // enter main loop
-      BtDriver_Main(NULL);
-      BtDriver_Exit();
-
-      exit(0);
-   }
-
-#else  //USE_THREADS
    signal(SIGUSR1, SIG_IGN);
 
    #if defined(__NetBSD__) || defined(__FreeBSD__)
@@ -2763,8 +2365,7 @@ bool BtDriver_Init( void )
    pVbiBuf = xmalloc(sizeof(*pVbiBuf));
    memset((void *) pVbiBuf, 0, sizeof(EPGACQ_BUF));
 
-   pVbiBuf->epgPid = getpid();
-   pVbiBuf->vbiPid = -1;
+   pVbiBuf->vbiSlaveRunning = FALSE;
    pVbiBuf->slicerType = VBI_SLICER_TRIVIAL;
 
    vbi_fdin = -1;
@@ -2783,5 +2384,4 @@ bool BtDriver_Init( void )
 #endif
 
    return TRUE;
-#endif  //USE_THREADS
 }

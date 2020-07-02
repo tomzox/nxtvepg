@@ -74,8 +74,6 @@ ACQLIBS += -L$(BUILD_DIR)/dsdrv -ltvcard -ldsdrv
 DEFS   += -DUSE_PRECOMPILED_TCL_LIBS
 # define this if you have patched nxtvepg.ico into the tk DLL
 DEFS   += -DICON_PATCHED_INTO_DLL
-# enable use of multi-threading (UNIX only)
-#DEFS   += -DUSE_THREADS
 # enable use of daemon and client/server connection (UNIX only)
 DEFS   += -DUSE_DAEMON
 # enable if you have both 32-bit and 64-bit systems

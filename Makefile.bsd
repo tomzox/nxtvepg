@@ -53,7 +53,6 @@ GUILIBS         = -L$(LOCALBASE)/lib\
 
 INCS            += -I$(LOCALBASE)/include/tcl$(TCL_VER)\
                    -I$(LOCALBASE)/include/tk$(TCL_VER)
-WANT_THREADS    = 1 # comment out to force process based implementation
 
 ifeq ($(OS), FreeBSD)
 PTHREAD         = $(PTHREAD_LIBS)
@@ -98,11 +97,7 @@ DEFS   += -DTCL_LIBRARY_PATH=\"$(TCL_LIBRARY_PATH)\"
 
 DEFS   += -DX11_APP_DEFAULTS=\"$(resdir)/app-defaults/Nxtvepg\"
 
-# enable use of multi-threading
-ifdef WANT_THREADS
-  DEFS    += -DUSE_THREADS
-  ACQLIBS += $(PTHREAD)
-endif
+ACQLIBS += $(PTHREAD)
 
 # enable use of daemon and client/server connection
 DEFS   += -DUSE_DAEMON
@@ -145,11 +140,6 @@ ifdef USER_DBDIR
 else
 	$(ECHO) "   db in home:                                no"
 	$(ECHO) "   system db dir:                             $(SYS_DBDIR)"
-endif
-ifdef WANT_THREADS
-	$(ECHO) "   Concurrency implementation based on:       threads (using $(PTHREAD))"
-else
-	$(ECHO) "   Concurrency implementation based on:       processes"
 endif
 	$(ECHO) "   C compiler:                                $(CC)"
 	$(ECHO)

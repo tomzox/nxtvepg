@@ -85,8 +85,7 @@ TK_LIBRARY_PATH = /usr/share/tcltk/tk$(TCL_VER)
 DEFS   += -DTK_LIBRARY_PATH=\"$(TK_LIBRARY_PATH)\"
 DEFS   += -DTCL_LIBRARY_PATH=\"$(TCL_LIBRARY_PATH)\"
 
-# enable use of multi-threading
-DEFS    += -DUSE_THREADS
+# pthreads are required for capturing
 ACQLIBS += -lpthread
 
 # use UTF-8 internally instead of Latin-1 (EXPERIMENTAL)

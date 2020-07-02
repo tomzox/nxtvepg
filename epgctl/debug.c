@@ -56,7 +56,7 @@
 #include <time.h>
 #include <errno.h>
 #include <string.h>
-#ifdef USE_THREADS
+#ifndef WIN32
 # include <pthread.h>
 #endif
 
@@ -102,7 +102,7 @@ static ulong malPeak  = 0L;
 static uint malRealloc = 0;
 static uint malReallocOk = 0;
 
-#ifdef USE_THREADS
+#ifndef WIN32
 static pthread_mutex_t  check_malloc_mutex;
 #endif
 #endif  // CHK_MALLOC == ON
@@ -211,7 +211,7 @@ void * chk_malloc( size_t size, const char * pCallerFile, int callerLine )
    memcpy(pElem->magic1, pMallocMagic, sizeof(MALLOC_CHAIN_MAGIC_LEN));
    memcpy((uchar *)&pElem[1] + size, pMallocMagic, sizeof(MALLOC_CHAIN_MAGIC_LEN));
 
-#ifdef USE_THREADS
+#ifndef WIN32
    pthread_mutex_lock(&check_malloc_mutex);
 #endif
    // monitor maximum memory usage
@@ -229,7 +229,7 @@ void * chk_malloc( size_t size, const char * pCallerFile, int callerLine )
       pElem->next->prev = pElem;
    }
    //fprintf(stderr, "chk-malloc: 0x%lX: %s, line %d, size %ld\n", (long)pElem, pElem->fileName, pElem->line, (ulong)pElem->size);
-#ifdef USE_THREADS
+#ifndef WIN32
    pthread_mutex_unlock(&check_malloc_mutex);
 #endif
 
@@ -273,7 +273,7 @@ void * chk_realloc( void * ptr, size_t size, const char * pCallerFile, int calle
    // update size in header magic
    pElem->size = size;
 
-#ifdef USE_THREADS
+#ifndef WIN32
    pthread_mutex_lock(&check_malloc_mutex);
 #endif
    // update links to the current element in case the pointer changed
@@ -299,7 +299,7 @@ void * chk_realloc( void * ptr, size_t size, const char * pCallerFile, int calle
    malRealloc += 1;
    if (pElem == pPrevElem)
       malReallocOk += 1;
-#ifdef USE_THREADS
+#ifndef WIN32
    pthread_mutex_unlock(&check_malloc_mutex);
 #endif
 
@@ -336,7 +336,7 @@ void chk_free( void * ptr, const char * pCallerFile, int callerLine )
    memcpy(pElem->magic1, pMallocXmark, sizeof(MALLOC_CHAIN_MAGIC_LEN));
    memcpy((uchar *)&pElem[1] + pElem->size, pMallocXmark, sizeof(MALLOC_CHAIN_MAGIC_LEN));
 
-#ifdef USE_THREADS
+#ifndef WIN32
    pthread_mutex_lock(&check_malloc_mutex);
 #endif
    // update memory usage
@@ -362,7 +362,7 @@ void chk_free( void * ptr, const char * pCallerFile, int callerLine )
       assert(pElem->next->prev == pElem);
       pElem->next->prev = pElem->prev;
    }
-#ifdef USE_THREADS
+#ifndef WIN32
    pthread_mutex_unlock(&check_malloc_mutex);
 #endif
 
