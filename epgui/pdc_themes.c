@@ -555,10 +555,10 @@ void PdcThemeSetLanguage( uchar lang )
 //
 const char * PdcThemeGet( uchar theme )
 {
-   if (theme < 0x80)
+   if (theme <= PDC_THEME_LAST)
       return pdc_themes[theme];
    else
-      return pdc_themes[PDC_THEME_SERIES];
+      return pdc_undefined;
 }
 
 // ---------------------------------------------------------------------------
@@ -568,16 +568,18 @@ const char * PdcThemeGetByLang( uchar theme, uchar lang )
 {
    const char * pResult;
 
-   if (theme >= 0x80)
-      theme = PDC_THEME_SERIES;
-
-   switch (lang)
+   if (theme <= PDC_THEME_LAST)
    {
-      case 1:  pResult = pdc_themes_ger[theme]; break;
-      case 4:  pResult = pdc_themes_fra[theme]; break;
-      default:
-      case 0:  pResult = pdc_themes_eng[theme]; break;
+      switch (lang)
+      {
+         case 1:  pResult = pdc_themes_ger[theme]; break;
+         case 4:  pResult = pdc_themes_fra[theme]; break;
+         default:
+         case 0:  pResult = pdc_themes_eng[theme]; break;
+      }
    }
+   else
+      pResult = pdc_undefined;
 
    return pResult;
 }
@@ -595,7 +597,7 @@ const char * PdcThemeGetWithGeneral( uchar theme, const char ** pGeneralStr, boo
    uint idx;
 
    isGeneral = FALSE;
-   if (theme < 0x80)
+   if (theme <= PDC_THEME_LAST)
    {
       pThemeStr = pdc_themes[theme];
       if (pThemeStr != NULL)
@@ -613,7 +615,7 @@ const char * PdcThemeGetWithGeneral( uchar theme, const char ** pGeneralStr, boo
       }
    }
    else
-      pThemeStr = pdc_themes[PDC_THEME_SERIES];
+      pThemeStr = pdc_undefined;
 
    if (pGeneralStr != NULL)
       *pGeneralStr = isGeneral ? (char *) pdc_general : "";
@@ -623,12 +625,10 @@ const char * PdcThemeGetWithGeneral( uchar theme, const char ** pGeneralStr, boo
 
 // ---------------------------------------------------------------------------
 // Check if the given PDC theme index is predefined by ETSI
-// - returns FALSE for series codes because these are not predefined;
-//   their meaning varies between providers
 //
 bool PdcThemeIsDefined( uchar theme )
 {
-   if (theme < 0x80)
+   if (theme <= PDC_THEME_LAST)
       return (pdc_themes[theme] != NULL);
    else
       return FALSE;
@@ -636,16 +636,13 @@ bool PdcThemeIsDefined( uchar theme )
 
 // ---------------------------------------------------------------------------
 // Determine into which category the given theme falls
-// - The codes above 0x80 are defined indiviually for each network
-//   The names for these codes are implied by the titles of the
-//   assigned programme entries, i.e. PI blocks.
 //
 uchar PdcThemeGetCategory( uchar theme )
 {
    uint  idx;
    uint  category;
 
-   if (theme < 0x80)
+   if (theme < PDC_THEME_LAST)
    {
       idx = (theme >> (4 - 1)) & 0x0e;
 
@@ -655,7 +652,7 @@ uchar PdcThemeGetCategory( uchar theme )
          category = pdc_categories[idx];
    }
    else
-      category = 0x80;
+      category = PDC_THEME_LAST;
 
    return category;
 }

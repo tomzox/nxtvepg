@@ -155,7 +155,6 @@ proc CheckShortcutDeselection {} {
    global shortcuts
    global parental_rating editorial_rating
    global theme_sel theme_class_sel current_theme_class theme_class_count
-   global series_sel
    global feature_class_count feature_class_mask feature_class_value
    global progidx_first progidx_last filter_progidx
    global substr_stack
@@ -189,14 +188,6 @@ proc CheckShortcutDeselection {} {
                   }
                } else {
                   set undo 1
-               }
-            }
-            series {
-               foreach series $valist {
-                  if {![info exists series_sel($series)] || ($series_sel($series) == 0)} {
-                     set undo 1
-                     break
-                  }
                }
             }
             netwops {
@@ -391,11 +382,6 @@ proc SelectSingleShortcut {sc_tag} {
          piexpire {
             set piexpire_display [lindex $valist 0]
          }
-         series {
-            foreach series $valist {
-               C_SelectSeries $series 1
-            }
-         }
          netwops {
             set all {}
             set index 0
@@ -422,7 +408,6 @@ proc SelectSingleShortcut {sc_tag} {
 proc SelectShortcuts {sc_tag_list shortcuts_arr} {
    global parental_rating editorial_rating
    global theme_sel theme_class_sel current_theme_class theme_class_count
-   global series_sel
    global feature_class_count feature_class_mask feature_class_value
    global progidx_first progidx_last filter_progidx
    global substr_stack substr_pattern substr_grep_title substr_grep_descr
@@ -458,7 +443,6 @@ proc SelectShortcuts {sc_tag_list shortcuts_arr} {
          switch -exact $type {
             themes     {ResetThemes;          set reset(themes) 1}
             features   {ResetFeatures;        set reset(features) 1}
-            series     {ResetSeries;          set reset(series) 1}
             parental   {ResetParentalRating;  set reset(parental) 1}
             editorial  {ResetEditorialRating; set reset(editorial) 1}
             progidx    {ResetProgIdx;         set reset(progidx) 1}
@@ -540,12 +524,6 @@ proc SelectShortcuts {sc_tag_list shortcuts_arr} {
                   piexpire {
                      set piexpire_display 0
                      C_SelectExpiredPiDisplay
-                  }
-                  series {
-                     foreach index $valist {
-                        set series_sel($index) 0
-                        C_SelectSeries $index 0
-                     }
                   }
                   netwops {
                      if {[info exists netdesel]} {
@@ -694,12 +672,6 @@ proc SelectShortcuts {sc_tag_list shortcuts_arr} {
                   C_SelectExpiredPiDisplay
                   PiExpTime_ExternalChange
                }
-               series {
-                  foreach series $valist {
-                     set series_sel($series) 1
-                     C_SelectSeries $series 1
-                  }
-               }
                netwops {
                   if {[info exists netsel]} {
                      set netsel [concat $netsel $valist]
@@ -790,20 +762,6 @@ proc SelectShortcuts {sc_tag_list shortcuts_arr} {
    }
    UpdateFeatureMenuState
    C_SelectFeatures $all
-
-   # disable series filter when all deselected
-   if {[info exists series_sel]} {
-      set clearSeries 1
-      foreach index [array names series_sel] {
-         if {$series_sel($index) == 1} {
-            set clearSeries 0
-            break
-         }
-      }
-      if {$clearSeries} {
-         C_ResetFilter series
-      }
-   }
 
    # update the sub-string text filter
    if [info exists upd_substr] {
@@ -1091,7 +1049,6 @@ proc DescribeCurrentFilter {} {
    global feature_class_mask feature_class_value
    global parental_rating editorial_rating
    global theme_class_count current_theme_class theme_sel theme_class_sel
-   global series_sel
    global feature_class_count current_feature_class
    global substr_stack
    global filter_progidx progidx_first progidx_last
@@ -1153,18 +1110,6 @@ proc DescribeCurrentFilter {} {
    if {$filter_progidx > 0} {
       lappend all "progidx" [list $progidx_first $progidx_last]
       lappend mask progidx
-   }
-
-   # dump series array
-   set temp {}
-   foreach index [array names series_sel] {
-      if {$series_sel($index) != 0} {
-         lappend temp $index
-      }
-   }
-   if {[string length $temp] > 0} {
-      lappend all "series" $temp
-      lappend mask series
    }
 
    # dump start time filter
@@ -1265,16 +1210,6 @@ proc ShortcutPrettyPrint {filter inv_list} {
             scan $ident "theme_class%d" class
             foreach theme $valist {
                append out "${not}Theme, class ${class}: [C_GetPdcString $theme]\n"
-            }
-         }
-         series {
-            set titnet_list [C_GetSeriesTitles $valist]
-            set title_list {}
-            foreach {title netwop} $titnet_list {
-               lappend title_list [list $title $netwop]
-            }
-            foreach title [lsort -command CompareSeriesMenuEntries $title_list] {
-               append out "${not}Series: '[lindex $title 0]' on [lindex $title 1]\n"
             }
          }
          netwops {
@@ -1441,13 +1376,16 @@ proc ShortcutPrettyPrint {filter inv_list} {
                } else {
                   append out "${not}Title or Description"
                }
-               append out " containing '[lindex $parlist 0]'"
-               if {[lindex $parlist 3] && [lindex $parlist 4]} {
-                  append out " (match case & complete)"
-               } elseif [lindex $parlist 3] {
-                  append out " (match case)"
+               if [lindex $parlist 4] {
+                  append out " equal to "
+               } else {
+                  append out " containing "
+               }
+               append out "'[lindex $parlist 0]'"
+               if [lindex $parlist 3] {
+                  append out " (matching case)"
                } elseif [lindex $parlist 4] {
-                  append out " (match complete)"
+                  append out " (ignoring case)"
                }
                append out "\n"
             }
@@ -1456,4 +1394,3 @@ proc ShortcutPrettyPrint {filter inv_list} {
    }
    return $out
 }
-

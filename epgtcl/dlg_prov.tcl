@@ -256,7 +256,6 @@ proc PopupProviderMerge {} {
          cftitle "Title"
          cfdescr "Description text"
          cfthemes "Theme categories"
-         cfseries "Series codes"
          cfeditorial "Editorial rating"
          cfparental "Parental rating"
          cfsound "Sound format"
@@ -273,7 +272,6 @@ proc PopupProviderMerge {} {
       .provmerge.mb.men add command -command {PopupProviderMergeOpt cftitle} -label $ProvmergeOptLabels(cftitle)
       .provmerge.mb.men add command -command {PopupProviderMergeOpt cfdescr} -label $ProvmergeOptLabels(cfdescr)
       .provmerge.mb.men add command -command {PopupProviderMergeOpt cfthemes} -label $ProvmergeOptLabels(cfthemes)
-      .provmerge.mb.men add command -command {PopupProviderMergeOpt cfseries} -label $ProvmergeOptLabels(cfseries)
       .provmerge.mb.men add command -command {PopupProviderMergeOpt cfeditorial} -label $ProvmergeOptLabels(cfeditorial)
       .provmerge.mb.men add command -command {PopupProviderMergeOpt cfparental} -label $ProvmergeOptLabels(cfparental)
       .provmerge.mb.men add command -command {PopupProviderMergeOpt cfsound} -label $ProvmergeOptLabels(cfsound)

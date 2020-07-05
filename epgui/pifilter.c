@@ -67,7 +67,6 @@ FILTER_CONTEXT *pPiFilterContext = NULL;
 
 // ----------------------------------------------------------------------------
 // Update the themes filter setting
-// - special value 0x80 is extended to cover all series codes 0x80...0xff
 //
 static int SelectThemes( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
 {  
@@ -97,10 +96,7 @@ static int SelectThemes( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *
             result = Tcl_GetIntFromObj(interp, pThemes[idx], &theme);
             if (result == TCL_OK)
             {
-               if (theme == 0x80)
-                  EpgDbFilterSetThemes(pPiFilterContext, 0x80, 0xff, class);
-               else
-                  EpgDbFilterSetThemes(pPiFilterContext, theme, theme, class);
+               EpgDbFilterSetThemes(pPiFilterContext, theme, theme, class);
             }
             else
                break;
@@ -111,40 +107,6 @@ static int SelectThemes( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *
          else
             EpgDbFilterDisable(pPiFilterContext, FILTER_THEMES);
       }
-   }
-
-   return result;
-}
-
-// ----------------------------------------------------------------------------
-// callback for series checkbuttons
-//
-static int SelectSeries( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
-{  
-   const char * const pUsage = "Usage: C_SelectSeries <series-code> <enable=0/1>";
-   int series, enable;
-   int result; 
-   
-   if (objc != 3)
-   {  // illegal parameter count (the themes must be passed as list, not separate items)
-      Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
-      result = TCL_ERROR; 
-   }  
-   else if ( (Tcl_GetIntFromObj(interp, objv[1], &series) != TCL_OK) ||
-             (Tcl_GetBooleanFromObj(interp, objv[2], &enable) != TCL_OK) )
-   {  // illegal parameter format
-      result = TCL_ERROR; 
-   }
-   else
-   {
-      result = TCL_OK; 
-
-      if (EpgDbFilterIsEnabled(pPiFilterContext, FILTER_SERIES) == FALSE)
-      {
-         EpgDbFilterInitSeries(pPiFilterContext);
-         EpgDbFilterEnable(pPiFilterContext, FILTER_SERIES);
-      }
-      EpgDbFilterSetSeries(pPiFilterContext, series >> 8, series & 0xff, enable);
    }
 
    return result;
@@ -602,10 +564,10 @@ static int PiFilter_Reset( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj
    int  result; 
 
    static CONST84 char * pKeywords[] = {"all", "netwops", "themes",
-      "series", "substr", "progidx", "timsel", "dursel", "parental", "editorial",
+      "substr", "progidx", "timsel", "dursel", "parental", "editorial",
       "features", "languages", "subtitles", "vps_pdc", (char *) NULL};
    enum reset_keys { FE_ALL, FE_NETWOPS, FE_THEMES,
-      FE_SERIES, FE_SUBSTR, FE_PROGIDX, FE_TIMSEL, FE_DURSEL, FE_PARENTAL, FE_EDITORIAL,
+      FE_SUBSTR, FE_PROGIDX, FE_TIMSEL, FE_DURSEL, FE_PARENTAL, FE_EDITORIAL,
       FE_FEATURES, FE_LANGUAGES, FE_SUBTITLES, FE_VPS_PDC};
 
    if (objc != 2)
@@ -628,7 +590,6 @@ static int PiFilter_Reset( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj
                   case FE_ALL:        mask |= FILTER_ALL & ~FILTER_PERM; break;
                   case FE_NETWOPS:    mask |= FILTER_NETWOP; break;
                   case FE_THEMES:     mask |= FILTER_THEMES; break;
-                  case FE_SERIES:     mask |= FILTER_SERIES; break;
                   case FE_SUBSTR:     mask |= FILTER_SUBSTR; break;
                   case FE_PROGIDX:    mask |= FILTER_PROGIDX; break;
                   case FE_TIMSEL:     mask |= FILTER_TIME_ALL; break;
@@ -673,10 +634,10 @@ static int PiFilter_Invert( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Ob
    int   result;
 
    static CONST84 char * pKeywords[] = {"all", "netwops", "themes",
-      "series", "substr", "progidx", "timsel", "dursel", "parental", "editorial",
+      "substr", "progidx", "timsel", "dursel", "parental", "editorial",
       "features", "languages", "subtitles", "vps_pdc", "custom", (char *) NULL};
    enum reset_keys { FE_ALL, FE_NETWOPS, FE_THEMES,
-      FE_SERIES, FE_SUBSTR, FE_PROGIDX, FE_TIMSEL, FE_DURSEL, FE_PARENTAL, FE_EDITORIAL,
+      FE_SUBSTR, FE_PROGIDX, FE_TIMSEL, FE_DURSEL, FE_PARENTAL, FE_EDITORIAL,
       FE_FEATURES, FE_LANGUAGES, FE_SUBTITLES, FE_VPS_PDC, FE_CUSTOM};
 
    if (objc != 2)
@@ -710,7 +671,6 @@ static int PiFilter_Invert( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Ob
                   {
                      case FE_ALL:        globalInvert = TRUE; break;
                      case FE_NETWOPS:    mask |= FILTER_NETWOP; break;
-                     case FE_SERIES:     mask |= FILTER_SERIES; break;
                      case FE_SUBSTR:     mask |= FILTER_SUBSTR; break;
                      case FE_PROGIDX:    mask |= FILTER_PROGIDX; break;
                      case FE_TIMSEL:     mask |= FILTER_TIME_ALL; break;
@@ -969,16 +929,20 @@ static int GetPdcString( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *
    return result;
 }
 
+#if 0
 // ----------------------------------------------------------------------------
-// Return a list of CNIs of all networks that have PI of theme "series"
+// Return a list of CNIs of all networks that have recurring title strings
 //
 static int GetNetwopsWithSeries( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
 {
    const char * const pUsage = "Usage: C_GetNetwopsWithSeries";
+   Tcl_HashTable piCache;
    Tcl_Obj * pNetwopList;
    const AI_BLOCK *pAiBlock;
+   const PI_BLOCK *pPiBlock;
    FILTER_CONTEXT *fc;
    char  strbuf[16+2+1];
+   int isNewCacheEntry;
    int netwop;
    int result;
 
@@ -993,9 +957,7 @@ static int GetNetwopsWithSeries( ClientData ttp, Tcl_Interp *interp, int objc, T
 
       EpgDbLockDatabase(dbc, TRUE);
       fc = EpgDbFilterCreateContext();
-      EpgDbFilterEnable(fc, FILTER_NETWOP | FILTER_THEMES);
-      EpgDbFilterInitThemes(fc, 0xff);
-      EpgDbFilterSetThemes(fc, 0x81, 0xff, 1);
+      EpgDbFilterEnable(fc, FILTER_NETWOP);
 
       pAiBlock = EpgDbGetAi(dbc);
       if (pAiBlock != NULL)
@@ -1005,16 +967,28 @@ static int GetNetwopsWithSeries( ClientData ttp, Tcl_Interp *interp, int objc, T
 
          for ( netwop = 0; netwop < pAiBlock->netwopCount; netwop++ ) 
          {
+            // create a hash for filling with title strings
+            Tcl_InitHashTable(&piCache, TCL_STRING_KEYS);
+
             EpgDbFilterInitNetwop(fc);
             EpgDbFilterSetNetwop(fc, netwop);
 
-            if (EpgDbSearchFirstPi(dbc, fc) != NULL)
+            pPiBlock = EpgDbSearchFirstPi(dbc, fc);
+            while (pPiBlock != NULL)
             {
-               // append the CNI in the format "0x0D94" to the TCL result list
-               sprintf(strbuf, "0x%04X", AI_GET_NET_CNI_N(pAiBlock, netwop));
-               Tcl_ListObjAppendElement(interp, pNetwopList,
-                                        Tcl_NewStringObj(strbuf, -1));
+               // add title to hash & check if already hashed previously
+               Tcl_CreateHashEntry(&piCache, PI_GET_TITLE(pPiBlock), &isNewCacheEntry);
+               if (isNewCacheEntry == FALSE)
+               {
+                  // found first recurring title -> append the CNI to results
+                  sprintf(strbuf, "0x%04X", AI_GET_NET_CNI_N(pAiBlock, netwop));
+                  Tcl_ListObjAppendElement(interp, pNetwopList,
+                                           Tcl_NewStringObj(strbuf, -1));
+                  break;
+               }
+               pPiBlock = EpgDbSearchNextPi(dbc, fc, pPiBlock);
             }
+            Tcl_DeleteHashTable(&piCache);
          }
 
          Tcl_SetObjResult(interp, pNetwopList);
@@ -1027,8 +1001,8 @@ static int GetNetwopsWithSeries( ClientData ttp, Tcl_Interp *interp, int objc, T
 }
 
 // ----------------------------------------------------------------------------
-// Get a list of all series codes and titles on a given network
-// - returns a 'paired list': series code followed by title
+// Get a list of recurring titles on a given network
+// - returns a 'paired list': original title as in DB and "dictified" title
 //
 static int GetNetwopSeriesList( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
 {
@@ -1037,10 +1011,10 @@ static int GetNetwopSeriesList( ClientData ttp, Tcl_Interp *interp, int objc, Tc
    const PI_BLOCK * pPiBlock;
    const char     * pTitle;
    Tcl_Obj * pResultList;
-   bool usedSeries[0x80];
+   Tcl_Obj * pTmpObj;
    FILTER_CONTEXT *fc;
-   uchar netwop, series, lang;
-   uint index, cni;
+   uchar netwop, lang;
+   uint cni;
    int result;
 
    if (objc != 2)
@@ -1070,40 +1044,29 @@ static int GetNetwopSeriesList( ClientData ttp, Tcl_Interp *interp, int objc, Tc
             // create an empty list object to hold the result
             pResultList = Tcl_NewListObj(0, NULL);
 
-            memset(usedSeries, FALSE, sizeof(usedSeries));
-
             fc = EpgDbFilterCreateContext();
             EpgDbFilterEnable(fc, FILTER_NETWOP | FILTER_THEMES);
             EpgDbFilterInitNetwop(fc);
             EpgDbFilterSetNetwop(fc, netwop);
-            EpgDbFilterInitThemes(fc, 0xff);
-            EpgDbFilterSetThemes(fc, 0x81, 0xff, 1);
 
             pPiBlock = EpgDbSearchFirstPi(dbc, fc);
-            if (pPiBlock != NULL)
+            while (pPiBlock != NULL)
             {
-               do
+               EpgDbFilterSetSubStr(fc, PI_GET_TITLE(pPiBlock), TRUE, FALSE, TRUE, TRUE);
+               EpgDbFilterEnable(fc, FILTER_SUBSTR);
+
+               // check if there's another block with the same title
+               if (EpgDbSearchNextPi(dbc, fc, pPiBlock) != NULL)
                {
-                  series = 0;
-                  for (index=0; index < pPiBlock->no_themes; index++)
-                  {
-                     series = pPiBlock->themes[index];
-                     if ((series > 0x80) && (usedSeries[series - 0x80] == FALSE))
-                     {
-                        usedSeries[series - 0x80] = TRUE;
+                  pTmpObj = TranscodeToUtf8(EPG_ENC_NXTVEPG, NULL, PI_GET_TITLE(pPiBlock), NULL);
+                  Tcl_ListObjAppendElement(interp, pResultList, pTmpObj);
 
-                        Tcl_ListObjAppendElement(interp, pResultList,
-                                                 Tcl_NewIntObj((netwop << 8) | series));
-
-                        //printf("%s 0x%02x - %s\n", netname, series, PI_GET_TITLE(pPiBlock));
-                        pTitle = PiDescription_DictifyTitle(PI_GET_TITLE(pPiBlock), lang, comm, TCL_COMM_BUF_SIZE);
-                        Tcl_ListObjAppendElement(interp, pResultList, TranscodeToUtf8(EPG_ENC_NXTVEPG, NULL, pTitle, NULL));
-                        break;
-                     }
-                  }
-                  pPiBlock = EpgDbSearchNextPi(dbc, fc, pPiBlock);
+                  pTitle = PiDescription_DictifyTitle(PI_GET_TITLE(pPiBlock), lang, comm, TCL_COMM_BUF_SIZE);
+                  Tcl_ListObjAppendElement(interp, pResultList, TranscodeToUtf8(EPG_ENC_NXTVEPG, NULL, pTitle, NULL));
                }
-               while (pPiBlock != NULL);
+               EpgDbFilterDisable(fc, FILTER_SUBSTR);
+
+               pPiBlock = EpgDbSearchNextPi(dbc, fc, pPiBlock);
             }
             EpgDbFilterDestroyContext(fc);
 
@@ -1120,29 +1083,28 @@ static int GetNetwopSeriesList( ClientData ttp, Tcl_Interp *interp, int objc, Tc
 
    return result;
 }
+#endif
 
 // ----------------------------------------------------------------------------
-// Get a list of all series titles starting with a given letter
+// Get a list of all titles starting with a given letter
+// - keeps current network filter (i.e. only shows series on selected networks)
 // - uses the letter which is in the first position after moving language dependent
 //   attributes like 'Der', 'Die', 'Das' etc. to the end ('dictified' titles)
-// - appends the network name to the series title; this is helpful for the user
-//   if the same series is broadcast by multiple networks
-// - returns a 'paired list': network number followed by title
+// - returns a 'tripled list': "dictified" title, search text, 0/1 (1=match-complete)
 //
 static int GetSeriesByLetter( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
 {
    const char * const pUsage = "Usage: C_GetSeriesByLetter <letter>";
    const AI_BLOCK *pAiBlock;
    const PI_BLOCK * pPiBlock;
-   const char * pTitle;
+   const char * pTitleDict;
+   const char * pTitleSerial;
    const char * pLetter;
-   const char * pCfNetname;
    Tcl_Obj * pResultList;
    Tcl_Obj * pTmpObj;
    FILTER_CONTEXT *fc;
-   uchar lang, series, letter, c;
-   uint index;
-   bool isFromAi;
+   uchar lang, letter, c;
+   bool isShortened;
    int result;
 
    if (objc != 2)
@@ -1162,11 +1124,7 @@ static int GetSeriesByLetter( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_
          // copy the pre-filters from the current filter context
          // to exclude series from suppressed networks
          fc = EpgDbFilterCopyContext(pPiFilterContext);
-         EpgDbFilterDisable(fc, FILTER_ALL & ~FILTER_PERM);
-
-         EpgDbFilterEnable(fc, FILTER_THEMES);
-         EpgDbFilterInitThemes(fc, 0xff);
-         EpgDbFilterSetThemes(fc, 0x81, 0xff, 1);
+         EpgDbFilterDisable(fc, FILTER_ALL & ~(FILTER_PERM | FILTER_NETWOP));
 
          // get the starting letter from the parameters; "other" means non-alpha chars, e.g. digits
          pLetter = Tcl_GetString(objv[1]);
@@ -1176,41 +1134,39 @@ static int GetSeriesByLetter( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_
             letter = tolower(pLetter[0]);
 
          pPiBlock = EpgDbSearchFirstPi(dbc, fc);
-         if (pPiBlock != NULL)
+         while (pPiBlock != NULL)
          {
-            do
+            // FIXME use second half of comm buffer here, and first half below
+            lang = AI_GET_NETWOP_N(pAiBlock, pPiBlock->netwop_no)->alphabet;
+            pTitleDict = PiDescription_DictifyTitle(PI_GET_TITLE(pPiBlock), lang, comm + TCL_COMM_BUF_SIZE/2, TCL_COMM_BUF_SIZE/2);
+            // check if the starting letter matches
+            c = tolower(pTitleDict[0]);
+            if ( (c == letter) ||
+                 ((letter == 0) && ((c < 'a') || (c > 'z'))) )
             {
-               lang = AI_GET_NETWOP_N(pAiBlock, pPiBlock->netwop_no)->alphabet;
-               pTitle = PiDescription_DictifyTitle(PI_GET_TITLE(pPiBlock), lang, comm, TCL_COMM_BUF_SIZE);
-               // check if the starting letter matches
-               c = tolower(pTitle[0]);
-               if ( (c == letter) ||
-                    ((letter == 0) && ((c < 'a') || (c > 'z'))) )
+               pTitleSerial = PiDescription_RemoveSeriesIndex(PI_GET_TITLE(pPiBlock), comm, TCL_COMM_BUF_SIZE / 2);
+               isShortened = (pTitleSerial != PI_GET_TITLE(pPiBlock));
+
+               EpgDbFilterSetSubStr(fc, pTitleSerial, TRUE, FALSE, TRUE, !isShortened);
+               EpgDbFilterEnable(fc, FILTER_SUBSTR);
+
+               // check if there's another block with the same title
+               if (EpgDbSearchNextPi(dbc, fc, pPiBlock) != NULL)
                {
-                  // search for a series code among the PDC themes
-                  for (index=0; index < pPiBlock->no_themes; index++)
-                  {
-                     series = pPiBlock->themes[index];
-                     if (series > 0x80)
-                     {
-                        Tcl_ListObjAppendElement(interp, pResultList,
-                                                 Tcl_NewIntObj((pPiBlock->netwop_no << 8) | series));
+                  pTmpObj = TranscodeToUtf8(EPG_ENC_NXTVEPG, NULL, pTitleDict, NULL);
+                  Tcl_ListObjAppendElement(interp, pResultList, pTmpObj);
 
-                        pCfNetname = EpgSetup_GetNetName(pAiBlock, pPiBlock->netwop_no, &isFromAi);
+                  pTmpObj = TranscodeToUtf8(EPG_ENC_NXTVEPG, NULL, pTitleSerial, NULL);
+                  Tcl_ListObjAppendElement(interp, pResultList, pTmpObj);
 
-                        // append network name to the title
-                        pTmpObj = TranscodeToUtf8(EPG_ENC_NXTVEPG, NULL, pTitle, " (");
-                        AppendToUtf8(EPG_ENC_NETNAME(isFromAi), pTmpObj, pCfNetname, ")");
-                        Tcl_ListObjAppendElement(interp, pResultList, pTmpObj);
-                        break;
-                     }
-                  }
+                  Tcl_ListObjAppendElement(interp, pResultList, Tcl_NewIntObj(!isShortened));
                }
-
-               pPiBlock = EpgDbSearchNextPi(dbc, fc, pPiBlock);
+               EpgDbFilterDisable(fc, FILTER_SUBSTR);
             }
-            while (pPiBlock != NULL);
+            pPiBlock = EpgDbSearchNextPi(dbc, fc, pPiBlock);
          }
+         while (pPiBlock != NULL);
+
          EpgDbFilterDestroyContext(fc);
 
          Tcl_SetObjResult(interp, pResultList);
@@ -1221,85 +1177,6 @@ static int GetSeriesByLetter( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_
       result = TCL_OK; 
    }
 
-   return result;
-}
-
-// ----------------------------------------------------------------------------
-// Retrieve list of titles for a list of series/netwop codes
-// - used by the shortcut config menu to pretty-print the filter settings
-// - returns a 'paired list': title followed by netwop name
-//
-static int GetSeriesTitles( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
-{
-   const char * const pUsage = "Usage: C_GetSeriesTitles <series-list>";
-   const AI_BLOCK * pAiBlock;
-   const PI_BLOCK * pPiBlock;
-   const char     * pTitle;
-   FILTER_CONTEXT *fc;
-   Tcl_Obj  ** pSeriesCodes;
-   Tcl_Obj   * pResultList;
-   const char * pCfNetname;
-   uchar lang;
-   bool isFromAi;
-   int seriesCount, series, idx;
-   int result;
-
-   if (objc != 2) 
-   {  // wrong # of args for this TCL cmd -> display error msg
-      Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
-      result = TCL_ERROR; 
-   }  
-   else
-   {
-      result = Tcl_ListObjGetElements(interp, objv[1], &seriesCount, &pSeriesCodes);
-      if (result == TCL_OK)
-      {
-         fc = EpgDbFilterCreateContext();
-         EpgDbFilterInitSeries(fc);
-         EpgDbFilterEnable(fc, FILTER_SERIES);
-         EpgDbLockDatabase(dbc, TRUE);
-         pAiBlock = EpgDbGetAi(dbc);
-         if (pAiBlock != NULL)
-         {
-            // create an empty list object to hold the result
-            pResultList = Tcl_NewListObj(0, NULL);
-
-            // loop across all series passed as arguments
-            for (idx=0; (idx < seriesCount) && (result == TCL_OK); idx++)
-            {
-               result = Tcl_GetIntFromObj(interp, pSeriesCodes[idx], &series);
-               if ((result == TCL_OK) && ((series >> 8) < pAiBlock->netwopCount))
-               {
-                  // determine series title by searching a PI in the database
-                  EpgDbFilterSetSeries(fc, series >> 8, series & 0xff, TRUE);
-                  pPiBlock = EpgDbSearchFirstPi(dbc, fc);
-                  if (pPiBlock != NULL)
-                  {
-                     lang = AI_GET_NETWOP_N(pAiBlock, pPiBlock->netwop_no)->alphabet;
-                     pTitle = PiDescription_DictifyTitle(PI_GET_TITLE(pPiBlock), lang, comm, TCL_COMM_BUF_SIZE);
-                     Tcl_ListObjAppendElement(interp, pResultList, TranscodeToUtf8(EPG_ENC_NXTVEPG, NULL, pTitle, NULL));
-                  }
-                  else
-                  {  // no PI of that series in the db (this will happen quite often
-                     // unfortunately since most databases do not cover full 7 days)
-                     sprintf(comm, "[0x%02X - no instance in database]", series & 0xff);
-                     Tcl_ListObjAppendElement(interp, pResultList,
-                                              Tcl_NewStringObj(comm, -1));
-                  }
-                  // append network name from AI block
-                  pCfNetname = EpgSetup_GetNetName(pAiBlock, series >> 8, &isFromAi);
-                  Tcl_ListObjAppendElement(interp, pResultList, TranscodeToUtf8(EPG_ENC_NXTVEPG, NULL, pCfNetname, NULL));
-
-                  EpgDbFilterSetSeries(fc, series >> 8, series & 0xff, FALSE);
-               }
-            }
-            Tcl_SetObjResult(interp, pResultList);
-         }
-
-         EpgDbLockDatabase(dbc, FALSE);
-         EpgDbFilterDestroyContext(fc);
-      }
-   }
    return result;
 }
 
@@ -1469,7 +1346,7 @@ static int PiFilter_ContextMenuUndoFilter( ClientData ttp, Tcl_Interp *interp, i
    const char * pThemeStr;
    const char * pCfNetname;
    uint  idx;
-   uchar theme, netwop;
+   uchar netwop;
    Tcl_Obj * pResultList;
    bool  isFromAi;
    int   entryCount;
@@ -1590,62 +1467,6 @@ static int PiFilter_ContextMenuUndoFilter( ClientData ttp, Tcl_Interp *interp, i
          {
             Tcl_ListObjAppendElement(interp, pResultList, Tcl_NewStringObj("Undo VPS/PDC filter", -1));
             Tcl_ListObjAppendElement(interp, pResultList, Tcl_NewStringObj("set vpspdc_filt 0; SelectVpsPdcFilter", -1));
-         }
-
-         // undo series
-         if ( (EpgDbFilterIsEnabled(pPiFilterContext, FILTER_SERIES)) &&
-              (pPiFilterContext->act.pSeriesFilterMatrix != NULL) )
-         {
-            int count, series, netwop;
-
-            count = series = 0;
-            if (pPiBlock != NULL)
-            {
-               // check if a title with series-code is selected
-               for (idx=0; idx < pPiBlock->no_themes; idx++)
-               {
-                  theme = pPiBlock->themes[idx];
-                  if ( (theme > 128) &&
-                       (*pPiFilterContext->act.pSeriesFilterMatrix)[pPiBlock->netwop_no][theme - 128] )
-                  {
-                     series = theme;
-                     break;
-                  }
-               }
-               // check if more than one series filter is set
-               if (series != 0)
-               {
-                  for (netwop=0; netwop < pAiBlock->netwopCount; netwop++)
-                  {
-                     for (idx=0; idx < 128; idx++)
-                     {
-                        if ((*pPiFilterContext->act.pSeriesFilterMatrix)[netwop][idx])
-                        {
-                           count++;
-                           if (count > 1)
-                              break;
-                        }
-                     }
-                  }
-               }
-
-               if (count > 1)
-               {
-                  EpgDbFilterSetSeries(pPiFilterContext, pPiBlock->netwop_no, series, FALSE);
-                  if (EpgDbSearchFirstPi(pUiDbContext, pPiFilterContext) != NULL)
-                  {
-                     series |= pPiBlock->netwop_no << 8;
-
-                     Tcl_ListObjAppendElement(interp, pResultList, Tcl_NewStringObj("Remove this series only", -1));
-                     sprintf(comm, "set series_sel(%d) 0; SelectSeries %d; C_PiBox_Refresh", series, series);
-                     Tcl_ListObjAppendElement(interp, pResultList, Tcl_NewStringObj(comm, -1));
-                  }
-                  EpgDbFilterSetSeries(pPiFilterContext, pPiBlock->netwop_no, series, TRUE);
-               }
-            }
-
-            Tcl_ListObjAppendElement(interp, pResultList, Tcl_NewStringObj("Undo series filter", -1));
-            Tcl_ListObjAppendElement(interp, pResultList, Tcl_NewStringObj("C_ResetFilter series; ResetSeries; C_PiBox_Refresh; CheckShortcutDeselection", -1));
          }
 
          // undo themes filters
@@ -1830,43 +1651,8 @@ static int PiFilter_ContextMenuAddFilter( ClientData ttp, Tcl_Interp *interp, in
                }
             }
 
-            // series filter
-            for (idx=0; idx < pPiBlock->no_themes; idx++)
-            {
-               theme = pPiBlock->themes[idx];
-               if (theme > 128)
-               {
-                  if ( (EpgDbFilterIsEnabled(pPiFilterContext, FILTER_SERIES) == FALSE) ||
-                       (pPiFilterContext->act.pSeriesFilterMatrix == NULL) ||
-                       ((*pPiFilterContext->act.pSeriesFilterMatrix)[pPiBlock->netwop_no][theme - 128] == FALSE) )
-                  {
-                     bool wasEnabled = EpgDbFilterIsEnabled(pPiFilterContext, FILTER_SERIES);
-                     if (wasEnabled == FALSE)
-                     {
-                        EpgDbFilterEnable(pPiFilterContext, FILTER_SERIES);
-                        EpgDbFilterInitSeries(pPiFilterContext);
-                     }
-                     EpgDbFilterSetSeries(pPiFilterContext, pPiBlock->netwop_no, theme, TRUE);
-                     if ( (EpgDbSearchPrevPi(pUiDbContext, pPiFilterContext, pPiBlock) != NULL) ||
-                          (EpgDbSearchNextPi(pUiDbContext, pPiFilterContext, pPiBlock) != NULL) )
-                     {
-                        Tcl_ListObjAppendElement(interp, pResultList, Tcl_NewStringObj("Filter this series", -1));
-                        sprintf(comm, "set series_sel(%d) 1; SelectSeries %d",
-                                      theme | (pPiBlock->netwop_no << 8),
-                                      theme | (pPiBlock->netwop_no << 8));
-                        Tcl_ListObjAppendElement(interp, pResultList, Tcl_NewStringObj(comm, -1));
-                     }
-                     if (wasEnabled == FALSE)
-                        EpgDbFilterDisable(pPiFilterContext, FILTER_SERIES);
-                     else
-                        EpgDbFilterSetSeries(pPiFilterContext, pPiBlock->netwop_no, theme, FALSE);
-                  }
-               }
-            }
-
-            // feature/repeat filter - only offered in addition to series or title filters
-            if ( EpgDbFilterIsEnabled(pPiFilterContext, FILTER_SERIES) ||
-                 EpgDbFilterIsEnabled(pPiFilterContext, FILTER_SUBSTR) )
+            // feature/repeat filter - only offered in addition to title filter
+            if ( EpgDbFilterIsEnabled(pPiFilterContext, FILTER_SUBSTR) )
             {
                if ( (EpgDbFilterIsEnabled(pPiFilterContext, FILTER_FEATURES) == FALSE) ||
                     (pPiFilterContext->act.featureFilterCount == 1) )
@@ -1978,7 +1764,6 @@ void PiFilter_Create( void )
    if (Tcl_GetCommandInfo(interp, "C_SelectThemes", &cmdInfo) == 0)
    {
       Tcl_CreateObjCommand(interp, "C_SelectThemes", SelectThemes, (ClientData) NULL, NULL);
-      Tcl_CreateObjCommand(interp, "C_SelectSeries", SelectSeries, (ClientData) NULL, NULL);
       Tcl_CreateObjCommand(interp, "C_SelectNetwops", SelectNetwops, (ClientData) NULL, NULL);
       Tcl_CreateObjCommand(interp, "C_SelectFeatures", SelectFeatures, (ClientData) NULL, NULL);
       Tcl_CreateObjCommand(interp, "C_SelectParentalRating", SelectParentalRating, (ClientData) NULL, NULL);
@@ -1997,10 +1782,9 @@ void PiFilter_Create( void )
       Tcl_CreateObjCommand(interp, "C_PiFilter_SelectAirTimes", PiFilter_SelectAirTimes, (ClientData) NULL, NULL);
 
       Tcl_CreateObjCommand(interp, "C_GetPdcString", GetPdcString, (ClientData) NULL, NULL);
-      Tcl_CreateObjCommand(interp, "C_GetNetwopsWithSeries", GetNetwopsWithSeries, (ClientData) NULL, NULL);
-      Tcl_CreateObjCommand(interp, "C_GetNetwopSeriesList", GetNetwopSeriesList, (ClientData) NULL, NULL);
+      //Tcl_CreateObjCommand(interp, "C_GetNetwopsWithSeries", GetNetwopsWithSeries, (ClientData) NULL, NULL);
+      //Tcl_CreateObjCommand(interp, "C_GetNetwopSeriesList", GetNetwopSeriesList, (ClientData) NULL, NULL);
       Tcl_CreateObjCommand(interp, "C_GetSeriesByLetter", GetSeriesByLetter, (ClientData) NULL, NULL);
-      Tcl_CreateObjCommand(interp, "C_GetSeriesTitles", GetSeriesTitles, (ClientData) NULL, NULL);
       Tcl_CreateObjCommand(interp, "C_GetLastPiTime", GetLastPiTime, (ClientData) NULL, NULL);
 
       Tcl_CreateObjCommand(interp, "C_UpdateNetwopList", UpdateNetwopList, (ClientData) NULL, NULL);

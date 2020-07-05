@@ -694,7 +694,6 @@ array set pi_attr_labels [list \
    timsel {Start time} \
    dursel Duration \
    themes Themes \
-   series Series \
    netwops Networks \
    substr {Text search} \
    vps_pdc VPS/PDC \
@@ -797,35 +796,39 @@ proc CreateMenubar {} {
    menu .menubar.reminder.group -tearoff 0
    # Filter menu
    menu .menubar.filter
-   .menubar.filter add cascade -menu .menubar.filter.themes -label Themes
-   if {$is_unix} {
-      .menubar.filter add cascade -menu .menubar.filter.series_bynet -label "Series by network..."
-      .menubar.filter add cascade -menu .menubar.filter.series_alpha -label "Series alphabetically..."
-   }
-   .menubar.filter add cascade -menu .menubar.filter.netwops -label "Networks"
-   .menubar.filter add separator
-   .menubar.filter add cascade -menu .menubar.filter.features -label Features
-   .menubar.filter add cascade -menu .menubar.filter.p_rating -label "Parental Rating"
-   .menubar.filter add cascade -menu .menubar.filter.e_rating -label "Editorial Rating"
-   .menubar.filter add cascade -menu .menubar.filter.vps_pdc -label "VPS/PDC"
-   .menubar.filter add cascade -menu .menubar.filter.progidx -label "Program index"
-   if {!$is_unix} {
-      .menubar.filter add command -label "Series by network..." -command {PostSeparateMenu .menubar.filter.series_bynet CreateSeriesNetworksMenu {}}
-      .menubar.filter add command -label "Series alphabetically..." -command {PostSeparateMenu .menubar.filter.series_alpha undef {}}
-   }
    .menubar.filter add command -label "Text search..." -command SubStrPopup
+   if {$is_unix} {
+      .menubar.filter add cascade -label "Recurring titles..." -menu .menubar.filter.titles_alpha
+#=IF=0
+      .menubar.filter add cascade -label "Rec. titles by network..." -menu .menubar.filter.titles_bynet
+#=ENDIF=
+   } else {
+      .menubar.filter add command -label "Recurring titles..." -command {PostSeparateMenu .menubar.filter.titles_alpha undef {}}
+#=IF=0
+      .menubar.filter add command -label "Rec. titles by network..." -command {PostSeparateMenu .menubar.filter.titles_bynet CreateSeriesNetworksMenu {}}
+#=ENDIF=
+   }
+   .menubar.filter add cascade -label "Networks" -menu .menubar.filter.netwops
+   .menubar.filter add separator
+   .menubar.filter add cascade -label "Program index" -menu .menubar.filter.progidx
    .menubar.filter add command -label "Start Time..." -command PopupTimeFilterSelection
    .menubar.filter add command -label "Duration..." -command PopupDurationFilterSelection
+   .menubar.filter add cascade -label "VPS/PDC" -menu .menubar.filter.vps_pdc
    .menubar.filter add command -label "Expired display..." -command PopupExpireDelaySelection
    .menubar.filter add separator
-   .menubar.filter add cascade -menu .menubar.filter.invert -label "Invert"
+   .menubar.filter add cascade -menu .menubar.filter.themes -label "Themes"
+   .menubar.filter add cascade -menu .menubar.filter.features -label "Features"
+   .menubar.filter add cascade -menu .menubar.filter.p_rating -label "Parental Rating"
+   .menubar.filter add cascade -menu .menubar.filter.e_rating -label "Editorial Rating"
+   .menubar.filter add separator
+   .menubar.filter add cascade -label "Invert" -menu .menubar.filter.invert
    .menubar.filter add command -label "Reset" -command {ResetFilterState; C_PiBox_Reset}
 
    menu .menubar.filter.invert
-   .menubar.filter.invert add checkbutton -label Global -variable filter_invert(all) -command InvertFilter
+   .menubar.filter.invert add checkbutton -label "Global" -variable filter_invert(all) -command InvertFilter
    .menubar.filter.invert add separator
-   .menubar.filter.invert add cascade -menu .menubar.filter.invert.themes -label Themes
-   foreach filt {netwops series substr features parental editorial progidx timsel dursel vps_pdc} {
+   .menubar.filter.invert add cascade -label "Themes" -menu .menubar.filter.invert.themes
+   foreach filt {netwops substr features parental editorial progidx timsel dursel vps_pdc} {
       .menubar.filter.invert add checkbutton -label $pi_attr_labels($filt) -variable filter_invert($filt) -command InvertFilter
    }
 
@@ -836,12 +839,12 @@ proc CreateMenubar {} {
    FilterMenuAdd_ParentalRating .menubar.filter.p_rating 0
 
    menu .menubar.filter.features
-   .menubar.filter.features add cascade -menu .menubar.filter.features.sound -label Sound
-   .menubar.filter.features add cascade -menu .menubar.filter.features.format -label Format
-   .menubar.filter.features add cascade -menu .menubar.filter.features.digital -label Digital
-   .menubar.filter.features add cascade -menu .menubar.filter.features.encryption -label Encryption
+   .menubar.filter.features add cascade -menu .menubar.filter.features.sound -label "Sound"
+   .menubar.filter.features add cascade -menu .menubar.filter.features.format -label "Format"
+   .menubar.filter.features add cascade -menu .menubar.filter.features.digital -label "Digital"
+   .menubar.filter.features add cascade -menu .menubar.filter.features.encryption -label "Encryption"
    .menubar.filter.features add cascade -menu .menubar.filter.features.live -label "Live/Repeat"
-   .menubar.filter.features add cascade -menu .menubar.filter.features.subtitles -label Subtitles
+   .menubar.filter.features add cascade -menu .menubar.filter.features.subtitles -label "Subtitles"
    .menubar.filter.features add separator
    .menubar.filter.features add cascade -menu .menubar.filter.features.featureclass -label "Feature class"
 
@@ -866,16 +869,20 @@ proc CreateMenubar {} {
    menu .menubar.filter.features.featureclass
    menu .menubar.filter.themes
 
-   menu .menubar.filter.series_bynet -postcommand {PostDynamicMenu .menubar.filter.series_bynet CreateSeriesNetworksMenu {}}
-   menu .menubar.filter.series_alpha
+#=IF=0
+   menu .menubar.filter.titles_bynet -postcommand {PostDynamicMenu .menubar.filter.titles_bynet CreateSeriesNetworksMenu {}}
+#=ENDIF=
+   menu .menubar.filter.titles_alpha
    if {!$is_unix} {
-      .menubar.filter.series_bynet configure -tearoff 0
-      .menubar.filter.series_alpha configure -tearoff 0
+#=IF=0
+      .menubar.filter.titles_bynet configure -tearoff 0
+#=ENDIF=
+      .menubar.filter.titles_alpha configure -tearoff 0
    }
    foreach letter {A B C D E F G H I J K L M N O P Q R S T U V W X Y Z Other} {
       set w letter_${letter}_off_0
-      .menubar.filter.series_alpha add cascade -label $letter -menu .menubar.filter.series_alpha.$w
-      menu .menubar.filter.series_alpha.$w -postcommand [list PostDynamicMenu .menubar.filter.series_alpha.$w CreateSeriesLetterMenu [list $letter 0]]
+      .menubar.filter.titles_alpha add cascade -label $letter -menu .menubar.filter.titles_alpha.$w
+      menu .menubar.filter.titles_alpha.$w -postcommand [list PostDynamicMenu .menubar.filter.titles_alpha.$w CreateSeriesLetterMenu [list $letter 0]]
    }
 
    menu .menubar.filter.progidx
@@ -1008,7 +1015,7 @@ proc FilterMenuAdd_Themes {widget is_stand_alone} {
    # create the themes and sub-themes menues from the PDC table
    set subtheme 0
    set menidx 0
-   for {set index 0} {$index < 0x80} {incr index} {
+   for {set index 0} {$index <= 0x80} {incr index} {
       set pdc [C_GetPdcString $index]
       if {[regexp {(.*) - } $pdc {} tlabel]} {
          # create new sub-menu and add checkbutton
@@ -1032,16 +1039,6 @@ proc FilterMenuAdd_Themes {widget is_stand_alone} {
             incr submenidx
          }
       }
-   }
-   # add sub-menu with one entry: all series on all networks
-   if {[string length [info commands ${widget}.series]] == 0} {
-      $widget add cascade -menu ${widget}.series -label [C_GetPdcString 128]
-      menu ${widget}.series -tearoff 0
-      ${widget}.series add checkbutton -label [C_GetPdcString 128] -command {SelectTheme 128} -variable theme_sel(128)
-   } else {
-      incr menidx
-      $widget entryconfigure $menidx -label [C_GetPdcString 128]
-      ${widget}.series entryconfigure 1 -label [C_GetPdcString 128]
    }
 }
 
@@ -1626,16 +1623,6 @@ proc ResetFeatures {} {
    UpdateFeatureMenuState
 }
 
-proc ResetSeries {} {
-   global series_sel
-   global filter_invert
-
-   foreach index [array names series_sel] {
-      unset series_sel($index)
-   }
-   array unset filter_invert series
-}
-
 proc ResetProgIdx {} {
    global filter_progidx
    global filter_invert
@@ -1730,7 +1717,6 @@ proc ResetFilterState {} {
 
    ResetThemes
    ResetFeatures
-   ResetSeries
    ResetProgIdx
    ResetTimSel
    ResetMinMaxDuration
@@ -2056,25 +2042,8 @@ proc SelectEditorialRating {} {
 ##
 ##  Callback for series checkbuttons
 ##
-proc SelectSeries {series} {
-   global series_sel
-
-   # upon deselection, check if any other series remains selected
-   if {$series_sel($series) == 0} {
-      set id [array startsearch series_sel]
-      set empty 1
-      while {[string length [set index [array nextelement series_sel $id]]] > 0} {
-         if {$series_sel($index) != 0} {
-            set empty 0
-            break
-         }
-      }
-      array donesearch series_sel $id
-      if {$empty} {C_ResetFilter series
-      } else      {C_SelectSeries $series 0}
-   } else {
-      C_SelectSeries $series 1
-   }
+proc SelectSeries {series_title complete} {
+   SubstrSetFilter [list $series_title 1 0 1 $complete]
    C_PiBox_Refresh
    CheckShortcutDeselection
 }
@@ -2587,9 +2556,10 @@ proc Create_PopupPi {wid xcoo ycoo} {
 ##  Sort a list of series titles alphabetically
 ##
 proc CompareSeriesMenuEntries {a b} {
-   return [string compare [lindex $a 0] [lindex $b 0]]
+   return [string compare [lindex $a 1] [lindex $b 1]]
 }
 
+#=IF=0
 ##  ---------------------------------------------------------------------------
 ##  Create the series sub-menu for a given network
 ##  - with a list of all series on this network, sorted by title
@@ -2603,8 +2573,8 @@ proc CreateSeriesMenu {w param_list} {
 
    # sort the list of commands by series title and then create the entries in that order
    set all {}
-   foreach {series title} $slist {
-      lappend all [list $title $series]
+   foreach {title desc} $slist {
+      lappend all [list $title $desc]
    }
    set all [lsort -unique -command CompareSeriesMenuEntries $all]
 
@@ -2617,8 +2587,7 @@ proc CreateSeriesMenu {w param_list} {
       incr index
       if {$index >= $min_index} {
          if {$index <= $max_index} {
-            set series [lindex $item 1]
-            $w add checkbutton -label [lindex $item 0] -variable series_sel($series) -command [list SelectSeries $series]
+            $w add command -label [lindex $item 0] -command [list SelectSeries [lindex $item 1] 1]
          } else {
             set child "$w.net_${cni}_off_$index"
             $w add separator
@@ -2682,6 +2651,7 @@ proc CreateSeriesNetworksMenu {w dummy} {
       $w add command -label "none" -state disabled
    }
 }
+#=ENDIF=
 
 ##  ---------------------------------------------------------------------------
 ##  Create series title menu for one starting letter
@@ -2693,9 +2663,9 @@ proc CreateSeriesLetterMenu {w param_list} {
 
    # sort the list of commands by series title and then create the entries in that order
    set all {}
-   foreach {series title} [C_GetSeriesByLetter $letter] {
+   foreach {desc title flag} [C_GetSeriesByLetter $letter] {
       # force the new first title character to be uppercase (for sorting)
-      lappend all [list $title $series]
+      lappend all [list $desc $title $flag]
    }
    set all [lsort -unique -command CompareSeriesMenuEntries $all]
 
@@ -2708,8 +2678,7 @@ proc CreateSeriesLetterMenu {w param_list} {
       incr index
       if {$index >= $min_index} {
          if {$index <= $max_index} {
-            set series [lindex $item 1]
-            $w add checkbutton -label [lindex $item 0] -variable series_sel($series) -command [list SelectSeries $series]
+            $w add command -label [lindex $item 0] -command [list SelectSeries [lindex $item 1] [lindex $item 2]]
          } else {
             set child "${w}.letter_${letter}_off_$index"
             $w add separator

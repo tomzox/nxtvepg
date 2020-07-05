@@ -185,7 +185,7 @@ static const RCPARSE_CFG rcParseCfg_db[] =
    { RC_TYPE_HEX,  RC_OFF(db.prov_merge_opts[MERGE_TYPE_TITLE]), "prov_merge_cftitle", RC_OFF(db.prov_merge_opt_count[MERGE_TYPE_TITLE]), MAX_MERGED_DB_COUNT, NULL },
    { RC_TYPE_HEX,  RC_OFF(db.prov_merge_opts[MERGE_TYPE_DESCR]), "prov_merge_cfdescr", RC_OFF(db.prov_merge_opt_count[MERGE_TYPE_DESCR]), MAX_MERGED_DB_COUNT, NULL },
    { RC_TYPE_HEX,  RC_OFF(db.prov_merge_opts[MERGE_TYPE_THEMES]), "prov_merge_cfthemes", RC_OFF(db.prov_merge_opt_count[MERGE_TYPE_THEMES]), MAX_MERGED_DB_COUNT, NULL},
-   { RC_TYPE_HEX,  RC_OFF(db.prov_merge_opts[MERGE_TYPE_SERIES]), "prov_merge_cfseries", RC_OFF(db.prov_merge_opt_count[MERGE_TYPE_SERIES]), MAX_MERGED_DB_COUNT, NULL},
+   { RC_TYPE_OBS,  0, "prov_merge_cfseries", RC_OFF_NONE(), 0, NULL },
    { RC_TYPE_HEX,  RC_OFF(db.prov_merge_opts[MERGE_TYPE_EDITORIAL]), "prov_merge_cfeditorial", RC_OFF(db.prov_merge_opt_count[MERGE_TYPE_EDITORIAL]), MAX_MERGED_DB_COUNT, NULL},
    { RC_TYPE_HEX,  RC_OFF(db.prov_merge_opts[MERGE_TYPE_PARENTAL]), "prov_merge_cfparental", RC_OFF(db.prov_merge_opt_count[MERGE_TYPE_PARENTAL]), MAX_MERGED_DB_COUNT, NULL},
    { RC_TYPE_HEX,  RC_OFF(db.prov_merge_opts[MERGE_TYPE_SOUND]), "prov_merge_cfsound", RC_OFF(db.prov_merge_opt_count[MERGE_TYPE_SOUND]), MAX_MERGED_DB_COUNT, NULL},

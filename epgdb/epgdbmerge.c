@@ -186,7 +186,6 @@ static EPGDB_BLOCK * EpgDbMergePiBlocks( PDBC dbc, EPGDB_BLOCK **pFoundBlocks )
    uint firstIdx, piCount;
    uint idx, idx2;
    uchar version;
-   bool haveSeries;
 
    dbmc = dbc->pMergeContext;
    dbCount = dbmc->dbCount;
@@ -384,24 +383,8 @@ static EPGDB_BLOCK * EpgDbMergePiBlocks( PDBC dbc, EPGDB_BLOCK **pFoundBlocks )
          break;
    }
 
-   pPi->no_themes = 0;
-   // series codes - first provider only
-   haveSeries = FALSE;
-   actIdx = dbmc->max[MERGE_TYPE_SERIES][0];
-   if ( (actIdx < dbCount) && (pFoundBlocks[actIdx] != NULL) )
-   {
-      pOnePi = &pFoundBlocks[actIdx]->blk.pi;
-      for (idx=0; idx < pOnePi->no_themes; idx++)
-      {
-         if (pOnePi->themes[idx] >= 0x80)
-         {
-            pPi->themes[pPi->no_themes++] = pOnePi->themes[idx];
-            haveSeries = TRUE;
-         }
-      }
-   }
-
    // themes codes
+   pPi->no_themes = 0;
    for (dbIdx=0; dbIdx < dbCount; dbIdx++)
    {
       actIdx = dbmc->max[MERGE_TYPE_THEMES][dbIdx];
@@ -412,20 +395,12 @@ static EPGDB_BLOCK * EpgDbMergePiBlocks( PDBC dbc, EPGDB_BLOCK **pFoundBlocks )
             pOnePi = &pFoundBlocks[actIdx]->blk.pi;
             for (idx=0; (idx < pOnePi->no_themes) && (pPi->no_themes < PI_MAX_THEME_COUNT); idx++)
             {
-               if (pOnePi->themes[idx] < 0x80)
-               {
-                  for (idx2=0; idx2 < pPi->no_themes; idx2++)
-                     if (pPi->themes[idx2] == pOnePi->themes[idx])
-                        break;
-                  if (idx2 >= pPi->no_themes)
-                  {  // theme is not in the list yet
-                     pPi->themes[pPi->no_themes++] = pOnePi->themes[idx];
-                  }
-               }
-               else if (haveSeries == FALSE)
-               {
-                  pPi->themes[pPi->no_themes++] = 0x80;
-                  haveSeries = TRUE;
+               for (idx2=0; idx2 < pPi->no_themes; idx2++)
+                  if (pPi->themes[idx2] == pOnePi->themes[idx])
+                     break;
+               if (idx2 >= pPi->no_themes)
+               {  // theme is not in the list yet
+                  pPi->themes[pPi->no_themes++] = pOnePi->themes[idx];
                }
             }
          }

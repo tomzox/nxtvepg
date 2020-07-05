@@ -495,9 +495,9 @@ Wählen  Sie den Eintrag "B<Merge XMLTV files>" im B<Configure>-Menü aus, erhalte
 
 Durch das Anordnen der Provider in Ihrer Auswahl, weisen Sie ihnen Prioritäten zu, die für eine Konfliktlösung sehr wichtig sind. Ein Konflikt tritt dann auf, wenn Start- und Stopzeiten der Sendung bei den Providern verschieden sind. Die Wahrscheinlichkeit solch eines Konfliktes hängt von der Qualität Ihrer Provider ab; theoretisch sollten sie nie auftreten, außer wenn kurzfristige Programmänderungen erfolgen. In der Realität sind solche Konflikte gar nicht so unwahrscheinlich, speziell bei Sendungen, die früh am Morgen ausgestrahlt werden. Sie sollten den verlässlichsten Provider an die erste Stelle setzen, da widersprüchliche Sendungen von darunter stehenden Providern abgelehnt werden, d.h. nicht mit in die zusammengeführte Datenbank aufgenommen werden.
 
-Der Button B<Configure> im Dialog ermöglicht Ihnen die Feinkontrolle über die Priorität der Provider während des Zusammenführens aller sich unterscheidenden Attribute der Sendungen. Sie können einen Provider sogar für ein Attribut komplett entfernen, z.B. falls dieser falsche Daten übermittelt (das Sound-Attribut wurde beispielsweise vom deutschen Provider 3Sat von Zeit zu Zeit falsch behandelt: sie vertauschten Stereo und Surround). Eine Ausnahme stellt hierbei der Titel dar, wegen welchem Sie keinen Provider löschen müssen.
+Der Button B<Configure> im Dialog ermöglicht Ihnen die Feinkontrolle über die Priorität der Provider während des Zusammenführens aller sich unterscheidenden Attribute der Sendungen. Sie können einen Provider sogar für ein Attribut komplett entfernen, z.B. falls dieser falsche Daten übermittelt. Eine Ausnahme stellt hierbei der Titel dar, den Sie von keinem Provider löschen können.
 
-Attribute, die nicht zusammengeführt werden können, z.B. das Editorial Rating, werden aus der ersten Datenbank in die Liste aufgenommen, die das Attribut für eine vorgegebene Sendung enthält. Eine Ausnahme bilden Serien, wobei hier nur der erste Provider in der Liste abgefragt wird (d.h. selbst wenn der erste Provider keine Serienkennung für die jeweilige Sendung vorhält, werden die darauf folgenden Datenbanken nicht durchsucht) da diese Attributtypen nicht zwischen den Providern zusammengeführt werden können (siehe auch L<"FILTERING">).
+Attribute, die nicht zusammengeführt werden können, z.B. das Editorial Rating, werden aus der ersten Datenbank in die Liste aufgenommen, die das Attribut für eine vorgegebene Sendung enthält (siehe auch L<"FILTERING">).
 
 Beachten Sie: Wenn Sie einen manuellen oder zyklischen Akquisitionsmodus verwenden, sollten Sie darauf achten, alle zusammengeführten Provider Ihrer Datenbank in der gleichen Reihenfolge einzufügen. Andernfalls werden Programmänderungen so lange nicht in Ihrer Datenbank auftauchen, bis der Provider mit der höchsten Priorität geladen wird. Falls Sie beim als Standard festgelegten B<Follow-UI> bleiben, wird die Akquisitionskontrolle automatisch zwischen allen zusammengeführten Providern in korrekter Reihenfolge periodisch wechseln.
 
@@ -533,14 +533,6 @@ Begrenzt die Auflistung auf Sendungen, denen eines der vorgegebenen Themenkatego
 
 Wollen Sie die Auflistung auf Sendungen begrenzen, die mehr als eines der vorgegebenen Themen besitzen (logisches UND), müssen Sie diese in unterschiedlichen Themenklassen spezifizieren. Zum Beispiel: um eine Auflistung aller Sendungen zu erhalten, die beides sind Sci-Fi und Komödie, wählen Sie die Themenkategorie Sci-Fi, dann wechseln Sie zu einer anderen Themenklasse und wählen die Themenkategorie Komödie. Die aktuellen Klassennummern spielen keine Rolle, Sie sollten einfach nur zwei verschiedene verwenden (d.h. Sie können entweder #1 und #2 oder #5 und #6 etc. anwenden).
 
-=item B<Series>
-
-Begrenzt die Auflistung auf Sendungen, die zu irgendeiner der gewählten Serien gehören. Ein Serien-Code beinhaltet immer eine Senderspezifikation.  Dies gilt auch wenn die gleiche Sendung von verschiedenen Sendern übertragen wird.
-
-Beachten Sie: Dieser Filtertyp ist nur für Provider sinnvoll, die Serien-Codes zuweisen; außerdem ist nicht jeder Serie ein Code zugewiesen. Für andere können Sie die Textsuche unter den Programmtiteln verwenden.
-
-Werden Serien und Themen oder gleichermaßen Serien und Textsuche kombiniert, werden Sendungen aufgelistet, die auf einen der beiden Filtertypen zutreffen. Dies ist eine Ausnahme von der Hauptregel des Kombinierens unterschiedlicher Filter durch ein logisches UND.
-
 =item B<Networks>
 
 Beschränkt die Liste der Programme auf einen oder mehrere Sender. Der Filter ist abgeschaltet, wenn alle Kontrollkästchen deaktiviert sind.
@@ -557,7 +549,9 @@ Drücken Sie "I<Click here to open...>", um einen kleinen Dialog zu öffnen, der e
 
 Ein Verlauf der letzten 50 Suchbegriffe (nur manuell eingegebene) einschließlich deren Optionen ist im Dropdown-Menü unterhalb des Texteingabefeldes verfügbar. Sie können es mit dem Pfeilbutton an der rechten Seite des Eingebefeldes öffnen, oder mit einer der "Pfeil auf/ab"-Tasten.  Ebenso stehen die letzten 10 Suchwörter im Menü des Spaltenkopfes I<Title> der Programmliste zur Verfügung (letzteres nur im "Single List"-Layout.)
 
-Beachten Sie: von der Verwendung dieses Suchfiltertyps wird abgeraten bei permanenten, in Shortcuts gespeicherten Serien-Suchanfragen.  Auf jeden Fall sollten Sie Serien-Identifier bevorzugen falls Ihr Anbieter diese unterstützt (siehe oben). Der Hintergrund ist, dass numerische Identifier einen besseren Schutz gegen Übertragungsfehler besitzen. Eine Textsuche kann bereits wegen eines einzigen falsch empfangenen Zeichens fehlschlagen.
+=item B<Recurring titles>
+
+Das Filtermenü dieses Names listet alle Programmtitel die mehr als einmal in der Datenbank vorkommen. Intern basiert die Suche schlicht auf der Textsuche, d.h. es handelt sich nicht um einen eigenen Filtertyp. Um einzelne über dieses Menü gesetzten Filter aufzuheben können sie daher den I<Text search> Dialog verwenden.
 
 =item B<Features>
 
@@ -610,10 +604,6 @@ Beachten Sie, dass Sie nicht mehr Sendungen hinzufügen können, als in der Datenb
 Begrenzt die Auflistung auf Sendungen, die eine gültige VPS/PDC-Startzeit-Kennung angehängt haben (VPS/PDC erlauben die Aufnahme eines Videos zum exakten Zeitpunkt des Programmstarts, sogar wenn dieser verschoben wurde; die Kennungen werden zur Zeit in Deutschland, Österreich, der Schweiz und England übertragen). Zusätzlich können Sie Filter für Sendungen definieren, deren Kennung sich von der aktuellen Startzeit unterscheidet; dies sind üblicherweise Sendungen, deren Startzeit geändert wurde oder die für später geplant wurden (gewöhnlich ist die VPS/PDC-Kennung dann die aktuelle Startzeit abzüglich einer Minute).
 
 =back
-
-Beachten Sie, dass die Interpretation des Serien Filtertyps vom Anbieter abhängt. Das liegt daran, dass diese auf frei gewählten Werten basieren, denen lediglich über den Kontext des Navigate-Menüs des Anbieters eine Bedeutung zugewiesen wird.
-
-I<Hinweis:> das Filtermenü kann auch genutzt werden um Filteroptionen zu erkunden, die durch die Einträge im Navigationsmenü eingestellt werden.
 
 =head2 Inverting filters
 
@@ -669,9 +659,9 @@ Das Maskieren kann auch aktiviert werden, wenn kein Filter dieser Kategorie ausg
 
 Wenn Sie Shortcuts miteinander kombinieren, werden standardmäßig alle Filter aller gewählten Shortcuts zusammengeführt und weiter verarbeitet, als würden sie alle zu einem Shortcut gehören. Es treffen die selben Kombinationsregeln zu wie in L<"FILTERING"> beschrieben.
 
-Sucht zum Beispiel ein Shortcut nach Spielfilmen, ein anderer nach Untertiteln, wird die Kombination nach Sendungen suchen, die Spielfilme sind B<UND> Untertitel besitzen. Ebenso wird die Kombination nach allen Sendern filtern, die entweder Spielfilme sind B<ODER> sich unter Ihren favorisierten Serien befinden, wenn Sie einen Shortcut haben der nach Spielfilmen, und einen der nach favorisierten Serien filtert.
+Sucht zum Beispiel ein Shortcut nach Spielfilmen, ein anderer nach Untertiteln, wird die Kombination nach Sendungen suchen, die Spielfilme sind B<UND> Untertitel besitzen. Weiterhin wird die Kombination nach allen Sendern filtern, die entweder Dramen B<ODER> Komödien sind, wenn Sie einen Shortcut haben der nach Dramen, und einen der nach Komödien filtert.
 
-Bei solch einfachen Shortcuts, die aus einem einzigen Filtertyp bestehen, ist dieses Verhalten gewöhnlich intuitiv. Wenn Sie komplexe Filter kombinieren, wird jedoch das Ergebnis der Mischung möglicherweise nicht Ihren Erwartungen entsprechen. Wenn Sie zum Beispiel die Shortcuts "Spielfilme auf Sender A" und "Serien auf Sender B" haben, würde die Zusammenführung "entweder Spielfilme oder Serien auf entweder Sender A oder B" ergeben, beispielsweise würde die Liste ebenso Spielfilme auf Sender B beinhalten.
+Bei solch einfachen Shortcuts, die aus einem einzigen Filtertyp bestehen, ist dieses Verhalten gewöhnlich intuitiv. Wenn Sie komplexe Filter kombinieren, wird jedoch das Ergebnis der Mischung möglicherweise nicht Ihren Erwartungen entsprechen. Wenn Sie zum Beispiel die Shortcuts "Dramen auf Sender A" und "Komödien auf Sender B" haben, würde die Zusammenführung "Dramen ODER Komödien auf Sender A ODER B" ergeben (d.h. beispielsweise würde die Liste ebenso Dramen auf Sender B beinhalten).
 
 Deshalb besitzt der Dialog zum Bearbeiten der Shortcuts eine "I<Combination rule>"-Option, wo Sie den Modus in I<ODER> oder I<UND> ändern können. Versetzen Sie einen Shortcut in diesen Modus, werden dessen Filter getrennt von allen anderen behandelt.
 
@@ -715,7 +705,7 @@ Um einen neuen Reminder zu setzen, markieren Sie einfach eine Sendung in der Pro
 
 Standardmäßig zeigt nxtvepg eine Einblendung für jedes zu erinnernde Programm 5 Minuten vor Beginn und noch mal direkt beim Beginn an. Dieses Verhalten kann man im Dialog "I<Configure reminder groups...>" ändern, wie im Folgenden beschrieben.
 
-Wollen Sie einen Reminder für eine TV-Serie setzen, müssen Sie zuerst einen Filter-Shortcut erstellen, der auf diese Serie zutrifft (entweder durch die Suche nach dem Serien-Code oder nach dem Titel).  Um den Programmieraufwand zu reduzieren, können Sie einen Shortcut erzeugen, der auf alle Ihre Lieblingsserien zugleich zutrifft, und einen Reminder für diese Kollektion setzen. Um dem Shortcut einen Reminder zuzuordnen, verwenden Sie "I<Edit reminder list>", was im nächsten Kapitel beschrieben wird.
+Wollen Sie einen Reminder für eine TV-Serie setzen, müssen Sie zuerst einen Filter-Shortcut erstellen, der auf diese Serie zutrifft.  Um den Programmieraufwand zu reduzieren, können Sie einen Shortcut erzeugen, der auf alle Ihre Lieblingsserien zugleich zutrifft, und einen Reminder für diese Kollektion setzen. Um dem Shortcut einen Reminder zuzuordnen, verwenden Sie "I<Edit reminder list>", was im nächsten Kapitel beschrieben wird.
 
 B<Tipp:> Sie können auch individuelle Reminder für Einträge hinzufügen, die bereits durch Shortcut-basierte Reminder markiert sind. Dies erlaubt es Ihnen zum einen, eine weitere spezifische Aktion für diese TV-Sendung anzufügen (indem Sie Reminder-Gruppen mit verschiedenen Aktionen verwenden, siehe unten). Außerdem können Sie die Markierung für die einzelne ausgewählte Sendung unterdrücken (engl. "to supress"). Diese "I<supress>"-Option wird in den Reminder- und Kontextmenüs angeboten, wenn anwendbar (durch diese Möglichkeit wird vermieden dass Shortcut-basierte Reminder mit komplexen Ausnahmeregeln eingeschränkt werden müssen, um die Markierung unbeliebter Sendungen zu verhindern).
 
@@ -765,9 +755,9 @@ Die erste Sektion enthält Einträge, die das Deaktivieren des aktuell gewählten F
 
 =item B<Hinzufügen von Filteroptionen>
 
-Die zweite Sektion bietet eine Anzahl neuer Filteroptionen an, die vom aktuell gewählten Titel und den bereits gewählten Filtern abhängen. Zu den angebotenen Filtertypen zählen: Themen und Sender des gewählten Programmtitels, dessen Serien-Code, Unterdrückung von Wiederholungs- oder Originalübertragung (nur in Verbindung mit Serien- oder Titeltextfiltern) und zu guter Letzt der Titeltext.
+Die zweite Sektion bietet eine Anzahl neuer Filteroptionen an, die vom aktuell gewählten Titel und den bereits gewählten Filtern abhängen. Zu den angebotenen Filtertypen zählen: Themen und Sender des gewählten Programmtitels, Unterdrückung von Wiederholungs- oder Originalübertragung (nur in Verbindung mit Titeltextfiltern) und zu guter Letzt der Titeltext.
 
-Die Titeltext- und Serienfilter erlauben sehr schnell nach Wiederholungen einer Sendung zu sehen. Diese Filteroptionen werden nur beigefügt, wenn auch ein Treffer vorliegt, d.h. wenn eine andere Sendung mit gleichem Titel beziehungsweise Serien-Code existiert.
+Die Titeltextfilter erlaubt sehr schnell nach Wiederholungen einer Sendung zu sehen. Diese Filteroption wird nur beigefügt, wenn auch ein Treffer vorliegt, d.h. wenn eine andere Sendung mit gleichem Titel existiert.
 
 =item B<Hinzufügen von Erinnerungen>
 

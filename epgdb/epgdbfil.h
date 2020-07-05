@@ -34,7 +34,7 @@
 #define FILTER_NETWOP         0x00000010
 #define FILTER_THEMES         0x00000020
 //#define FILTER_SORTCRIT     0x00000040
-#define FILTER_SERIES         0x00000080
+//#define FILTER_SERIES       0x00000080
 #define FILTER_SUBSTR         0x00000100
 #define FILTER_CUSTOM         0x00000200
 #define FILTER_PROGIDX        0x00000400
@@ -122,8 +122,6 @@ typedef void CUSTOM_FILTER_FREE  ( void * pArg );
 #define THEME_CLASS_COUNT       8
 #define FEATURE_CLASS_COUNT     6
 
-typedef uchar EPGDB_FILT_SERIES[MAX_NETWOP_COUNT][128];
-
 typedef struct FILTER_CTX_ACT_struct
 {
    struct FILTER_CTX_ACT_struct * pNext;
@@ -150,7 +148,6 @@ typedef struct FILTER_CTX_ACT_struct
    uchar     featureFilterCount;
    uint      vps_pdc_mode;
 
-   EPGDB_FILT_SERIES    * pSeriesFilterMatrix;
    EPGDB_FILT_SUBSTR    * pSubStrCtx;
    void                 * pCustomArg;
    CUSTOM_FILTER_MATCH  * pCustomFilterFunc;
@@ -210,8 +207,6 @@ void   EpgDbFilterSetDateTimeEnd( FILTER_CONTEXT *fc, ulong newTimeEnd );
 void   EpgDbFilterSetMinMaxDuration( FILTER_CONTEXT *fc, uint dur_min, uint dur_max );
 uchar  EpgDbFilterInitThemes( FILTER_CONTEXT *fc, uchar themeClassBitField );
 void   EpgDbFilterSetThemes( FILTER_CONTEXT *fc, uchar firstTheme, uchar lastTheme, uchar themeClassBitField );
-void   EpgDbFilterInitSeries( FILTER_CONTEXT *fc );
-void   EpgDbFilterSetSeries( FILTER_CONTEXT *fc, uchar netwop, uchar series, bool enable );
 void   EpgDbFilterSetParentalRating( FILTER_CONTEXT *fc, uchar parentalRating );
 void   EpgDbFilterSetEditorialRating( FILTER_CONTEXT *fc, uchar editorialRating );
 void   EpgDbFilterSetFeatureFlags( FILTER_CONTEXT *fc, uchar index, uint flags, uint mask );

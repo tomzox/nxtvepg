@@ -23,7 +23,7 @@
 #define __PDC_THEMES_H
 
 
-#define PDC_THEME_SERIES  0x80
+#define PDC_THEME_LAST  0x80
 
 // ----------------------------------------------------------------------------
 // Declaration of service interface functions

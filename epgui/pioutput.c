@@ -443,10 +443,6 @@ uint PiOutput_PrintColumnItem( const PI_BLOCK * pPiBlock, PIBOX_COL_TYPES type,
                }
 
                theme = pPiBlock->themes[themeIdx];
-               if (theme > 0x80)
-               {  // replace individual series code with general series code
-                  theme = PDC_THEME_SERIES;
-               }
                pResult = PdcThemeGet(theme);
                transcode = EPG_ENC_NXTVEPG;
             }

@@ -131,12 +131,6 @@ FILTER_CONTEXT * EpgDbFilterCopyContext( const FILTER_CONTEXT * fc )
 
       // copy filter parameter chain
       newfc->act.pSubStrCtx = EpgDbFilterCopySubContexts(fc->act.pSubStrCtx);
-
-      if (fc->act.pSeriesFilterMatrix != NULL)
-      {
-         newfc->act.pSeriesFilterMatrix = xmalloc(sizeof(*newfc->act.pSeriesFilterMatrix));
-         memcpy(newfc->act.pSeriesFilterMatrix, fc->act.pSeriesFilterMatrix, sizeof(*newfc->act.pSeriesFilterMatrix));
-      }
    }
    else
    {
@@ -176,8 +170,6 @@ static void EpgDbFilterDestroyAct( FILTER_CONTEXT * fc, FILTER_CTX_ACT * fc_act 
       EpgDbFilterDestroyParamChain(fc_act->pSubStrCtx);
 
       // free dynamically allocated filter arrays
-      if (fc_act->pSeriesFilterMatrix != NULL)
-         xfree(fc_act->pSeriesFilterMatrix);
       if ( (fc_act->pCustomArg != NULL) &&
            (fc_act->pCustomDestroyFunc != NULL) )
          fc_act->pCustomDestroyFunc(fc_act->pCustomArg);
@@ -431,35 +423,6 @@ void EpgDbFilterSetThemes( FILTER_CONTEXT *fc, uchar firstTheme, uchar lastTheme
       fc->pFocus->themeFilterField[index] |= themeClassBitField;
    }
    fc->pFocus->usedThemeClasses |= themeClassBitField;
-}
-
-// ---------------------------------------------------------------------------
-// Reset the series filter state
-//
-void EpgDbFilterInitSeries( FILTER_CONTEXT *fc )
-{
-   if (fc->pFocus->pSeriesFilterMatrix == NULL)
-      fc->pFocus->pSeriesFilterMatrix = xmalloc(sizeof(*fc->pFocus->pSeriesFilterMatrix));
-
-   memset(fc->pFocus->pSeriesFilterMatrix, 0, sizeof(*fc->pFocus->pSeriesFilterMatrix));
-}
-
-// ---------------------------------------------------------------------------
-// Enable one programme in the series filter matrix
-//
-void EpgDbFilterSetSeries( FILTER_CONTEXT *fc, uchar netwop, uchar series, bool enable )
-{
-   if (fc->pFocus->pSeriesFilterMatrix != NULL)
-   {
-      if ((netwop < MAX_NETWOP_COUNT) && (series > 0x80))
-      {
-         (*fc->pFocus->pSeriesFilterMatrix)[netwop][series - 0x80] = enable;
-      }
-      else
-         fatal2("EpgDbFilter-SetSeries: illegal parameters: net=%d, series=%d", netwop, series);
-   }
-   else
-      fatal0("EpgDbFilter-SetSeries: series matrix not initialized");
 }
 
 // ---------------------------------------------------------------------------
@@ -1063,13 +1026,6 @@ void EpgDbFilterDisable( FILTER_CONTEXT *fc, uint mask )
       fc->pFocus->featureFilterCount = 0;
    }
 
-   // free dynamically allocated filter arrays
-   if (((mask & FILTER_SERIES) != 0) && (fc->pFocus->pSeriesFilterMatrix != NULL))
-   {
-      xfree(fc->pFocus->pSeriesFilterMatrix);
-      fc->pFocus->pSeriesFilterMatrix = NULL;
-   }
-
    fc->pFocus->enabledFilters &= ~ mask;
 }
 
@@ -1184,8 +1140,6 @@ static bool EpgDbFilterMatchAct( const EPGDB_CONTEXT *dbc, const FILTER_CONTEXT 
    bool  fail, invert;
    bool  skipThemes = FALSE;
    bool  skipSubstr = FALSE;
-   bool  orSeriesThemes = FALSE;
-   bool  orSeriesSubstr = FALSE;
 
    // variable to temporarily keep track of failed matches, because matches
    // cannot be aborted with "goto failed" until all possible "failed_pre"
@@ -1352,49 +1306,6 @@ static bool EpgDbFilterMatchAct( const EPGDB_CONTEXT *dbc, const FILTER_CONTEXT 
          goto failed;
    }
 
-   if ( ((fc_act->enabledFilters & (FILTER_SERIES | FILTER_THEMES)) == (FILTER_SERIES | FILTER_THEMES)) &&
-        (((fc_act->invertedFilters & (FILTER_SERIES | FILTER_THEMES)) == 0) ||
-         ((fc_act->invertedFilters & (FILTER_SERIES | FILTER_THEMES)) == (FILTER_SERIES | FILTER_THEMES)) ) )
-   {  // both themes and series filters are used -> logical OR (unless only one of theme is inverted)
-      orSeriesThemes = TRUE;
-   }
-
-   if ( ((fc_act->enabledFilters & (FILTER_SERIES | FILTER_SUBSTR)) == (FILTER_SERIES | FILTER_SUBSTR)) &&
-        (((fc_act->invertedFilters & (FILTER_SERIES | FILTER_SUBSTR)) == 0) ||
-         ((fc_act->invertedFilters & (FILTER_SERIES | FILTER_SUBSTR)) == (FILTER_SERIES | FILTER_SUBSTR)) ) )
-   {  // both themes and series filters are used -> logical OR (unless only one of theme is inverted)
-      orSeriesSubstr = TRUE;
-   }
-
-   if ( (fc_act->enabledFilters & FILTER_SERIES) &&
-        (fc_act->pSeriesFilterMatrix != NULL) )
-   {
-      fail = TRUE;
-      for (index=0; index < pPi->no_themes; index++)
-      {
-         register uchar theme = pPi->themes[index];
-         if ((theme > 0x80) &&
-             ((*fc_act->pSeriesFilterMatrix)[pPi->netwop_no][theme - 0x80]))
-         {
-            fail = FALSE;
-            break;
-         }
-      }
-      invert = ((fc_act->invertedFilters & FILTER_SERIES) != FALSE);
-      fail  ^= invert;
-
-      // logical OR between series and themes filter (same filter type)
-      if (fail == FALSE)
-      {  // series matched -> skip themes filter (unless asymetrical inversion)
-         skipThemes = orSeriesThemes;
-         skipSubstr = orSeriesSubstr;
-      }
-      else if ((orSeriesThemes == FALSE) && (orSeriesSubstr == FALSE))
-      {  // series did not match -> failed only, if logical AND between themes and series
-         goto failed;
-      }
-   }
-
    if ((fc_act->enabledFilters & FILTER_THEMES) && (skipThemes == FALSE))
    {
       for (class=1; class != 0; class <<= 1)
@@ -1405,16 +1316,9 @@ static bool EpgDbFilterMatchAct( const EPGDB_CONTEXT *dbc, const FILTER_CONTEXT 
             for (index=0; index < pPi->no_themes; index++)
             {  // OR across all themes in a class
                if (fc_act->themeFilterField[pPi->themes[index]] & class)
-               {  // ignore theme series codes if series filter is used
-                  // (or a "series - general" selection couldn't be reduced by selecting particular series)
-                  if ( (pPi->themes[index] < 0x80) ||
-                       ((fc_act->enabledFilters & FILTER_SERIES) == FALSE) ||
-                       ((fc_act->invertedFilters & FILTER_SERIES) != FALSE) /* ||
-                       ((fc_act->invertedFilters & (FILTER_THEMES | FILTER_SERIES)) != FALSE)*/ )
-                  {
-                     fail = FALSE;
-                     break;
-                  }
+               {
+                  fail = FALSE;
+                  break;
                }
             }
 

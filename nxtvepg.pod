@@ -1225,18 +1225,12 @@ i.e. not added to the merged database.
 The B<Configure> button in the dialog gives you fine-control over the
 priority of providers during the merge of all distinct programme
 attributes. You can even completely remove a provider for an attribute,
-e.g. if they transmit false data (e.g. the Sound attribute was at some
-time handled wrong by the former German provider 3Sat: they did swap
-stereo and surround).  An exception is the title, where you must not
-delete any providers.
+e.g. if they transmit false data. An exception is the title, where you must
+not delete any providers.
 
 Attributes that cannot be merged, e.g. editorial rating, are fetched from
 the first database in the list that contains the attribute for a given
-programme.  An exception are series, where only the
-first provider in the list is queried (i.e. even if the first provider
-does not have a series ID for a given programme, the further
-databases are not searched) because these types of attributes cannot
-be mixed between providers (see also L<"FILTERING">).
+programme (see also L<"FILTERING">).
 
 Note: If you use a manual or cyclic acquisition mode, you should take care
 to include all providers of your merged database in the same order. Else,
@@ -1318,22 +1312,6 @@ The actual class numbers do not matter, you just need to use two
 different ones (i.e. you can use either #1 and #2 or #5 and #6 etc.)
 
 
-=item B<Series>
-
-Restrict the listing to programmes that belong to any of the selected
-series. A series code always implies a network specification (even if the
-same programme is transmitted on different networks).
-
-Note: This filter type is only available for providers that assign series
-codes; also not all series may have a code assigned.  For other ones you
-can use text search among programme titles.
-
-When series and theme or likewise series and text searches are combined,
-programmes which match either of both filter types are listed.  This is
-an exception from the general rule of combining different filters with
-a logical AND.
-
-
 =item B<Networks>
 
 Restrict the listing to programmes of one or more given networks.
@@ -1380,10 +1358,12 @@ the up/down cursor keys) and the last 10 searches are also available
 in the I<Title> column header menu in the programme list (the latter
 in "single list" layout only).
 
-Note: use of this search filter type is depreciated for permanent series
-searches saved in shortcuts if your provider supports series identifiers
-(see above).  In this case should use those instead because the numerical identifiers have a better protection against transmission errors.  A text
-search can fail due to a single erronous character.
+=item B<Recurring titles>
+
+The filter menu of this name lists all programme titles that occur more
+than once in the databse. Internally the option is mapped to a text search.
+Therefore if you want to remove one of the filters set this way, use the
+I<Text search> dialog.
 
 
 =item B<Features>
@@ -1511,15 +1491,6 @@ label then is the actual start time minus one minute)
 
 =back
 
-
-Note that the interpretation of series identifications depends on the
-provider. That's because those are
-just arbitrary numbers which only have a meaning in the context of
-the provider's navigation menu.
-
-I<Hint:>
-the filter menu can also be used to examine the filter options
-that are invoked by the entries in the Navigate menu.
 
 
 =head2 Inverting filters
@@ -1674,17 +1645,19 @@ apply as described in L<"FILTERING">.
 
 For example, if one shortcut searches for movies, another one subtitles,
 the combination will search for programmes which are movies B<AND> have
-subtitles.  Also, if you have one shortcut which filters for movies
-and one that filters for your favorite series, the combination will
-filter for all programmes which are either movies B<OR> among your
-favorite series.
+subtitles, as this is the default when combining filters of different
+types.  Inversely, if you have one shortcut which filters for category
+"Drama" and one that filters for category "Comedy", the combination will
+filter for all programmes which are either in categore "Drama" B<OR> "Comedy",
+as this is the default when combining filters of the same type.
 
 For such simple shortcuts which consist of a single filter type this
 behavior is usually intuitive.  When combining complex filters the result
 of merging however might not match your expecations.  For example, if
-you have a shortcut "movies on network A" and one "series on network B"
-merging would result in "either movies or series on either network
-A or B", i.e. the list would also include movies on network B.
+you have a shortcut "Drama on network A" and one "Comedy on network B",
+merging would result in "either Drama or Comedy, on either network
+A or B", i.e. the list would also include Comedy on network A and
+Drama on network B.
 
 Hence the shortcut edit dialog has a I<Combination rule> option where
 you can change the mode into I<OR> or I<AND>.  If you put a shortcut
@@ -1810,8 +1783,8 @@ change this in the I<Configure reminder groups...> dialog described
 in a separate chapter below.
 
 If you want to set a reminder for an entire series, you need to create
-a filter shortcut first which matches the series (either by searching
-by series ID or by title).  To reduce the overhead you can create a
+a filter shortcut first which matches the series (e.g. filtering
+by title).  To reduce the overhead you can create a
 shortcut which matches all your favorite series and set a reminder for
 this collection.  To assign a reminder to the shortcut use the
 I<Edit reminder list> described in the next chapter.
@@ -1951,14 +1924,12 @@ See also L<"FILTERING: Filter Types">
 The second section offers a number of possible new filter options, which
 depend on the currently selected title and the already selected filters.
 The offered filter types include: themes and network of the selected
-programme title, it's series code, repeat or original transmission
-suppression (only in cunjunction with series or title text filters)
-and last but not least the title text.
+programme title, repeat or original transmission suppression (only in
+cunjunction with title text filters) and last but not least the title text.
 
-The title text and series filters allow to check very quickly for
+The title text filter allows to check very quickly for
 repeats of a programme. These filter options are included only if
-there is a match, i.e. if there's another programme with the same
-title or series code respectively.
+there is another programme with the same title.
 
 =item B<Add reminder>
 

@@ -1250,12 +1250,7 @@ static int GetPdcString( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *
    }  
    else
    {
-      if (index >= 0x80)
-      {  // PDC codes 0x80..0xff identify series (most EPG providers just use 0x80 for
-         // all series, but they could use different codes for every series of a network)
-         pThemeStr = PdcThemeGet(PDC_THEME_SERIES);
-      }
-      else if (PdcThemeIsDefined(index))
+      if (PdcThemeIsDefined(index))
       {  // this is a known PDC series code
          pThemeStr = PdcThemeGet(index);
       }

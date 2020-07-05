@@ -611,7 +611,7 @@ proc PopupFilterShortcuts {} {
       grid  .fscedit.flags.mb_mask -row 4 -column 1 -sticky we -pady 5
 
       # fill filter mask menu
-      foreach filt {features parental editorial progidx timsel dursel themes series \
+      foreach filt {features parental editorial progidx timsel dursel themes \
                     netwops substr vps_pdc piexpire invert_all} {
          .fscedit.flags.mb_mask.men add checkbutton -label $pi_attr_labels($filt) -variable fscedit_mask($filt)
       }

@@ -7,11 +7,15 @@ you have ideas for additional features.
 Release 2.9.0pre5
 - convert README to mark-down format
 - update WWW with "news" about 2.9.0pre5 and 3.0 development in git
+- backport bugfix epgtcl/dlg_shortcuts.tcl: InvokeEditedShortcutFilter
+- backport bugfix PiDescription_RemoveSeriesIndex(): maxLen unused
+- backport bugfix PiFilter_ContextMenuAddFilter(): substr match !complete
 
 Post-Nextview EPG:
 - Load XMLTV: allow changing directory & selecting multiple
 - Merge XMLTV: like load, but add selected file to current one
 - automatically reload XMLTV when files are changed on disk
+- enable USE_UTF8: store texts in UTF-8 always
 - remove USE_XMLTV
 - move USE_TTX_GRABBER to exclude all acqusition if not set
 - apply expire only when merging new data into db by acq
@@ -23,7 +27,6 @@ Post-Nextview EPG:
 - store TTX DBs in the dbdir
 - DE manual: sync "DATA ACQUISITION" and "ACQUISITION MODES"
 - remove use of PDC theme table: create table from themes found in XMLTV
-- replace "series" filter with "recurring titles"
 - teletext: concurrent acquisition of multiple PID per transponder
 - teletext: store cycle index & phase in RC file for restarting from that point
 - teletext: use TV channel name as XMLTV display name
