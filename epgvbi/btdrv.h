@@ -271,13 +271,10 @@ typedef struct
 {
    uint8_t   scanEnabled;       // In:  en-/disable capturing for channel scan
    uint8_t   ttxEnabled;        // In:  en-/disable teletext grabber
-   uint8_t   reserved0;         // --:  unused; set to 0
-   uint8_t   reserved1;         // --:  unused; set to 0
+   uint8_t   hasFailed;         // Out: TRUE when acq was aborted due to error
+
    uint32_t  startPageNo;       // In:  first teletext page number (range 000-7FF)
    uint32_t  stopPageNo;        // In:  last captured teletext page number
-
-   uint8_t   hasFailed;         // Out: TRUE when acq was aborted due to error
-   uint8_t   reserved2[3];      // --:  unused; set to 0
  
    uint32_t  chanChangeReq;     // In:  channel change request, i.e. reset of ttx decoder
    uint32_t  chanChangeCnf;     // Out: channel change execution confirmation
@@ -292,6 +289,8 @@ typedef struct
    TTX_HEAD_BUF   ttxHeader;    // Out: rolling buffer of teletext headers
    TTX_TIME_BUF   ttxTime;      // Out: teletext time
 
+   uint32_t  slicerType;
+
    #ifndef WIN32
    bool      vbiSlaveRunning;   // --:  TRUE while slave thread is running
    int       failureErrno;
@@ -299,24 +298,11 @@ typedef struct
    uchar     cardIndex;
    bool      cardIsDvb;
    int       dvbPid;
-   uint      slicerType;
+   int       chnPrio;
    # if defined(__NetBSD__) || defined(__FreeBSD__)
    uchar     inputIndex;
    struct Card tv_cards[MAX_CARDS];
    # endif
-   uint      slaveChnSwitch;
-   bool      slaveChnToken;
-   bool      slaveChnTokenGrant;
-   bool      slaveVbiProxy;
-   int       chnProfValid;
-   int       chnSubPrio;
-   int       chnMinDuration;
-   int       chnExpDuration;
-   int       chnPrio;
-   #else  // WIN32
-   uint32_t  slicerType;
-
-   uchar     reserved3[256];    // reserved for future additions; set to 0
    #endif
 } EPGACQ_BUF;
 
@@ -343,8 +329,7 @@ void BtDriver_TuneDvbPid( int pid );
 bool BtDriver_Restart( void );
 bool BtDriver_GetState( bool * pEnabled, bool * pHasDriver, uint * pCardIdx );
 #endif
-void BtDriver_SetChannelProfile( VBI_CHANNEL_PRIO_TYPE prio, int subPrio, int duration, int minDuration );
-bool BtDriver_QueryChannelToken( void );
+void BtDriver_SetChannelProfile( VBI_CHANNEL_PRIO_TYPE prio );
 bool BtDriver_CheckDevice( void );
 void BtDriver_CloseDevice( void );
 

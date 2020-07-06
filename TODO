@@ -187,11 +187,6 @@ Recently suggested fixes & changes:
 - epgdbfil.c: clean solution for text search string length limit
 
 
-VBI slicer:
-- vbidecode: handle interlaced data and non-symmetric start lines
-- libzvbi: don't skip frames after channel change, already done by lib
-- support for VBI proxy daemon (as part of libzvbi support)
-
 New "NetBox" layout: open issues/known problems:
 - refresh may leave excessive gaps between items
 - special marker row between different days?
@@ -283,15 +278,11 @@ other required fixes:
   selection is changed the indices change -> shortcuts with series useless
   must use CNI instead of netwop index in shortcuts
 - startup: if nxtvepg version is incompatible don't recommend prov selection
-- allow to set input source via /dev/vbi (bttv version >= 0.7.5x)
-- cmd line option "predatory": in this mode the tuner is set via /dev/vbi
-  regardless of other /dev/video users
 - provider-specific shortcuts: are listed only for one provider
   mandatory when shortcut includes series or sortcrit filter
 - navigation: disable leafs with zero PI / display number of matches
 
 possible new features: (in order of decreasing priority)
-- series management based on titles only, across all networks
 - use GTK library instead of Tk to make GUI more pretty
   main problem: much filter shortcut and configuration is implemented in Tcl
 - allow acquisition from multiple TV cards and remote daemons

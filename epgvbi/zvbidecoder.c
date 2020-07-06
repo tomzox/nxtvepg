@@ -32,8 +32,6 @@
 #include "epgctl/debug.h"
 #include "epgvbi/ttxdecode.h"
 
-#ifndef USE_LIBZVBI
-
 #include "zvbidecoder.h"
 
 /**
@@ -939,5 +937,3 @@ bool ZvbiSliceAndProcess( vbi_raw_decoder *rd, uint8_t *raw, uint32_t frame_no )
    }
    return result;
 }
-
-#endif  // USE_LIBZVBI

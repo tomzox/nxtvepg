@@ -105,11 +105,6 @@ DEFS   += -DUSE_DAEMON
 # enable if you have both 32-bit and 64-bit systems
 #DEFS   += -DUSE_32BIT_COMPAT
 
-# enable use of libzvbi
-# (automatically uses the VBI proxy, if the daemon is running)
-#DEFS   += -DUSE_LIBZVBI
-#ACQLIBS += -lzvbi -lpthread -lpng
-
 # The database directory can be either in the user's $HOME (or relative to any
 # other env variable) or at a global place like /var/spool (world-writable)
 # -> uncomment 2 lines below to put the databases in the user's home

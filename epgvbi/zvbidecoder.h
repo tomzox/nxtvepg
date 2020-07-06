@@ -19,8 +19,6 @@
 
 /* $Id: zvbidecoder.h,v 1.2 2003/07/06 17:48:33 tom Exp tom $ */
 
-#ifndef USE_LIBZVBI
-
 #ifndef ZVBIDECODER_H
 #define ZVBIDECODER_H
 
@@ -358,4 +356,3 @@ extern void             vbi_raw_decoder_destroy(vbi_raw_decoder *rd);
 bool ZvbiSliceAndProcess( vbi_raw_decoder *rd, uint8_t *raw, uint32_t frame_no );
 
 #endif /* ZVBIDECODER_H */
-#endif /* not USE_LIBZVBI */

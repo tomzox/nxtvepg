@@ -102,7 +102,7 @@ void Daemon_SystemClockCmd( EPG_CLOCK_CTRL_MODE clockMode )
    EpgSetup_CardDriver(mainOpts.videoCardIndex);
 
    BtDriver_SelectSlicer(VBI_SLICER_ZVBI);
-   BtDriver_SetChannelProfile(VBI_CHANNEL_PRIO_BACKGROUND, 0, 0, 0);
+   BtDriver_SetChannelProfile(VBI_CHANNEL_PRIO_BACKGROUND);
 
    if (BtDriver_StartAcq())
    {

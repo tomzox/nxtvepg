@@ -83,39 +83,6 @@
 #include "epgvbi/dvb_demux.h"
 #include "epgvbi/btdrv.h"
 
-#ifndef USE_LIBZVBI
-static vbi_raw_decoder   zvbi_rd;
-static vbi_dvb_demux   * zvbi_demux;
-static int64_t           zvbiLastTimestamp;
-static ulong             zvbiLastFrameNo;
-
-#else // USE_LIBZVBI
-# include "epgvbi/ttxdecode.h"
-# include <libzvbi.h>
-static vbi_capture     * pZvbiCapt;
-static vbi_raw_decoder * pZvbiRawDec;
-static vbi_sliced      * pZvbiData;
-static double            zvbiLastTimestamp;
-static ulong             zvbiLastFrameNo;
-# define ZVBI_BUFFER_COUNT  10
-# define ZVBI_TRACE          DEBUG_SWITCH_VBI
-// automatically enable VBI proxy, if available
-#if (VBI_VERSION_MAJOR>0) || (VBI_VERSION_MINOR>2) || (VBI_VERSION_MICRO >= 9)
-# define USE_VBI_PROXY
-#endif
-#ifdef USE_VBI_PROXY
-static vbi_proxy_client * pProxyClient;
-typedef enum
-{
-   ZVBI_CHN_MSG_NONE,
-   ZVBI_CHN_MSG_TOKEN_REQ,
-   ZVBI_CHN_MSG_RELEASE_REQ,
-   ZVBI_CHN_MSG_FAIL_REQ,
-   ZVBI_CHN_MSG_DONE
-} ZVBI_CHN_MSG;
-#endif
-#endif
-
 #if defined(__NetBSD__) || defined(__FreeBSD__)
 # include <sys/mman.h>
 # ifdef __FreeBSD__
@@ -125,7 +92,6 @@ typedef enum
 #  include <dev/ic/bt8xx.h>
 # endif
 
-# define VBI_DEFAULT_LINES 16
 # define VIDIOCSFREQ    TVTUNER_SETFREQ
 # define VIDIOCGFREQ    TVTUNER_GETFREQ
 # define VIDIOCGTUNER   TVTUNER_GETSTATUS
@@ -142,7 +108,6 @@ typedef enum
 #define IOCTL(fd, cmd, data)                                            \
 ({ int __result; do __result = ioctl(fd, cmd, data);                    \
    while ((__result == -1L) && (errno == EINTR) && (acqShouldExit == FALSE)); __result; })
-# define VBI_DEFAULT_LINES 16
 #endif
 
 #if !defined (__NetBSD__) && !defined (__FreeBSD__)
@@ -155,11 +120,22 @@ typedef enum
 #endif
 #define PIDFILENAME   "/tmp/.vbi%u.pid"
 
+#define VBI_DEFAULT_LINES 16
 #define VBI_MAX_LINENUM   (2*18)         // reasonable upper limits
 #define VBI_MAX_LINESIZE (8*1024)
 #define VBI_DEFAULT_BPL   2048
 
 #define DEV_MAX_NAME_LEN 64
+
+typedef enum
+{
+   DEV_TYPE_VBI,
+   DEV_TYPE_VIDEO,
+#if defined(__NetBSD__) || defined(__FreeBSD__)
+   DEV_TYPE_TUNER,
+#endif
+   DEV_TYPE_DVB,
+} BTDRV_DEV_TYPE;
 
 volatile EPGACQ_BUF *pVbiBuf;
 
@@ -172,11 +148,9 @@ static bool acqShouldExit;
 static int vbiCardIndex;
 static int vbiDvbPid;
 static int vbi_fdin;
-#ifndef USE_LIBZVBI
 static int bufLineSize;
 static int bufLines;
 static uchar *rawbuf = NULL;
-#endif
 static char *pSysErrorText = NULL;
 
 // vars used in the control process
@@ -191,20 +165,16 @@ static unsigned char *buffer;
 #endif //__NetBSD__ || __FreeBSD__
 
 
+static vbi_raw_decoder   zvbi_rd;
+static vbi_dvb_demux   * zvbi_demux;
+static int64_t           zvbiLastTimestamp;
+static ulong             zvbiLastFrameNo;
+
+
 // function forward declarations
 int BtDriver_StartCapture(void);
 static void * BtDriver_Main( void * foo );
 static void BtDriver_OpenVbiBuf( void );
-
-typedef enum
-{
-   DEV_TYPE_VBI,
-   DEV_TYPE_VIDEO,
-#if defined(__NetBSD__) || defined(__FreeBSD__)
-   DEV_TYPE_TUNER,
-#endif
-   DEV_TYPE_DVB,
-} BTDRV_DEV_TYPE;
 
 // ---------------------------------------------------------------------------
 // Get name of the specified device type
@@ -469,64 +439,10 @@ int BtDriver_GetDeviceOwnerPid( void )
    return pid;
 }
 
-#if defined(USE_VBI_PROXY)
-// ---------------------------------------------------------------------------
-// Callback for proxy events
-//
-static void BtDriver_ProxyCallback( void * p_client_data, VBI_PROXY_EV_TYPE ev_mask )
-{
-   if (ev_mask & VBI_PROXY_EV_CHN_GRANTED)
-   {
-      dprintf0("BtDriver-ProxyCallback: token granted\n");
-      if (pVbiBuf->slaveChnToken == FALSE)
-         pVbiBuf->slaveChnTokenGrant = TRUE;
-      pVbiBuf->slaveChnToken = TRUE;
-   }
-   if (ev_mask & VBI_PROXY_EV_CHN_RECLAIMED)
-   {
-      dprintf0("BtDriver-ProxyCallback: token reclaimed\n");
-      pVbiBuf->slaveChnTokenGrant = FALSE;
-      pVbiBuf->slaveChnToken = FALSE;
-
-      vbi_proxy_client_channel_notify(pProxyClient, VBI_PROXY_CHN_TOKEN, 0);
-   }
-   if (ev_mask & VBI_PROXY_EV_CHN_CHANGED)
-   {
-      dprintf0("BtDriver-ProxyCallback: external channel change\n");
-      pVbiBuf->chanChangeCnf -= 1;
-   }
-}
-#endif  // defined(USE_VBI_PROXY)
-
-// ---------------------------------------------------------------------------
-// Query if VBI device has been freed by higher-prio users
-//
-bool BtDriver_QueryChannelToken( void )
-{
-#if defined(USE_VBI_PROXY)
-   bool result;
-
-   if (pVbiBuf != NULL)
-   {
-      result = pVbiBuf->slaveChnToken && pVbiBuf->slaveChnTokenGrant;
-
-      if (pVbiBuf->slaveChnTokenGrant)
-         pVbiBuf->slaveChnTokenGrant = FALSE;
-   }
-   else
-      result = FALSE;
-
-   return result;
-#else
-   return FALSE;
-#endif
-}
-
 // ---------------------------------------------------------------------------
 // Set channel priority for next channel change
 //
-void BtDriver_SetChannelProfile( VBI_CHANNEL_PRIO_TYPE prio,
-                                 int subPrio, int duration, int minDuration )
+void BtDriver_SetChannelProfile( VBI_CHANNEL_PRIO_TYPE prio )
 {
    if (pVbiBuf != NULL)
    {
@@ -542,17 +458,9 @@ void BtDriver_SetChannelProfile( VBI_CHANNEL_PRIO_TYPE prio,
             pVbiBuf->chnPrio = V4L2_PRIORITY_UNSET;
             break;
       }
-#if defined(USE_VBI_PROXY)
-      // parameters for channel scheduling in proxy daemon
-      pVbiBuf->chnProfValid   = TRUE;
-      pVbiBuf->chnSubPrio     = subPrio;
-      pVbiBuf->chnMinDuration = duration;
-      pVbiBuf->chnExpDuration = minDuration;
-#endif
    }
 }
 
-#ifndef USE_LIBZVBI
 // ---------------------------------------------------------------------------
 // Configure the PES PID for DVB
 //
@@ -581,7 +489,6 @@ static bool BtDriver_SetDvbPid(int pid)
    }
    return result;
 }
-#endif // USE_LIBZVBI
 
 // ---------------------------------------------------------------------------
 // Open the VBI device
@@ -591,10 +498,6 @@ static void BtDriver_OpenVbi( void )
    char * pDevName;
    char tmpName[DEV_MAX_NAME_LEN];
    FILE *fp;
-#ifdef USE_LIBZVBI
-   char * pErrStr;
-   unsigned services;
-#endif
 
    vbiCardIndex = pVbiBuf->cardIndex;
    vbiDvbPid = pVbiBuf->cardIsDvb ? pVbiBuf->dvbPid : -1;
@@ -607,7 +510,6 @@ static void BtDriver_OpenVbi( void )
    if (BtDriver_StartCapture())
    #endif
    {
-#ifndef USE_LIBZVBI
       pDevName = BtDriver_GetDevicePath(DEV_TYPE_VBI, vbiCardIndex, (vbiDvbPid != -1));
       if (vbiDvbPid != -1)
       {
@@ -656,86 +558,6 @@ static void BtDriver_OpenVbi( void )
             }
          }
       }
-#else  // USE_LIBZVBI
-      pErrStr = NULL;
-      if (vbiDvbPid != -1)
-      {
-         pDevName = BtDriver_GetDevicePath(DEV_TYPE_VBI, vbiCardIndex, TRUE);
-         services = VBI_SLICED_TELETEXT_B;
-         // PID may still be zero when acq is enabled before tuning
-         pZvbiCapt = vbi_capture_dvb_new2(pDevName, vbiDvbPid, &pErrStr, ZVBI_TRACE);
-      }
-      else
-      {
-         pDevName = BtDriver_GetDevicePath(DEV_TYPE_VBI, vbiCardIndex, FALSE);
-         services = VBI_SLICED_TELETEXT_B | VBI_SLICED_VPS;
-#ifdef USE_VBI_PROXY
-         pProxyClient = vbi_proxy_client_create(pDevName, "nxtvepg", 0,
-                                                &pErrStr, ZVBI_TRACE);
-         if (pProxyClient != NULL)
-         {
-            pZvbiCapt = vbi_capture_proxy_new(pProxyClient, ZVBI_BUFFER_COUNT, 0, &services, 0, &pErrStr);
-            if (pZvbiCapt != NULL)
-            {
-               vbi_proxy_client_set_callback(pProxyClient, BtDriver_ProxyCallback, NULL);
-            }
-            else
-            {  // failed to connect to proxy
-               vbi_proxy_client_destroy(pProxyClient);
-               pProxyClient = NULL;
-            }
-         }
-         pVbiBuf->slaveVbiProxy = (pProxyClient != NULL);
-         if (pZvbiCapt == NULL)
-#endif  // USE_VBI_PROXY
-         {
-            services = VBI_SLICED_TELETEXT_B | VBI_SLICED_VPS;
-            pZvbiCapt = vbi_capture_v4l2_new(pDevName, ZVBI_BUFFER_COUNT, &services, 0, &pErrStr, ZVBI_TRACE);
-         }
-         if (pZvbiCapt == NULL)
-         {
-            services = VBI_SLICED_TELETEXT_B | VBI_SLICED_VPS;
-            pZvbiCapt = vbi_capture_v4l_new(pDevName, 0, &services, 0, &pErrStr, ZVBI_TRACE);
-         }
-#if defined (USE_VBI_PROXY) && defined (VIDIOC_S_PRIORITY)
-         if ((pZvbiCapt != NULL) && (pProxyClient == NULL))
-         {
-            // set device user priority to "background" -> channel swtiches will fail while
-            // higher-priority users (e.g. an interactive TV app) have opened the device
-            enum v4l2_priority prio = V4L2_PRIORITY_BACKGROUND;
-            int fd = vbi_capture_fd(pZvbiCapt);
-            if (IOCTL(fd, VIDIOC_S_PRIORITY, &prio) != 0)
-               debug4("ioctl VIDIOC_S_PRIORITY=%d (background) failed on %s: %d, %s", V4L2_PRIORITY_BACKGROUND, pDevName, errno, strerror(errno));
-         }
-#endif
-      }
-
-      if (pZvbiCapt != NULL)
-      {
-         pZvbiRawDec = vbi_capture_parameters(pZvbiCapt);
-         if ((pZvbiRawDec != NULL) && ((services & VBI_SLICED_TELETEXT_B) != 0))
-         {
-            pZvbiData = xmalloc((pZvbiRawDec->count[0] + pZvbiRawDec->count[1]) * sizeof(*pZvbiData));
-            zvbiLastTimestamp = 0.0;
-            zvbiLastFrameNo = 0;
-            vbi_fdin = vbi_capture_fd(pZvbiCapt);
-         }
-         else
-         {
-            vbi_capture_delete(pZvbiCapt);
-            pZvbiCapt = NULL;
-            pZvbiRawDec = NULL;  // no delete/free required
-            pErrStr = strdup("The ZVBI library failed initialize the teletext decoder.");
-            errno = EINVAL;
-         }
-      }
-
-      if (pErrStr != NULL)
-      {  // re-allocate the error string with internal malloc func
-         SystemErrorMessage_Set(&pSysErrorText, 0, pErrStr, NULL);
-         free(pErrStr);  // not xFree: allocated by libzvbi
-      }
-#endif  // USE_LIBZVBI
    }
    if (vbi_fdin == -1)
    {
@@ -771,7 +593,6 @@ static void BtDriver_CloseVbi( bool keepVideoOpen )
       sprintf(tmpName, PIDFILENAME, vbiCardIndex);
       unlink(tmpName);
 
-#ifndef USE_LIBZVBI
       // free slicer buffer and pattern array
       ZvbiSliceAndProcess(NULL, NULL, 0);
       vbi_raw_decoder_destroy(&zvbi_rd);
@@ -783,20 +604,6 @@ static void BtDriver_CloseVbi( bool keepVideoOpen )
       if (zvbi_demux != NULL)
          vbi_dvb_demux_delete(zvbi_demux);
       zvbi_demux = NULL;
-#else  // USE_LIBZVBI
-      if (pZvbiData != NULL)
-         xfree(pZvbiData);
-      pZvbiData = NULL;
-      if (pZvbiCapt != NULL)
-         vbi_capture_delete(pZvbiCapt);
-      pZvbiCapt = NULL;
-# ifdef USE_VBI_PROXY
-      if (pProxyClient != NULL)
-         vbi_proxy_client_destroy(pProxyClient);
-      pProxyClient = NULL;
-# endif
-      vbi_fdin = -1;
-#endif  // USE_LIBZVBI
 
       if ((video_fd != -1) && !keepVideoOpen)
       {
@@ -942,100 +749,6 @@ static bool BtDriver_SetInputSource( int inputIdx, EPGACQ_TUNER_NORM norm, bool 
 #endif
 }
 
-#if defined(USE_VBI_PROXY)
-// ---------------------------------------------------------------------------
-// Pass channel change command to VBI slave process/thread
-// - only required for libzvbi, where the slave owns the slicer context
-//
-static void BtDriver_MasterTuneChannel( ZVBI_CHN_MSG cmd )
-{
-   if ((pVbiBuf != NULL) && pVbiBuf->vbiSlaveRunning)
-   {
-      assert(pVbiBuf->slaveChnSwitch == ZVBI_CHN_MSG_NONE);
-
-      pthread_mutex_lock(&vbi_start_mutex);
-      pVbiBuf->slaveChnSwitch = cmd;
-
-      recvWakeUpSig = FALSE;
-
-      // wake the process/thread up from being blocked in read (Linux only)
-      if (pthread_kill(vbi_thread_id, SIGUSR1) == 0)
-      {
-         struct timespec tsp;
-         struct timeval tv;
-
-         gettimeofday(&tv, NULL);
-         tv.tv_usec += 1000 * 1000L;
-         if (tv.tv_usec > 1000 * 1000L)
-         {
-            tv.tv_sec  += 1;
-            tv.tv_usec -= 1000 * 1000;
-         }
-         tsp.tv_sec  = tv.tv_sec;
-         tsp.tv_nsec = tv.tv_usec * 1000;
-
-         // wait for signal from slave on condition variable
-         pthread_cond_timedwait(&vbi_start_cond, &vbi_start_mutex, &tsp);
-      }
-      pVbiBuf->slaveChnSwitch = ZVBI_CHN_MSG_NONE;
-
-      pthread_mutex_unlock(&vbi_start_mutex);
-   }
-}
-
-// ---------------------------------------------------------------------------
-// Channel change signaling between proxy daemon and acq slave
-//
-static void BtDriver_SlaveTuneChannel( void )
-{
-   vbi_channel_profile prof;
-
-   pthread_mutex_lock(&vbi_start_mutex);
-
-   if (pProxyClient != NULL)
-   {
-      if (pVbiBuf->slaveChnSwitch == ZVBI_CHN_MSG_TOKEN_REQ)
-      {
-         dprintf0("BtDriver-SlaveTuneChannel: requesting channel token\n");
-         assert(pVbiBuf->chnPrio != V4L2_PRIORITY_UNSET);
-
-         memset(&prof, 0, sizeof(prof));
-         prof.is_valid     = pVbiBuf->chnProfValid;
-         prof.sub_prio     = pVbiBuf->chnSubPrio;
-         prof.min_duration = pVbiBuf->chnMinDuration;
-         prof.exp_duration = pVbiBuf->chnExpDuration;
-
-         if (vbi_proxy_client_channel_request(pProxyClient, pVbiBuf->chnPrio, &prof) > 0)
-         {
-            dprintf0("BtDriver-SlaveTuneChannel: token granted\n");
-            pVbiBuf->slaveChnToken = TRUE;
-         }
-      }
-      else if (pVbiBuf->slaveChnSwitch == ZVBI_CHN_MSG_RELEASE_REQ)
-      {
-         dprintf0("BtDriver-SlaveTuneChannel: releasing token after sucessful switch\n");
-
-         vbi_proxy_client_channel_notify(pProxyClient, VBI_PROXY_CHN_TOKEN | VBI_PROXY_CHN_FLUSH, 0);
-         pVbiBuf->slaveChnToken = FALSE;
-      }
-      else if (pVbiBuf->slaveChnSwitch == ZVBI_CHN_MSG_FAIL_REQ)
-      {
-         dprintf0("BtDriver-SlaveTuneChannel: releasing channel after failed switch\n");
-
-         vbi_proxy_client_channel_notify(pProxyClient, VBI_PROXY_CHN_FAIL, 0);
-         pVbiBuf->slaveChnToken = FALSE;
-      }
-   }
-   else
-      fprintf(stderr, "Cannot switch channel: libzvbi not initialized\n");
-
-   pVbiBuf->slaveChnSwitch = ZVBI_CHN_MSG_DONE;
-
-   pthread_cond_signal(&vbi_start_cond);
-   pthread_mutex_unlock(&vbi_start_mutex);
-}
-#endif  // defined(USE_VBI_PROXY)
-
 // ---------------------------------------------------------------------------
 // Set the input channel and tune a given frequency and norm
 // - input source is only set upon the first call when the device is kept open
@@ -1048,15 +761,6 @@ bool BtDriver_TuneChannel( int inputIdx, const EPGACQ_TUNER_PAR * pFreqPar, bool
    const char * pDevName;
    bool wasOpen;
    bool result = FALSE;
-
-#if defined(USE_VBI_PROXY)
-   if (pVbiBuf->slaveVbiProxy && !pVbiBuf->slaveChnToken)
-   {
-      BtDriver_MasterTuneChannel(ZVBI_CHN_MSG_TOKEN_REQ);
-      if ((pVbiBuf->slaveChnToken == FALSE) && (pVbiBuf->chnPrio == VBI_CHN_PRIO_BACKGROUND))
-         return FALSE;
-   }
-#endif
 
    if (video_fd == -1)
    {
@@ -1160,14 +864,6 @@ bool BtDriver_TuneChannel( int inputIdx, const EPGACQ_TUNER_PAR * pFreqPar, bool
       BtDriver_TuneDvbPid(pFreqPar->ttxPid);
    }
 
-#if defined(USE_VBI_PROXY)
-   if (pVbiBuf->slaveVbiProxy)
-   {
-      BtDriver_MasterTuneChannel(result ? ZVBI_CHN_MSG_RELEASE_REQ : ZVBI_CHN_MSG_FAIL_REQ);
-      pVbiBuf->slaveChnToken = FALSE;
-   }
-#endif
-
 #else // __NetBSD__ || __FreeBSD__
    char * pDevName;
    ulong lfreq;
@@ -1239,10 +935,10 @@ bool BtDriver_TuneChannel( int inputIdx, const EPGACQ_TUNER_PAR * pFreqPar, bool
 //
 bool BtDriver_QueryChannel( EPGACQ_TUNER_PAR * pFreqPar, uint * pInput, bool * pIsTuner )
 {
-#if (!defined (__NetBSD__) && !defined (__FreeBSD__)) || defined(USE_LIBZVBI)
+   bool result = FALSE;
+#if (!defined (__NetBSD__) && !defined (__FreeBSD__))
    char * pDevName;
    bool wasOpen;
-   bool result = FALSE;
 
    memset(pFreqPar, 0, sizeof(*pFreqPar));
 
@@ -1367,46 +1063,8 @@ bool BtDriver_QueryChannel( EPGACQ_TUNER_PAR * pFreqPar, uint * pInput, bool * p
          }
       }
    }
+#endif
    return result;
-
-#else  // (NetBSD || FreeBSD) && !LIBZVBI
-   char * pDevName;
-   ulong lfreq;
-   bool  result = FALSE;
-
-   if (pVbiBuf != NULL)
-   {
-      if (tuner_fd == -1)
-      {
-         dprintf1("BtDriver-QueryChannel: opened video device, fd=%d\n", tuner_fd);
-         pDevName = BtDriver_GetDevicePath(DEV_TYPE_TUNER, pVbiBuf->cardIndex, FALSE);
-         tuner_fd = open(pDevName, O_RDONLY);
-      }
-      if (tuner_fd != -1)
-      {
-         if (ioctl(tuner_fd, VIDIOCGFREQ, &lfreq) == 0)
-         {
-            dprintf1("BtDriver-QueryChannel: got %.2f\n", (double)lfreq/16);
-            if (pFreq != NULL)
-               *pFreq = (uint)lfreq;
-
-            if (pInput != NULL)
-               *pInput = pVbiBuf->inputIndex;  // XXX FIXME should query driver instead
-            if (pIsTuner != NULL)
-               *pIsTuner = pVbiBuf->tv_cards[pVbiBuf->cardIndex].inputs[pVbiBuf->inputIndex].isTuner;
-
-            result = TRUE;
-         }
-         else
-            perror("VIDIOCGFREQ");
-
-         dprintf1("BtDriver-QueryChannel: closing video device, fd=%d\n", tuner_fd);
-         BtDriver_CloseDevice();
-      }
-   }
-
-   return result;
-#endif  // (NetBSD || FreeBSD) && !LIBZVBI
 }
 
 // ---------------------------------------------------------------------------
@@ -1670,7 +1328,6 @@ bool BtDriver_Configure( int cardIndex, int drvType, int prio, int chipType, int
 //
 void BtDriver_SelectSlicer( VBI_SLICER_TYPE slicerType )
 {
-#ifndef USE_LIBZVBI
    if ((slicerType != VBI_SLICER_AUTO) && (slicerType < VBI_SLICER_COUNT))
    {
       dprintf1("BtDriver-SelectSlicer: slicer %d\n", slicerType);
@@ -1678,7 +1335,6 @@ void BtDriver_SelectSlicer( VBI_SLICER_TYPE slicerType )
    }
    else
       debug1("BtDriver-SelectSlicer: invalid slicer type %d", slicerType);
-#endif
 }
 
 #if 0
@@ -1848,7 +1504,6 @@ void BtDriver_Exit( void )
 //
 static void BtDriver_OpenVbiBuf( void )
 {
-#ifndef USE_LIBZVBI
 #if !defined (__NetBSD__) && !defined (__FreeBSD__)
    long bufSize;
    struct v4l2_format vfmt2;
@@ -1969,8 +1624,6 @@ static void BtDriver_OpenVbiBuf( void )
 
    assert(rawbuf == NULL);
    rawbuf = xmalloc(bufLines * bufLineSize);
-
-#endif  // not USE_LIBZVBI
 }
 
 // ---------------------------------------------------------------------------
@@ -1978,7 +1631,6 @@ static void BtDriver_OpenVbiBuf( void )
 //
 static void BtDriver_DecodeFrame( void )
 {
-#ifndef USE_LIBZVBI
    uchar *pData;
    uint  line;
    size_t bufSize;
@@ -2099,57 +1751,6 @@ static void BtDriver_DecodeFrame( void )
    {
       debug2("BtDriver-DecodeFrame: short read: %ld of %ld", (long)stat, (long)bufSize);
    }
-#else  // USE_LIBZVBI
-   double timestamp;
-   struct timeval timeout;
-   int  lineCount;
-   int  line;
-   int  res;
-
-   #if defined(__NetBSD__) || defined(__FreeBSD__)
-   // wait max. 10 seconds for the read to complete. After this time
-   // close /dev/vbi in the signal handler to avoid endless blocking
-   alarm(10);
-   #endif
-
-   // need a small timeout as the following function does not return upo SIGUSR1
-   // as LIBZVBI internally retries the read upon EINTR
-   timeout.tv_sec =  1;
-   timeout.tv_usec = 0;
-   res = vbi_capture_read_sliced(pZvbiCapt, pZvbiData, &lineCount, &timestamp, &timeout);
-   if (res > 0)
-   {
-      if (timestamp - zvbiLastTimestamp > (1.5 * 1 / 25))
-         zvbiLastFrameNo += 2;
-      else
-         zvbiLastFrameNo += 1;
-      zvbiLastTimestamp = timestamp;
-      VbiDecodeStartNewFrame(zvbiLastFrameNo);
-
-      for (line=0; line < lineCount; line++)
-      {  // dump all TTX packets, even non-EPG ones
-         if ((pZvbiData[line].id & VBI_SLICED_TELETEXT_B) != 0)
-         {
-            TtxDecode_AddPacket(pZvbiData[line].data + 0, pZvbiData[line].line);
-         }
-         else if ((pZvbiData[line].id & VBI_SLICED_VPS) != 0)
-         {
-            TtxDecode_AddVpsData(pZvbiData[line].data);
-         }
-         else if (vbiDvbPid == -1)
-         {
-            debug1("BtDriver-DecodeFrame: unrequested service 0x%x", pZvbiData[line].id);
-         }
-      }
-   }
-   else if (res < 0)
-   {  // I/O error
-      pVbiBuf->failureErrno = errno;
-      pVbiBuf->hasFailed = TRUE;
-      // TODO ignore sporadic errors
-      debug2("BtDriver-DecodeFrame: read error %d (%s)", pVbiBuf->failureErrno, strerror(pVbiBuf->failureErrno));
-   }
-#endif  // USE_LIBZVBI
 #if DUMP_TTX_PACKETS == ON
    fflush(stdout);
 #endif
@@ -2329,14 +1930,6 @@ static void * BtDriver_Main( void * foo )
          // the thread terminates when acq is stopped
          acqShouldExit = TRUE;
       }
-
-#if defined(USE_VBI_PROXY)
-      if ( (pVbiBuf->slaveChnSwitch != ZVBI_CHN_MSG_NONE) &&
-           (pVbiBuf->slaveChnSwitch != ZVBI_CHN_MSG_DONE) )
-      {
-         BtDriver_SlaveTuneChannel();
-      }
-#endif  // USE_VBI_PROXY
    }
 
    BtDriver_CloseVbi(FALSE);
@@ -2373,15 +1966,6 @@ bool BtDriver_Init( void )
 
    pthread_cond_init(&vbi_start_cond, NULL);
    pthread_mutex_init(&vbi_start_mutex, NULL);
-
-#ifdef USE_LIBZVBI
-   pZvbiCapt = NULL;
-   pZvbiRawDec = NULL;
-   pZvbiData = NULL;
-# ifdef USE_VBI_PROXY
-   pProxyClient = NULL;
-# endif
-#endif
 
    return TRUE;
 }

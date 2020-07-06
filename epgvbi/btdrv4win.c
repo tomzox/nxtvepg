@@ -1655,13 +1655,7 @@ void BtDriver_CloseDevice( void )
 {
 }
 
-bool BtDriver_QueryChannelToken( void )
-{
-   return FALSE;
-}
-
-void BtDriver_SetChannelProfile( VBI_CHANNEL_PRIO_TYPE prio,
-                                 int subPrio, int duration, int minDuration )
+void BtDriver_SetChannelProfile( VBI_CHANNEL_PRIO_TYPE prio )
 {
 }
 

@@ -400,7 +400,7 @@ EPGSCAN_START_RESULT EpgScan_Start( int inputSource, bool doSlow, bool useXawtv,
       scanCtl.channel = 0;
       if (EpgScan_NextChannel(&freq))
       {
-         BtDriver_SetChannelProfile(VBI_CHANNEL_PRIO_INTERACTIVE, 0, 0, 0);
+         BtDriver_SetChannelProfile(VBI_CHANNEL_PRIO_INTERACTIVE);
          BtDriver_SelectSlicer(VBI_SLICER_ZVBI);
 
          if ( BtDriver_TuneChannel(scanCtl.inputSrc, &freq, TRUE, &isTuner) )

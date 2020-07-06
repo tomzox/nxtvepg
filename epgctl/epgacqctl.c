@@ -473,15 +473,7 @@ bool EpgAcqCtl_TuneProvider( const EPGACQ_TUNER_PAR * par, EPGACQ_PASSIVE * pMod
    // reset forced-passive state; will be set upon errors below
    acqCtl.passiveReason = ACQPASSIVE_NONE;
 
-#ifdef USE_PROXY
-   // XXX FIXME
-   BtDriver_SetChannelProfile( VBI_CHANNEL_PRIO_BACKGROUND,
-                               ((acqCtl.cyclePhase == ACQMODE_PHASE_MONITOR) ? VBI_CHN_SUBPRIO_INITIAL : VBI_CHN_SUBPRIO_CHECK),
-                               ((acqCtl.cyclePhase == ACQMODE_PHASE_NOWNEXT) ? 3*60 : 25*60),
-                               ((acqCtl.cyclePhase == ACQMODE_PHASE_MONITOR) ? 60 : 10) );
-#else
-   BtDriver_SetChannelProfile(VBI_CHANNEL_PRIO_BACKGROUND, 0, 0, 0);
-#endif
+   BtDriver_SetChannelProfile(VBI_CHANNEL_PRIO_BACKGROUND);
 
    // tune onto the provider's channel (before starting acq, to avoid catching false data)
    // always set the input source - may have been changed externally (since we don't hog the video device permanently)
@@ -863,10 +855,6 @@ bool EpgAcqCtl_ProcessPackets( void )
    {
       if (acqCtl.mode != ACQMODE_NETWORK)
       {
-         // query if VBI device has been freed by higher-prio users
-         if (BtDriver_QueryChannelToken())
-            EpgAcqCtl_CheckDeviceAccess();
-
          // check if the current slicer type is adequate
          pCheckTtxSlicer = NULL;
          slicerOk = TRUE;

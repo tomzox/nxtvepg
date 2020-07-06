@@ -25,8 +25,6 @@
 #ifndef __ZVBI_DVB_DEMUX_H__
 #define __ZVBI_DVB_DEMUX_H__
 
-#if !defined (USE_LIBZVBI)
-
 #include <stdint.h>		/* uintN_t */
 
 //#include "sliced.h"
@@ -54,5 +52,4 @@ vbi_dvb_demux_delete		(vbi_dvb_demux *	dx);
 extern vbi_dvb_demux *
 vbi_dvb_pes_demux_new		(void);
 
-#endif /* USE_LIBZVBI */
 #endif /* __ZVBI_DVB_DEMUX_H__ */
