@@ -405,17 +405,6 @@ static bool EpgAcqClient_TakeMessage( EPGACQ_EVHAND * pAcqEv, EPGDBSRV_MSG_BODY 
             {
                SystemErrorMessage_Set(&clientState.pErrorText, 0, "Incompatible server version", NULL);
             }
-#ifdef USE_UTF8
-            else if (pMsg->con_cnf.use_utf8 == FALSE)
-            {
-               SystemErrorMessage_Set(&clientState.pErrorText, 0, "Incompatible text encoding (not UTF-8)", NULL);
-            }
-#else
-            else if (pMsg->con_cnf.use_utf8)
-            {
-               SystemErrorMessage_Set(&clientState.pErrorText, 0, "Incompatible text encoding (server uses UTF-8)", NULL);
-            }
-#endif
             else
             {  // version ok -> request block forwarding
                clientState.daemonPid = pMsg->con_cnf.daemon_pid;

@@ -324,7 +324,7 @@ uint PiOutput_PrintColumnItem( const PI_BLOCK * pPiBlock, PIBOX_COL_TYPES type,
 
          case PIBOX_COL_TITLE:
             pResult = PI_GET_TITLE(pPiBlock);
-            transcode = EPG_ENC_NXTVEPG;
+            transcode = EPG_ENC_XMLTV;
             break;
 
          case PIBOX_COL_DESCR:
@@ -444,7 +444,7 @@ uint PiOutput_PrintColumnItem( const PI_BLOCK * pPiBlock, PIBOX_COL_TYPES type,
 
                theme = pPiBlock->themes[themeIdx];
                pResult = PdcThemeGet(theme);
-               transcode = EPG_ENC_NXTVEPG;
+               transcode = EPG_ENC_XMLTV;
             }
             break;
 
@@ -469,9 +469,7 @@ uint PiOutput_PrintColumnItem( const PI_BLOCK * pPiBlock, PIBOX_COL_TYPES type,
                status = Tcl_ExternalToUtf(NULL, NULL, pResult, -1, 0, NULL,
                                           pOutBuffer, maxLen, NULL, (int*)&outlen, pCharLen);
                goto handle_status;
-#ifndef USE_UTF8 // if the switch is set, texts are already in UTF-8 -> use default branch
-            case EPG_ENC_NXTVEPG:
-#endif
+
             case EPG_ENC_ISO_8859_1:
                status = Tcl_ExternalToUtf(NULL, encIso88591, pResult, -1, 0, NULL,
                                           pOutBuffer, maxLen, NULL, (int*)&outlen, pCharLen);
@@ -489,6 +487,7 @@ uint PiOutput_PrintColumnItem( const PI_BLOCK * pPiBlock, PIBOX_COL_TYPES type,
                }
                break;
 
+            case EPG_ENC_XMLTV:
             case EPG_ENC_ASCII:
             default:
                // no transcoding required -> plain copy
@@ -1315,7 +1314,7 @@ static void PiOutput_AppendInfoTextCb( void *fp, const char * pDesc, bool addSep
       }
 
       //Tcl_VarEval(interp, ".all.pi.info.text insert end {", pShortInfo, "}", NULL);
-      PiOutput_InsertText(TCLOBJ_WID_INFO, -1, EPG_ENC_NXTVEPG, pDesc, TCLOBJ_STR_PARAGRAPH);
+      PiOutput_InsertText(TCLOBJ_WID_INFO, -1, EPG_ENC_XMLTV, pDesc, TCLOBJ_STR_PARAGRAPH);
    }
 }
 
@@ -1352,7 +1351,7 @@ void PiOutput_DescriptionTextUpdate( const PI_BLOCK * pPiBlock, bool keepView )
          // top of the info window: programme title text
          strcpy(comm, PI_GET_TITLE(pPiBlock));
          strcat(comm, "\n");
-         PiOutput_InsertText(TCLOBJ_WID_INFO, -1, EPG_ENC_NXTVEPG, comm, TCLOBJ_STR_TITLE);
+         PiOutput_InsertText(TCLOBJ_WID_INFO, -1, EPG_ENC_XMLTV, comm, TCLOBJ_STR_TITLE);
 
          // now add a feature summary: start with theme list
          PiDescription_AppendCompressedThemes(pPiBlock, comm, TCL_COMM_BUF_SIZE);
@@ -1367,7 +1366,7 @@ void PiOutput_DescriptionTextUpdate( const PI_BLOCK * pPiBlock, bool keepView )
          else
             strcpy(comm + len, ")\n");
          // append the feature string to the text widget content
-         PiOutput_InsertText(TCLOBJ_WID_INFO, -1, EPG_ENC_NXTVEPG, comm, TCLOBJ_STR_FEATURES);
+         PiOutput_InsertText(TCLOBJ_WID_INFO, -1, EPG_ENC_XMLTV, comm, TCLOBJ_STR_FEATURES);
 
          pCfNetname = EpgSetup_GetNetName(pAiBlock, pPiBlock->netwop_no, &isFromAi);
          PiOutput_InsertText(TCLOBJ_WID_INFO, -1, EPG_ENC_NETNAME(isFromAi), pCfNetname, TCLOBJ_STR_BOLD);

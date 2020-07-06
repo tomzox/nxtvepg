@@ -300,7 +300,7 @@ static int EpgDump_GetRawPi( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_O
          Tcl_ListObjAppendElement(interp, pResultList, Tcl_NewIntObj(pPiBlock->start_time));
 
          // third element is the programme title
-         APPEND_ENC(EPG_ENC_NXTVEPG, NULL, PI_GET_TITLE(pPiBlock), "\n");
+         APPEND_ENC(EPG_ENC_XMLTV, NULL, PI_GET_TITLE(pPiBlock), "\n");
 
          // following elements are the contents
          pCfNetname = EpgSetup_GetNetName(pAiBlock, pPiBlock->netwop_no, &isFromAi);
@@ -371,7 +371,7 @@ static int EpgDump_GetRawPi( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_O
          {
             pThemeStr = PdcThemeGetWithGeneral(pPiBlock->themes[index], &pGeneralStr, TRUE);
             len = sprintf(comm, "Theme:\t0x%02X ", pPiBlock->themes[index]);
-            APPEND_ENC2(EPG_ENC_NXTVEPG, comm, pThemeStr, pGeneralStr, "\n");
+            APPEND_ENC2(EPG_ENC_XMLTV, comm, pThemeStr, pGeneralStr, "\n");
          }
       }
       EpgDbLockDatabase(pUiDbContext, FALSE);

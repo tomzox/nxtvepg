@@ -800,13 +800,13 @@ static int MenuCmd_GetProvServiceInfos( ClientData ttp, Tcl_Interp *interp, int 
 
             // first element in return list is the service name
             pStr = AI_GET_SERVICENAME(pAi);
-            Tcl_ListObjAppendElement(interp, pResultList, TranscodeToUtf8(EPG_ENC_NXTVEPG, NULL, pStr, NULL));
+            Tcl_ListObjAppendElement(interp, pResultList, TranscodeToUtf8(EPG_ENC_XMLTV, NULL, pStr, NULL));
 
             // second element is OI header
             if ((pOi != NULL) && OI_HAS_HEADER(pOi))
             {
                pStr = OI_GET_HEADER(pOi);
-               Tcl_ListObjAppendElement(interp, pResultList, TranscodeToUtf8(EPG_ENC_NXTVEPG, NULL, pStr, NULL));
+               Tcl_ListObjAppendElement(interp, pResultList, TranscodeToUtf8(EPG_ENC_XMLTV, NULL, pStr, NULL));
             }
             else
                Tcl_ListObjAppendElement(interp, pResultList, Tcl_NewStringObj("", 0));
@@ -815,7 +815,7 @@ static int MenuCmd_GetProvServiceInfos( ClientData ttp, Tcl_Interp *interp, int 
             if ((pOi != NULL) && OI_HAS_MESSAGE(pOi))
             {
                pStr = OI_GET_MESSAGE(pOi);
-               Tcl_ListObjAppendElement(interp, pResultList, TranscodeToUtf8(EPG_ENC_NXTVEPG, NULL, pStr, NULL));
+               Tcl_ListObjAppendElement(interp, pResultList, TranscodeToUtf8(EPG_ENC_XMLTV, NULL, pStr, NULL));
             }
             else
                Tcl_ListObjAppendElement(interp, pResultList, Tcl_NewStringObj("", 0));
@@ -824,7 +824,7 @@ static int MenuCmd_GetProvServiceInfos( ClientData ttp, Tcl_Interp *interp, int 
             for ( netwop = 0; netwop < pAi->netwopCount; netwop++ ) 
             {
                pStr = AI_GET_NETWOP_NAME(pAi, netwop);
-               Tcl_ListObjAppendElement(interp, pResultList, TranscodeToUtf8(EPG_ENC_NXTVEPG, NULL, pStr, NULL));
+               Tcl_ListObjAppendElement(interp, pResultList, TranscodeToUtf8(EPG_ENC_XMLTV, NULL, pStr, NULL));
             }
             Tcl_SetObjResult(interp, pResultList);
          }
@@ -949,7 +949,7 @@ static int MenuCmd_GetProvCnisAndNames( ClientData ttp, Tcl_Interp *interp, int 
                   sprintf(buf, "0x%04X", pCniList[idx]);
                   Tcl_ListObjAppendElement(interp, pResultList, Tcl_NewStringObj(buf, -1));
 
-                  Tcl_ListObjAppendElement(interp, pResultList, TranscodeToUtf8(EPG_ENC_NXTVEPG, NULL, AI_GET_SERVICENAME(pAi), NULL));
+                  Tcl_ListObjAppendElement(interp, pResultList, TranscodeToUtf8(EPG_ENC_XMLTV, NULL, AI_GET_SERVICENAME(pAi), NULL));
                }
                EpgDbLockDatabase(pPeek, FALSE);
             }
@@ -1800,38 +1800,19 @@ static int MenuCmd_UpdateAcqConfig( ClientData ttp, Tcl_Interp *interp, int objc
 //
 static void MenuCmd_AddEpgScanMsg( const char * pMsg, bool bold )
 {
-#ifndef USE_UTF8
-   Tcl_DString msg_dstr;
-#endif
    Tcl_DString cmd_dstr;
 
    if (pMsg != NULL)
    {
-#ifndef USE_UTF8
-      if (Tcl_ExternalToUtfDString(NULL, pMsg, -1, &msg_dstr) != NULL)
-#endif
-      {
-         Tcl_DStringInit(&cmd_dstr);
-         Tcl_DStringAppend(&cmd_dstr, "EpgScanAddMessage ", -1);
-         // append message (plus a newline) as list element, so that '{' etc. is escaped properly
-#ifdef USE_UTF8
-         Tcl_DStringAppendElement(&cmd_dstr, pMsg);
-#else
-         Tcl_DStringAppendElement(&cmd_dstr, Tcl_DStringValue(&msg_dstr));
-#endif
-         Tcl_DStringAppend(&cmd_dstr, (bold ? " bold" : " {}"), -1);
+      Tcl_DStringInit(&cmd_dstr);
+      Tcl_DStringAppend(&cmd_dstr, "EpgScanAddMessage ", -1);
+      // append message (plus a newline) as list element, so that '{' etc. is escaped properly
+      Tcl_DStringAppendElement(&cmd_dstr, pMsg);
+      Tcl_DStringAppend(&cmd_dstr, (bold ? " bold" : " {}"), -1);
 
-         eval_check(interp, Tcl_DStringValue(&cmd_dstr));
+      eval_check(interp, Tcl_DStringValue(&cmd_dstr));
 
-#ifndef USE_UTF8
-         Tcl_DStringFree(&msg_dstr);
-#endif
-         Tcl_DStringFree(&cmd_dstr);
-      }
-#ifndef USE_UTF8
-      else
-         debug1("MenuCmd-AddEpgScanMsg: UTF conversion failed for '%s'", pMsg);
-#endif
+      Tcl_DStringFree(&cmd_dstr);
    }
    else
       debug0("MenuCmd-AddEpgScanMsg: illegal NULL ptr param");

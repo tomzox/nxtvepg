@@ -50,12 +50,6 @@
 #include "epgui/dumpxml.h"
 #include "epgui/dumphtml.h"
 
-#ifdef USE_UTF8
-#define HTML_ENCODING_NAME "UTF-8"
-#else
-#define HTML_ENCODING_NAME "ISO-8859-1"
-#endif
-
 // ----------------------------------------------------------------------------
 // Print Short- and Long-Info texts or separators
 // - note: in HTML output there is no special separator between descriptions
@@ -123,7 +117,6 @@ static void EpgDumpHtml_WritePi( FILE *fp, const PI_BLOCK * pPiBlock, const AI_B
    fprintf(fp, "\n"
                "</td>\n"
                "<td rowspan=\"2\" CLASS=\"titlerow\" WIDTH=\"20%%\">\n");
-#ifdef USE_UTF8
    if (isFromAi == FALSE)
    {
       Tcl_DString dstr;
@@ -133,7 +126,6 @@ static void EpgDumpHtml_WritePi( FILE *fp, const PI_BLOCK * pPiBlock, const AI_B
       Tcl_DStringFree(&dstr);
    }
    else
-#endif
    {
       EpgDumpXml_HtmlWriteString(fp, pCfNetname, -1);
    }
@@ -183,7 +175,7 @@ static const char * const html_head =
    "      Do not redistribute this document in the Internet!\n"
    "-->\n"
    "<HEAD>\n"
-   "<META http-equiv=\"Content-Type\" content=\"text/html; charset=" HTML_ENCODING_NAME "\">\n"
+   "<META http-equiv=\"Content-Type\" content=\"text/html; charset=\"utf-8\">\n"
    "<META name=\"copyright\" content=\"%s\">\n"
    "<META name=\"description\" lang=\"en\" content=\"nexTView EPG: TV programme schedules\">\n"
    "<META name=\"generator\" content=\"nxtvepg/" EPG_VERSION_STR "\">\n"
@@ -534,14 +526,7 @@ static void EpgDumpHtml_Title( FILE * fpDst, const PI_BLOCK * pPiBlock,
 
          if (len > 0)
          {
-#ifdef USE_UTF8
             EpgDumpXml_HtmlWriteString(fpDst, comm, len);
-#else
-            Tcl_DString ds;
-            Tcl_UtfToExternalDString(encIso88591, comm, len, &ds);
-            EpgDumpXml_HtmlWriteString(fpDst, Tcl_DStringValue(&ds), Tcl_DStringLength(&ds));
-            Tcl_DStringFree(&ds);
-#endif
          }
 
          if (hasColor)

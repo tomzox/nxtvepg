@@ -749,7 +749,7 @@ static void Xawtv_Popup( float rperc, const char * pTimes, const char * pTitle )
             objv[6] = Tcl_NewIntObj(wat.height);
             objv[7] = Tcl_NewDoubleObj(rperc);
             objv[8] = TranscodeToUtf8(EPG_ENC_SYSTEM, NULL, pTimes, NULL);
-            objv[9] = TranscodeToUtf8(EPG_ENC_NXTVEPG, NULL, pTitle, NULL);
+            objv[9] = TranscodeToUtf8(EPG_ENC_XMLTV, NULL, pTitle, NULL);
 
             for (idx = 0; idx < 10; idx++)
                Tcl_IncrRefCount(objv[idx]);

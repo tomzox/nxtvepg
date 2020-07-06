@@ -37,10 +37,10 @@ typedef enum
 {
    EPG_ENC_ASCII,       // ASCII (i.e. no transcoding required for UTF-8)
    EPG_ENC_SYSTEM,      // text from current locale (e.g. weekday names) or local files
-   EPG_ENC_NXTVEPG,     // text from Nextview EPG source: ISO-8859-1 or UTF-8, depending on compile switch
+   EPG_ENC_XMLTV,       // text from database: UTF-8
    EPG_ENC_ISO_8859_1,  // hard-coded ISO-8859-1 (CNI network name table)
 } T_EPG_ENCODING;
-#define EPG_ENC_NETNAME(AI) ((AI) ? EPG_ENC_NXTVEPG : EPG_ENC_SYSTEM)
+#define EPG_ENC_NETNAME(AI) ((AI) ? EPG_ENC_XMLTV : EPG_ENC_SYSTEM)
 extern Tcl_Encoding encIso88591;
 
 Tcl_Obj * TranscodeToUtf8( T_EPG_ENCODING enc,

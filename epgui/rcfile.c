@@ -1288,16 +1288,6 @@ const char * RcFile_GetAcqModeStr( uint mode )
 }
 
 // ----------------------------------------------------------------------------
-// Fetch the frequency for the given provider
-// - used by acquisition, e.g. if the freq. cannot be read from the database
-// - returns 0 if no frequency is known for the given provider
-//
-uint RcFile_GetProvFreqForCni( uint provCni )
-{
-   return 0; // TODO obsolete
-}
-
-// ----------------------------------------------------------------------------
 // Fetch the user-assigned names for the given network or provider CNI
 //
 const char * RcFile_GetNetworkName( uint cni )

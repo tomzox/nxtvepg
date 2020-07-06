@@ -314,18 +314,7 @@ static int SelectSubStr( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *
 
             if ((subStr != NULL) && (subStrLen > 0))
             {
-#ifdef USE_UTF8
                EpgDbFilterSetSubStr(pPiFilterContext, subStr, scope_title, scope_descr, match_case, match_full);
-#else
-               Tcl_DString ds;
-               // convert the String from Tcl internal format to Latin-1
-               // FIXME encoding should be NULL but then no conversion occurs!?
-               Tcl_UtfToExternalDString(encIso88591, subStr, -1, &ds);
-
-               EpgDbFilterSetSubStr(pPiFilterContext, Tcl_DStringValue(&ds),
-                                    scope_title, scope_descr, match_case, match_full);
-               Tcl_DStringFree(&ds);
-#endif
                enable = TRUE;
             }
             else
@@ -915,8 +904,8 @@ static int GetPdcString( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *
       pThemeStr = PdcThemeGetWithGeneral(index, &pGeneralStr, FALSE);
       if (pThemeStr != NULL)
       {
-         pTmpObj = TranscodeToUtf8(EPG_ENC_NXTVEPG, NULL, pThemeStr, NULL);
-         AppendToUtf8(EPG_ENC_NXTVEPG, pTmpObj, pGeneralStr, NULL);
+         pTmpObj = TranscodeToUtf8(EPG_ENC_XMLTV, NULL, pThemeStr, NULL);
+         AppendToUtf8(EPG_ENC_XMLTV, pTmpObj, pGeneralStr, NULL);
          Tcl_SetObjResult(interp, pTmpObj);
       }
       else
@@ -1058,11 +1047,11 @@ static int GetNetwopSeriesList( ClientData ttp, Tcl_Interp *interp, int objc, Tc
                // check if there's another block with the same title
                if (EpgDbSearchNextPi(dbc, fc, pPiBlock) != NULL)
                {
-                  pTmpObj = TranscodeToUtf8(EPG_ENC_NXTVEPG, NULL, PI_GET_TITLE(pPiBlock), NULL);
+                  pTmpObj = TranscodeToUtf8(EPG_ENC_XMLTV, NULL, PI_GET_TITLE(pPiBlock), NULL);
                   Tcl_ListObjAppendElement(interp, pResultList, pTmpObj);
 
                   pTitle = PiDescription_DictifyTitle(PI_GET_TITLE(pPiBlock), lang, comm, TCL_COMM_BUF_SIZE);
-                  Tcl_ListObjAppendElement(interp, pResultList, TranscodeToUtf8(EPG_ENC_NXTVEPG, NULL, pTitle, NULL));
+                  Tcl_ListObjAppendElement(interp, pResultList, TranscodeToUtf8(EPG_ENC_XMLTV, NULL, pTitle, NULL));
                }
                EpgDbFilterDisable(fc, FILTER_SUBSTR);
 
@@ -1153,10 +1142,10 @@ static int GetSeriesByLetter( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_
                // check if there's another block with the same title
                if (EpgDbSearchNextPi(dbc, fc, pPiBlock) != NULL)
                {
-                  pTmpObj = TranscodeToUtf8(EPG_ENC_NXTVEPG, NULL, pTitleDict, NULL);
+                  pTmpObj = TranscodeToUtf8(EPG_ENC_XMLTV, NULL, pTitleDict, NULL);
                   Tcl_ListObjAppendElement(interp, pResultList, pTmpObj);
 
-                  pTmpObj = TranscodeToUtf8(EPG_ENC_NXTVEPG, NULL, pTitleSerial, NULL);
+                  pTmpObj = TranscodeToUtf8(EPG_ENC_XMLTV, NULL, pTitleSerial, NULL);
                   Tcl_ListObjAppendElement(interp, pResultList, pTmpObj);
 
                   Tcl_ListObjAppendElement(interp, pResultList, Tcl_NewIntObj(!isShortened));
@@ -1491,7 +1480,7 @@ static int PiFilter_ContextMenuUndoFilter( ClientData ttp, Tcl_Interp *interp, i
             {
                pThemeStr = PdcThemeGet(theme);
                if (pThemeStr != NULL)
-                  Tcl_ListObjAppendElement(interp, pResultList, TranscodeToUtf8(EPG_ENC_NXTVEPG, "Undo themes filter ", pThemeStr, NULL));
+                  Tcl_ListObjAppendElement(interp, pResultList, TranscodeToUtf8(EPG_ENC_XMLTV, "Undo themes filter ", pThemeStr, NULL));
                else
                   Tcl_ListObjAppendElement(interp, pResultList, Tcl_NewStringObj("Undo themes filter", -1));
                comm[0] = 0;
@@ -1510,7 +1499,7 @@ static int PiFilter_ContextMenuUndoFilter( ClientData ttp, Tcl_Interp *interp, i
                   if ( ((pPiFilterContext->act.themeFilterField[idx] & pPiFilterContext->act.usedThemeClasses) != 0) &&
                        ((pThemeStr = PdcThemeGet(idx)) != NULL) )
                   {
-                     Tcl_ListObjAppendElement(interp, pResultList, TranscodeToUtf8(EPG_ENC_NXTVEPG, "Undo themes filter ", pThemeStr, NULL));
+                     Tcl_ListObjAppendElement(interp, pResultList, TranscodeToUtf8(EPG_ENC_XMLTV, "Undo themes filter ", pThemeStr, NULL));
                      comm[0] = 0;
                      for (class=0; class < THEME_CLASS_COUNT; class++)
                      {
@@ -1602,7 +1591,7 @@ static int PiFilter_ContextMenuAddFilter( ClientData ttp, Tcl_Interp *interp, in
                      char par_buf[30];
                      char * p;
                      Tcl_ListObjAppendElement(interp, pResultList,
-                                              TranscodeToUtf8(EPG_ENC_NXTVEPG,
+                                              TranscodeToUtf8(EPG_ENC_XMLTV,
                                                  "Filter title '", pTitle, "'"));
 
                      strncpy(comm, pTitle, TCL_COMM_BUF_SIZE);
@@ -1613,7 +1602,7 @@ static int PiFilter_ContextMenuAddFilter( ClientData ttp, Tcl_Interp *interp, in
                         *p = ')';
                      sprintf(par_buf, "} 1 0 1 %d}", !isShortened);
                      Tcl_ListObjAppendElement(interp, pResultList,
-                                              TranscodeToUtf8(EPG_ENC_NXTVEPG,
+                                              TranscodeToUtf8(EPG_ENC_XMLTV,
                                                 "SubstrSetFilter {{", comm, par_buf));
                   }
                   EpgDbFilterDisable(pPiFilterContext, FILTER_SUBSTR);
@@ -1636,14 +1625,14 @@ static int PiFilter_ContextMenuAddFilter( ClientData ttp, Tcl_Interp *interp, in
                           (themeCat != theme) &&
                           (pPiFilterContext->act.themeFilterField[themeCat] != FALSE) )
                      {  // special case: undo general theme before sub-theme is enabled, else filter would have no effect (due to OR)
-                        Tcl_ListObjAppendElement(interp, pResultList, TranscodeToUtf8(EPG_ENC_NXTVEPG, "Filter theme ", pThemeStr, NULL));
+                        Tcl_ListObjAppendElement(interp, pResultList, TranscodeToUtf8(EPG_ENC_XMLTV, "Filter theme ", pThemeStr, NULL));
                         sprintf(comm, "set theme_sel(%d) 0; set theme_sel(%d) 1; SelectTheme %d",
                                       themeCat, theme, theme);
                         Tcl_ListObjAppendElement(interp, pResultList, Tcl_NewStringObj(comm, -1));
                      }
                      else
                      {
-                        Tcl_ListObjAppendElement(interp, pResultList, TranscodeToUtf8(EPG_ENC_NXTVEPG, "Filter theme ", pThemeStr, NULL));
+                        Tcl_ListObjAppendElement(interp, pResultList, TranscodeToUtf8(EPG_ENC_XMLTV, "Filter theme ", pThemeStr, NULL));
                         sprintf(comm, "set theme_sel(%d) 1; SelectTheme %d", theme, theme);
                         Tcl_ListObjAppendElement(interp, pResultList, Tcl_NewStringObj(comm, -1));
                      }

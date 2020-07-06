@@ -88,8 +88,8 @@ DEFS   += -DTCL_LIBRARY_PATH=\"$(TCL_LIBRARY_PATH)\"
 # pthreads are required for capturing
 ACQLIBS += -lpthread
 
-# use UTF-8 internally instead of Latin-1 (EXPERIMENTAL)
-#DEFS   += -DUSE_UTF8 -DXMLTV_OUTPUT_UTF8
+# XMLTV parser needs to emit UTF-8 to match internal encoding
+DEFS   += -DXMLTV_OUTPUT_UTF8
 
 # enable support for importing XMLTV files
 #TODO remove USE_XMLTV_IMPORT

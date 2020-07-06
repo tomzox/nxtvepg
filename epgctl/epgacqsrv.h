@@ -120,9 +120,8 @@ typedef struct
    uint32_t  protocolCompatVersion;   // protocol version
    uint32_t  swVersion;               // software version (informative only)
    int32_t   daemon_pid;
-   uint8_t   use_utf8;                // compile switch USE_UTF8
    uint8_t   use_32_bit_compat;       // compile switch USE_32BIT_COMPAT
-   uint8_t   reserved[60-2];          // reserved for future additions
+   uint8_t   reserved[60-1];          // reserved for future additions
 } MSG_STRUCT_CONNECT_CNF;
 
 typedef struct

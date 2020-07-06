@@ -1920,7 +1920,7 @@ static bool RaiseNxtvepgGuiWindow( void )
 // ---------------------------------------------------------------------------
 // Helper function to convert text content into UTF-8
 // - required for text display in the GUI
-// - note when compile switch USE_UTF8 is defined, PI content is already in UTF-8
+// - PI content is assumed to be already in UTF-8
 // - prefix and postfix must be encoded in ASCII and are appended unchanged
 //
 Tcl_Obj * TranscodeToUtf8( T_EPG_ENCODING enc,
@@ -1940,17 +1940,9 @@ Tcl_Obj * TranscodeToUtf8( T_EPG_ENCODING enc,
    switch (enc)
    {
       case EPG_ENC_ASCII:
+      case EPG_ENC_XMLTV:
          Tcl_DStringInit(&dstr);
          Tcl_DStringAppend(&dstr, pStr, -1);
-         break;
-
-      case EPG_ENC_NXTVEPG:
-#ifdef USE_UTF8
-         Tcl_DStringInit(&dstr);
-         Tcl_DStringAppend(&dstr, pStr, -1);
-#else
-         Tcl_ExternalToUtfDString(encIso88591, pStr, -1, &dstr);
-#endif
          break;
 
       case EPG_ENC_ISO_8859_1:
@@ -1995,17 +1987,9 @@ Tcl_Obj * AppendToUtf8( T_EPG_ENCODING enc, Tcl_Obj * pObj,
       switch (enc)
       {
          case EPG_ENC_ASCII:
+         case EPG_ENC_XMLTV:
             Tcl_DStringInit(&dstr);
             Tcl_DStringAppend(&dstr, pStr, -1);
-            break;
-
-         case EPG_ENC_NXTVEPG:
-#ifdef USE_UTF8
-            Tcl_DStringInit(&dstr);
-            Tcl_DStringAppend(&dstr, pStr, -1);
-#else
-            Tcl_ExternalToUtfDString(encIso88591, pStr, -1, &dstr);
-#endif
             break;
 
          case EPG_ENC_ISO_8859_1:

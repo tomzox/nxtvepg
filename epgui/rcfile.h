@@ -247,7 +247,6 @@ void RcFile_UpdateTvCardWinSrc( uint cardIdx, const uint * pParams, uint paramCo
 const RCFILE * RcFile_Query( void );
 
 const char * RcFile_GetAcqModeStr( uint mode );
-uint RcFile_GetProvFreqForCni( uint cni );
 const char * RcFile_GetXmltvNetworkId( uint cni );
 const char * RcFile_GetNetworkName( uint cni );
 void RcFile_UpdateNetworkNames( uint count, const uint * pCniList, const char ** pNameList );

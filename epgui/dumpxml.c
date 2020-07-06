@@ -45,12 +45,6 @@
 #include "epgui/pdc_themes.h"
 #include "epgui/dumpxml.h"
 
-#ifdef USE_UTF8
-#define XML_ENCODING_NAME "\"UTF8\""
-#else
-#define XML_ENCODING_NAME "\"ISO-8859-1\""
-#endif
-
 // structure used to pass params through to description text output callback
 typedef struct
 {
@@ -247,7 +241,7 @@ static void EpgDumpXml_WriteHeader( EPGDB_CONTEXT * pDbContext,
    lastAiUpdate = EpgDbGetAiUpdateTime(pDbContext);
    EpgDumpXml_PrintTimestamp(start_str, sizeof(start_str), lastAiUpdate, xmlDtdVersion);
 
-   fprintf(fp, "<?xml version=\"1.0\" encoding=" XML_ENCODING_NAME "?>\n"
+   fprintf(fp, "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n"
                "<!DOCTYPE tv SYSTEM \"xmltv.dtd\">\n"
                "<tv generator-info-name=\"nxtvepg/" EPG_VERSION_STR "\" "
                     "generator-info-url=\"" NXTVEPG_URL "\" "

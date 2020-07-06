@@ -693,7 +693,7 @@ static int PiRemind_GetReminderEvents( ClientData ttp, Tcl_Interp *interp, int o
                         Tcl_ListObjAppendElement(interp, pTmpList, Tcl_NewIntObj(pPiBlock->netwop_no));
                         Tcl_ListObjAppendElement(interp, pTmpList, Tcl_NewIntObj(pPiBlock->start_time));
                         Tcl_ListObjAppendElement(interp, pTmpList, Tcl_NewIntObj(pPiBlock->stop_time));
-                        Tcl_ListObjAppendElement(interp, pTmpList, TranscodeToUtf8(EPG_ENC_NXTVEPG, NULL, PI_GET_TITLE(pPiBlock), NULL));
+                        Tcl_ListObjAppendElement(interp, pTmpList, TranscodeToUtf8(EPG_ENC_XMLTV, NULL, PI_GET_TITLE(pPiBlock), NULL));
                         Tcl_ListObjAppendElement(interp, pResultList, pTmpList);
                         // add only a message for the most distant event (offsets are sorted)
                         break;

@@ -458,11 +458,6 @@ static bool EpgAcqServer_TakeMessage( EPGDBSRV_STATE *req, EPGDBSRV_MSG_BODY * p
 #else
             req->msgBuf.con_cnf.daemon_pid            = 0;
 #endif
-#ifdef USE_UTF8
-            req->msgBuf.con_cnf.use_utf8              = TRUE;
-#else
-            req->msgBuf.con_cnf.use_utf8              = FALSE;
-#endif
 #ifdef USE_32BIT_COMPAT
             req->msgBuf.con_cnf.use_32_bit_compat     = TRUE;
 #else

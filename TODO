@@ -7,15 +7,11 @@ you have ideas for additional features.
 Release 2.9.0pre5
 - convert README to mark-down format
 - update WWW with "news" about 2.9.0pre5 and 3.0 development in git
-- backport bugfix epgtcl/dlg_shortcuts.tcl: InvokeEditedShortcutFilter
-- backport bugfix PiDescription_RemoveSeriesIndex(): maxLen unused
-- backport bugfix PiFilter_ContextMenuAddFilter(): substr match !complete
 
 Post-Nextview EPG:
 - Load XMLTV: allow changing directory & selecting multiple
 - Merge XMLTV: like load, but add selected file to current one
 - automatically reload XMLTV when files are changed on disk
-- enable USE_UTF8: store texts in UTF-8 always
 - remove USE_XMLTV
 - move USE_TTX_GRABBER to exclude all acqusition if not set
 - apply expire only when merging new data into db by acq
@@ -31,6 +27,8 @@ Post-Nextview EPG:
 - teletext: store cycle index & phase in RC file for restarting from that point
 - teletext: use TV channel name as XMLTV display name
 - teletext acq stats: percentage cycle loaded (i.e. cycles done vs. max. sub-page count)
+- teletext configuration dialog
+- teletext emit XML encoding UTF-8
 
 release ceveats:
 - now/next acq mode recommended (follow-ui not adapted for TTX yet)
@@ -79,10 +77,6 @@ Teletext grabber:
   ? stop grabbing after 2nd grabber start (don't waste CPU) ?
   - detect channel by frequency
   ? detect channel by VPS/PDC? also by XMLTV channel ID?
-- acq mode "follow ui" when ttx acq is enabled
-  ? enable TTX acq for selected XML file only ? at least start with that file ?
-  ? how to handle follow-ui in the acq. daemon ?
-- skip "Near" cycle for TTX if both NOW and NEAR are enabled
 - optimize "full" load stage by using channel switching (i.e. as for NOW)
 - ttxdecode: handle page range <800->800, i.e. split 700-799,000-099
 - merge with old XMLTV file
@@ -95,12 +89,8 @@ Teletext grabber:
   ? implement in nxtvepg or external post-processor ?
 - pass TTX params to acq ctl: CNI list pg range, ov pg, duration
   ? use callback for params ?
-- acq mode config dialog: add teletext in manual prov. selection
-- configure list of networks for ttx acq, including frequencies
-  ? use internal scan or names only (based on external channel table)
-  ? implement Now/Next/All: Now/Next=1 cycle; All=all subpages
+- configure list of networks for ttx acq
 - config dialog:
-  - check for perl and the ttx grabber script
   - check if TV app is configured and channel table can be parsed
   - display channels which will be captured by name (e.g. "ARD - MTV")
   - configure database directory for generated XML output
@@ -109,14 +99,6 @@ Teletext grabber:
 - display EPG into in connected TV app, even if captured "late" from TTX
 - improve netname dialog
   - add short explanations about button functions
-- make slim perl package with exe, dll and req. modules only
-
-XMLTV DTD 0.6:
-- note: since it appears there will be no switch from 0.5 to 0.6 ever (no
-  other apps support it) version 0.6 support should be removed from nxtvepg
-- <tv> tag should carry DTD version hint
-- DTD for channel ID mapping
-- bug in DTD 0.6: <!ATTLIST remark> actually refers to desc
 
 XMLTV import:
 - get language from XMLTV input for SetUserLanguage(), "auto" mode
@@ -126,14 +108,9 @@ XMLTV import:
 - programmes with start time only should not be discarded
   automatically set stop time to start of subsequent programme
 - extend PI struct to hold all XMLTV info fields?
-- use UTF-8 internally to allow other charsets besides Latin-1 (?)
-  -> German and French PDC theme tables must be converted to UTF-8
-  -> HTML and XML encoding headers must be adapted
-  -> dump functions should use Latin-1 or UTF8 depending on locale
 - theme codes: build custom theme table from theme string in XML file (?)
   problem #1: storing filter shortcuts (must store theme name, not index)
   problem #2: building theme main categories/hierarchy (e.g. movie/show/news)
-- follow-ui acq mode: do not attempt to start acq for XML db
 
 XICCC TODO:
 - large data transfers
