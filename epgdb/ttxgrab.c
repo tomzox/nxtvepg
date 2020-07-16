@@ -82,10 +82,10 @@ static struct
    uchar        curPgHdText[HEADER_CHECK_LEN];
    uchar        curPgHdRep[HEADER_CHECK_LEN];
    uint32_t     cniDecInd[CNI_TYPE_COUNT];
-   bool         postProcDone;
    void       * ttx_db;
+   bool         postProcDone;
    TTX_GRAB_STATS stats;
-} ttxGrabState;
+} ttxGrabState[MAX_VBI_DVB_STREAMS];
 
 // ---------------------------------------------------------------------------
 // Debug only: remove unprintable characters from TTX header
@@ -157,7 +157,7 @@ static sint TtxGrab_SearchPageNoPos( const uchar * pHeader, uint pageNo )
 // - XXX could make error limit depending on general parity error rate
 // - XXX ignore page header changes if VPS does not change
 //
-static void TtxGrab_PageHeaderCheck( const uchar * curPageHeader, uint headOff, uint pageNo )
+static void TtxGrab_PageHeaderCheck( uint bufIdx, const uchar * curPageHeader, uint headOff, uint pageNo )
 {
    uint  idx;
    uint  spcCnt, parErrCnt;
@@ -165,47 +165,47 @@ static void TtxGrab_PageHeaderCheck( const uchar * curPageHeader, uint headOff, 
    uint  minRepCount;
    uchar dec;
 
-   if (ttxGrabState.havePgHd)
+   if (ttxGrabState[bufIdx].havePgHd)
    {
       curBitDist = stableDist = 0;
       spcCnt = parErrCnt = 0;
 
       for (idx=0; idx < HEADER_CHECK_LEN; idx++)
       {
-         if ( (idx < ttxGrabState.refPgNumPos) ||
-              (idx > ttxGrabState.refPgNumPos + 2) )
+         if ( (idx < ttxGrabState[bufIdx].refPgNumPos) ||
+              (idx > ttxGrabState[bufIdx].refPgNumPos + 2) )
          {
             dec = parityTab[curPageHeader[headOff + idx]];
             if ((schar)dec >= 0)
             {
                // sum up the number of differing bits in current header
-               if (dec != ttxGrabState.refPgHdText[idx])
+               if (dec != ttxGrabState[bufIdx].refPgHdText[idx])
                {
-                  curBitDist += ByteBitDistance(dec, ttxGrabState.refPgHdText[idx]);
+                  curBitDist += ByteBitDistance(dec, ttxGrabState[bufIdx].refPgHdText[idx]);
                }
                if (dec == ' ')
                   spcCnt += 1;
 
                // accumulate stable header
-               if (dec != ttxGrabState.curPgHdText[idx])
+               if (dec != ttxGrabState[bufIdx].curPgHdText[idx])
                {
-                  ttxGrabState.curPgHdText[idx] = dec;
-                  ttxGrabState.curPgHdRep[idx] = 1;
+                  ttxGrabState[bufIdx].curPgHdText[idx] = dec;
+                  ttxGrabState[bufIdx].curPgHdRep[idx] = 1;
                }
-               else if (ttxGrabState.curPgHdRep[idx] < HEADER_CHAR_MIN_REP)
+               else if (ttxGrabState[bufIdx].curPgHdRep[idx] < HEADER_CHAR_MIN_REP)
                {
-                  ttxGrabState.curPgHdRep[idx] += 1;
+                  ttxGrabState[bufIdx].curPgHdRep[idx] += 1;
                }
             }
-            else if (ttxGrabState.refPgHdText[idx] != 0xff)
+            else if (ttxGrabState[bufIdx].refPgHdText[idx] != 0xff)
             {
                // count number of parity errors in current errors as indicator of reliability
                // but 
                parErrCnt += 1;
             }
 
-            if ( (ttxGrabState.curPgHdRep[idx] >= HEADER_CHAR_MIN_REP) &&
-                 (ttxGrabState.curPgHdText[idx] != ttxGrabState.refPgHdText[idx]) )
+            if ( (ttxGrabState[bufIdx].curPgHdRep[idx] >= HEADER_CHAR_MIN_REP) &&
+                 (ttxGrabState[bufIdx].curPgHdText[idx] != ttxGrabState[bufIdx].refPgHdText[idx]) )
             {
                stableDist += 1;
             }
@@ -216,22 +216,22 @@ static void TtxGrab_PageHeaderCheck( const uchar * curPageHeader, uint headOff, 
       // also ignore blank page headers (appear sometimes on empty/unused pages)
       if (stableDist != 0)
       {
-         debug2("TtxGrab-PageHeaderCheck: stable header diff. %d chars from \"%." HEADER_CHECK_LEN_STR "s\"", stableDist, TtxGrab_PrintHeader(ttxGrabState.refPgHdText, 0, FALSE));
-         debug3("TtxGrab-PageHeaderCheck: page:%03X pg no pos:%d, cur header:  \"%." HEADER_CHECK_LEN_STR "s\"", pageNo, ttxGrabState.refPgNumPos, TtxGrab_PrintHeader(curPageHeader, headOff, TRUE));
-         ttxGrabState.refPgDiffCnt = HEADER_MAX_CNT;
-         ttxGrabState.havePgHd = FALSE;
+         debug2("TtxGrab-PageHeaderCheck: stable header diff. %d chars from \"%." HEADER_CHECK_LEN_STR "s\"", stableDist, TtxGrab_PrintHeader(ttxGrabState[bufIdx].refPgHdText, 0, FALSE));
+         debug3("TtxGrab-PageHeaderCheck: page:%03X pg no pos:%d, cur header:  \"%." HEADER_CHECK_LEN_STR "s\"", pageNo, ttxGrabState[bufIdx].refPgNumPos, TtxGrab_PrintHeader(curPageHeader, headOff, TRUE));
+         ttxGrabState[bufIdx].refPgDiffCnt = HEADER_MAX_CNT;
+         ttxGrabState[bufIdx].havePgHd = FALSE;
       }
       else if ( (parErrCnt <= HEADER_PAR_ERR_MAX) &&
                 (spcCnt + parErrCnt <= HEADER_BLANK_MAX) &&
                 (curBitDist >= HEADER_CHECK_MAX_ERR_BITS) )
       {
-         debug2("TtxGrab-PageHeaderCheck: %d bits differ, header \"%." HEADER_CHECK_LEN_STR "s\"", curBitDist, TtxGrab_PrintHeader(ttxGrabState.refPgHdText, 0, FALSE));
-         ttxGrabState.refPgDiffCnt += 1;
-         if (ttxGrabState.refPgDiffCnt >= HEADER_MAX_CNT)
-            ttxGrabState.havePgHd = FALSE;
+         debug2("TtxGrab-PageHeaderCheck: %d bits differ, header \"%." HEADER_CHECK_LEN_STR "s\"", curBitDist, TtxGrab_PrintHeader(ttxGrabState[bufIdx].refPgHdText, 0, FALSE));
+         ttxGrabState[bufIdx].refPgDiffCnt += 1;
+         if (ttxGrabState[bufIdx].refPgDiffCnt >= HEADER_MAX_CNT)
+            ttxGrabState[bufIdx].havePgHd = FALSE;
       }
       else
-         ttxGrabState.refPgDiffCnt = 0;
+         ttxGrabState[bufIdx].refPgDiffCnt = 0;
    }
    else
    {  // first header after channel change -> copy header
@@ -243,22 +243,22 @@ static void TtxGrab_PageHeaderCheck( const uchar * curPageHeader, uint headOff, 
          dec = parityTab[ curPageHeader[headOff + idx] ];
          if ((schar)dec >= 0)
          {
-            if ( (ttxGrabState.curPgHdRep[idx] == 0) ||
-                 (dec != ttxGrabState.refPgHdText[idx]) )
+            if ( (ttxGrabState[bufIdx].curPgHdRep[idx] == 0) ||
+                 (dec != ttxGrabState[bufIdx].refPgHdText[idx]) )
             {
-               ttxGrabState.refPgHdText[idx] = dec;
-               ttxGrabState.curPgHdRep[idx] = 1;
+               ttxGrabState[bufIdx].refPgHdText[idx] = dec;
+               ttxGrabState[bufIdx].curPgHdRep[idx] = 1;
                diffCnt += 1;
             }
-            else if (ttxGrabState.curPgHdRep[idx] < HEADER_CHAR_MIN_REP)
+            else if (ttxGrabState[bufIdx].curPgHdRep[idx] < HEADER_CHAR_MIN_REP)
             {
-               ttxGrabState.curPgHdRep[idx] += 1;
+               ttxGrabState[bufIdx].curPgHdRep[idx] += 1;
             }
          }
          else
             errCnt += 1;
 
-         if (ttxGrabState.curPgHdRep[idx] >= HEADER_CHAR_MIN_REP)
+         if (ttxGrabState[bufIdx].curPgHdRep[idx] >= HEADER_CHAR_MIN_REP)
             minRepCount += 1;
       }
 
@@ -267,21 +267,21 @@ static void TtxGrab_PageHeaderCheck( const uchar * curPageHeader, uint headOff, 
       {
          // note: page number search includes characters with insufficient repeat count
          // this cannot be avoided since page number digits change on every page, i.e. are not repeated
-         ttxGrabState.refPgNumPos = TtxGrab_SearchPageNoPos(ttxGrabState.refPgHdText, pageNo);
-         if (ttxGrabState.refPgNumPos >= 0)
+         ttxGrabState[bufIdx].refPgNumPos = TtxGrab_SearchPageNoPos(ttxGrabState[bufIdx].refPgHdText, pageNo);
+         if (ttxGrabState[bufIdx].refPgNumPos >= 0)
          {
-            dprintf3("TtxGrab-PageHeaderCheck: store header \"%." HEADER_CHECK_LEN_STR "s\" page %03X pos:%d\n", TtxGrab_PrintHeader(ttxGrabState.refPgHdText, 0, FALSE), pageNo, ttxGrabState.refPgNumPos);
-            memset(ttxGrabState.curPgHdRep, 1, sizeof(ttxGrabState.curPgHdRep));
-            memcpy(ttxGrabState.curPgHdText, ttxGrabState.refPgHdText, sizeof(ttxGrabState.curPgHdText));
-            ttxGrabState.refPgDiffCnt = 0;
-            ttxGrabState.havePgHd = TRUE;
+            dprintf3("TtxGrab-PageHeaderCheck: store header \"%." HEADER_CHECK_LEN_STR "s\" page %03X pos:%d\n", TtxGrab_PrintHeader(ttxGrabState[bufIdx].refPgHdText, 0, FALSE), pageNo, ttxGrabState[bufIdx].refPgNumPos);
+            memset(ttxGrabState[bufIdx].curPgHdRep, 1, sizeof(ttxGrabState[bufIdx].curPgHdRep));
+            memcpy(ttxGrabState[bufIdx].curPgHdText, ttxGrabState[bufIdx].refPgHdText, sizeof(ttxGrabState[bufIdx].curPgHdText));
+            ttxGrabState[bufIdx].refPgDiffCnt = 0;
+            ttxGrabState[bufIdx].havePgHd = TRUE;
          }
          else
-            dprintf2("TtxGrab-PageHeaderCheck: page no %03X not found in header \"%." HEADER_CHECK_LEN_STR "s\"\n", pageNo, TtxGrab_PrintHeader(ttxGrabState.refPgHdText, 0, FALSE));
+            dprintf2("TtxGrab-PageHeaderCheck: page no %03X not found in header \"%." HEADER_CHECK_LEN_STR "s\"\n", pageNo, TtxGrab_PrintHeader(ttxGrabState[bufIdx].refPgHdText, 0, FALSE));
       }
       else
-         dprintf4("TtxGrab-PageHeaderCheck: minRep:%d err:%d diff:%d - header \"%." HEADER_CHECK_LEN_STR "s\"\n",
-                  minRepCount, errCnt, diffCnt, TtxGrab_PrintHeader(ttxGrabState.refPgHdText, 0, FALSE));
+         dprintf5("TtxGrab-PageHeaderCheck[%d]: minRep:%d err:%d diff:%d - header \"%." HEADER_CHECK_LEN_STR "s\"\n",
+                  bufIdx, minRepCount, errCnt, diffCnt, TtxGrab_PrintHeader(ttxGrabState[bufIdx].refPgHdText, 0, FALSE));
    }
 }
 
@@ -289,15 +289,15 @@ static void TtxGrab_PageHeaderCheck( const uchar * curPageHeader, uint headOff, 
 // Add CNI to grabber output
 // - CNIs are essential to generate channel IDs for the XMLTV output
 //
-static void TtxGrab_ProcessCni( void )
+static void TtxGrab_ProcessCni( uint bufIdx )
 {
    CNI_TYPE cniType;
    uint   newCni;
 
    // retrieve new CNI from teletext decoder, if any
-   if ( TtxDecode_GetCniAndPil(&newCni, NULL, &cniType, ttxGrabState.cniDecInd, NULL, NULL) )
+   if ( TtxDecode_GetCniAndPil(bufIdx, &newCni, NULL, &cniType, ttxGrabState[bufIdx].cniDecInd, NULL, NULL) )
    {
-      ttx_db_add_cni(ttxGrabState.ttx_db, newCni);
+      ttx_db_add_cni(ttxGrabState[bufIdx].ttx_db, newCni);
    }
 }
 
@@ -308,44 +308,45 @@ static void TtxGrab_ProcessCni( void )
 // - returns FALSE when an uncontrolled channel change was detected; the caller
 //   then should reset the acquisition
 //
-bool TtxGrab_ProcessPackets( void )
+bool TtxGrab_ProcessPackets( uint bufIdx )
 {
    const VBI_LINE * pVbl;
    uint pkgOff;
    //bool seenHeader;
 
    if ( (pVbiBuf != NULL) &&
-        (pVbiBuf->chanChangeReq == pVbiBuf->chanChangeCnf) )
+        (pVbiBuf->buf[bufIdx].chanChangeReq == pVbiBuf->buf[bufIdx].chanChangeCnf) )
    {
-      //assert(pVbiBuf->startPageNo == ttxGrabState.startPage);
+      //assert(pVbiBuf->startPageNo[bufIdx] == ttxGrabState[bufIdx].startPage);
+      dprintf3("TtxGrab-ProcessPackets[%d] read=%d write=%d\n", bufIdx, pVbiBuf->buf[bufIdx].reader_idx, pVbiBuf->buf[bufIdx].writer_idx);
 
       // fetch the oldest packet from the teletext ring buffer
       //seenHeader = FALSE;
       pkgOff = 0;
-      while ( (pVbl = TtxDecode_GetPacket(pkgOff)) != NULL )
+      while ( (pVbl = TtxDecode_GetPacket(bufIdx, pkgOff)) != NULL )
       {
-         ttxGrabState.stats.ttxPkgCount += 1;
+         dprintf6("Process stream[%d] idx=%d+%d: pg=%03X.%04X pkg=%d\n", bufIdx, pVbiBuf->buf[bufIdx].reader_idx, pkgOff, pVbl->pageno, pVbl->ctrl_lo & 0x3F7F, pVbl->pkgno);
+         ttxGrabState[bufIdx].stats.ttxPkgCount += 1;
          pkgOff += 1;
 
-         //dprintf4("Process idx=%d: pg=%03X.%04X pkg=%d\n", pVbiBuf->reader_idx, pVbl->pageno, pVbl->ctrl_lo & 0x3F7F, pVbl->pkgno);
          if (pVbl->pkgno == 0)
          {
             //dprintf3("%03X.%04X %s\n", pVbl->pageno, pVbl->ctrl_lo & 0x3F7F, TtxGrab_PrintHeader(pVbl->data, 0, TRUE));
             //seenHeader = TRUE;
-            ttxGrabState.stats.ttxPagCount += 1;
+            ttxGrabState[bufIdx].stats.ttxPagCount += 1;
             if (((pVbl->pageno & 0x0F) <= 9) && (((pVbl->pageno >> 4) & 0x0F) <= 9))
-               TtxGrab_PageHeaderCheck(pVbl->data, 8, pVbl->pageno);
+               TtxGrab_PageHeaderCheck(bufIdx, pVbl->data, 8, pVbl->pageno);
          }
 
-         ttxGrabState.stats.ttxPkgStrSum += 40;
-         ttxGrabState.stats.ttxPkgParErr +=
+         ttxGrabState[bufIdx].stats.ttxPkgStrSum += 40;
+         ttxGrabState[bufIdx].stats.ttxPkgParErr +=
             UnHamParityArray(pVbl->data, (void*)pVbl->data, 40);
          // XXX FIXME: using void cast to remove const for target buffer
 
          // skip file output if disabled (note all other processing is intentionally done anyways)
-         if (ttxGrabState.refPgDiffCnt == 0)
+         if (ttxGrabState[bufIdx].refPgDiffCnt == 0)
          {
-            ttx_db_add_pkg( ttxGrabState.ttx_db,
+            ttx_db_add_pkg( ttxGrabState[bufIdx].ttx_db,
                             pVbl->pageno,
                             pVbl->ctrl_lo | (pVbl->ctrl_hi << 16),
                             pVbl->pkgno,
@@ -360,12 +361,12 @@ bool TtxGrab_ProcessPackets( void )
          uchar buf[40];
          uint pgNum;
          pkgOff = 0;
-         while (TtxDecode_GetPageHeader(buf, &pgNum, pkgOff))
+         while (TtxDecode_GetPageHeader(bufIdx, buf, &pgNum, pkgOff))
          {
             // FIXME  +8 overflows buf
             if (((pgNum & 0x0F) <= 9) && (((pgNum >> 4) & 0x0F) <= 9))
-               TtxGrab_PageHeaderCheck(buf, 8, pgNum);
-            if (ttxGrabState.havePgHd && (ttxGrabState.refPgDiffCnt == 0))
+               TtxGrab_PageHeaderCheck(bufIdx, buf, 8, pgNum);
+            if (ttxGrabState[bufIdx].havePgHd && (ttxGrabState[bufIdx].refPgDiffCnt == 0))
                break;
             //else dprintf2("##### %03X %s\n", pgNum, TtxGrab_PrintHeader(buf, 0, TRUE));
             pkgOff += 1;
@@ -373,26 +374,26 @@ bool TtxGrab_ProcessPackets( void )
       }
 
       // add CNIs to output buffer, if available
-      TtxGrab_ProcessCni();
+      TtxGrab_ProcessCni(bufIdx);
    }
-   return (ttxGrabState.refPgDiffCnt < HEADER_MAX_CNT);
+   return (ttxGrabState[bufIdx].refPgDiffCnt < HEADER_MAX_CNT);
 }
 
 // ---------------------------------------------------------------------------
 // Check number of lost packets and block decoding errors
 // - returns FALSE if type should be changed
 //
-bool TtxGrab_CheckSlicerQuality( void )
+bool TtxGrab_CheckSlicerQuality( uint bufIdx )
 {
    bool result = TRUE;
 
-   if (ttxGrabState.stats.ttxPkgCount != 0)
+   if (ttxGrabState[bufIdx].stats.ttxPkgCount != 0)
    {
-      if ((double)ttxGrabState.stats.ttxPkgParErr / ttxGrabState.stats.ttxPkgStrSum >= 0.005)
+      if ((double)ttxGrabState[bufIdx].stats.ttxPkgParErr / ttxGrabState[bufIdx].stats.ttxPkgStrSum >= 0.005)
       {
-         debug2("TtxGrab-CheckSlicerQuality: blanked %d of %d chars", ttxGrabState.stats.ttxPkgParErr, ttxGrabState.stats.ttxPkgStrSum);
+         debug2("TtxGrab-CheckSlicerQuality: blanked %d of %d chars", ttxGrabState[bufIdx].stats.ttxPkgParErr, ttxGrabState[bufIdx].stats.ttxPkgStrSum);
          // reset stream statistics to give the new slicer a "clean slate"
-         memset(&ttxGrabState.stats, 0, sizeof(ttxGrabState.stats));
+         memset(&ttxGrabState[bufIdx].stats, 0, sizeof(ttxGrabState[bufIdx].stats));
          result = FALSE;
       }
    }
@@ -405,7 +406,7 @@ bool TtxGrab_CheckSlicerQuality( void )
 // - rangeDone: all pages of the requested range captured
 // - sourceLock: page header stored (i.e. channel change detection enabled)
 //
-void TtxGrab_GetPageStats( bool * pInRange, bool * pRangeDone, bool * pSourceLock, uint * pPredictDelay )
+void TtxGrab_GetPageStats( uint bufIdx, bool * pInRange, bool * pRangeDone, bool * pSourceLock, uint * pPredictDelay )
 {
    uint magBuf[8];
    uint nearBuf[3];
@@ -422,14 +423,14 @@ void TtxGrab_GetPageStats( bool * pInRange, bool * pRangeDone, bool * pSourceLoc
    if (pPredictDelay != NULL)
       *pPredictDelay = 0;
 
-   if (TtxDecode_GetMagStats(magBuf, &dirSum, FALSE))
+   if (TtxDecode_GetMagStats(bufIdx, magBuf, &dirSum, FALSE))
    {
       sum = 0;
       for (idx=0; idx<8; idx++)
          sum += magBuf[idx];
       if (sum >= 20)
       {
-         mag = (ttxGrabState.startPage >> 8) & 0x07;
+         mag = (ttxGrabState[bufIdx].startPage >> 8) & 0x07;
 
          revDirection = ((0 - dirSum) >= (int)sum/4);
          if (revDirection)
@@ -453,11 +454,11 @@ void TtxGrab_GetPageStats( bool * pInRange, bool * pRangeDone, bool * pSourceLoc
             inRange = FALSE;
 
          rangeDone = (magBuf[mag] <= 2) &&
-                     ( (ttxGrabState.stats.ttxPagCount > 30) ||
-                       (ttxGrabState.stats.ttxPagCount >= (ttxGrabState.stopPage - ttxGrabState.startPage + 1)));
+                     ( (ttxGrabState[bufIdx].stats.ttxPagCount > 30) ||
+                       (ttxGrabState[bufIdx].stats.ttxPagCount >= (ttxGrabState[bufIdx].stopPage - ttxGrabState[bufIdx].startPage + 1)));
 
          if (pSourceLock != NULL)
-            *pSourceLock = ttxGrabState.havePgHd;
+            *pSourceLock = ttxGrabState[bufIdx].havePgHd;
 
          if (!rangeDone && (pPredictDelay != NULL))
          {
@@ -492,14 +493,14 @@ void TtxGrab_GetPageStats( bool * pInRange, bool * pRangeDone, bool * pSourceLoc
 // ---------------------------------------------------------------------------
 // Fill struct with statistics data
 //
-void TtxGrab_GetStatistics( TTX_GRAB_STATS * pStats )
+void TtxGrab_GetStatistics( uint bufIdx, TTX_GRAB_STATS * pStats )
 {
    if (pStats != NULL)
    {
-      ttxGrabState.stats.ttxPageStartNo = ttxGrabState.startPage;
-      ttxGrabState.stats.ttxPageStopNo  = ttxGrabState.stopPage;
+      ttxGrabState[bufIdx].stats.ttxPageStartNo = ttxGrabState[bufIdx].startPage;
+      ttxGrabState[bufIdx].stats.ttxPageStopNo  = ttxGrabState[bufIdx].stopPage;
 
-      *pStats = ttxGrabState.stats;
+      *pStats = ttxGrabState[bufIdx].stats;
    }
 }
 
@@ -529,16 +530,14 @@ static bool TtxGrab_CheckFileExists( const char * pPath )
 
 // ---------------------------------------------------------------------------
 // Check if post-processing is done: poll child process status
-// - optionally returns a pointer to the name of the generated XML file
-//   note: the caller must free the memory for the name!
 //
-bool TtxGrab_CheckPostProcess( char ** ppXmlName )
+bool TtxGrab_CheckPostProcess( uint bufIdx )
 {
    bool result = FALSE;
-   if (ttxGrabState.postProcDone)
+   if (ttxGrabState[bufIdx].postProcDone)
    {
       dprintf0("TtxGrab-CheckPostProcess: DONE\n");
-      ttxGrabState.postProcDone = FALSE;
+      ttxGrabState[bufIdx].postProcDone = FALSE;
       result = TRUE;
    }
    return result;
@@ -547,17 +546,17 @@ bool TtxGrab_CheckPostProcess( char ** ppXmlName )
 // ---------------------------------------------------------------------------
 // Stop acquisition and start post-processing
 //
-void TtxGrab_PostProcess( const char * pName, bool reset )
+void TtxGrab_PostProcess( uint bufIdx, const char * pName, bool reset )
 {
    char * pXmlTmpFile;
    char * pXmlMergeFile;
    char * pXmlOutFile;
 
-   if (ttxGrabState.keepTtxInp)
+   if (ttxGrabState[bufIdx].keepTtxInp)
    {
       char * pKeptInpFile = xmalloc(strlen(pName) + 20);
       sprintf(pKeptInpFile, TTX_CAP_FILE_PAT, pName);
-      ttx_db_dump(ttxGrabState.ttx_db, pKeptInpFile, 100, 899);
+      ttx_db_dump(ttxGrabState[bufIdx].ttx_db, pKeptInpFile, 100, 899);
       xfree(pKeptInpFile);
    }
 
@@ -573,10 +572,11 @@ void TtxGrab_PostProcess( const char * pName, bool reset )
       pXmlMergeFile = NULL;
    }
    dprintf4("TtxGrab-PostProcess: name:'%s' expire:%d merge:'%s' out:'%s'\n",
-            pName, ttxGrabState.expireMin, (pXmlMergeFile != NULL) ? pXmlMergeFile : "", pXmlTmpFile);
+            pName, ttxGrabState[bufIdx].expireMin, (pXmlMergeFile != NULL) ? pXmlMergeFile : "", pXmlTmpFile);
 
-   if (ttx_db_parse(ttxGrabState.ttx_db,
-                    ttxGrabState.startPage, ttxGrabState.stopPage, ttxGrabState.expireMin,
+   if (ttx_db_parse(ttxGrabState[bufIdx].ttx_db,
+                    ttxGrabState[bufIdx].startPage, ttxGrabState[bufIdx].stopPage,
+                    ttxGrabState[bufIdx].expireMin,
                     pXmlMergeFile, pXmlTmpFile, 0, 0) == 0)
    {
       // replace XML file with temporary output: XML_OUT_FILE_PAT
@@ -591,14 +591,14 @@ void TtxGrab_PostProcess( const char * pName, bool reset )
          unlink(pXmlTmpFile);
       }
       xfree(pXmlOutFile);
-      ttxGrabState.postProcDone = TRUE;
+      ttxGrabState[bufIdx].postProcDone = TRUE;
    }
    xfree(pXmlTmpFile);
 
    if (reset)
    {
-      ttx_db_destroy(ttxGrabState.ttx_db);
-      ttxGrabState.ttx_db = NULL;
+      ttx_db_destroy(ttxGrabState[bufIdx].ttx_db);
+      ttxGrabState[bufIdx].ttx_db = NULL;
    }
 
    if (pXmlMergeFile != NULL)
@@ -621,19 +621,22 @@ bool TtxGrab_Start( uint startPage, uint stopPage, bool enableOutput )
 
    dprintf3("TtxGrab-Start: capture %03X-%03X enable:%d\n", startPage, stopPage, enableOutput);
 
-   ttxGrabState.startPage = startPage;
-   ttxGrabState.stopPage = stopPage;
-
-   memset(&ttxGrabState.stats, 0, sizeof(ttxGrabState.stats));
-
-   memset(&ttxGrabState.curPgHdRep, 0, sizeof(ttxGrabState.curPgHdRep));
-   memset(&ttxGrabState.refPgHdText, 0xff, sizeof(ttxGrabState.refPgHdText));
-   ttxGrabState.havePgHd = FALSE;
-   memset(ttxGrabState.cniDecInd, 0, sizeof(ttxGrabState.cniDecInd));
-
-   if (ttxGrabState.ttx_db == NULL)
+   for (uint bufIdx = 0; bufIdx < MAX_VBI_DVB_STREAMS; ++bufIdx)
    {
-      ttxGrabState.ttx_db = ttx_db_create();
+      ttxGrabState[bufIdx].startPage = startPage;
+      ttxGrabState[bufIdx].stopPage = stopPage;
+
+      memset(&ttxGrabState[bufIdx].stats, 0, sizeof(ttxGrabState[bufIdx].stats));
+
+      memset(&ttxGrabState[bufIdx].curPgHdRep, 0, sizeof(ttxGrabState[bufIdx].curPgHdRep));
+      memset(&ttxGrabState[bufIdx].refPgHdText, 0xff, sizeof(ttxGrabState[bufIdx].refPgHdText));
+      ttxGrabState[bufIdx].havePgHd = FALSE;
+      memset(ttxGrabState[bufIdx].cniDecInd, 0, sizeof(ttxGrabState[bufIdx].cniDecInd));
+
+      if (ttxGrabState[bufIdx].ttx_db == NULL)
+      {
+         ttxGrabState[bufIdx].ttx_db = ttx_db_create();
+      }
    }
 
    return result;
@@ -645,8 +648,11 @@ bool TtxGrab_Start( uint startPage, uint stopPage, bool enableOutput )
 //
 void TtxGrab_Stop( void )
 {
-   ttx_db_destroy(ttxGrabState.ttx_db);
-   ttxGrabState.ttx_db = NULL;
+   for (uint bufIdx = 0; bufIdx < MAX_VBI_DVB_STREAMS; ++bufIdx)
+   {
+      ttx_db_destroy(ttxGrabState[bufIdx].ttx_db);
+      ttxGrabState[bufIdx].ttx_db = NULL;
+   }
 }
 
 // ---------------------------------------------------------------------------
@@ -655,9 +661,12 @@ void TtxGrab_Stop( void )
 //
 void TtxGrab_SetConfig( uint expireMin, bool keepTtxInp )
 {
-   // passed through to TTX grabber (discard programmes older than X hours)
-   ttxGrabState.expireMin = expireMin;
-   ttxGrabState.keepTtxInp = keepTtxInp;
+   for (uint bufIdx = 0; bufIdx < MAX_VBI_DVB_STREAMS; ++bufIdx)
+   {
+      // passed through to TTX grabber (discard programmes older than X hours)
+      ttxGrabState[bufIdx].expireMin = expireMin;
+      ttxGrabState[bufIdx].keepTtxInp = keepTtxInp;
+   }
 }
 
 // ---------------------------------------------------------------------------

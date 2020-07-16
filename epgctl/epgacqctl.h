@@ -81,7 +81,7 @@ typedef struct
    EPGACQ_PHASE   cyclePhase;
    EPGACQ_PASSIVE passiveReason;
    uint16_t       ttxSrcCount;
-   int16_t        ttxGrabIdx;
+   int16_t        ttxGrabIdx;    // TODO add ttxGrabCount
    uint16_t       ttxGrabDone;
    bool           isNetAcq;
    bool           isLocalServer;
@@ -135,6 +135,8 @@ typedef struct
 
 #define EPG_TTX_STATS_NAMLEN 32
 
+// TODO (1) add srcCount
+// TODO (2) add TTX_GRAB_STATS holding merge/average of all sources
 typedef struct
 {
    time32_t            acqStartTime;
@@ -143,10 +145,11 @@ typedef struct
    TTX_GRAB_STATS      pkgStats;
 } EPG_TTX_GRAB_STATS;
 
+// TODO (3) add TTX_DEC_STATS holding merge/average of all sources
 typedef struct
 {
    time32_t            lastStatsUpdate;
-   TTX_DEC_STATS       ttx_dec;
+   TTX_DEC_STATS       ttx_dec;           // specific to srcIdx
    EPG_TTX_GRAB_STATS  ttx_grab;
    uint32_t            ttx_duration;
    EPG_NXTV_ACQ_STATS  nxtv;  // TODO port to teletext

@@ -910,7 +910,7 @@ bool ZvbiSliceAndProcess( vbi_raw_decoder *rd, uint8_t *raw, uint32_t frame_no )
          p_out = xmalloc(sizeof(*p_out) * rdo_lines);
       }
 
-      if ( TtxDecode_NewVbiFrame(frame_no) )
+      if ( TtxDecode_NewVbiFrame(0, frame_no) )
       {
          count = vbi_raw_decode(rd, raw, p_out);
          assert(count <= rdo_lines);
@@ -919,11 +919,11 @@ bool ZvbiSliceAndProcess( vbi_raw_decoder *rd, uint8_t *raw, uint32_t frame_no )
          {
             if ((p_out[line_idx].id & VBI_SLICED_TELETEXT_B) != 0)
             {
-               TtxDecode_AddPacket(p_out[line_idx].data + 0, p_out[line_idx].line);
+               TtxDecode_AddPacket(0, p_out[line_idx].data + 0, p_out[line_idx].line);
             }
             else if (p_out[line_idx].id == VBI_SLICED_VPS)
             {
-               TtxDecode_AddVpsData(p_out[line_idx].data);
+               TtxDecode_AddVpsData(0, p_out[line_idx].data);
             }
          }
          result = TRUE;

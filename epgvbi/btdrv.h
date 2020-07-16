@@ -77,6 +77,10 @@ struct Card
 };
 #endif  //__NetBSD__ || __FreeBSD__
 
+// ---------------------------------------------------------------------------
+
+#define MAX_VBI_DVB_STREAMS  10
+
 typedef enum
 {
    VBI_SLICER_AUTO,
@@ -179,10 +183,10 @@ typedef struct
    uint32_t  ttxPkgCount;       // number of ttx packets received
    uint32_t  ttxPkgDrop;        // number of ttx packets dropped b/c Hamming errors
    uint32_t  ttxPkgRate;        // number of ttx packets per frame: running average (.16 bit fix-point)
-   uint32_t  scanPkgCount;      // number of EPG ttx packets received
-   uint32_t  scanPagCount;      // number of EPG ttx pages received
-   uint32_t  ttxPkgGrab;        // number of ttx packets grabbed (for non-EPG)
-   uint32_t  ttxPagGrab;        // number of ttx pages grabbed (for non-EPG)
+   uint32_t  scanPkgCount;      // number of ttx packets received for scan
+   uint32_t  scanPagCount;      // number of ttx pages received for scan
+   uint32_t  ttxPkgGrab;        // number of ttx packets grabbed (for non-scan)
+   uint32_t  ttxPagGrab;        // number of ttx pages grabbed (for non-scan)
    uint32_t  reserved_0[4];     // unused, always 0
 } TTX_DEC_STATS;
 
@@ -232,6 +236,57 @@ typedef struct
    uint32_t  lastTimeVal;
 } TTX_TIME_BUF;
 
+// ---------------------------------------------------------------------------
+// Structure which is put into shared memory
+// - used to pass parameters and commands from the master to the acq slave.
+//   Those elements are marked with "In:" in the comments below
+// - used to pass results from the acq slave to the master, e.g. EPG teletext
+//   packets, CNIs and PILs and various statistics.
+//   Those elements are marked with "Out:" in the comments below
+//
+typedef struct
+{
+   uint8_t   scanEnabled;       // In:  en-/disable capturing for channel scan
+   uint8_t   ttxEnabled;        // In:  en-/disable teletext grabber
+   uint8_t   hasFailed;         // Out: TRUE when acq was aborted due to error
+
+   uint32_t  startPageNo[MAX_VBI_DVB_STREAMS]; // In:  first teletext page number (range 000-7FF)
+   uint32_t  stopPageNo[MAX_VBI_DVB_STREAMS];  // In:  last captured teletext page number
+ 
+   struct {
+      uint32_t  chanChangeReq;     // In:  channel change request, i.e. reset of ttx decoder
+      uint32_t  chanChangeCnf;     // Out: channel change execution confirmation
+
+      CNI_ACQ_STATE cnis[CNI_TYPE_COUNT];  // Out: CNIs and PILs
+
+      uint32_t  writer_idx;        // Out: current writer slot in ring buffer
+      uint32_t  reader_idx;        // In/Out: current reader slot in ring buffer
+      VBI_LINE  line[TTXACQ_BUF_COUNT];  // Out: teletext packets on requested pages
+
+      TTX_DEC_STATS  ttxStats;     // Out: teletext decoder statistics
+      TTX_HEAD_BUF   ttxHeader;    // Out: rolling buffer of teletext headers
+      TTX_TIME_BUF   ttxTime;      // Out: teletext time
+   } buf[MAX_VBI_DVB_STREAMS];
+
+   uint32_t  slicerType;
+
+   #ifndef WIN32
+   bool      vbiSlaveRunning;   // --:  TRUE while slave thread is running
+   int       failureErrno;
+
+   uchar     cardIndex;
+   bool      cardIsDvb;
+   int       dvbPid[MAX_VBI_DVB_STREAMS];
+   int       dvbPidCnt;
+   int       chnPrio;
+   # if defined(__NetBSD__) || defined(__FreeBSD__)
+   uchar     inputIndex;
+   struct Card tv_cards[MAX_CARDS];
+   # endif
+   #endif
+} EPGACQ_BUF;
+
+extern volatile EPGACQ_BUF *pVbiBuf;
 
 // ---------------------------------------------------------------------------
 // Channel parameters
@@ -260,55 +315,6 @@ typedef struct
 #define EPGACQ_TUNER_DVB_FREQ_TOL 50000
 
 // ---------------------------------------------------------------------------
-// Structure which is put into shared memory
-// - used to pass parameters and commands from the master to the acq slave.
-//   Those elements are marked with "In:" in the comments below
-// - used to pass results from the acq slave to the master, e.g. EPG teletext
-//   packets, CNIs and PILs and various statistics.
-//   Those elements are marked with "Out:" in the comments below
-//
-typedef struct
-{
-   uint8_t   scanEnabled;       // In:  en-/disable capturing for channel scan
-   uint8_t   ttxEnabled;        // In:  en-/disable teletext grabber
-   uint8_t   hasFailed;         // Out: TRUE when acq was aborted due to error
-
-   uint32_t  startPageNo;       // In:  first teletext page number (range 000-7FF)
-   uint32_t  stopPageNo;        // In:  last captured teletext page number
- 
-   uint32_t  chanChangeReq;     // In:  channel change request, i.e. reset of ttx decoder
-   uint32_t  chanChangeCnf;     // Out: channel change execution confirmation
-
-   CNI_ACQ_STATE cnis[CNI_TYPE_COUNT];  // Out: CNIs and PILs
-
-   uint32_t  writer_idx;        // Out: current writer slot in ring buffer
-   uint32_t  reader_idx;        // In/Out: current reader slot in ring buffer
-   VBI_LINE  line[TTXACQ_BUF_COUNT];  // Out: teletext packets on requested pages
-
-   TTX_DEC_STATS  ttxStats;     // Out: teletext decoder statistics
-   TTX_HEAD_BUF   ttxHeader;    // Out: rolling buffer of teletext headers
-   TTX_TIME_BUF   ttxTime;      // Out: teletext time
-
-   uint32_t  slicerType;
-
-   #ifndef WIN32
-   bool      vbiSlaveRunning;   // --:  TRUE while slave thread is running
-   int       failureErrno;
-
-   uchar     cardIndex;
-   bool      cardIsDvb;
-   int       dvbPid;
-   int       chnPrio;
-   # if defined(__NetBSD__) || defined(__FreeBSD__)
-   uchar     inputIndex;
-   struct Card tv_cards[MAX_CARDS];
-   # endif
-   #endif
-} EPGACQ_BUF;
-
-extern volatile EPGACQ_BUF *pVbiBuf;
-
-// ---------------------------------------------------------------------------
 // declaration of service interface functions
 //
 
@@ -321,10 +327,10 @@ const char * BtDriver_GetLastError( void );
 bool BtDriver_IsVideoPresent( void );
 bool BtDriver_QueryChannel( EPGACQ_TUNER_PAR * pFreqPar, uint * pInput, bool * pIsTuner );
 bool BtDriver_TuneChannel( int inputIdx, const EPGACQ_TUNER_PAR * pFreqPar, bool keepOpen, bool * pIsTuner );
+void BtDriver_TuneDvbPid( const int * pidList, uint pidCount );
 
 #ifndef WIN32
 int BtDriver_GetDeviceOwnerPid( void );
-void BtDriver_TuneDvbPid( int pid );
 #else
 bool BtDriver_Restart( void );
 bool BtDriver_GetState( bool * pEnabled, bool * pHasDriver, uint * pCardIdx );

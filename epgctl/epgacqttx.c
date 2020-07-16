@@ -76,7 +76,8 @@ typedef struct
    EPGACQ_PASSIVE passiveReason;
    EPGACQ_PHASE   cyclePhase;
    uint           ttxSrcCount;
-   sint           ttxSrcIdx;
+   uint           ttxSrcIdx[MAX_VBI_DVB_STREAMS];
+   uint           ttxActiveCount;
    time_t         acqStartTime;
    time_t         chanChangeTime;
    bool           allSrcDone;
@@ -105,28 +106,30 @@ static EPGACQTTX_CTL  acqCtl;
 // number of seconds without TTX header after which acq is considered "stalled"
 #define ACQ_DESCR_TTX_STALLED_TIMEOUT  7
 
+#define CMP_DVB_FREQ(F) (((F) + EPGACQ_TUNER_DVB_FREQ_TOL/2) / EPGACQ_TUNER_DVB_FREQ_TOL)
+
 #ifdef USE_TTX_GRABBER
 static bool EpgAcqTtx_UpdateProvider( void );
 
 // ---------------------------------------------------------------------------
 // Helper function which looks up a channel's XML file name
 //
-static const char * EpgAcqTtx_GetChannelName( sint ttxSrcIdx )
+static const char * EpgAcqTtx_GetChannelName( uint srcIdx )
 {
    const char * pNames = "";
    uint idx;
 
    if (acqCtl.pTtxNames != NULL)
    {
-      if ((ttxSrcIdx >= 0) && (ttxSrcIdx < acqCtl.ttxSrcCount))
+      if (srcIdx < acqCtl.ttxSrcCount)
       {
          pNames = acqCtl.pTtxNames;
-         for (idx = 0; idx < ttxSrcIdx; idx++)
+         for (idx = 0; idx < srcIdx; idx++)
             while(*(pNames++) != 0)
                ;
       }
       else
-         ifdebug2(ttxSrcIdx != -1, "EpgAcqTtx-GetChannelName: invalid idx %d (>=%d)", ttxSrcIdx, acqCtl.ttxSrcCount);
+         debug2("EpgAcqTtx-GetChannelName: invalid idx %d (>=%d)", srcIdx, acqCtl.ttxSrcCount);
    }
 
    return pNames;
@@ -169,7 +172,7 @@ void EpgAcqTtx_DescribeAcqState( EPGACQ_DESCR * pAcqState )
    if (acqCtl.state != TTXACQ_STATE_OFF)
    {
       pAcqState->ttxSrcCount = acqCtl.ttxSrcCount;
-      pAcqState->ttxGrabIdx = acqCtl.ttxSrcIdx;
+      pAcqState->ttxGrabIdx = acqCtl.ttxSrcIdx[0];
 
       pAcqState->ttxGrabDone = 0;
       for (idx = 0; idx < acqCtl.ttxSrcCount; idx++)
@@ -189,12 +192,12 @@ bool EpgAcqTtx_GetAcqStats( EPG_TTX_GRAB_STATS * pTtxGrabStats )
 #ifdef USE_TTX_GRABBER
    if (acqCtl.state != TTXACQ_STATE_OFF)
    {
-      TtxGrab_GetStatistics(&pTtxGrabStats->pkgStats);
+      TtxGrab_GetStatistics(0, &pTtxGrabStats->pkgStats);
 
       pTtxGrabStats->acqStartTime = acqCtl.acqStartTime;
-      pTtxGrabStats->srcIdx = acqCtl.ttxSrcIdx;
+      pTtxGrabStats->srcIdx = acqCtl.ttxSrcIdx[0];
 
-      strncpy(pTtxGrabStats->srcName, EpgAcqTtx_GetChannelName(acqCtl.ttxSrcIdx), EPG_TTX_STATS_NAMLEN);
+      strncpy(pTtxGrabStats->srcName, EpgAcqTtx_GetChannelName(acqCtl.ttxSrcIdx[0]), EPG_TTX_STATS_NAMLEN);
       pTtxGrabStats->srcName[EPG_TTX_STATS_NAMLEN - 1] = 0;
 
       result = TRUE;
@@ -211,8 +214,8 @@ static bool EpgAcqTtx_TtxStart( void )
 {
    bool result = FALSE;
 
-   // TODO: use generic params if source is yet unknown (ttxSrcIdx == -1)
-   if (acqCtl.ttxSrcIdx != -1)
+   // TODO: use generic params if source is yet unknown
+   if (acqCtl.ttxActiveCount > 0)
    {
       result = TtxGrab_Start(0x300, 0x399, TRUE);  // TODO page range must be passed down by GUI
       TtxDecode_StartTtxAcq(TRUE, 0x300, 0x399);
@@ -309,9 +312,9 @@ static bool EpgAcqTtx_UpdateProvider( void )
    bool result = FALSE;
    time_t now = time(NULL);
 
-   if ( (acqCtl.mode != ACQMODE_PASSIVE) && (acqCtl.ttxSrcIdx >= 0) )
+   if ( (acqCtl.mode != ACQMODE_PASSIVE) && (acqCtl.ttxActiveCount > 0) )
    {
-      const EPGACQ_TUNER_PAR * par = &acqCtl.pSources[acqCtl.ttxSrcIdx].freq;
+      const EPGACQ_TUNER_PAR * par = &acqCtl.pSources[acqCtl.ttxSrcIdx[0]].freq;
       if (par->freq != 0)
       {
          if ( (acqCtl.mode != ACQMODE_PASSIVE) &&
@@ -320,6 +323,32 @@ static bool EpgAcqTtx_UpdateProvider( void )
             acqCtl.chanChangeTime = now;
 
             result = EpgAcqCtl_TuneProvider(par, &acqCtl.passiveReason);
+
+            if (result)
+            {
+               int pidList[MAX_VBI_DVB_STREAMS];
+               uint pidCount = 1;
+
+               pidList[0] = par->ttxPid;
+
+               if (acqCtl.ttxActiveCount == 1)
+               {
+                  for (uint idx = 0; (idx < acqCtl.ttxSrcCount) && (pidCount < MAX_VBI_DVB_STREAMS); ++idx)
+                  {
+                     if (   (acqCtl.pSources[idx].srcDone == FALSE)
+                         && (acqCtl.pSources[idx].freq.freq == par->freq)
+                         && (idx != acqCtl.ttxSrcIdx[0]) )
+                     {
+                        dprintf2("EpgAcqTtx-UpdateProvider: piggy-backing channel %d (%s)\n", idx, EpgAcqTtx_GetChannelName(idx));
+                        pidList[pidCount] = acqCtl.pSources[idx].freq.ttxPid;
+                        acqCtl.ttxSrcIdx[pidCount] = idx;
+                        pidCount += 1;
+                     }
+                  }
+                  acqCtl.ttxActiveCount = pidCount;
+               }
+               BtDriver_TuneDvbPid(pidList, pidCount);
+            }
          }
       }
       else
@@ -338,7 +367,7 @@ static bool EpgAcqTtx_UpdateProvider( void )
    if (result)
       acqCtl.acqStartTime = now;
    else
-      acqCtl.ttxSrcIdx = -1;
+      acqCtl.ttxActiveCount = 0;
 
    return result;
 }
@@ -357,7 +386,8 @@ void EpgAcqTtx_InitCycle( EPGACQ_PHASE phase )
       acqCtl.pSources[idx].srcDone = FALSE;
       acqCtl.pSources[idx].predictStart = 0;
    }
-   acqCtl.ttxSrcIdx = 0;
+   acqCtl.ttxSrcIdx[0] = 0;
+   acqCtl.ttxActiveCount = 1;
    acqCtl.allSrcDone = FALSE;
    acqCtl.lastDoneSrc = -1;
    acqCtl.lastDoneTime = 0;
@@ -366,7 +396,7 @@ void EpgAcqTtx_InitCycle( EPGACQ_PHASE phase )
 #ifdef USE_TTX_GRABBER
 // ---------------------------------------------------------------------------
 // Search source table for next unfinished source
-// - skip sources which already have been processes (done set to TRUE)
+// - skip sources which already have been processed (done set to TRUE)
 // - return -1 if all sources have been done
 // - always start at the beginning to work in order of user priority
 //
@@ -390,7 +420,7 @@ static sint EpgAcqTtx_GetNextSrc( sint ttxSrcIdx )
       uint skipCount = 0;
       do
       {
-         if ((ttxSrcIdx >= 0) && (ttxSrcIdx + 1 < acqCtl.ttxSrcCount))
+         if (ttxSrcIdx + 1 < acqCtl.ttxSrcCount)
             ttxSrcIdx = ttxSrcIdx + 1;
          else
             ttxSrcIdx = 0;
@@ -423,10 +453,6 @@ static bool EpgAcqTtx_DetectSource( void )
    {
       if (isTuner)
       {
-         // TODO pFreqPar->norm = EPGACQ_TUNER_NORM_DVB;
-         // search first with same freq, then configure that one's PID in demux
-
-#define CMP_DVB_FREQ(F) (((F) + EPGACQ_TUNER_DVB_FREQ_TOL/2) / EPGACQ_TUNER_DVB_FREQ_TOL)
          for (idx = 0; idx < acqCtl.ttxSrcCount; idx++)
             if (   (par.norm == acqCtl.pSources[idx].freq.norm)
                 && (  (par.norm == EPGACQ_TUNER_NORM_DVB)
@@ -437,13 +463,15 @@ static bool EpgAcqTtx_DetectSource( void )
          if (idx < acqCtl.ttxSrcCount)
          {
             dprintf3("EpgAcqTtx-DetectSource: freq %ld -> src=%d (%s)\n", par.freq, idx, EpgAcqTtx_GetChannelName(idx));
-            acqCtl.ttxSrcIdx = idx;
+            acqCtl.ttxSrcIdx[0] = idx;
+            // TODO all PIDs on this freq
+            BtDriver_TuneDvbPid(&acqCtl.pSources[idx].freq.ttxPid, 1);
             result = TRUE;
          }
          else
          {
             dprintf1("EpgAcqTtx-DetectSource: freq %ld unknown\n", par.freq);
-            acqCtl.ttxSrcIdx = -1;
+            acqCtl.ttxActiveCount = 0;
          }
       }
       else
@@ -459,27 +487,33 @@ static bool EpgAcqTtx_DetectSource( void )
 // Check if the requested channel is still tuned
 // - TODO: external sources: frequency match not possible!
 //
-static bool EpgAcqTtx_CheckSourceFreq( sint ttxSrcIdx )
+static bool EpgAcqTtx_CheckSourceFreq( uint idx )
 {
    EPGACQ_TUNER_PAR par;
    uint input;
    bool isTuner;
    bool result = FALSE;
 
-   if ((ttxSrcIdx >= 0) && (ttxSrcIdx < acqCtl.ttxSrcCount))
+   if (idx < acqCtl.ttxSrcCount)
    {
       if (BtDriver_QueryChannel(&par, &input, &isTuner))
       {
-         if (par.norm == EPGACQ_TUNER_NORM_DVB)
-            result = (acqCtl.pSources[ttxSrcIdx].freq.freq / 100000 == par.freq / 100000);
-         else
-            result = isTuner && (acqCtl.pSources[ttxSrcIdx].freq.freq == par.freq);
+         if (isTuner)
+         {
+            if (par.norm == EPGACQ_TUNER_NORM_DVB)
+               result = (CMP_DVB_FREQ(acqCtl.pSources[idx].freq.freq) == CMP_DVB_FREQ(par.freq));
+            else
+               result = (acqCtl.pSources[idx].freq.freq == par.freq);
 
-         ifdebug3(!result && isTuner, "EpgAcqTtx-CheckSourceFreq: freq %ld mismatch to freq %ld src=%d", par.freq, acqCtl.pSources[ttxSrcIdx].freq.freq, ttxSrcIdx);
+            ifdebug3(!result, "EpgAcqTtx-CheckSourceFreq: freq %ld mismatch to freq %ld src=%d", par.freq, acqCtl.pSources[idx].freq.freq, idx);
+         }
       }
       else
          debug0("EpgAcqTtx-CheckSourceFreq: failed to query freq from driver");
    }
+   else
+      debug2("EpgAcqTtx-CheckSourceFreq: invalid idx=%d (>=%d)", idx, acqCtl.ttxSrcCount);
+
    return result;
 }
 #endif // USE_TTX_GRABBER
@@ -498,12 +532,15 @@ void EpgAcqTtx_ChannelChange( void )
       if ( (acqCtl.state == TTXACQ_STATE_GRAB) ||
            (acqCtl.state == TTXACQ_STATE_GRAB_PASSIVE) )
       {
-         assert(acqCtl.ttxSrcIdx != -1);
+         assert(acqCtl.ttxActiveCount > 0);
 
          now = time(NULL);
          if (now >= acqCtl.chanChangeTime + TTX_GRAB_TIMEOUT_PASV_NOW)
          {
-            TtxGrab_PostProcess(EpgAcqTtx_GetChannelName(acqCtl.ttxSrcIdx), TRUE);
+            for (uint idx = 0; idx < acqCtl.ttxActiveCount; ++idx)
+            {
+               TtxGrab_PostProcess(idx, EpgAcqTtx_GetChannelName(acqCtl.ttxSrcIdx[idx]), TRUE);
+            }
          }
       }
 
@@ -517,6 +554,49 @@ void EpgAcqTtx_ChannelChange( void )
       UiControlMsg_AcqEvent(ACQ_EVENT_CTL);
    }
 #endif // USE_TTX_GRABBER
+}
+
+// ---------------------------------------------------------------------------
+// Check if teletext pages are in range on any of the monitored channels
+//
+static bool EpgAcqTtx_MonitorInRange( time_t now, bool * pLock )
+{
+   bool anyLock = FALSE;
+   bool result = FALSE;
+
+   for (uint idx = 0; idx < acqCtl.ttxActiveCount; ++idx)
+   {
+      bool inRange;
+      bool lock;
+      uint predictDelay;
+
+      TtxGrab_GetPageStats(idx, &inRange, NULL, &lock, &predictDelay);
+      anyLock |= lock;
+      result |= inRange;
+
+      if ((predictDelay > 0) && (predictDelay <= 15))
+         acqCtl.pSources[acqCtl.ttxSrcIdx[idx]].predictStart = now + predictDelay;
+      else
+         acqCtl.pSources[acqCtl.ttxSrcIdx[idx]].predictStart = now;
+   }
+   *pLock = anyLock;
+   return result;
+}
+
+// ---------------------------------------------------------------------------
+// Check if teletext pages are done once on all monitored channels
+//
+static bool EpgAcqTtx_MonitorRangeDone( void )
+{
+   bool rangeDone;
+   bool result = TRUE;
+
+   for (uint idx = 0; idx < acqCtl.ttxActiveCount; ++idx)
+   {
+      TtxGrab_GetPageStats(idx, NULL, &rangeDone, NULL, NULL);
+      result &= rangeDone;
+   }
+   return result;
 }
 
 // ---------------------------------------------------------------------------
@@ -534,14 +614,11 @@ bool EpgAcqTtx_MonitorSources( void )
 {
 #ifdef USE_TTX_GRABBER
    sint ttxSrcIdx;
-   bool inRange;
-   bool rangeDone;
-   bool lock;
-   uint predictDelay;
    time_t now = time(NULL);
    bool advance = FALSE;
 
-   if (TtxGrab_CheckPostProcess(NULL))
+   // FIXME obsolete - move code to call of TtxGrab_PostProcess()
+   if (TtxGrab_CheckPostProcess(0))
    {
 #ifdef USE_DAEMON
       // trigger the server to notify all connected clients
@@ -552,13 +629,15 @@ bool EpgAcqTtx_MonitorSources( void )
 
    if (acqCtl.state == TTXACQ_STATE_STARTUP)
    {
-      TtxGrab_GetPageStats(&inRange, NULL, &lock, &predictDelay);
+      bool lock;
+      bool inRange = EpgAcqTtx_MonitorInRange(now, &lock);
 
       if ( (acqCtl.mode != ACQMODE_PASSIVE) &&
            (acqCtl.mode != ACQMODE_EXTERNAL) &&
            (acqCtl.passiveReason == ACQPASSIVE_NONE) )
       {
-         assert((acqCtl.ttxSrcIdx >= 0) && (acqCtl.ttxSrcIdx < acqCtl.ttxSrcCount));
+         assert(acqCtl.ttxActiveCount > 0);
+         assert(acqCtl.ttxSrcIdx[0] < acqCtl.ttxSrcCount);
 
          if (acqCtl.cyclePhase == ACQMODE_PHASE_NOWNEXT)
          {
@@ -567,19 +646,16 @@ bool EpgAcqTtx_MonitorSources( void )
                  ((now < acqCtl.lastDoneTime + TTX_GRAB_TIMEOUT_SCAN) || (acqCtl.lastDoneTime == 0)) )
             {
                dprintf3("EpgAcqTtx-MonitorSources: SKIP channel %d (%s) delay:%d\n",
-                        acqCtl.ttxSrcIdx, EpgAcqTtx_GetChannelName(acqCtl.ttxSrcIdx), predictDelay);
-               if ((predictDelay > 0) && (predictDelay <= 15))
-                  acqCtl.pSources[acqCtl.ttxSrcIdx].predictStart = now + predictDelay;
-               else
-                  acqCtl.pSources[acqCtl.ttxSrcIdx].predictStart = 0;
+                        acqCtl.ttxSrcIdx[0], EpgAcqTtx_GetChannelName(acqCtl.ttxSrcIdx[0]),
+                        (uint)(acqCtl.pSources[acqCtl.ttxSrcIdx[0]].predictStart - now));
                advance = TRUE;
             }
             else if (lock)
             {
-               if (EpgAcqTtx_CheckSourceFreq(acqCtl.ttxSrcIdx))
+               if (EpgAcqTtx_CheckSourceFreq(acqCtl.ttxSrcIdx[0]))
                {
                   dprintf4("EpgAcqTtx-MonitorSources: load NOW from channel %d (%s) inRange?:%d timeout?:%d\n",
-                           acqCtl.ttxSrcIdx, EpgAcqTtx_GetChannelName(acqCtl.ttxSrcIdx),
+                           acqCtl.ttxSrcIdx[0], EpgAcqTtx_GetChannelName(acqCtl.ttxSrcIdx[0]),
                            inRange, (now >= acqCtl.lastDoneTime + TTX_GRAB_TIMEOUT_SCAN));
                   acqCtl.state = TTXACQ_STATE_GRAB;
                   UiControlMsg_AcqEvent(ACQ_EVENT_CTL);
@@ -589,8 +665,8 @@ bool EpgAcqTtx_MonitorSources( void )
             }
             else if (now >= acqCtl.chanChangeTime + TTX_START_TIMEOUT_NOW)
             {
-               debug2("EpgAcqTtx-MonitorSources: no reception on %d (%s) - mark DONE", acqCtl.ttxSrcIdx, EpgAcqTtx_GetChannelName(acqCtl.ttxSrcIdx));
-               acqCtl.pSources[acqCtl.ttxSrcIdx].srcDone = TRUE;
+               debug2("EpgAcqTtx-MonitorSources: no reception on %d (%s) - mark DONE", acqCtl.ttxSrcIdx[0], EpgAcqTtx_GetChannelName(acqCtl.ttxSrcIdx[0]));
+               acqCtl.pSources[acqCtl.ttxSrcIdx[0]].srcDone = TRUE;
                advance = TRUE;
             }
          }
@@ -598,7 +674,7 @@ bool EpgAcqTtx_MonitorSources( void )
          {
             if (lock)
             {
-               if (EpgAcqTtx_CheckSourceFreq(acqCtl.ttxSrcIdx))
+               if (EpgAcqTtx_CheckSourceFreq(acqCtl.ttxSrcIdx[0]))
                {
                   acqCtl.state = TTXACQ_STATE_GRAB;
                   UiControlMsg_AcqEvent(ACQ_EVENT_CTL);
@@ -608,8 +684,8 @@ bool EpgAcqTtx_MonitorSources( void )
             }
             else if (now >= acqCtl.chanChangeTime + TTX_START_TIMEOUT_FULL)
             {
-               debug2("EpgAcqTtx-MonitorSources: no reception on %d (%s) - advance", acqCtl.ttxSrcIdx, EpgAcqTtx_GetChannelName(acqCtl.ttxSrcIdx));
-               acqCtl.pSources[acqCtl.ttxSrcIdx].srcDone = TRUE;
+               debug2("EpgAcqTtx-MonitorSources: no reception on %d (%s) - advance", acqCtl.ttxSrcIdx[0], EpgAcqTtx_GetChannelName(acqCtl.ttxSrcIdx[0]));
+               acqCtl.pSources[acqCtl.ttxSrcIdx[0]].srcDone = TRUE;
                advance = TRUE;
             }
          }
@@ -618,7 +694,7 @@ bool EpgAcqTtx_MonitorSources( void )
       {  // passive mode
          if (lock)
          {
-            if (acqCtl.ttxSrcIdx == -1)
+            if (acqCtl.ttxActiveCount == 0)
             {  // channel yet unknown -> try to detect by frequency
                if ( EpgAcqTtx_DetectSource() )
                {  // identified -> restart acq with correct parameters
@@ -633,10 +709,10 @@ bool EpgAcqTtx_MonitorSources( void )
             else
             {  // channel known (i.e. we restarted after a frequency match - see above)
                // check if frequency still matches
-               if (EpgAcqTtx_CheckSourceFreq(acqCtl.ttxSrcIdx))
+               if (EpgAcqTtx_CheckSourceFreq(acqCtl.ttxSrcIdx[0]))
                {
                   // match -> enable acquisition
-                  dprintf2("EpgAcqTtx-MonitorSources: load passive from channel %d (%s)\n", acqCtl.ttxSrcIdx, EpgAcqTtx_GetChannelName(acqCtl.ttxSrcIdx));
+                  dprintf2("EpgAcqTtx-MonitorSources: load passive from channel %d (%s)\n", acqCtl.ttxSrcIdx[0], EpgAcqTtx_GetChannelName(acqCtl.ttxSrcIdx[0]));
                   acqCtl.state = TTXACQ_STATE_GRAB_PASSIVE;
                   UiControlMsg_AcqEvent(ACQ_EVENT_PROV_CHANGE);
                }
@@ -656,12 +732,14 @@ bool EpgAcqTtx_MonitorSources( void )
    }
    else if (acqCtl.state == TTXACQ_STATE_GRAB)
    {
-      assert((acqCtl.ttxSrcIdx >= 0) && (acqCtl.ttxSrcIdx < acqCtl.ttxSrcCount));
+      assert(acqCtl.ttxActiveCount > 0);
+      assert(acqCtl.ttxSrcIdx[0] < acqCtl.ttxSrcCount);
 
       if (acqCtl.cyclePhase == ACQMODE_PHASE_NOWNEXT)
       {
-         TtxGrab_GetPageStats(NULL, &rangeDone, NULL, NULL);
-         if (rangeDone || (now >= acqCtl.chanChangeTime + TTX_GRAB_TIMEOUT_NOW))
+         bool allDone = EpgAcqTtx_MonitorRangeDone();
+
+         if (allDone || (now >= acqCtl.chanChangeTime + TTX_GRAB_TIMEOUT_NOW))
          {
             advance = TRUE;
          }
@@ -675,7 +753,8 @@ bool EpgAcqTtx_MonitorSources( void )
    }
    else if (acqCtl.state == TTXACQ_STATE_GRAB_PASSIVE)
    {
-      assert((acqCtl.ttxSrcIdx >= 0) && (acqCtl.ttxSrcIdx < acqCtl.ttxSrcCount));
+      assert(acqCtl.ttxActiveCount > 0);
+      assert(acqCtl.ttxSrcIdx[0] < acqCtl.ttxSrcCount);
 
       if (acqCtl.cyclePhase == ACQMODE_PHASE_NOWNEXT)
          advance = (now >= acqCtl.chanChangeTime + TTX_GRAB_TIMEOUT_PASV_NOW);
@@ -694,29 +773,34 @@ bool EpgAcqTtx_MonitorSources( void )
       if ( (acqCtl.state == TTXACQ_STATE_GRAB) ||
            (acqCtl.state == TTXACQ_STATE_GRAB_PASSIVE) )
       {
-         TtxGrab_PostProcess(EpgAcqTtx_GetChannelName(acqCtl.ttxSrcIdx), TRUE);
-         acqCtl.pSources[acqCtl.ttxSrcIdx].srcDone = TRUE;
-         acqCtl.lastDoneSrc = acqCtl.ttxSrcIdx;
+         for (uint idx = 0; idx < acqCtl.ttxActiveCount; ++idx)
+         {
+            uint srcIdx = acqCtl.ttxSrcIdx[idx];
+            TtxGrab_PostProcess(idx, EpgAcqTtx_GetChannelName(srcIdx), TRUE);
+            acqCtl.pSources[srcIdx].srcDone = TRUE;
+            acqCtl.lastDoneSrc = srcIdx;
+         }
          acqCtl.lastDoneTime = time(NULL);
       }
       if ( (acqCtl.mode != ACQMODE_PASSIVE) &&
            (acqCtl.mode != ACQMODE_EXTERNAL) )
       {
          if ( (acqCtl.cyclePhase == ACQMODE_PHASE_NOWNEXT) &&
-              (acqCtl.pSources[acqCtl.ttxSrcIdx].srcDone == FALSE) )
-            ttxSrcIdx = EpgAcqTtx_GetNextSrc(acqCtl.ttxSrcIdx);
+              (acqCtl.pSources[acqCtl.ttxSrcIdx[0]].srcDone == FALSE) )
+            ttxSrcIdx = EpgAcqTtx_GetNextSrc(acqCtl.ttxSrcIdx[0]);
          else // note: -1 to restore normal order after passive mode
             ttxSrcIdx = EpgAcqTtx_GetNextSrc(-1);
 
-         if (ttxSrcIdx == acqCtl.ttxSrcIdx)
+         if ((acqCtl.ttxActiveCount > 0) && (ttxSrcIdx == acqCtl.ttxSrcIdx[0]))
          {
             // same as before - nothing to do
          }
          else if (ttxSrcIdx >= 0)
          {
             dprintf4("EpgAcqTtx-MonitorSources: switch from %d (%s) to next channel %d (%s)\n",
-                     acqCtl.ttxSrcIdx, EpgAcqTtx_GetChannelName(acqCtl.ttxSrcIdx), ttxSrcIdx, EpgAcqTtx_GetChannelName(ttxSrcIdx));
-            acqCtl.ttxSrcIdx = ttxSrcIdx;
+                     acqCtl.ttxSrcIdx[0], EpgAcqTtx_GetChannelName(acqCtl.ttxSrcIdx[0]), ttxSrcIdx, EpgAcqTtx_GetChannelName(ttxSrcIdx));
+            acqCtl.ttxSrcIdx[0] = ttxSrcIdx;
+            acqCtl.ttxActiveCount = 1;
 
             EpgAcqTtx_UpdateProvider();
             EpgAcqTtx_TtxStart();
@@ -726,6 +810,7 @@ bool EpgAcqTtx_MonitorSources( void )
          else
          {
             acqCtl.allSrcDone = TRUE;
+            acqCtl.ttxActiveCount = 0;
             // fail-safe: enter "idle" state until top-level scheduler resets us
             acqCtl.chanChangeTime = time(NULL);
             acqCtl.state = TTXACQ_STATE_IDLE;
@@ -736,7 +821,7 @@ bool EpgAcqTtx_MonitorSources( void )
       {  // passive capture done -> disable capturing
          acqCtl.chanChangeTime = time(NULL);
          acqCtl.state = TTXACQ_STATE_IDLE;
-         acqCtl.ttxSrcIdx = -1;
+         acqCtl.ttxActiveCount = 0;
          EpgAcqTtx_TtxStart();
          UiControlMsg_AcqEvent(ACQ_EVENT_PROV_CHANGE);
       }
@@ -745,11 +830,20 @@ bool EpgAcqTtx_MonitorSources( void )
    if ( (acqCtl.passiveReason != ACQPASSIVE_NONE) &&
         (acqCtl.mode != ACQMODE_PASSIVE) &&
         (acqCtl.mode != ACQMODE_EXTERNAL) &&
-        ((acqCtl.ttxSrcIdx == -1) || (acqCtl.pSources[acqCtl.ttxSrcIdx].srcDone)) &&
+        ((acqCtl.ttxActiveCount == 0) || (acqCtl.pSources[acqCtl.ttxSrcIdx[0]].srcDone)) &&
         (now >= acqCtl.chanChangeTime + TTX_FORCED_PASV_INTV) )
    {
-      dprintf2("EpgAcqTtx-MonitorSources: try to end forced passive (current src:%d done:%d)\n", acqCtl.ttxSrcIdx, ((acqCtl.ttxSrcIdx == -1) ? 0:acqCtl.pSources[acqCtl.ttxSrcIdx].srcDone));
-      acqCtl.ttxSrcIdx = EpgAcqTtx_GetNextSrc(-1);
+      dprintf2("EpgAcqTtx-MonitorSources: try to end forced passive (current src:%d done:%d)\n", acqCtl.ttxSrcIdx[0], ((acqCtl.ttxActiveCount == 0) ? 0 : acqCtl.pSources[acqCtl.ttxSrcIdx[0]].srcDone));
+      ttxSrcIdx = EpgAcqTtx_GetNextSrc(-1);
+      if (ttxSrcIdx >= 0)
+      {
+         acqCtl.ttxSrcIdx[0] = ttxSrcIdx;
+         acqCtl.ttxActiveCount = 1;
+      }
+      else
+      {
+         acqCtl.ttxActiveCount = 0;
+      }
       EpgAcqTtx_UpdateProvider();
       EpgAcqTtx_TtxStart();
       UiControlMsg_AcqEvent(ACQ_EVENT_PROV_CHANGE);
@@ -771,7 +865,15 @@ bool EpgAcqTtx_ProcessPackets( bool * pCheckSlicer )
 
    if (acqCtl.state != TTXACQ_STATE_OFF)
    {
-      if (TtxGrab_ProcessPackets() == FALSE)
+      uint chnChanged = 0;
+
+      for (uint idx = 0; idx < acqCtl.ttxActiveCount; ++idx)
+      {
+         if (TtxGrab_ProcessPackets(idx) == FALSE)
+            chnChanged += 1;
+      }
+
+      if (0) // TODO DVB
       {
          dprintf0("EpgAcqTtx-ProcessPackets: uncontrolled channel change detected\n");
          EpgAcqTtx_ChannelChange();
@@ -783,7 +885,7 @@ bool EpgAcqTtx_ProcessPackets( bool * pCheckSlicer )
          now = time(NULL);
          // FIXME: should be less for NOW mode
          if ( (now >= acqCtl.chanChangeTime + TTX_SLICER_CHECK_INTV) &&
-              (TtxGrab_CheckSlicerQuality() == FALSE) )
+              (TtxGrab_CheckSlicerQuality(0) == FALSE) )
          {
             *pCheckSlicer = FALSE;
          }
@@ -841,8 +943,8 @@ void EpgAcqTtx_SetParams( uint ttxSrcCount, const char * pTtxNames, const EPGACQ
    // reset state if incompatible with new params
    if (acqCtl.state != TTXACQ_STATE_OFF)
    {
-      if (acqCtl.ttxSrcIdx >= acqCtl.ttxSrcCount)
-         acqCtl.ttxSrcIdx = -1;
+      if (acqCtl.ttxSrcIdx[0] >= acqCtl.ttxSrcCount)
+         acqCtl.ttxActiveCount = 0;
       if (acqCtl.ttxSrcCount == 0)
          acqCtl.mode = ACQMODE_PASSIVE;
    }

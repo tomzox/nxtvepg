@@ -70,7 +70,7 @@ static struct
       bool    fwdPage;           // current ttx page is forwarded
       bool    isMipPage;         // current ttx page in this magazine is the MIP page for M=0..7
    } mags[8];
-} acqSlaveState;
+} acqSlaveState[MAX_VBI_DVB_STREAMS];
 
 // max. number of pages that are allowed for EPG transmission: mFd & mdF: m[0..7],d[0..9]
 #define NXTV_VALID_PAGE_PER_MAG (1 + 10 + 10)
@@ -88,15 +88,17 @@ static time32_t        ttxStatsStart;
 //
 void TtxDecode_StartScan( void )
 {
+   const uint bufIdx = 0;
+
    dprintf0("TtxDecode-StartScan\n");
 
    // enable ttx processing in the slave process/thread
    pVbiBuf->scanEnabled = TRUE;
 
    // skip first VBI frame, reset ttx decoder, then set reader idx to writer idx
-   if (pVbiBuf->chanChangeReq == pVbiBuf->chanChangeCnf)
+   if (pVbiBuf->buf[bufIdx].chanChangeReq == pVbiBuf->buf[bufIdx].chanChangeCnf)
    {
-      pVbiBuf->chanChangeReq = pVbiBuf->chanChangeCnf + 2;
+      pVbiBuf->buf[bufIdx].chanChangeReq = pVbiBuf->buf[bufIdx].chanChangeCnf + 2;
    }
 }
 
@@ -107,19 +109,22 @@ void TtxDecode_StartTtxAcq( bool enableScan, uint startPageNo, uint stopPageNo )
 {
    dprintf3("TtxDecode-StartTtxAcq: scan:%d page=%03X..%03X\n", enableScan, startPageNo, stopPageNo);
 
-   // pass the configuration variables to the ttx process via shared memory
-   pVbiBuf->startPageNo = startPageNo;
-   pVbiBuf->stopPageNo = stopPageNo;
+   for (uint bufIdx = 0; bufIdx < MAX_VBI_DVB_STREAMS; ++bufIdx)
+   {
+      // pass the configuration variables to the ttx process via shared memory
+      pVbiBuf->startPageNo[bufIdx] = startPageNo;
+      pVbiBuf->stopPageNo[bufIdx] = stopPageNo;
 
+      pVbiBuf->buf[bufIdx].ttxHeader.op_mode = (enableScan ? EPGACQ_TTX_HEAD_DEC : EPGACQ_TTX_HEAD_NONE);
+
+      // skip first VBI frame, reset ttx decoder, then set reader idx to writer idx
+      if (pVbiBuf->buf[bufIdx].chanChangeReq == pVbiBuf->buf[bufIdx].chanChangeCnf)
+      {
+         pVbiBuf->buf[bufIdx].chanChangeReq = pVbiBuf->buf[bufIdx].chanChangeCnf + 2;
+      }
+   }
    // enable ttx processing in the slave process/thread
    pVbiBuf->ttxEnabled = TRUE;
-   pVbiBuf->ttxHeader.op_mode = (enableScan ? EPGACQ_TTX_HEAD_DEC : EPGACQ_TTX_HEAD_NONE);
-
-   // skip first VBI frame, reset ttx decoder, then set reader idx to writer idx
-   if (pVbiBuf->chanChangeReq == pVbiBuf->chanChangeCnf)
-   {
-      pVbiBuf->chanChangeReq = pVbiBuf->chanChangeCnf + 2;
-   }
 }
 
 // ----------------------------------------------------------------------------
@@ -155,6 +160,7 @@ void TtxDecode_GetScanResults( uint *pCni, bool *pNiWait, char *pDispText, uint 
    CNI_TYPE type;
    uint     idx;
    uint     cni;
+   const uint bufIdx = 0;
    bool     niWait  = FALSE;
 
    cni     = 0;
@@ -167,22 +173,22 @@ void TtxDecode_GetScanResults( uint *pCni, bool *pNiWait, char *pDispText, uint 
       pDispText[0] = 0;
 
    // check if initialization for the current channel is complete
-   if (pVbiBuf->chanChangeReq == pVbiBuf->chanChangeCnf)
+   if (pVbiBuf->buf[bufIdx].chanChangeReq == pVbiBuf->buf[bufIdx].chanChangeCnf)
    {
       // search for any available source
       for (type=0; type < CNI_TYPE_COUNT; type++)
       {
-         if (pVbiBuf->cnis[type].haveCni)
+         if (pVbiBuf->buf[bufIdx].cnis[type].haveCni)
          {  // have a verified CNI -> return it
             if (type == CNI_TYPE_NI)
-               cni = CniConvertP8301ToVps(pVbiBuf->cnis[type].outCni);
+               cni = CniConvertP8301ToVps(pVbiBuf->buf[bufIdx].cnis[type].outCni);
             else if (type == CNI_TYPE_PDC)
-               cni = CniConvertPdcToVps(pVbiBuf->cnis[type].outCni);
+               cni = CniConvertPdcToVps(pVbiBuf->buf[bufIdx].cnis[type].outCni);
             else
-               cni = pVbiBuf->cnis[type].outCni;
+               cni = pVbiBuf->buf[bufIdx].cnis[type].outCni;
             break;
          }
-         else if (pVbiBuf->cnis[type].cniRepCount > 0)
+         else if (pVbiBuf->buf[bufIdx].cnis[type].cniRepCount > 0)
          {  // received at least one VPS or P8/30 packet -> wait for repetition
             niWait = TRUE;
          }
@@ -192,10 +198,10 @@ void TtxDecode_GetScanResults( uint *pCni, bool *pNiWait, char *pDispText, uint 
       {
          for (type=0; type < CNI_TYPE_COUNT; type++)
          {
-            if (pVbiBuf->cnis[type].haveText)
+            if (pVbiBuf->buf[bufIdx].cnis[type].haveText)
             {
                // skip spaces from beginning of string
-               const uint8_t * p = (const uint8_t *) pVbiBuf->cnis[type].outText;
+               const uint8_t * p = (const uint8_t *) pVbiBuf->buf[bufIdx].cnis[type].outText;
                for (idx=textMaxLen; idx > 0; idx--, p++)
                   if (*p != ' ')
                      break;
@@ -208,7 +214,7 @@ void TtxDecode_GetScanResults( uint *pCni, bool *pNiWait, char *pDispText, uint 
                   pDispText[idx - 1] = 0;
                }
             }
-            else if (pVbiBuf->cnis[type].charRepCount[0] > 0)
+            else if (pVbiBuf->buf[bufIdx].cnis[type].charRepCount[0] > 0)
             {
                niWait = TRUE;
             }
@@ -236,7 +242,7 @@ void TtxDecode_GetScanResults( uint *pCni, bool *pNiWait, char *pDispText, uint 
 //   CNI value is converted to VPS or PDC respectively so that the caller
 //   needs not care how the CNI was obtained.
 //
-bool TtxDecode_GetCniAndPil( uint * pCni, uint * pPil, CNI_TYPE * pCniType,
+bool TtxDecode_GetCniAndPil( uint bufIdx, uint * pCni, uint * pPil, CNI_TYPE * pCniType,
                              uint pCniInd[CNI_TYPE_COUNT], uint pPilInd[CNI_TYPE_COUNT],
                              volatile EPGACQ_BUF * pThisVbiBuf )
 {
@@ -249,36 +255,36 @@ bool TtxDecode_GetCniAndPil( uint * pCni, uint * pPil, CNI_TYPE * pCniType,
    if (pThisVbiBuf != NULL)
    {
       // check if initialization for the current channel is complete
-      if (pThisVbiBuf->chanChangeReq == pThisVbiBuf->chanChangeCnf)
+      if (pThisVbiBuf->buf[bufIdx].chanChangeReq == pThisVbiBuf->buf[bufIdx].chanChangeCnf)
       {
          // search for the best available source
          for (type=0; type < CNI_TYPE_COUNT; type++)
          {
-            if ( pThisVbiBuf->cnis[type].haveCni &&
-                 ((pCniInd == NULL) || (pCniInd[type] != pThisVbiBuf->cnis[type].outCniInd)) )
+            if ( pThisVbiBuf->buf[bufIdx].cnis[type].haveCni &&
+                 ((pCniInd == NULL) || (pCniInd[type] != pThisVbiBuf->buf[bufIdx].cnis[type].outCniInd)) )
             {
                if (pCni != NULL)
                {
                   if (type == CNI_TYPE_NI)
-                     *pCni = CniConvertP8301ToVps(pThisVbiBuf->cnis[type].outCni);
+                     *pCni = CniConvertP8301ToVps(pThisVbiBuf->buf[bufIdx].cnis[type].outCni);
                   else if (type == CNI_TYPE_PDC)
-                     *pCni = CniConvertPdcToVps(pThisVbiBuf->cnis[type].outCni);
+                     *pCni = CniConvertPdcToVps(pThisVbiBuf->buf[bufIdx].cnis[type].outCni);
                   else
-                     *pCni = pThisVbiBuf->cnis[type].outCni;
+                     *pCni = pThisVbiBuf->buf[bufIdx].cnis[type].outCni;
 
                   if (pCniInd != NULL)
-                     pCniInd[type] = pThisVbiBuf->cnis[type].outCniInd;
+                     pCniInd[type] = pThisVbiBuf->buf[bufIdx].cnis[type].outCniInd;
                }
 
                if (pPil != NULL)
                {
-                  if ( pThisVbiBuf->cnis[type].havePil &&
-                       ((pPilInd == NULL) || (pPilInd[type] != pThisVbiBuf->cnis[type].outPilInd)) )
+                  if ( pThisVbiBuf->buf[bufIdx].cnis[type].havePil &&
+                       ((pPilInd == NULL) || (pPilInd[type] != pThisVbiBuf->buf[bufIdx].cnis[type].outPilInd)) )
                   {
-                     *pPil = pThisVbiBuf->cnis[type].outPil;
+                     *pPil = pThisVbiBuf->buf[bufIdx].cnis[type].outPil;
 
                      if (pPilInd != NULL)
-                        pPilInd[type] = pThisVbiBuf->cnis[type].outPilInd;
+                        pPilInd[type] = pThisVbiBuf->buf[bufIdx].cnis[type].outPilInd;
                   }
                   else
                      *pPil = INVALID_VPS_PIL;
@@ -287,7 +293,7 @@ bool TtxDecode_GetCniAndPil( uint * pCni, uint * pPil, CNI_TYPE * pCniType,
                {
                   *pCniType = type;
                }
-               dprintf7("TtxDecode-GetCniAndPil: type:%d CNI?:%d 0x%04X, PIL?:%d %X (Ind:%d,%d)\n", type, pThisVbiBuf->cnis[type].haveCni, pThisVbiBuf->cnis[type].havePil, pThisVbiBuf->cnis[type].outCni, pThisVbiBuf->cnis[type].outPil, pThisVbiBuf->cnis[type].outCniInd, pThisVbiBuf->cnis[type].outPilInd);
+               dprintf7("TtxDecode-GetCniAndPil: type:%d CNI?:%d 0x%04X, PIL?:%d %X (Ind:%d,%d)\n", type, pThisVbiBuf->buf[bufIdx].cnis[type].haveCni, pThisVbiBuf->buf[bufIdx].cnis[type].havePil, pThisVbiBuf->buf[bufIdx].cnis[type].outCni, pThisVbiBuf->buf[bufIdx].cnis[type].outPil, pThisVbiBuf->buf[bufIdx].cnis[type].outCniInd, pThisVbiBuf->buf[bufIdx].cnis[type].outPilInd);
                result = TRUE;
                break;
             }
@@ -300,7 +306,7 @@ bool TtxDecode_GetCniAndPil( uint * pCni, uint * pPil, CNI_TYPE * pCniType,
 // ---------------------------------------------------------------------------
 // Save CNI and PIL from the VBI process/thread
 //
-static void TtxDecode_AddCni( CNI_TYPE type, uint cni, uint pil )
+static void TtxDecode_AddCni( uint bufIdx, CNI_TYPE type, uint cni, uint pil )
 {
    if (pVbiBuf != NULL)
    {
@@ -308,55 +314,55 @@ static void TtxDecode_AddCni( CNI_TYPE type, uint cni, uint pil )
       {
          if (!CNI_IS_INVALID(cni) && !CNI_IS_BLOCKED(cni))
          {
-            DBGONLY( if (pVbiBuf->cnis[type].cniRepCount == 0) )
+            DBGONLY( if (pVbiBuf->buf[bufIdx].cnis[type].cniRepCount == 0) )
                dprintf3("TtxDecode-AddCni: new CNI 0x%04X, PIL=%X, type %d\n", cni, pil, type);
 
-            if ( (pVbiBuf->cnis[type].cniRepCount > 0) &&
-                 (pVbiBuf->cnis[type].lastCni != cni) )
+            if ( (pVbiBuf->buf[bufIdx].cnis[type].cniRepCount > 0) &&
+                 (pVbiBuf->buf[bufIdx].cnis[type].lastCni != cni) )
             {  // comparison failure -> reset repetition counter
                #if DEBUG_SWITCH_STREAM == ON
-               debug3("TtxDecode-AddCni: %s CNI error: last %04X != %04X", ((type == CNI_TYPE_VPS) ? "VPS" : ((type == CNI_TYPE_PDC) ? "PDC" : "NI")), pVbiBuf->cnis[type].lastCni, cni);
+               debug3("TtxDecode-AddCni: %s CNI error: last %04X != %04X", ((type == CNI_TYPE_VPS) ? "VPS" : ((type == CNI_TYPE_PDC) ? "PDC" : "NI")), pVbiBuf->buf[bufIdx].cnis[type].lastCni, cni);
                #endif
-               pVbiBuf->cnis[type].cniRepCount = 0;
+               pVbiBuf->buf[bufIdx].cnis[type].cniRepCount = 0;
             }
-            pVbiBuf->cnis[type].lastCni = cni;
-            pVbiBuf->cnis[type].cniRepCount += 1;
+            pVbiBuf->buf[bufIdx].cnis[type].lastCni = cni;
+            pVbiBuf->buf[bufIdx].cnis[type].cniRepCount += 1;
 
-            if ( (pVbiBuf->cnis[type].cniRepCount > 2) || (type == CNI_TYPE_PDC) )
+            if ( (pVbiBuf->buf[bufIdx].cnis[type].cniRepCount > 2) || (type == CNI_TYPE_PDC) )
             {  // the same CNI value received 3 times -> make it available as result
                // PDC is Hamming-8/4 coded, so one reception is safe enough
 
-               if (pVbiBuf->cnis[type].havePil && (pVbiBuf->cnis[type].outCni != cni))
+               if (pVbiBuf->buf[bufIdx].cnis[type].havePil && (pVbiBuf->buf[bufIdx].cnis[type].outCni != cni))
                {  // CNI result value changed -> remove PIL
-                  pVbiBuf->cnis[type].havePil = FALSE;
+                  pVbiBuf->buf[bufIdx].cnis[type].havePil = FALSE;
                }
-               pVbiBuf->cnis[type].outCni = cni;
-               pVbiBuf->cnis[type].outCniInd += 1;
-               pVbiBuf->cnis[type].haveCni = TRUE;
+               pVbiBuf->buf[bufIdx].cnis[type].outCni = cni;
+               pVbiBuf->buf[bufIdx].cnis[type].outCniInd += 1;
+               pVbiBuf->buf[bufIdx].cnis[type].haveCni = TRUE;
             }
 
             if (pil != INVALID_VPS_PIL)
             {
-               if ( (pVbiBuf->cnis[type].pilRepCount > 0) &&
-                    (pVbiBuf->cnis[type].lastPil != pil) )
+               if ( (pVbiBuf->buf[bufIdx].cnis[type].pilRepCount > 0) &&
+                    (pVbiBuf->buf[bufIdx].cnis[type].lastPil != pil) )
                {  // comparison failure -> reset repetition counter
                   #if DEBUG_SWITCH_STREAM == ON
-                  debug11("TtxDecode-AddCni: %s PIL error: last %02d.%02d. %02d:%02d (0x%04X) != %02d.%02d. %02d:%02d (0x%04X)", ((type == CNI_TYPE_VPS) ? "VPS" : ((type == CNI_TYPE_PDC) ? "PDC" : "NI")), (pVbiBuf->cnis[type].lastPil >> 15) & 0x1F, (pVbiBuf->cnis[type].lastPil >> 11) & 0x0F, (pVbiBuf->cnis[type].lastPil >> 6) & 0x1F, pVbiBuf->cnis[type].lastPil & 0x3F, pVbiBuf->cnis[type].lastPil, (pil >> 15) & 0x1F, (pil >> 11) & 0x0F, (pil >> 6) & 0x1F, pil & 0x3F, pil);
+                  debug11("TtxDecode-AddCni: %s PIL error: last %02d.%02d. %02d:%02d (0x%04X) != %02d.%02d. %02d:%02d (0x%04X)", ((type == CNI_TYPE_VPS) ? "VPS" : ((type == CNI_TYPE_PDC) ? "PDC" : "NI")), (pVbiBuf->buf[bufIdx].cnis[type].lastPil >> 15) & 0x1F, (pVbiBuf->buf[bufIdx].cnis[type].lastPil >> 11) & 0x0F, (pVbiBuf->buf[bufIdx].cnis[type].lastPil >> 6) & 0x1F, pVbiBuf->buf[bufIdx].cnis[type].lastPil & 0x3F, pVbiBuf->buf[bufIdx].cnis[type].lastPil, (pil >> 15) & 0x1F, (pil >> 11) & 0x0F, (pil >> 6) & 0x1F, pil & 0x3F, pil);
                   #endif
-                  pVbiBuf->cnis[type].pilRepCount = 0;
+                  pVbiBuf->buf[bufIdx].cnis[type].pilRepCount = 0;
                }
-               pVbiBuf->cnis[type].lastPil = pil;
-               pVbiBuf->cnis[type].pilRepCount += 1;
+               pVbiBuf->buf[bufIdx].cnis[type].lastPil = pil;
+               pVbiBuf->buf[bufIdx].cnis[type].pilRepCount += 1;
 
-               if ( (pVbiBuf->cnis[type].pilRepCount > 2) || (type == CNI_TYPE_PDC) )
+               if ( (pVbiBuf->buf[bufIdx].cnis[type].pilRepCount > 2) || (type == CNI_TYPE_PDC) )
                {
                   // don't save as result if CNI is unknown or does not match the last CNI
-                  if (pVbiBuf->cnis[type].haveCni && (pVbiBuf->cnis[type].outCni == cni))
+                  if (pVbiBuf->buf[bufIdx].cnis[type].haveCni && (pVbiBuf->buf[bufIdx].cnis[type].outCni == cni))
                   {
-                     pVbiBuf->cnis[type].outPil = pil;
+                     pVbiBuf->buf[bufIdx].cnis[type].outPil = pil;
                      // set flag that PIL is available
-                     pVbiBuf->cnis[type].outPilInd += 1;
-                     pVbiBuf->cnis[type].havePil = TRUE;
+                     pVbiBuf->buf[bufIdx].cnis[type].outPilInd += 1;
+                     pVbiBuf->buf[bufIdx].cnis[type].havePil = TRUE;
                   }
                }
             }
@@ -370,7 +376,7 @@ static void TtxDecode_AddCni( CNI_TYPE type, uint cni, uint pil )
 // ---------------------------------------------------------------------------
 // Save status display text
 //
-static void TtxDecode_AddText( CNI_TYPE type, const uchar * data )
+static void TtxDecode_AddText( uint bufIdx, CNI_TYPE type, const uchar * data )
 {
    volatile CNI_ACQ_STATE  * pState;
    schar c1;
@@ -381,7 +387,7 @@ static void TtxDecode_AddText( CNI_TYPE type, const uchar * data )
    {
       if (type < CNI_TYPE_COUNT)
       {
-         pState = pVbiBuf->cnis + type;
+         pState = pVbiBuf->buf[bufIdx].cnis + type;
          minRepCount = 3;
 
          for (idx=0; idx < PDC_TEXT_LEN; idx++)
@@ -425,13 +431,13 @@ static void TtxDecode_AddText( CNI_TYPE type, const uchar * data )
 // ---------------------------------------------------------------------------
 // Save status display text
 //
-static void TtxDecode_AddTime( CNI_TYPE type, uint timeVal, sint lto )
+static void TtxDecode_AddTime( uint bufIdx, CNI_TYPE type, uint timeVal, sint lto )
 {
    volatile TTX_TIME_BUF * pState;
 
    if (type < CNI_TYPE_COUNT)
    {
-      pState = &pVbiBuf->ttxTime;
+      pState = &pVbiBuf->buf[bufIdx].ttxTime;
 
       if ( (pState->lastLto != lto) ||
            (timeVal - pState->lastTimeVal > 2) ||
@@ -460,12 +466,12 @@ static void TtxDecode_AddTime( CNI_TYPE type, uint timeVal, sint lto )
 // Retrieve last received time
 // - returns 0 if none available
 //
-uint TtxDecode_GetDateTime( sint * pLto )
+uint TtxDecode_GetDateTime( uint bufIdx, sint * pLto )
 {
    volatile TTX_TIME_BUF * pState;
    uint result = 0;
 
-   pState = &pVbiBuf->ttxTime;
+   pState = &pVbiBuf->buf[bufIdx].ttxTime;
 
    if (pState->haveTime)
    {
@@ -495,7 +501,7 @@ static void TtxDecode_MipPacket( uchar magNo, uchar pkgNo, const uchar *data )
       {
          if ( UnHam84Byte(data + i * 2, &id) && (id == MIP_EPG_ID))
          {
-            pVbiBuf->mipPageNo = (0xA0 + (pkgNo - 6) * 0x20 + (i / 10) * 0x10 + (i % 10)) | (uint)(magNo << 8);
+            pVbiBuf->buf[bufIdx].mipPageNo = (0xA0 + (pkgNo - 6) * 0x20 + (i / 10) * 0x10 + (i % 10)) | (uint)(magNo << 8);
             break;
          }
       }
@@ -506,7 +512,7 @@ static void TtxDecode_MipPacket( uchar magNo, uchar pkgNo, const uchar *data )
       {
          if ( UnHam84Byte(data + i * 2, &id) && (id == MIP_EPG_ID))
          {
-            pVbiBuf->mipPageNo = (0x0A + (pkgNo - 9) * 0x30 + (i / 6) * 0x10 + (i % 6)) | (uint)(magNo << 8);
+            pVbiBuf->buf[bufIdx].mipPageNo = (0x0A + (pkgNo - 9) * 0x30 + (i / 6) * 0x10 + (i % 6)) | (uint)(magNo << 8);
             break;
          }
       }
@@ -517,7 +523,7 @@ static void TtxDecode_MipPacket( uchar magNo, uchar pkgNo, const uchar *data )
       {
          if ( UnHam84Byte(data + i * 2, &id) && (id == MIP_EPG_ID))
          {
-            pVbiBuf->mipPageNo = (0xFA + i) | (uint)(magNo << 8);
+            pVbiBuf->buf[bufIdx].mipPageNo = (0xFA + i) | (uint)(magNo << 8);
             break;
          }
       }
@@ -555,16 +561,16 @@ static uint TtxDecode_AssemblePil( uint mday, uint month, uint hour, uint minute
 // - bit fields are defined in "VPS Richtlinie 8R2" from August 1995
 // - called by the VBI decoder for every received VPS line
 //
-void TtxDecode_AddVpsData( const uchar * data )
+void TtxDecode_AddVpsData( uint bufIdx, const uchar * data )
 {
    uint mday, month, hour, minute;
    uint cni, pil;
 
    if ( (pVbiBuf != NULL) &&
-        (pVbiBuf->chanChangeReq == pVbiBuf->chanChangeCnf) &&
-        (acqSlaveState.skipFrames == 0) )
+        (pVbiBuf->buf[bufIdx].chanChangeReq == pVbiBuf->buf[bufIdx].chanChangeCnf) &&
+        (acqSlaveState[bufIdx].skipFrames == 0) )
    {
-      pVbiBuf->ttxStats.vpsLineCount += 1;
+      pVbiBuf->buf[bufIdx].ttxStats.vpsLineCount += 1;
 
       cni = ((data[13 - 3] & 0x3) << 10) | ((data[14 - 3] & 0xc0) << 2) |
             ((data[11 - 3] & 0xc0)) | (data[14 - 3] & 0x3f);
@@ -588,7 +594,7 @@ void TtxDecode_AddVpsData( const uchar * data )
          pil = TtxDecode_AssemblePil(mday, month, hour, minute);
 
          // pass the CNI and PIL into the VPS state machine
-         TtxDecode_AddCni(CNI_TYPE_VPS, cni, pil);
+         TtxDecode_AddCni(bufIdx, CNI_TYPE_VPS, cni, pil);
       }
    }
 }
@@ -621,7 +627,7 @@ static uchar TtxDecode_ReverseBitOrder( uchar b )
 //   multiple CNIs per network; currently all Nextview providers use VPS codes
 //   when available.
 //
-static void TtxDecode_GetP830Cni( const uchar * data )
+static void TtxDecode_GetP830Cni( uint bufIdx, const uchar * data )
 {
    uchar pdcbuf[10];
    schar dc, c1;
@@ -641,9 +647,9 @@ static void TtxDecode_GetP830Cni( const uchar * data )
                       TtxDecode_ReverseBitOrder(data[8]);
          if ((cni != 0) && (cni != 0xffff))
          {
-            TtxDecode_AddCni(CNI_TYPE_NI, cni, INVALID_VPS_PIL);
+            TtxDecode_AddCni(bufIdx, CNI_TYPE_NI, cni, INVALID_VPS_PIL);
          }
-         TtxDecode_AddText(CNI_TYPE_NI, data + 20);
+         TtxDecode_AddText(bufIdx, CNI_TYPE_NI, data + 20);
 
          lto = ((data[9] & 0x7F) >> 1) * 30*60;
          if ((data[9] & 0x80) == 0)
@@ -664,7 +670,7 @@ static void TtxDecode_GetP830Cni( const uchar * data )
          {
             tv = ((mjd - 40587) * (24*60*60)) + (utc_h * 60*60) + (utc_m * 60) + utc_s;
 
-            TtxDecode_AddTime(CNI_TYPE_NI, tv, lto);
+            TtxDecode_AddTime(bufIdx, CNI_TYPE_NI, tv, lto);
          }
       }
       else if (dc == 1)
@@ -694,10 +700,10 @@ static void TtxDecode_GetP830Cni( const uchar * data )
                minute = (pdcbuf[5] << 2) | ((pdcbuf[6] & 0xc) >> 2);
 
                pil = TtxDecode_AssemblePil(mday, month, hour, minute);
-               TtxDecode_AddCni(CNI_TYPE_PDC, cni, pil);
+               TtxDecode_AddCni(bufIdx, CNI_TYPE_PDC, cni, pil);
             }
          }
-         TtxDecode_AddText(CNI_TYPE_PDC, data + 20);
+         TtxDecode_AddText(bufIdx, CNI_TYPE_PDC, data + 20);
       }
       #if DEBUG_SWITCH_STREAM == ON
       else
@@ -709,12 +715,12 @@ static void TtxDecode_GetP830Cni( const uchar * data )
 // ---------------------------------------------------------------------------
 // Return reception statistics collected by slave process/thread
 //
-void TtxDecode_GetStatistics( TTX_DEC_STATS * pStats, time_t * pStatsStart )
+void TtxDecode_GetStatistics( uint bufIdx, TTX_DEC_STATS * pStats, time_t * pStatsStart )
 {
    // check if initialization for the current channel is complete
-   if (pVbiBuf->chanChangeReq == pVbiBuf->chanChangeCnf)
+   if (pVbiBuf->buf[bufIdx].chanChangeReq == pVbiBuf->buf[bufIdx].chanChangeCnf)
    {
-      *pStats = pVbiBuf->ttxStats;
+      *pStats = pVbiBuf->buf[bufIdx].ttxStats;
       *pStatsStart = ttxStatsStart;
    }
    else
@@ -728,20 +734,20 @@ void TtxDecode_GetStatistics( TTX_DEC_STATS * pStats, time_t * pStatsStart )
 // Store teletext page headers in rolling buffer
 // - note: not a ring buffer, i.e. writer does not wait for reader
 //
-static void TtxDecode_AddPageHeader( uint pageNo, uint ctrl, const uchar * data )
+static void TtxDecode_AddPageHeader( uint bufIdx, uint pageNo, uint ctrl, const uchar * data )
 {
    bool do_add;
    uint mag;
    uint idx;
 
-   if (pVbiBuf->ttxHeader.write_lock == FALSE)
+   if (pVbiBuf->buf[bufIdx].ttxHeader.write_lock == FALSE)
    {
-      if (pVbiBuf->ttxHeader.op_mode == EPGACQ_TTX_HEAD_DEC)
+      if (pVbiBuf->buf[bufIdx].ttxHeader.op_mode == EPGACQ_TTX_HEAD_DEC)
       {
          // add pages with decimal numbers only (only 2nd and 3d digit can be hex)
          do_add = ((pageNo & 0x0f) <= 9) && (((pageNo >> 4) & 0x0f) <= 9);
       }
-      else if (pVbiBuf->ttxHeader.op_mode == EPGACQ_TTX_HEAD_ALL)
+      else if (pVbiBuf->buf[bufIdx].ttxHeader.op_mode == EPGACQ_TTX_HEAD_ALL)
       {
          do_add = TRUE;
       }
@@ -750,50 +756,50 @@ static void TtxDecode_AddPageHeader( uint pageNo, uint ctrl, const uchar * data 
 
       if (do_add)
       {
-         idx = pVbiBuf->ttxHeader.write_idx;
-         if ((idx >= EPGACQ_ROLL_HEAD_COUNT) || (idx > pVbiBuf->ttxHeader.fill_cnt))
+         idx = pVbiBuf->buf[bufIdx].ttxHeader.write_idx;
+         if ((idx >= EPGACQ_ROLL_HEAD_COUNT) || (idx > pVbiBuf->buf[bufIdx].ttxHeader.fill_cnt))
             idx = 0;
 
-         memcpy((char*)pVbiBuf->ttxHeader.ring_buf[idx].data, data, 40);
-         pVbiBuf->ttxHeader.ring_buf[idx].pageno = pageNo;
-         pVbiBuf->ttxHeader.ring_buf[idx].ctrl_lo = ctrl & 0xffff;
-         pVbiBuf->ttxHeader.ring_buf[idx].ctrl_hi = ctrl >> 16;
+         memcpy((char*)pVbiBuf->buf[bufIdx].ttxHeader.ring_buf[idx].data, data, 40);
+         pVbiBuf->buf[bufIdx].ttxHeader.ring_buf[idx].pageno = pageNo;
+         pVbiBuf->buf[bufIdx].ttxHeader.ring_buf[idx].ctrl_lo = ctrl & 0xffff;
+         pVbiBuf->buf[bufIdx].ttxHeader.ring_buf[idx].ctrl_hi = ctrl >> 16;
 
-         pVbiBuf->ttxHeader.write_ind += 1;  // overflow ok
-         pVbiBuf->ttxHeader.write_idx = (pVbiBuf->ttxHeader.write_idx + 1) % EPGACQ_ROLL_HEAD_COUNT;
-         if (pVbiBuf->ttxHeader.fill_cnt < EPGACQ_ROLL_HEAD_COUNT)
-            pVbiBuf->ttxHeader.fill_cnt += 1;
+         pVbiBuf->buf[bufIdx].ttxHeader.write_ind += 1;  // overflow ok
+         pVbiBuf->buf[bufIdx].ttxHeader.write_idx = (pVbiBuf->buf[bufIdx].ttxHeader.write_idx + 1) % EPGACQ_ROLL_HEAD_COUNT;
+         if (pVbiBuf->buf[bufIdx].ttxHeader.fill_cnt < EPGACQ_ROLL_HEAD_COUNT)
+            pVbiBuf->buf[bufIdx].ttxHeader.fill_cnt += 1;
       }
 
       // page number sequence statistics
-      if (pVbiBuf->ttxHeader.magPgResetReq != pVbiBuf->ttxHeader.magPgResetCnf)
+      if (pVbiBuf->buf[bufIdx].ttxHeader.magPgResetReq != pVbiBuf->buf[bufIdx].ttxHeader.magPgResetCnf)
       {
-         memset((void*)pVbiBuf->ttxHeader.pg_no_ring, 0xff, sizeof(pVbiBuf->ttxHeader.pg_no_ring));
-         pVbiBuf->ttxHeader.ring_val_cnt = 0;
-         pVbiBuf->ttxHeader.ring_wr_idx = 0;
-         pVbiBuf->ttxHeader.magPgDirection = 0;
-         pVbiBuf->ttxHeader.magPgResetCnf = pVbiBuf->ttxHeader.magPgResetReq;
+         memset((void*)pVbiBuf->buf[bufIdx].ttxHeader.pg_no_ring, 0xff, sizeof(pVbiBuf->buf[bufIdx].ttxHeader.pg_no_ring));
+         pVbiBuf->buf[bufIdx].ttxHeader.ring_val_cnt = 0;
+         pVbiBuf->buf[bufIdx].ttxHeader.ring_wr_idx = 0;
+         pVbiBuf->buf[bufIdx].ttxHeader.magPgDirection = 0;
+         pVbiBuf->buf[bufIdx].ttxHeader.magPgResetCnf = pVbiBuf->buf[bufIdx].ttxHeader.magPgResetReq;
       }
       if ( ((pageNo & 0x0f) <= 9) && (((pageNo >> 4) & 0x0f) <= 9) )
       {
-         pVbiBuf->ttxHeader.ring_wr_idx += 1;
-         if (pVbiBuf->ttxHeader.ring_wr_idx >= EPGACQ_PG_NO_RING_SIZE)
-           pVbiBuf->ttxHeader.ring_wr_idx = 0;
+         pVbiBuf->buf[bufIdx].ttxHeader.ring_wr_idx += 1;
+         if (pVbiBuf->buf[bufIdx].ttxHeader.ring_wr_idx >= EPGACQ_PG_NO_RING_SIZE)
+           pVbiBuf->buf[bufIdx].ttxHeader.ring_wr_idx = 0;
 
-         pVbiBuf->ttxHeader.pg_no_ring[pVbiBuf->ttxHeader.ring_wr_idx] = pageNo;
+         pVbiBuf->buf[bufIdx].ttxHeader.pg_no_ring[pVbiBuf->buf[bufIdx].ttxHeader.ring_wr_idx] = pageNo;
 
-         if (pVbiBuf->ttxHeader.ring_val_cnt < EPGACQ_PG_NO_RING_SIZE)
-           pVbiBuf->ttxHeader.ring_val_cnt += 1;
+         if (pVbiBuf->buf[bufIdx].ttxHeader.ring_val_cnt < EPGACQ_PG_NO_RING_SIZE)
+           pVbiBuf->buf[bufIdx].ttxHeader.ring_val_cnt += 1;
       }
 
       // page number direction prediction
       mag = (pageNo >> 8) & 7;
-      if (acqSlaveState.mags[mag].curPageNo != ~0u)
+      if (acqSlaveState[bufIdx].mags[mag].curPageNo != ~0u)
       {
-         if (pageNo < acqSlaveState.mags[mag].curPageNo)
-            pVbiBuf->ttxHeader.magPgDirection -= 1;
-         else if (pageNo > acqSlaveState.mags[mag].curPageNo)
-            pVbiBuf->ttxHeader.magPgDirection += 1;
+         if (pageNo < acqSlaveState[bufIdx].mags[mag].curPageNo)
+            pVbiBuf->buf[bufIdx].ttxHeader.magPgDirection -= 1;
+         else if (pageNo > acqSlaveState[bufIdx].mags[mag].curPageNo)
+            pVbiBuf->buf[bufIdx].ttxHeader.magPgDirection += 1;
       }
    }
 }
@@ -802,21 +808,21 @@ static void TtxDecode_AddPageHeader( uint pageNo, uint ctrl, const uchar * data 
 // Retrieve last page header
 // - the buffer must have space for 40 bytes
 //
-bool TtxDecode_GetPageHeader( uchar * pBuf, uint * pPgNum, uint pkgOff )
+bool TtxDecode_GetPageHeader( uint bufIdx, uchar * pBuf, uint * pPgNum, uint pkgOff )
 {
    uint idx;
    bool result = FALSE;
 
    if ( (pVbiBuf != NULL) &&
-        (pVbiBuf->ttxHeader.fill_cnt >= 1 + pkgOff) )
+        (pVbiBuf->buf[bufIdx].ttxHeader.fill_cnt >= 1 + pkgOff) )
    {
-      pVbiBuf->ttxHeader.write_lock = TRUE;
+      pVbiBuf->buf[bufIdx].ttxHeader.write_lock = TRUE;
 
-      idx = (pVbiBuf->ttxHeader.write_idx + (EPGACQ_ROLL_HEAD_COUNT - (pkgOff + 1))) % EPGACQ_ROLL_HEAD_COUNT;
-      memcpy(pBuf, (char *)pVbiBuf->ttxHeader.ring_buf[idx].data, 40);
-      *pPgNum = pVbiBuf->ttxHeader.ring_buf[idx].pageno;
+      idx = (pVbiBuf->buf[bufIdx].ttxHeader.write_idx + (EPGACQ_ROLL_HEAD_COUNT - (pkgOff + 1))) % EPGACQ_ROLL_HEAD_COUNT;
+      memcpy(pBuf, (char *)pVbiBuf->buf[bufIdx].ttxHeader.ring_buf[idx].data, 40);
+      *pPgNum = pVbiBuf->buf[bufIdx].ttxHeader.ring_buf[idx].pageno;
 
-      pVbiBuf->ttxHeader.write_lock = FALSE;
+      pVbiBuf->buf[bufIdx].ttxHeader.write_lock = FALSE;
       result = TRUE;
    }
    return result;
@@ -826,13 +832,13 @@ bool TtxDecode_GetPageHeader( uchar * pBuf, uint * pPgNum, uint pkgOff )
 // Retrieve per-magazine page count statistics
 // - the magazine counter buffer must be large enough for 8 integers
 //
-bool TtxDecode_GetMagStats( uint * pMagBuf, sint * pPgDirection, bool reset )
+bool TtxDecode_GetMagStats( uint bufIdx, uint * pMagBuf, sint * pPgDirection, bool reset )
 {
    uint idx;
    bool result = FALSE;
 
    if ( (pVbiBuf != NULL) &&
-        (pVbiBuf->ttxHeader.magPgResetReq == pVbiBuf->ttxHeader.magPgResetCnf) )
+        (pVbiBuf->buf[bufIdx].ttxHeader.magPgResetReq == pVbiBuf->buf[bufIdx].ttxHeader.magPgResetCnf) )
    {
       if (pMagBuf != NULL)
       {
@@ -840,16 +846,16 @@ bool TtxDecode_GetMagStats( uint * pMagBuf, sint * pPgDirection, bool reset )
          {
             pMagBuf[idx] = 0;
          }
-         for (idx = 0; idx < pVbiBuf->ttxHeader.ring_val_cnt; idx++)
+         for (idx = 0; idx < pVbiBuf->buf[bufIdx].ttxHeader.ring_val_cnt; idx++)
          {
-            uint page = pVbiBuf->ttxHeader.pg_no_ring[idx];
+            uint page = pVbiBuf->buf[bufIdx].ttxHeader.pg_no_ring[idx];
             pMagBuf[(page >> 8) & 7] += 1;
          }
-         *pPgDirection = pVbiBuf->ttxHeader.magPgDirection;
+         *pPgDirection = pVbiBuf->buf[bufIdx].ttxHeader.magPgDirection;
       }
       if (reset)
       {
-         pVbiBuf->ttxHeader.magPgResetReq += 1;
+         pVbiBuf->buf[bufIdx].ttxHeader.magPgResetReq += 1;
       }
       result = TRUE;
    }
@@ -871,21 +877,21 @@ bool TtxDecode_GetMagStats( uint * pMagBuf, sint * pPgDirection, bool reset )
 // - note that the buffer slot is not yet freed in this function;
 //   that has to be done separately after the packet was processed
 //
-const VBI_LINE * TtxDecode_GetPacket( uint pkgOff )
+const VBI_LINE * TtxDecode_GetPacket( uint bufIdx, uint pkgOff )
 {
    const VBI_LINE * pVbl = NULL;
    uint pkgIdx;
 
    if ( (pVbiBuf != NULL) &&
-        (pVbiBuf->chanChangeReq == pVbiBuf->chanChangeCnf) )
+        (pVbiBuf->buf[bufIdx].chanChangeReq == pVbiBuf->buf[bufIdx].chanChangeCnf) )
    {
-      assert((pVbiBuf->reader_idx <= TTXACQ_BUF_COUNT) && (pVbiBuf->writer_idx <= TTXACQ_BUF_COUNT));
+      assert((pVbiBuf->buf[bufIdx].reader_idx <= TTXACQ_BUF_COUNT) && (pVbiBuf->buf[bufIdx].writer_idx <= TTXACQ_BUF_COUNT));
 
-      pkgIdx = (pVbiBuf->reader_idx + pkgOff) % TTXACQ_BUF_COUNT;
+      pkgIdx = (pVbiBuf->buf[bufIdx].reader_idx + pkgOff) % TTXACQ_BUF_COUNT;
 
-      if (pkgIdx != acqSlaveState.vbiMaxReaderIdx)
+      if (pkgIdx != acqSlaveState[bufIdx].vbiMaxReaderIdx)
       {
-         pVbl = (const VBI_LINE *) &pVbiBuf->line[pkgIdx];
+         pVbl = (const VBI_LINE *) &pVbiBuf->buf[bufIdx].line[pkgIdx];
 
          #if DUMP_TTX_PACKETS == ON
          // dump the complete parity decoded content of the TTX packet
@@ -909,9 +915,12 @@ const VBI_LINE * TtxDecode_GetPacket( uint pkgOff )
 //
 void TtxDecoder_ReleasePackets( void )
 {
-   if (pVbiBuf->reader_idx != pVbiBuf->writer_idx)
+   for (uint bufIdx = 0; bufIdx < MAX_VBI_DVB_STREAMS; ++bufIdx)
    {
-      pVbiBuf->reader_idx = acqSlaveState.vbiMaxReaderIdx;
+      if (pVbiBuf->buf[bufIdx].reader_idx != pVbiBuf->buf[bufIdx].writer_idx)
+      {
+         pVbiBuf->buf[bufIdx].reader_idx = acqSlaveState[bufIdx].vbiMaxReaderIdx;
+      }
    }
 }
 
@@ -925,31 +934,25 @@ bool TtxDecode_CheckForPackets( bool * pStopped )
 
    if (pVbiBuf != NULL)
    {
-      acqSlaveState.vbiMaxReaderIdx = pVbiBuf->writer_idx;
-
-      if (pVbiBuf->chanChangeReq == pVbiBuf->chanChangeCnf)
+      for (uint bufIdx = 0; bufIdx < MAX_VBI_DVB_STREAMS; ++bufIdx)
       {
-         if (pVbiBuf->reader_idx != pVbiBuf->writer_idx)
-         {
-            result = TRUE;
-         }
+         acqSlaveState[bufIdx].vbiMaxReaderIdx = pVbiBuf->buf[bufIdx].writer_idx;
 
-         if ((result == FALSE) && (pVbiBuf->hasFailed))
-         {  // vbi slave has stopped acquisition -> inform master control
-            debug0("TtxDecode-CheckForPackets: slave process has disabled acq");
-            stopped = TRUE;
-            result = FALSE;
+         // after channel change: skip the first frame
+         if (pVbiBuf->buf[bufIdx].chanChangeReq == pVbiBuf->buf[bufIdx].chanChangeCnf)
+         {
+            if (pVbiBuf->buf[bufIdx].reader_idx != pVbiBuf->buf[bufIdx].writer_idx)
+            {
+               result = TRUE;
+               // no break due to updating vbiMaxReaderIdx
+            }
          }
       }
-      else
-      {  // after channel change: skip the first frame
 
-         if (pVbiBuf->hasFailed)
-         {  // must inform master the acq has stopped, or acq will lock up in waiting for channel change completion
-            debug0("TtxDecode-CheckForPackets: slave process has disabled acq while waiting for new channel");
-            stopped = TRUE;
-            result = FALSE;
-         }
+      if ((result == FALSE) && (pVbiBuf->hasFailed))
+      {  // vbi slave has stopped acquisition -> inform master control
+         debug0("TtxDecode-CheckForPackets: slave process has disabled acq");
+         stopped = TRUE;
       }
    }
    else  // should never happen
@@ -964,33 +967,33 @@ bool TtxDecode_CheckForPackets( bool * pStopped )
 // ---------------------------------------------------------------------------
 // Append a packet to the VBI buffer
 //
-static void TtxDecode_BufferAdd( uint pageNo, uint ctrl, uchar pkgno, const uchar * data, uint line )
+static void TtxDecode_BufferAdd( uint bufIdx, uint pageNo, uint ctrl, uchar pkgno, const uchar * data, uint line )
 {
    DBGONLY(static int overflow = 0;)
 
-   assert((pVbiBuf->reader_idx <= TTXACQ_BUF_COUNT) && (pVbiBuf->writer_idx <= TTXACQ_BUF_COUNT));
+   assert((pVbiBuf->buf[bufIdx].reader_idx <= TTXACQ_BUF_COUNT) && (pVbiBuf->buf[bufIdx].writer_idx <= TTXACQ_BUF_COUNT));
 
-   if (pVbiBuf->reader_idx != ((pVbiBuf->writer_idx + 1) % TTXACQ_BUF_COUNT))
+   if (pVbiBuf->buf[bufIdx].reader_idx != ((pVbiBuf->buf[bufIdx].writer_idx + 1) % TTXACQ_BUF_COUNT))
    {
       #if DUMP_TTX_PACKETS == ON
-      pVbiBuf->line[pVbiBuf->writer_idx].frame  = acqSlaveState.frameSeqNo;
-      pVbiBuf->line[pVbiBuf->writer_idx].line   = line;
+      pVbiBuf->buf[bufIdx].line[pVbiBuf->buf[bufIdx].writer_idx].frame  = acqSlaveState[bufIdx].frameSeqNo;
+      pVbiBuf->buf[bufIdx].line[pVbiBuf->buf[bufIdx].writer_idx].line   = line;
       #endif
-      pVbiBuf->line[pVbiBuf->writer_idx].pageno   = pageNo;
-      pVbiBuf->line[pVbiBuf->writer_idx].ctrl_lo  = ctrl & 0xFFFF;
-      pVbiBuf->line[pVbiBuf->writer_idx].ctrl_hi  = ctrl >> 16;
-      pVbiBuf->line[pVbiBuf->writer_idx].pkgno    = pkgno;
+      pVbiBuf->buf[bufIdx].line[pVbiBuf->buf[bufIdx].writer_idx].pageno   = pageNo;
+      pVbiBuf->buf[bufIdx].line[pVbiBuf->buf[bufIdx].writer_idx].ctrl_lo  = ctrl & 0xFFFF;
+      pVbiBuf->buf[bufIdx].line[pVbiBuf->buf[bufIdx].writer_idx].ctrl_hi  = ctrl >> 16;
+      pVbiBuf->buf[bufIdx].line[pVbiBuf->buf[bufIdx].writer_idx].pkgno    = pkgno;
 
-      memcpy((char *)pVbiBuf->line[pVbiBuf->writer_idx].data, data, 40);
+      memcpy((char *)pVbiBuf->buf[bufIdx].line[pVbiBuf->buf[bufIdx].writer_idx].data, data, 40);
 
-      pVbiBuf->writer_idx = (pVbiBuf->writer_idx + 1) % TTXACQ_BUF_COUNT;
+      pVbiBuf->buf[bufIdx].writer_idx = (pVbiBuf->buf[bufIdx].writer_idx + 1) % TTXACQ_BUF_COUNT;
 
       DBGONLY(overflow = 0;)
    }
 #if DEBUG_SWITCH == ON
    else
    {
-      ifdebug0((overflow == 0), "TtxDecode-BufferAdd: VBI buffer overflow");
+      ifdebug2((overflow == 0), "TtxDecode-BufferAdd[%d]: VBI buffer overflow read:%d", bufIdx, pVbiBuf->buf[bufIdx].reader_idx);
       overflow += 1;
    }
 #endif
@@ -1006,7 +1009,7 @@ static void TtxDecode_BufferAdd( uint pageNo, uint ctrl, uchar pkgno, const ucha
 // - the slave records the index where he restarted for the new channel.
 //   this index is copied to the reader in the master
 //
-void TtxDecode_NotifyChannelChange( volatile EPGACQ_BUF * pThisVbiBuf )
+void TtxDecode_NotifyChannelChange( uint bufIdx, volatile EPGACQ_BUF * pThisVbiBuf )
 {
    dprintf0("TtxDecode-NotifyChannelChange\n");
 
@@ -1014,11 +1017,11 @@ void TtxDecode_NotifyChannelChange( volatile EPGACQ_BUF * pThisVbiBuf )
    {
       // notify the slave of the channel change
       // this also initiates a state machine reset
-      pVbiBuf->chanChangeReq += 1;
+      pVbiBuf->buf[bufIdx].chanChangeReq += 1;
    }
    else
    {
-      pThisVbiBuf->chanChangeReq += 1;
+      pThisVbiBuf->buf[bufIdx].chanChangeReq += 1;
    }
 }
 
@@ -1038,37 +1041,37 @@ void TtxDecode_NotifyChannelChange( volatile EPGACQ_BUF * pThisVbiBuf )
 //      cleared and the state machines must be resetted. Note that the initial
 //      acq startup is handled as a channel change.
 //
-bool TtxDecode_NewVbiFrame( uint frameSeqNo )
+bool TtxDecode_NewVbiFrame( uint bufIdx, uint frameSeqNo )
 {
    bool result = TRUE;
 
    if (pVbiBuf != NULL)
    {
-      if (pVbiBuf->chanChangeReq != pVbiBuf->chanChangeCnf)
+      if (pVbiBuf->buf[bufIdx].chanChangeReq != pVbiBuf->buf[bufIdx].chanChangeCnf)
       {  // acq master signaled channel change (e.g. new tuner freq.)
-         dprintf0("TtxDecode-NewVbiFrame: channel change - reset state\n");
+         dprintf1("TtxDecode-NewVbiFrame[%d]: channel change - reset state\n", bufIdx);
 
          // reset all result values in shared memory
-         memset((void *)&pVbiBuf->cnis, 0, sizeof(pVbiBuf->cnis));
-         memset((void *)&pVbiBuf->ttxStats, 0, sizeof(pVbiBuf->ttxStats));
+         memset((void *)&pVbiBuf->buf[bufIdx].cnis, 0, sizeof(pVbiBuf->buf[bufIdx].cnis));
+         memset((void *)&pVbiBuf->buf[bufIdx].ttxStats, 0, sizeof(pVbiBuf->buf[bufIdx].ttxStats));
          ttxStatsStart = time(NULL);
-         pVbiBuf->ttxHeader.fill_cnt = 0;
-         pVbiBuf->ttxHeader.magPgResetReq = pVbiBuf->ttxHeader.magPgResetCnf - 1;
+         pVbiBuf->buf[bufIdx].ttxHeader.fill_cnt = 0;
+         pVbiBuf->buf[bufIdx].ttxHeader.magPgResetReq = pVbiBuf->buf[bufIdx].ttxHeader.magPgResetCnf - 1;
 
          // discard all data in the teletext packet buffer
          // (note: reader_idx can be written safely b/c the reader is locked until the change is confirmed)
-         pVbiBuf->reader_idx    = 0;
-         pVbiBuf->writer_idx    = 0;
+         pVbiBuf->buf[bufIdx].reader_idx    = 0;
+         pVbiBuf->buf[bufIdx].writer_idx    = 0;
 
          // reset internal ttx decoder state
          memset(&acqSlaveState, 0, sizeof(acqSlaveState));
-         acqSlaveState.lastMag = 8;
+         acqSlaveState[bufIdx].lastMag = 8;
 
          // skip the current and the following frame, since they could contain data from the previous channel
-         acqSlaveState.skipFrames  = 2;
+         acqSlaveState[bufIdx].skipFrames  = 2;
 
          // Indicate to the master that the reset request has been executed (must be set last)
-         pVbiBuf->chanChangeCnf = pVbiBuf->chanChangeReq;
+         pVbiBuf->buf[bufIdx].chanChangeCnf = pVbiBuf->buf[bufIdx].chanChangeReq;
 
          // return FALSE to indicate that the current VBI frame must be discarded
          // (note: the driver must discard all buffered frames if its VBI buffer holds more than one frame)
@@ -1076,38 +1079,39 @@ bool TtxDecode_NewVbiFrame( uint frameSeqNo )
       }
       else
       {
-         if (acqSlaveState.skipFrames > 0)
+         if (acqSlaveState[bufIdx].skipFrames > 0)
          {
-            acqSlaveState.skipFrames -= 1;
+            dprintf2("TtxDecode-NewVbiFrame[%d]: skip remain:%d\n", bufIdx, acqSlaveState[bufIdx].skipFrames);
+            acqSlaveState[bufIdx].skipFrames -= 1;
          }
          else
          {
             // calculate running average of ttx packets per page (16-bit fix point arithmetics)
-            if (pVbiBuf->ttxStats.frameCount > 0)
+            if (pVbiBuf->buf[bufIdx].ttxStats.frameCount > 0)
             {
-               pVbiBuf->ttxStats.ttxPkgRate  = ( (pVbiBuf->ttxStats.ttxPkgRate * ((1 << TTX_PKG_RATE_FACT) - 1)) +
-                                                 (acqSlaveState.pkgPerFrame << TTX_PKG_RATE_FIXP) +
+               pVbiBuf->buf[bufIdx].ttxStats.ttxPkgRate  = ( (pVbiBuf->buf[bufIdx].ttxStats.ttxPkgRate * ((1 << TTX_PKG_RATE_FACT) - 1)) +
+                                                 (acqSlaveState[bufIdx].pkgPerFrame << TTX_PKG_RATE_FIXP) +
                                                  (1 << (TTX_PKG_RATE_FACT - 1))
                                                ) >> TTX_PKG_RATE_FACT;
             }
             else
             {
-               pVbiBuf->ttxStats.ttxPkgRate  = (acqSlaveState.pkgPerFrame << TTX_PKG_RATE_FIXP);
+               pVbiBuf->buf[bufIdx].ttxStats.ttxPkgRate  = (acqSlaveState[bufIdx].pkgPerFrame << TTX_PKG_RATE_FIXP);
             }
-            pVbiBuf->ttxStats.frameCount += 1;
+            pVbiBuf->buf[bufIdx].ttxStats.frameCount += 1;
          }
 
-         if ((frameSeqNo != acqSlaveState.frameSeqNo + 1) && (frameSeqNo != 0))
+         if ((frameSeqNo != acqSlaveState[bufIdx].frameSeqNo + 1) && (frameSeqNo != 0))
          {  // mising frame (0 is special case: no support for seq.no.)
             #if DEBUG_SWITCH_STREAM == ON
-            debug1("TtxDecode-NewVbiFrame: lost vbi frame #%u", acqSlaveState.frameSeqNo + 1);
+            debug1("TtxDecode-NewVbiFrame: lost vbi frame #%u", acqSlaveState[bufIdx].frameSeqNo + 1);
             #endif
-            memset(&acqSlaveState.mags, 0, sizeof(acqSlaveState.mags));
+            memset(&acqSlaveState[bufIdx].mags, 0, sizeof(acqSlaveState[bufIdx].mags));
          }
       }
 
-      acqSlaveState.frameSeqNo = frameSeqNo;
-      acqSlaveState.pkgPerFrame = 0;
+      acqSlaveState[bufIdx].frameSeqNo = frameSeqNo;
+      acqSlaveState[bufIdx].pkgPerFrame = 0;
    }
 
    return result;
@@ -1119,7 +1123,7 @@ bool TtxDecode_NewVbiFrame( uint frameSeqNo )
 //   and hence can not access the state variables of the EPG process/thread
 //   except for the shared buffer
 //
-void TtxDecode_AddPacket( const uchar * data, uint line )
+void TtxDecode_AddPacket( uint bufIdx, const uchar * data, uint line )
 {
    sint  tmp1, tmp2, tmp3, tmp4;
    uchar mag, pkgno;
@@ -1127,11 +1131,11 @@ void TtxDecode_AddPacket( const uchar * data, uint line )
    uint  ctrlBits;
 
    if ( (pVbiBuf != NULL) &&
-        (pVbiBuf->chanChangeReq == pVbiBuf->chanChangeCnf) &&
-        (acqSlaveState.skipFrames == 0) )
+        (pVbiBuf->buf[bufIdx].chanChangeReq == pVbiBuf->buf[bufIdx].chanChangeCnf) &&
+        (acqSlaveState[bufIdx].skipFrames == 0) )
    {
-      pVbiBuf->ttxStats.ttxPkgCount += 1;
-      acqSlaveState.pkgPerFrame += 1;
+      pVbiBuf->buf[bufIdx].ttxStats.ttxPkgCount += 1;
+      acqSlaveState[bufIdx].pkgPerFrame += 1;
 
       if (UnHam84Byte(data, &tmp1))
       {
@@ -1149,91 +1153,91 @@ void TtxDecode_AddPacket( const uchar * data, uint line )
                pageNo = tmp1 | ((uint)mag << 8);
                ctrlBits = tmp2 | (tmp3 << 8) | (tmp4 << 16);
 
-               acqSlaveState.magParallel = ((tmp3 & 0x10) == 0);
+               acqSlaveState[bufIdx].magParallel = ((tmp3 & 0x10) == 0);
 
-               if ( (acqSlaveState.magParallel == FALSE) &&
-                    (mag != acqSlaveState.lastMag) && (pkgno < 30) &&
-                    (acqSlaveState.lastMag < 8) )
+               if ( (acqSlaveState[bufIdx].magParallel == FALSE) &&
+                    (mag != acqSlaveState[bufIdx].lastMag) && (pkgno < 30) &&
+                    (acqSlaveState[bufIdx].lastMag < 8) )
                {
                   // serial mode: magazine change -> close previous page
-                  acqSlaveState.mags[acqSlaveState.lastMag].curPageNo = ~0u;
-                  acqSlaveState.mags[acqSlaveState.lastMag].fwdPage = FALSE;
+                  acqSlaveState[bufIdx].mags[acqSlaveState[bufIdx].lastMag].curPageNo = ~0u;
+                  acqSlaveState[bufIdx].mags[acqSlaveState[bufIdx].lastMag].fwdPage = FALSE;
                }
 
                if (pVbiBuf->scanEnabled)
                {
-                  pVbiBuf->ttxStats.scanPkgCount += 1;
-                  pVbiBuf->ttxStats.scanPagCount += 1;
+                  pVbiBuf->buf[bufIdx].ttxStats.scanPkgCount += 1;
+                  pVbiBuf->buf[bufIdx].ttxStats.scanPagCount += 1;
                }
                else if ((pVbiBuf->ttxEnabled) &&
-                        (pageNo >= pVbiBuf->startPageNo) && (pageNo <= pVbiBuf->stopPageNo))
+                        (pageNo >= pVbiBuf->startPageNo[bufIdx]) && (pageNo <= pVbiBuf->stopPageNo[bufIdx]))
                {
-                  acqSlaveState.mags[mag].fwdPage = TRUE;
-                  TtxDecode_BufferAdd(pageNo, ctrlBits, 0, data + 2, line);
+                  acqSlaveState[bufIdx].mags[mag].fwdPage = TRUE;
+                  TtxDecode_BufferAdd(bufIdx, pageNo, ctrlBits, 0, data + 2, line);
 
-                  pVbiBuf->ttxStats.ttxPkgGrab += 1;
-                  pVbiBuf->ttxStats.ttxPagGrab += 1;
+                  pVbiBuf->buf[bufIdx].ttxStats.ttxPkgGrab += 1;
+                  pVbiBuf->buf[bufIdx].ttxStats.ttxPagGrab += 1;
                }
                else
                {
-                  acqSlaveState.mags[mag].fwdPage = FALSE;
+                  acqSlaveState[bufIdx].mags[mag].fwdPage = FALSE;
 
                   // magazine inventory page - is decoded immediately by the ttx slave
-                  acqSlaveState.mags[mag].isMipPage = ((pageNo & 0xFF) == 0xFD);
+                  acqSlaveState[bufIdx].mags[mag].isMipPage = ((pageNo & 0xFF) == 0xFD);
                }
 
                // save the last received page header
-               TtxDecode_AddPageHeader(pageNo, ctrlBits, data + 2);
+               TtxDecode_AddPageHeader(bufIdx, pageNo, ctrlBits, data + 2);
 
-               acqSlaveState.mags[mag].curPageNo = pageNo;
-               acqSlaveState.lastMag = mag;
+               acqSlaveState[bufIdx].mags[mag].curPageNo = pageNo;
+               acqSlaveState[bufIdx].lastMag = mag;
             }
             else
             {  // missed a teletext page header due to hamming error
-               pVbiBuf->ttxStats.ttxPkgDrop += 1;
+               pVbiBuf->buf[bufIdx].ttxStats.ttxPkgDrop += 1;
 
                // close all previous pages in the same magazine
-               if (acqSlaveState.mags[mag].fwdPage)
+               if (acqSlaveState[bufIdx].mags[mag].fwdPage)
                {
                   #if DEBUG_SWITCH_STREAM == ON
-                  debug1("TtxDecode-AddPacket: closing TTX page %03X after hamming err", acqSlaveState.mags[mag].curPageNo);
+                  debug1("TtxDecode-AddPacket: closing TTX page %03X after hamming err", acqSlaveState[bufIdx].mags[mag].curPageNo);
                   #endif
-                  acqSlaveState.mags[mag].fwdPage = FALSE;
+                  acqSlaveState[bufIdx].mags[mag].fwdPage = FALSE;
                }
-               acqSlaveState.mags[mag].isMipPage = FALSE;
-               acqSlaveState.mags[mag].curPageNo = ~0u;
+               acqSlaveState[bufIdx].mags[mag].isMipPage = FALSE;
+               acqSlaveState[bufIdx].mags[mag].curPageNo = ~0u;
             }
          }
          else
          {  // regular teletext packet (i.e. not a header)
 
             if ( ((pVbiBuf->scanEnabled) || (pVbiBuf->ttxEnabled)) && 
-                 (acqSlaveState.mags[mag].fwdPage) &&
+                 (acqSlaveState[bufIdx].mags[mag].fwdPage) &&
                  (pkgno < 30) )
             {
-               TtxDecode_BufferAdd(acqSlaveState.mags[mag].curPageNo, 0, pkgno, data + 2, line);
+               TtxDecode_BufferAdd(bufIdx, acqSlaveState[bufIdx].mags[mag].curPageNo, 0, pkgno, data + 2, line);
                if (pVbiBuf->scanEnabled)
-                  pVbiBuf->ttxStats.scanPkgCount += 1;
+                  pVbiBuf->buf[bufIdx].ttxStats.scanPkgCount += 1;
 
-               pVbiBuf->ttxStats.ttxPkgGrab += 1;
+               pVbiBuf->buf[bufIdx].ttxStats.ttxPkgGrab += 1;
             }
-            else if ( acqSlaveState.mags[mag].isMipPage )
+            else if ( acqSlaveState[bufIdx].mags[mag].isMipPage )
             {  // new MIP packet (may be received in parallel for several magazines)
                TtxDecode_MipPacket(mag, pkgno, data + 2);
             }
             else if ((pkgno == 30) && (mag == 0))
             {  // packet 8/30/1
-               TtxDecode_GetP830Cni(data + 2);
+               TtxDecode_GetP830Cni(bufIdx, data + 2);
             }
          }
 
          #if DUMP_TTX_PACKETS == ON
          // dump all TTX packets, even non-EPG ones
-         DebugDumpTeletextPkg("SLAVE", data+2, acqSlaveState.frameSeqNo, line, pkgno, pageNo, ctrlBits & 0x3F7F, acqSlaveState.mags[mag].fwdPage);
-         //printf("SLAVE frame=%d line %2d: pkg=%2d page=%03X sub=%04X %d '%s'\n", acqSlaveState.frameSeqNo, line, pkgno, pageNo, sub, acqSlaveState.mags[mag].fwdPage, tmparr);
+         DebugDumpTeletextPkg("SLAVE", data+2, acqSlaveState[bufIdx].frameSeqNo, line, pkgno, pageNo, ctrlBits & 0x3F7F, acqSlaveState[bufIdx].mags[mag].fwdPage);
+         //printf("SLAVE frame=%d line %2d: pkg=%2d page=%03X sub=%04X %d '%s'\n", acqSlaveState[bufIdx].frameSeqNo, line, pkgno, pageNo, sub, acqSlaveState[bufIdx].mags[mag].fwdPage, tmparr);
          #endif
       }
       else
-         pVbiBuf->ttxStats.ttxPkgDrop += 1;
+         pVbiBuf->buf[bufIdx].ttxStats.ttxPkgDrop += 1;
    }
 }

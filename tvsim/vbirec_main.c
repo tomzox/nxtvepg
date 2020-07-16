@@ -319,13 +319,13 @@ static int Xawtv_CbStationChange(ClientData ttp, Tcl_Interp *interp, int argc, C
    else
    {
       // channel change -> reset results & state machine
-      pVbiBuf->chanChangeReq += 1;
+      pVbiBuf->buf[0].chanChangeReq += 1;
       memset(&cniStats, 0, sizeof(cniStats));
 
       eval_check(interp, "InitGuiVars");
 
-      epgPageStart = pVbiBuf->startPageNo = 0x300;
-      epgPageStop = pVbiBuf->stopPageNo = 0x399;
+      epgPageStart = pVbiBuf->startPageNo[0] = 0x300;
+      epgPageStop = pVbiBuf->stopPageNo[0] = 0x399;
       sprintf(comm, "%03X-%03X", epgPageStart, epgPageStop);
       Tcl_SetVar(interp, "ttx_pgno", comm, TCL_GLOBAL_ONLY);
 
@@ -574,7 +574,7 @@ static void VbiRec_CbStationSelected( void )
    TVAPP_COMM * pTvShm;
 
    // channel change -> reset results & state machine
-   pVbiBuf->chanChangeReq += 1;
+   pVbiBuf->buf[0].chanChangeReq += 1;
    memset(&cniStats, 0, sizeof(cniStats));
 
    eval_check(interp, "InitGuiVars");
@@ -585,8 +585,8 @@ static void VbiRec_CbStationSelected( void )
       Tcl_SetVar(interp, "tvChanName", station, TCL_GLOBAL_ONLY);
    }
 
-   epgPageStart = pVbiBuf->startPageNo = 0x300;
-   epgPageStop = pVbiBuf->stopPageNo = 0x399;
+   epgPageStart = pVbiBuf->startPageNo[0] = 0x300;
+   epgPageStop = pVbiBuf->stopPageNo[0] = 0x399;
    sprintf(comm, "%03X-%03X", epgPageStart, epgPageStop);
    Tcl_SetVar(interp, "ttx_pgno", comm, TCL_GLOBAL_ONLY);
 
@@ -746,14 +746,14 @@ static void UpdateCniName( volatile CNI_ACQ_STATE * pNew )
    {
       // search for the best available source
       for (type=0; type < CNI_TYPE_COUNT; type++)
-         if (pVbiBuf->cnis[type].haveCni)
+         if (pVbiBuf->buf[0].cnis[type].haveCni)
             break;
 
       comm[0] = 0;
       if (type < CNI_TYPE_COUNT)
       {
          // Return descriptive text for a given 16-bit network code
-         pName = CniGetDescription(pVbiBuf->cnis[type].outCni, &pCountry);
+         pName = CniGetDescription(pVbiBuf->buf[0].cnis[type].outCni, &pCountry);
          if (pName != NULL)
          {
             if ((pCountry != NULL) && (strstr(pName, pCountry) == NULL))
@@ -771,7 +771,7 @@ static void UpdateCniName( volatile CNI_ACQ_STATE * pNew )
       // CNI will immediately make an result available again)
       for (type=0; type < CNI_TYPE_COUNT; type++)
       {
-         pVbiBuf->cnis[type].haveCni = FALSE;
+         pVbiBuf->buf[0].cnis[type].haveCni = FALSE;
       }
    }
 }
@@ -809,13 +809,13 @@ static void SecTimerEvent( ClientData clientData )
    ssize_t wstat;
    uint idx;
 
-   if (pVbiBuf->chanChangeReq == pVbiBuf->chanChangeCnf)
+   if (pVbiBuf->buf[0].chanChangeReq == pVbiBuf->buf[0].chanChangeCnf)
    {
-      while ((idx = pVbiBuf->reader_idx) != pVbiBuf->writer_idx)
+      while ((idx = pVbiBuf->buf[0].reader_idx) != pVbiBuf->buf[0].writer_idx)
       {
          if (fdTtxFile != -1)
          {
-            wstat = write(fdTtxFile, (char *) &pVbiBuf->line[idx], sizeof(VBI_LINE));
+            wstat = write(fdTtxFile, (char *) &pVbiBuf->buf[0].line[idx], sizeof(VBI_LINE));
             if (wstat < sizeof(VBI_LINE))
             {
                sprintf(comm, "tk_messageBox -type ok -icon error "
@@ -830,54 +830,54 @@ static void SecTimerEvent( ClientData clientData )
             }
          }
 
-         pVbiBuf->reader_idx = (idx + 1) % TTXACQ_BUF_COUNT;
+         pVbiBuf->buf[0].reader_idx = (idx + 1) % TTXACQ_BUF_COUNT;
       }
 
-      if (pVbiBuf->ttxHeader.fill_cnt != 0)
+      if (pVbiBuf->buf[0].ttxHeader.fill_cnt != 0)
       {
-         pVbiBuf->ttxHeader.write_lock = TRUE;
-         idx = (pVbiBuf->ttxHeader.write_idx + (EPGACQ_ROLL_HEAD_COUNT - 1)) % EPGACQ_ROLL_HEAD_COUNT;
-         UpdateTtxHeader((char *)pVbiBuf->ttxHeader.ring_buf[idx].data + 8);
-         pVbiBuf->ttxHeader.write_lock = FALSE;
+         pVbiBuf->buf[0].ttxHeader.write_lock = TRUE;
+         idx = (pVbiBuf->buf[0].ttxHeader.write_idx + (EPGACQ_ROLL_HEAD_COUNT - 1)) % EPGACQ_ROLL_HEAD_COUNT;
+         UpdateTtxHeader((char *)pVbiBuf->buf[0].ttxHeader.ring_buf[idx].data + 8);
+         pVbiBuf->buf[0].ttxHeader.write_lock = FALSE;
       }
-      if (ttxStats.ttxPkgCount != pVbiBuf->ttxStats.ttxPkgCount)
+      if (ttxStats.ttxPkgCount != pVbiBuf->buf[0].ttxStats.ttxPkgCount)
       {
-         sprintf(comm, "%d", pVbiBuf->ttxStats.ttxPkgCount);
+         sprintf(comm, "%d", pVbiBuf->buf[0].ttxStats.ttxPkgCount);
          Tcl_SetVar(interp, "ttx_pkg", comm, TCL_GLOBAL_ONLY);
-         ttxStats.ttxPkgCount = pVbiBuf->ttxStats.ttxPkgCount;
+         ttxStats.ttxPkgCount = pVbiBuf->buf[0].ttxStats.ttxPkgCount;
       }
-      if (ttxStats.ttxPkgRate != pVbiBuf->ttxStats.ttxPkgRate)
+      if (ttxStats.ttxPkgRate != pVbiBuf->buf[0].ttxStats.ttxPkgRate)
       {
          sprintf(comm, "%.1f (%.0f baud)",
-                       (double)pVbiBuf->ttxStats.ttxPkgRate / (1 << TTX_PKG_RATE_FIXP),
-                       (double)pVbiBuf->ttxStats.ttxPkgRate / (1 << TTX_PKG_RATE_FIXP) * 42 * 8 * 25);
+                       (double)pVbiBuf->buf[0].ttxStats.ttxPkgRate / (1 << TTX_PKG_RATE_FIXP),
+                       (double)pVbiBuf->buf[0].ttxStats.ttxPkgRate / (1 << TTX_PKG_RATE_FIXP) * 42 * 8 * 25);
          Tcl_SetVar(interp, "ttx_rate", comm, TCL_GLOBAL_ONLY);
-         ttxStats.ttxPkgRate = pVbiBuf->ttxStats.ttxPkgRate;
+         ttxStats.ttxPkgRate = pVbiBuf->buf[0].ttxStats.ttxPkgRate;
       }
-      if (ttxStats.vpsLineCount != pVbiBuf->ttxStats.vpsLineCount)
+      if (ttxStats.vpsLineCount != pVbiBuf->buf[0].ttxStats.vpsLineCount)
       {
-         sprintf(comm, "%d", pVbiBuf->ttxStats.vpsLineCount);
+         sprintf(comm, "%d", pVbiBuf->buf[0].ttxStats.vpsLineCount);
          Tcl_SetVar(interp, "vps_cnt", comm, TCL_GLOBAL_ONLY);
-         ttxStats.vpsLineCount = pVbiBuf->ttxStats.vpsLineCount;
+         ttxStats.vpsLineCount = pVbiBuf->buf[0].ttxStats.vpsLineCount;
       }
-      if (ttxStats.ttxPkgGrab != pVbiBuf->ttxStats.ttxPkgGrab)
+      if (ttxStats.ttxPkgGrab != pVbiBuf->buf[0].ttxStats.ttxPkgGrab)
       {
-         sprintf(comm, "%d", pVbiBuf->ttxStats.ttxPkgGrab);
+         sprintf(comm, "%d", pVbiBuf->buf[0].ttxStats.ttxPkgGrab);
          Tcl_SetVar(interp, "epg_pkg", comm, TCL_GLOBAL_ONLY);
-         ttxStats.ttxPkgGrab = pVbiBuf->ttxStats.ttxPkgGrab;
+         ttxStats.ttxPkgGrab = pVbiBuf->buf[0].ttxStats.ttxPkgGrab;
       }
-      if (ttxStats.ttxPagGrab != pVbiBuf->ttxStats.ttxPagGrab)
+      if (ttxStats.ttxPagGrab != pVbiBuf->buf[0].ttxStats.ttxPagGrab)
       {
-         sprintf(comm, "%d", pVbiBuf->ttxStats.ttxPagGrab);
+         sprintf(comm, "%d", pVbiBuf->buf[0].ttxStats.ttxPagGrab);
          Tcl_SetVar(interp, "epg_pag", comm, TCL_GLOBAL_ONLY);
-         ttxStats.ttxPagGrab = pVbiBuf->ttxStats.ttxPagGrab;
+         ttxStats.ttxPagGrab = pVbiBuf->buf[0].ttxStats.ttxPagGrab;
       }
 
-      UpdateCni(pVbiBuf->cnis + CNI_TYPE_VPS, &cniStats.vps, "cni_vps");
-      UpdateCni(pVbiBuf->cnis + CNI_TYPE_PDC, &cniStats.pdc, "cni_pdc");
-      UpdateCni(pVbiBuf->cnis + CNI_TYPE_NI, &cniStats.p8301, "cni_p8301");
+      UpdateCni(pVbiBuf->buf[0].cnis + CNI_TYPE_VPS, &cniStats.vps, "cni_vps");
+      UpdateCni(pVbiBuf->buf[0].cnis + CNI_TYPE_PDC, &cniStats.pdc, "cni_pdc");
+      UpdateCni(pVbiBuf->buf[0].cnis + CNI_TYPE_NI, &cniStats.p8301, "cni_p8301");
 
-      UpdateCniName(pVbiBuf->cnis);
+      UpdateCniName(pVbiBuf->buf[0].cnis);
    }
 
    clockHandler = Tcl_CreateTimerHandler(500, SecTimerEvent, NULL);
@@ -1008,12 +1008,12 @@ static int TclCb_SendEpgOsd( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_O
 #else
       uint  cni;
 
-      if (pVbiBuf->cnis[CNI_TYPE_VPS].haveCni)
-         cni = pVbiBuf->cnis[CNI_TYPE_VPS].outCni;
-      else if (pVbiBuf->cnis[CNI_TYPE_PDC].haveCni)
-         cni = pVbiBuf->cnis[CNI_TYPE_PDC].outCni;
-      else if (pVbiBuf->cnis[CNI_TYPE_NI].haveCni)
-         cni = pVbiBuf->cnis[CNI_TYPE_NI].outCni;
+      if (pVbiBuf->buf[0].cnis[CNI_TYPE_VPS].haveCni)
+         cni = pVbiBuf->buf[0].cnis[CNI_TYPE_VPS].outCni;
+      else if (pVbiBuf->buf[0].cnis[CNI_TYPE_PDC].haveCni)
+         cni = pVbiBuf->buf[0].cnis[CNI_TYPE_PDC].outCni;
+      else if (pVbiBuf->buf[0].cnis[CNI_TYPE_NI].haveCni)
+         cni = pVbiBuf->buf[0].cnis[CNI_TYPE_NI].outCni;
       else
          cni = 0;
 
@@ -1099,9 +1099,15 @@ bool BtDriver_GetState( bool * pEnabled, bool * pHasDriver, uint * pCardIdx )
       *pEnabled = FALSE;
    return TRUE;
 }
-bool TtxDecode_GetCniAndPil( uint * pCni, uint * pPil, CNI_TYPE * pCniType,
-                             uint * pCniInd, uint * pPilInd, volatile EPGACQ_BUF * pThisVbiBuf ) { return FALSE; }
-void TtxDecode_NotifyChannelChange( volatile EPGACQ_BUF * pThisVbiBuf ) {}
+bool TtxDecode_GetCniAndPil( uint bufIdx, uint * pCni, uint * pPil, CNI_TYPE * pCniType,
+                             uint pCniInd[CNI_TYPE_COUNT], uint pPilInd[CNI_TYPE_COUNT],
+                             volatile EPGACQ_BUF * pThisVbiBuf )
+{
+   return FALSE;
+}
+void TtxDecode_NotifyChannelChange( uint bufIdx, volatile EPGACQ_BUF * pThisVbiBuf )
+{
+}
 
 // ----------------------------------------------------------------------------
 // Struct with callback functions for shared memory server module
@@ -1396,18 +1402,18 @@ int main( int argc, char *argv[] )
          if (pVbiBuf != NULL)
          {
             // skip first VBI frame, reset ttx decoder, then set reader idx to writer idx
-            pVbiBuf->chanChangeReq = pVbiBuf->chanChangeCnf = 0;
-            pVbiBuf->reader_idx = pVbiBuf->writer_idx;
+            pVbiBuf->buf[0].chanChangeReq = pVbiBuf->buf[0].chanChangeCnf = 0;
+            pVbiBuf->buf[0].reader_idx = pVbiBuf->buf[0].writer_idx;
 
             // pass the configuration variables to the ttx process via IPC
-            epgPageStart = pVbiBuf->startPageNo = 0x300;
-            epgPageStop = pVbiBuf->stopPageNo = 0x399;
+            epgPageStart = pVbiBuf->startPageNo[0] = 0x300;
+            epgPageStop = pVbiBuf->stopPageNo[0] = 0x399;
             sprintf(comm, "%03X-%03X", epgPageStart, epgPageStop);
 
             // enable acquisition in the slave process/thread
-            pVbiBuf->chanChangeReq = pVbiBuf->chanChangeCnf + 2;
+            pVbiBuf->buf[0].chanChangeReq = pVbiBuf->buf[0].chanChangeCnf + 2;
             pVbiBuf->ttxEnabled = TRUE;
-            pVbiBuf->ttxHeader.op_mode = EPGACQ_TTX_HEAD_DEC;
+            pVbiBuf->buf[0].ttxHeader.op_mode = EPGACQ_TTX_HEAD_DEC;
 
             #ifdef WIN32
             VbiRec_CbStationSelected();

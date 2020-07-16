@@ -96,7 +96,7 @@ void VbiDecodeSetSamplingRate( ulong sampling_rate, uint startLine )
 {
    if (sampling_rate == 0)
    {  // set default sampling rate if driver doesn't support VBI format query
-#ifdef SAA7134_0_2_2
+#if 0
       sampling_rate = SAA7134_VT_RATE;
       vbiStartLine  = SAA7134_START_LINE;
 #else
@@ -119,7 +119,7 @@ void VbiDecodeSetSamplingRate( ulong sampling_rate, uint startLine )
 //
 bool VbiDecodeStartNewFrame( uint frameSeqNo )
 {
-   return TtxDecode_NewVbiFrame(frameSeqNo);
+   return TtxDecode_NewVbiFrame(0, frameSeqNo);
 }
 
 // ---------------------------------------------------------------------------
@@ -222,7 +222,7 @@ void VbiDecodeLine(const uchar * lbuf, int line, bool doVps)
                case 0x27:
                   for (i = 3; i < 45; i++)
                      data[i] = vtscan(lbuf, &spos, off);
-                  TtxDecode_AddPacket(data + 3, line);
+                  TtxDecode_AddPacket(0, data + 3, line);
                   break;
                default:
                   //printf("****** line=%d  [2]=%x != 0x27 && 0xd8\n", line, data[2]);
@@ -263,7 +263,7 @@ void VbiDecodeLine(const uchar * lbuf, int line, bool doVps)
 
          if (i > 14)
          {
-            TtxDecode_AddVpsData(data + 3);
+            TtxDecode_AddVpsData(0, data + 3);
          }
       }
       //else

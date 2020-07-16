@@ -53,27 +53,26 @@
 // interface to the EPG acquisition control module and EPG scan
 void TtxDecode_StartTtxAcq( bool enableScan, uint startPageNo, uint stopPageNo );
 void TtxDecode_StopTtxAcq( void );
-void TtxDecode_InitScan( void );
 void TtxDecode_StartScan( void );
 void TtxDecode_StopScan( void );
 void TtxDecode_GetScanResults( uint *pCni, bool *pNiWait, char *pDispText, uint textMaxLen );
-uint TtxDecode_GetDateTime( sint * pLto );
-bool TtxDecode_GetPageHeader( uchar * pBuf, uint * pPgNum, uint pkgOff );
-bool TtxDecode_GetMagStats( uint * pMagBuf, sint * pPgDirection, bool reset );
+uint TtxDecode_GetDateTime( uint bufIdx, sint * pLto );
+bool TtxDecode_GetPageHeader( uint bufIdx, uchar * pBuf, uint * pPgNum, uint pkgOff );
+bool TtxDecode_GetMagStats( uint bufIdx, uint * pMagBuf, sint * pPgDirection, bool reset );
 bool TtxDecode_CheckForPackets( bool * pStopped );
 #ifdef __BTDRV_H
-const VBI_LINE * TtxDecode_GetPacket( uint pkgOff );
+const VBI_LINE * TtxDecode_GetPacket( uint bufIdx, uint pkgOff );
 void TtxDecoder_ReleasePackets( void );
-bool TtxDecode_GetCniAndPil( uint * pCni, uint * pPil, CNI_TYPE * pCniType,
+bool TtxDecode_GetCniAndPil( uint bufIdx, uint * pCni, uint * pPil, CNI_TYPE * pCniType,
                              uint pCniInd[3], uint pPilInd[3],
                              volatile EPGACQ_BUF * pThisVbiBuf );
-void TtxDecode_GetStatistics( TTX_DEC_STATS * pStats, time_t * pStatsStart );
-void TtxDecode_NotifyChannelChange( volatile EPGACQ_BUF * pThisVbiBuf );
+void TtxDecode_GetStatistics( uint bufIdx, TTX_DEC_STATS * pStats, time_t * pStatsStart );
+void TtxDecode_NotifyChannelChange( uint bufIdx, volatile EPGACQ_BUF * pThisVbiBuf );
 #endif
 
 // interface to the teletext packet decoder
-void TtxDecode_AddPacket( const uchar * data, uint line );
-void TtxDecode_AddVpsData( const uchar * data );
-bool TtxDecode_NewVbiFrame( uint frameSeqNo );
+void TtxDecode_AddPacket( uint bufIdx, const uchar * data, uint line );
+void TtxDecode_AddVpsData( uint bufIdx, const uchar * data );
+bool TtxDecode_NewVbiFrame( uint bufIdx, uint frameSeqNo );
 
 #endif  // __TTXDECODE_H

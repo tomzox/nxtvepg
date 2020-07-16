@@ -189,7 +189,7 @@ uint EpgScan_EvHandler( void )
       }
       else if (scanCtl.state == SCAN_STATE_WAIT_SIGNAL)
       {  // skip this channel if there's no stable signal
-         TtxDecode_GetStatistics(&ttxStats, &ttxStart);
+         TtxDecode_GetStatistics(0, &ttxStats, &ttxStart);
          if ( scanCtl.doSlow || scanCtl.useXawtv ||
               BtDriver_IsVideoPresent() || (ttxStats.ttxPkgCount > 0) )
          {
@@ -279,6 +279,7 @@ uint EpgScan_EvHandler( void )
          {
             if ( BtDriver_TuneChannel(scanCtl.inputSrc, &freq, TRUE, &isTuner) )
             {
+               BtDriver_TuneDvbPid(&freq.ttxPid, 1);  // TODO concurrency
                TtxDecode_StartScan();
 
                dprintf1("RESET channel %d\n", scanCtl.channel);
@@ -407,6 +408,7 @@ EPGSCAN_START_RESULT EpgScan_Start( int inputSource, bool doSlow, bool useXawtv,
          {
             if (isTuner)
             {
+               BtDriver_TuneDvbPid(&freq.ttxPid, 1);  // TODO concurrency
                TtxDecode_StartScan();
 
                dprintf1("RESET channel %d\n", scanCtl.channel);

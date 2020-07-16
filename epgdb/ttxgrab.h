@@ -43,12 +43,12 @@ typedef struct
 #ifdef USE_TTX_GRABBER
 bool TtxGrab_Start( uint startPage, uint stopPage, bool enableOutput );
 void TtxGrab_Stop( void );
-bool TtxGrab_ProcessPackets( void );
-bool TtxGrab_CheckSlicerQuality( void );
-void TtxGrab_GetStatistics( TTX_GRAB_STATS * pStats );
-void TtxGrab_PostProcess( const char * pName, bool reset );
-bool TtxGrab_CheckPostProcess( char ** ppXmlName );
-void TtxGrab_GetPageStats( bool * pInRange, bool * pRangeDone, bool * pSourceLock, uint * pPredictDelay );
+bool TtxGrab_ProcessPackets( uint bufIdx );
+bool TtxGrab_CheckSlicerQuality( uint bufIdx );
+void TtxGrab_GetStatistics( uint bufIdx, TTX_GRAB_STATS * pStats );
+void TtxGrab_PostProcess( uint bufIdx, const char * pName, bool reset );
+bool TtxGrab_CheckPostProcess( uint bufIdx );
+void TtxGrab_GetPageStats( uint bufIdx, bool * pInRange, bool * pRangeDone, bool * pSourceLock, uint * pPredictDelay );
 
 void TtxGrab_Init( void );
 void TtxGrab_Exit( void );

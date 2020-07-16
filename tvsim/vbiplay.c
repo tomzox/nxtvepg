@@ -163,18 +163,18 @@ static void PlaybackVbi( int fdTtxFile )
       EnterCriticalSection (&m_cCrit);
       if (pVbiBuf != NULL)
       {
-         if (pVbiBuf->chanChangeCnf != pVbiBuf->chanChangeReq)
+         if (pVbiBuf->buf[0].chanChangeCnf != pVbiBuf->buf[0].chanChangeReq)
          {
-            pVbiBuf->chanChangeCnf = pVbiBuf->chanChangeReq;
-            pVbiBuf->reader_idx    = 0;
-            pVbiBuf->writer_idx    = 0;
-            memset((void *) &pVbiBuf->ttxStats, 0, sizeof(pVbiBuf->ttxStats));
+            pVbiBuf->buf[0].chanChangeCnf = pVbiBuf->buf[0].chanChangeReq;
+            pVbiBuf->buf[0].reader_idx    = 0;
+            pVbiBuf->buf[0].writer_idx    = 0;
+            memset((void *) &pVbiBuf->buf[0].ttxStats, 0, sizeof(pVbiBuf->buf[0].ttxStats));
          }
 
          if ( (pVbiBuf->ttxEnabled) &&
-              (pVbiBuf->reader_idx != ((pVbiBuf->writer_idx + 1) % TTXACQ_BUF_COUNT)) )
+              (pVbiBuf->buf[0].reader_idx != ((pVbiBuf->buf[0].writer_idx + 1) % TTXACQ_BUF_COUNT)) )
          {
-            vbl = (VBI_LINE *) &pVbiBuf->line[pVbiBuf->writer_idx];
+            vbl = (VBI_LINE *) &pVbiBuf->buf[0].line[pVbiBuf->buf[0].writer_idx];
 
             rstat = read(fdTtxFile, vbl, sizeof(VBI_LINE));
             if ((rstat < 0) || (rstat < sizeof(VBI_LINE)))
@@ -182,18 +182,18 @@ static void PlaybackVbi( int fdTtxFile )
                break;
             }
 
-            pVbiBuf->writer_idx = (pVbiBuf->writer_idx + 1) % TTXACQ_BUF_COUNT;
-            pVbiBuf->ttxStats.ttxPkgCount  += 1;
-            pVbiBuf->ttxStats.ttxPkgGrab  += 1;
+            pVbiBuf->buf[0].writer_idx = (pVbiBuf->buf[0].writer_idx + 1) % TTXACQ_BUF_COUNT;
+            pVbiBuf->buf[0].ttxStats.ttxPkgCount  += 1;
+            pVbiBuf->buf[0].ttxStats.ttxPkgGrab  += 1;
 
             if (vbl->pkgno == 0)
             {
                VBI_LINE * pHead;
-               pVbiBuf->ttxStats.ttxPagGrab  += 1;
+               pVbiBuf->buf[0].ttxStats.ttxPagGrab  += 1;
 
-               pVbiBuf->ttxHeader.write_ind += 1;
-               pVbiBuf->ttxHeader.write_idx = (pVbiBuf->ttxHeader.write_idx + 1) % EPGACQ_ROLL_HEAD_COUNT;
-               pHead = (VBI_LINE*) pVbiBuf->ttxHeader.ring_buf + pVbiBuf->ttxHeader.write_idx;
+               pVbiBuf->buf[0].ttxHeader.write_ind += 1;
+               pVbiBuf->buf[0].ttxHeader.write_idx = (pVbiBuf->buf[0].ttxHeader.write_idx + 1) % EPGACQ_ROLL_HEAD_COUNT;
+               pHead = (VBI_LINE*) pVbiBuf->buf[0].ttxHeader.ring_buf + pVbiBuf->buf[0].ttxHeader.write_idx;
                memcpy((char *) pHead->data, vbl->data, sizeof(pHead->data));
                pHead->pageno = vbl->pageno;
                pHead->ctrl_lo = vbl->ctrl_lo;

@@ -215,7 +215,7 @@ bool EpgAcqCtl_GetAcqStats( EPG_ACQ_STATS * pAcqStats )
          pAcqStats->lastStatsUpdate = time(NULL);
 
          // retrieve additional data from TTX packet decoder
-         TtxDecode_GetStatistics(&pAcqStats->ttx_dec, &ttx_start_t);
+         TtxDecode_GetStatistics(0, &pAcqStats->ttx_dec, &ttx_start_t);
          pAcqStats->ttx_duration = pAcqStats->lastStatsUpdate - ttx_start_t;
 
          result = TRUE;
@@ -303,7 +303,7 @@ bool EpgAcqCtl_GetVpsPdc( EPG_ACQ_VPS_PDC * pVpsPdc, VPSPDC_REQ_ID clientId, boo
             }
             // poll for new VPS/PDC data
             // if there are results which have not been given yet to the client, return them
-            if ( TtxDecode_GetCniAndPil(&newCni, &newPil, &cniType,
+            if ( TtxDecode_GetCniAndPil(0, &newCni, &newPil, &cniType,
                                         acqCtl.acqCniInd[clientId], acqCtl.acqPilInd[clientId],
                                         NULL) )
             {
@@ -807,7 +807,7 @@ bool EpgAcqCtl_ProcessVps( void )
    if ( (acqCtl.acqEnabled) &&
         (acqCtl.mode != ACQMODE_NETWORK) )
    {
-      if ( TtxDecode_GetCniAndPil(&newCni, &newPil, &cniType,
+      if ( TtxDecode_GetCniAndPil(0, &newCni, &newPil, &cniType,
                                   acqCtl.acqCniInd[VPSPDC_REQ_POLL],
                                   acqCtl.acqPilInd[VPSPDC_REQ_POLL], NULL) )
       {

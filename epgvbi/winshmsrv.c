@@ -185,7 +185,7 @@ bool WintvSharedMem_GetCniAndPil( uint * pCni, uint * pPil )
 
    if ( (pTvShm != NULL) && (pTvShm->tvAppAlive) )
    {
-      result = TtxDecode_GetCniAndPil(pCni, pPil, &type,
+      result = TtxDecode_GetCniAndPil(0, pCni, pPil, &type,
                                       shmTvCache.vpsCniInd, shmTvCache.vpsPilInd,
                                       &pTvShm->vbiBuf);
       if (result)
@@ -611,7 +611,7 @@ void WintvSharedMem_HandleTvCmd( void )
                pWinShmSrvCb->pCbStationSelected();
 
             // reset VPS/PDC decoder
-            TtxDecode_NotifyChannelChange(&pTvShm->vbiBuf);
+            TtxDecode_NotifyChannelChange(0, &pTvShm->vbiBuf);
          }
 
          // check for EPG query

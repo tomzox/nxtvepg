@@ -1597,6 +1597,14 @@ bool BtDriver_TuneChannel( int inputIdx, const EPGACQ_TUNER_PAR * pFreqPar, bool
    return result;
 }
 
+// ---------------------------------------------------------------------------
+// Configure DVB demux PID
+// - dummy interface - DVB is currently not supported for Windows
+//
+void BtDriver_TuneDvbPid( const int * pidList, uint pidCount )
+{
+}
+
 // ----------------------------------------------------------------------------
 // Get the current tuner frequency
 //

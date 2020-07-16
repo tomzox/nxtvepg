@@ -110,14 +110,11 @@
    while ((__result == -1L) && (errno == EINTR) && (acqShouldExit == FALSE)); __result; })
 #endif
 
-#if !defined (__NetBSD__) && !defined (__FreeBSD__)
-# define BASE_VIDIOCPRIVATE      192
-# define BTTV_VERSION            _IOR('v' , BASE_VIDIOCPRIVATE+6, int)
-# define BTTV_VBISIZE            _IOR('v' , BASE_VIDIOCPRIVATE+8, int)
-#else
+#if defined(__NetBSD__) || defined(__FreeBSD__)
 # define MAX_CARDS    4            // max number of supported cards
 # define MAX_INPUTS   4            // max number of supported inputs
 #endif
+
 #define PIDFILENAME   "/tmp/.vbi%u.pid"
 
 #define VBI_DEFAULT_LINES 16
@@ -146,11 +143,9 @@ static pthread_mutex_t  vbi_start_mutex;
 // vars used in the acq slave process
 static bool acqShouldExit;
 static int vbiCardIndex;
-static int vbiDvbPid;
-static int vbi_fdin;
 static int bufLineSize;
 static int bufLines;
-static uchar *rawbuf = NULL;
+static uint vbiInCount;
 static char *pSysErrorText = NULL;
 
 // vars used in the control process
@@ -164,17 +159,22 @@ static int vbiInputIndex;
 static unsigned char *buffer;
 #endif //__NetBSD__ || __FreeBSD__
 
-
-static vbi_raw_decoder   zvbi_rd;
-static vbi_dvb_demux   * zvbi_demux;
-static int64_t           zvbiLastTimestamp;
-static ulong             zvbiLastFrameNo;
+static struct
+{
+   int               dvbPid;
+   int               fd;
+   uchar           * rawbuf;
+   vbi_raw_decoder   zvbiRawDec;
+   vbi_dvb_demux   * zvbiDemux;
+   int64_t           zvbiLastTimestamp;
+   ulong             zvbiLastFrameNo;
+} vbiIn[MAX_VBI_DVB_STREAMS];
 
 
 // function forward declarations
 int BtDriver_StartCapture(void);
 static void * BtDriver_Main( void * foo );
-static void BtDriver_OpenVbiBuf( void );
+static void BtDriver_OpenVbiBuf( uint bufIdx );
 
 // ---------------------------------------------------------------------------
 // Get name of the specified device type
@@ -464,11 +464,11 @@ void BtDriver_SetChannelProfile( VBI_CHANNEL_PRIO_TYPE prio )
 // ---------------------------------------------------------------------------
 // Configure the PES PID for DVB
 //
-static bool BtDriver_SetDvbPid(int pid)
+static bool BtDriver_SetDvbPid(uint bufIdx, int pid)
 {
    bool result = FALSE;
 
-   if (vbi_fdin != -1)
+   if (vbiIn[bufIdx].fd != -1)
    {
       struct dmx_pes_filter_params filter;
       memset(&filter, 0, sizeof(filter));
@@ -479,13 +479,13 @@ static bool BtDriver_SetDvbPid(int pid)
       filter.pes_type     = DMX_PES_OTHER;
       filter.flags        = DMX_IMMEDIATE_START;
 
-      if (IOCTL(vbi_fdin, DMX_SET_PES_FILTER, &filter) != -1)
+      if (IOCTL(vbiIn[bufIdx].fd, DMX_SET_PES_FILTER, &filter) != -1)
       {
-         dprintf2("BtDriver-SetDvbPid: fd:%d demux DVB PID:%d\n", vbi_fdin, pid);
+         dprintf3("BtDriver-SetDvbPid[%d]: fd:%d demux DVB PID:%d\n", bufIdx, vbiIn[bufIdx].fd, pid);
          result = TRUE;
       }
       else
-         debug2("BtDriver-SetDvbPid: failed to set DVB PID %d: %s", pid, strerror(errno));
+         debug3("BtDriver-SetDvbPid[%d]: failed to set DVB PID %d: %s", bufIdx, pid, strerror(errno));
    }
    return result;
 }
@@ -493,14 +493,14 @@ static bool BtDriver_SetDvbPid(int pid)
 // ---------------------------------------------------------------------------
 // Open the VBI device
 //
-static void BtDriver_OpenVbi( void )
+static void BtDriver_OpenVbi( uint bufIdx )
 {
    char * pDevName;
    char tmpName[DEV_MAX_NAME_LEN];
    FILE *fp;
 
    vbiCardIndex = pVbiBuf->cardIndex;
-   vbiDvbPid = pVbiBuf->cardIsDvb ? pVbiBuf->dvbPid : -1;
+   vbiIn[bufIdx].dvbPid = pVbiBuf->cardIsDvb ? pVbiBuf->dvbPid[bufIdx] : -1;
 
    #if defined(__NetBSD__) || defined(__FreeBSD__)
    // the bktr driver on NetBSD requires to start video capture for VBI to work
@@ -510,40 +510,40 @@ static void BtDriver_OpenVbi( void )
    if (BtDriver_StartCapture())
    #endif
    {
-      pDevName = BtDriver_GetDevicePath(DEV_TYPE_VBI, vbiCardIndex, (vbiDvbPid != -1));
-      if (vbiDvbPid != -1)
+      pDevName = BtDriver_GetDevicePath(DEV_TYPE_VBI, vbiCardIndex, (vbiIn[bufIdx].dvbPid != -1));
+      if (vbiIn[bufIdx].dvbPid != -1)
       {
-         zvbiLastTimestamp = 0.0;
-         zvbiLastFrameNo = 0;
+         vbiIn[bufIdx].zvbiLastTimestamp = 0.0;
+         vbiIn[bufIdx].zvbiLastFrameNo = 0;
 
          // read non-blocking, as number/size of packets per frame may vary
-         vbi_fdin = open(pDevName, O_RDONLY | O_NONBLOCK);
-         if (vbi_fdin != -1)
+         vbiIn[bufIdx].fd = open(pDevName, O_RDONLY | O_NONBLOCK);
+         if (vbiIn[bufIdx].fd != -1)
          {
-            dprintf2("BtDriver-OpenVbi: opened %s fd: %d\n", pDevName, vbi_fdin);
-            if (BtDriver_SetDvbPid(vbiDvbPid) == FALSE)
+            dprintf3("BtDriver-OpenVbi[%d]: opened %s fd: %d\n", bufIdx, pDevName, vbiIn[bufIdx].fd);
+            if (BtDriver_SetDvbPid(bufIdx, vbiIn[bufIdx].dvbPid) == FALSE)
             {
                int bak_errno = errno;
-               close(vbi_fdin);
-               vbi_fdin = -1;
+               close(vbiIn[bufIdx].fd);
+               vbiIn[bufIdx].fd = -1;
                errno = bak_errno;
             }
          }
       }
       else  // V4L2
       {
-         vbi_fdin = open(pDevName, O_RDONLY);
-         if (vbi_fdin != -1)
+         vbiIn[bufIdx].fd = open(pDevName, O_RDONLY);
+         if (vbiIn[bufIdx].fd != -1)
          {
             struct v4l2_capability  vcap;
             memset(&vcap, 0, sizeof(vcap));
-            if (IOCTL(vbi_fdin, VIDIOC_QUERYCAP, &vcap) != -1)
+            if (IOCTL(vbiIn[bufIdx].fd, VIDIOC_QUERYCAP, &vcap) != -1)
             {  // this is a v4l2 device
 #ifdef VIDIOC_S_PRIORITY
                // set device user priority to "background" -> channel swtiches will fail while
                // higher-priority users (e.g. an interactive TV app) have opened the device
                enum v4l2_priority prio = V4L2_PRIORITY_BACKGROUND;
-               if (IOCTL(vbi_fdin, VIDIOC_S_PRIORITY, &prio) != 0)
+               if (IOCTL(vbiIn[bufIdx].fd, VIDIOC_S_PRIORITY, &prio) != 0)
                   debug4("ioctl VIDIOC_S_PRIORITY=%d (background) failed on %s: %d, %s", V4L2_PRIORITY_BACKGROUND, pDevName, errno, strerror(errno));
 #endif  // VIDIOC_S_PRIORITY
 
@@ -551,19 +551,19 @@ static void BtDriver_OpenVbi( void )
                if ((vcap.capabilities & V4L2_CAP_VBI_CAPTURE) == 0)
                {
                   debug2("%s (%s) does not support vbi capturing - stop acquisition.", pDevName, vcap.card);
-                  close(vbi_fdin);
+                  close(vbiIn[bufIdx].fd);
                   errno = ENOSYS;
-                  vbi_fdin = -1;
+                  vbiIn[bufIdx].fd = -1;
                }
             }
          }
       }
    }
-   if (vbi_fdin == -1)
+   if (vbiIn[bufIdx].fd == -1)
    {
       pVbiBuf->failureErrno = errno;
       pVbiBuf->hasFailed = TRUE;
-      debug2("BtDriver-OpenVbi: failed with errno %d (%s)", pVbiBuf->failureErrno, strerror(pVbiBuf->failureErrno));
+      debug3("BtDriver-OpenVbi[%d]: failed with errno %d (%s)", bufIdx, pVbiBuf->failureErrno, strerror(pVbiBuf->failureErrno));
    }
    else
    {  // open successful -> write pid in file
@@ -575,39 +575,39 @@ static void BtDriver_OpenVbi( void )
          fclose(fp);
       }
       // allocate memory for the VBI data buffer
-      BtDriver_OpenVbiBuf();
+      BtDriver_OpenVbiBuf(bufIdx);
    }
 }
 
 // ---------------------------------------------------------------------------
 // Close the VBI device
 //
-static void BtDriver_CloseVbi( bool keepVideoOpen )
+static void BtDriver_CloseVbi( uint bufIdx, bool keepVideoOpen )
 {
    char tmpName[DEV_MAX_NAME_LEN];
 
-   if (vbi_fdin != -1)
+   if (vbiIn[bufIdx].fd != -1)
    {
-      dprintf1("BtDriver-CloseVbi: closing VBI fd %d\n", vbi_fdin);
+      dprintf2("BtDriver-CloseVbi[%d]: closing VBI fd %d\n", bufIdx, vbiIn[bufIdx].fd);
 
       sprintf(tmpName, PIDFILENAME, vbiCardIndex);
       unlink(tmpName);
 
       // free slicer buffer and pattern array
       ZvbiSliceAndProcess(NULL, NULL, 0);
-      vbi_raw_decoder_destroy(&zvbi_rd);
+      vbi_raw_decoder_destroy(&vbiIn[bufIdx].zvbiRawDec);
 
-      close(vbi_fdin);
-      vbi_fdin = -1;
-      xfree(rawbuf);
-      rawbuf = NULL;
-      if (zvbi_demux != NULL)
-         vbi_dvb_demux_delete(zvbi_demux);
-      zvbi_demux = NULL;
+      close(vbiIn[bufIdx].fd);
+      vbiIn[bufIdx].fd = -1;
+      xfree(vbiIn[bufIdx].rawbuf);
+      vbiIn[bufIdx].rawbuf = NULL;
+      if (vbiIn[bufIdx].zvbiDemux != NULL)
+         vbi_dvb_demux_delete(vbiIn[bufIdx].zvbiDemux);
+      vbiIn[bufIdx].zvbiDemux = NULL;
 
       if ((video_fd != -1) && !keepVideoOpen)
       {
-         dprintf1("BtDriver-CloseVbi: closing video fd %d\n", video_fd);
+         dprintf2("BtDriver-CloseVbi[%d]: closing video fd %d\n", bufIdx, video_fd);
          close(video_fd);
          video_fd = -1;
 #if defined(__NetBSD__) || defined(__FreeBSD__)
@@ -858,12 +858,6 @@ bool BtDriver_TuneChannel( int inputIdx, const EPGACQ_TUNER_PAR * pFreqPar, bool
       }
    }
 
-   // setting PID will succeed even if tuning failed
-   if (pVbiBuf->cardIsDvb && (pFreqPar->norm == EPGACQ_TUNER_NORM_DVB))
-   {
-      BtDriver_TuneDvbPid(pFreqPar->ttxPid);
-   }
-
 #else // __NetBSD__ || __FreeBSD__
    char * pDevName;
    ulong lfreq;
@@ -1018,7 +1012,7 @@ bool BtDriver_QueryChannel( EPGACQ_TUNER_PAR * pFreqPar, uint * pInput, bool * p
                      if (v4l2_freq.type == V4L2_TUNER_ANALOG_TV)
                      {
                         // get TV norm set in the tuner (channel #0)
-                        if (IOCTL(vbi_fdin, VIDIOC_G_STD, &vstd2) == 0)
+                        if (IOCTL(vbiIn[0].fd, VIDIOC_G_STD, &vstd2) == 0)
                         {
                            if (vstd2 & V4L2_STD_PAL)
                            {
@@ -1123,13 +1117,19 @@ bool BtDriver_IsVideoPresent( void )
 // - can be set independently even if tuning failed
 // - actual configuration is executed within the slave thread
 //
-void BtDriver_TuneDvbPid( int pid )
+void BtDriver_TuneDvbPid( const int * pidList, uint pidCount )
 {
-   dprintf1("BtDriver-TuneDvbPid: pid:%d\n", pid);
-   pVbiBuf->dvbPid = pid;
+   dprintf2("BtDriver-TuneDvbPid: pid:%d count:%d\n", pidList[0], pidCount);
+   assert((pidCount > 0) && (pidCount <= MAX_VBI_DVB_STREAMS));
+
+   for (uint idx = 0; idx < pidCount; ++idx)
+   {
+      pVbiBuf->dvbPid[idx] = pidList[idx];
+   }
+   pVbiBuf->dvbPidCnt = pidCount;
 
    // interrupt the slave thread if blocked in read()
-   if (pVbiBuf->vbiSlaveRunning)
+   if (pVbiBuf->vbiSlaveRunning && pVbiBuf->cardIsDvb)
    {
       if (pthread_kill(vbi_thread_id, SIGUSR1) != 0)
          debug2("BtDriver-TuneDvbPid: failed to notify slave thread (%d) %s\n", errno, strerror(errno));
@@ -1387,7 +1387,7 @@ static void BtDriver_SignalWakeUp( int sigval )
 #if defined(__NetBSD__) || defined(__FreeBSD__)
 static void BtDriver_SignalAlarm( int sigval )
 {
-  BtDriver_CloseVbi ();
+  BtDriver_CloseVbi(0);
   signal(sigval, BtDriver_SignalAlarm);
 }
 #endif  //__NetBSD__ || __FreeBSD__
@@ -1502,22 +1502,21 @@ void BtDriver_Exit( void )
 //   for each frame; each read on the vbi device should request all the lines
 //   of one frame, else the rest will be overwritten by the next frame
 //
-static void BtDriver_OpenVbiBuf( void )
+static void BtDriver_OpenVbiBuf( uint bufIdx )
 {
 #if !defined (__NetBSD__) && !defined (__FreeBSD__)
-   long bufSize;
    struct v4l2_format vfmt2;
    struct v4l2_format vfmt2_copy;
 #endif
 
-   if (vbiDvbPid != -1)
+   if (vbiIn[bufIdx].dvbPid != -1)
    {
       bufLines            = 1;
       bufLineSize         = 8*1024;
 
-      if (zvbi_demux == NULL)
+      if (vbiIn[bufIdx].zvbiDemux == NULL)
       {
-         zvbi_demux = vbi_dvb_pes_demux_new();
+         vbiIn[bufIdx].zvbiDemux = vbi_dvb_pes_demux_new();
       }
    }
    else
@@ -1529,25 +1528,25 @@ static void BtDriver_OpenVbiBuf( void )
       VbiDecodeSetSamplingRate(0, 0);
 
       // initialize zvbi slicer
-      memset(&zvbi_rd, 0, sizeof(zvbi_rd));
-      zvbi_rd.sampling_rate    = 35468950L;
-      zvbi_rd.offset           = (int)(9.2e-6 * 35468950L);
-      zvbi_rd.bytes_per_line   = VBI_DEFAULT_BPL;
-      zvbi_rd.start[0]         = 7;
-      zvbi_rd.count[0]         = VBI_DEFAULT_LINES;
-      zvbi_rd.start[1]         = 319;
-      zvbi_rd.count[1]         = VBI_DEFAULT_LINES;
-      zvbi_rd.interlaced       = FALSE;
-      zvbi_rd.synchronous      = TRUE;
-      zvbi_rd.sampling_format  = VBI_PIXFMT_YUV420;
-      zvbi_rd.scanning         = 625;
+      memset(&vbiIn[bufIdx].zvbiRawDec, 0, sizeof(vbiIn[bufIdx].zvbiRawDec));
+      vbiIn[bufIdx].zvbiRawDec.sampling_rate    = 35468950L;
+      vbiIn[bufIdx].zvbiRawDec.offset           = (int)(9.2e-6 * 35468950L);
+      vbiIn[bufIdx].zvbiRawDec.bytes_per_line   = VBI_DEFAULT_BPL;
+      vbiIn[bufIdx].zvbiRawDec.start[0]         = 7;
+      vbiIn[bufIdx].zvbiRawDec.count[0]         = VBI_DEFAULT_LINES;
+      vbiIn[bufIdx].zvbiRawDec.start[1]         = 319;
+      vbiIn[bufIdx].zvbiRawDec.count[1]         = VBI_DEFAULT_LINES;
+      vbiIn[bufIdx].zvbiRawDec.interlaced       = FALSE;
+      vbiIn[bufIdx].zvbiRawDec.synchronous      = TRUE;
+      vbiIn[bufIdx].zvbiRawDec.sampling_format  = VBI_PIXFMT_YUV420;
+      vbiIn[bufIdx].zvbiRawDec.scanning         = 625;
 
 #if !defined (__NetBSD__) && !defined (__FreeBSD__)
 
       memset(&vfmt2, 0, sizeof(vfmt2));
       vfmt2.type = V4L2_BUF_TYPE_VBI_CAPTURE;
 
-      if (IOCTL(vbi_fdin, VIDIOC_G_FMT, &vfmt2) == 0)
+      if (IOCTL(vbiIn[bufIdx].fd, VIDIOC_G_FMT, &vfmt2) == 0)
       {
          vfmt2_copy = vfmt2;
          // VBI format query succeeded -> now try to alter acc. to our preferences
@@ -1558,7 +1557,7 @@ static void BtDriver_OpenVbiBuf( void )
          vfmt2.fmt.vbi.count[0]		= 17;
          vfmt2.fmt.vbi.start[1]		= 319;
          vfmt2.fmt.vbi.count[1]		= 17;
-         if (IOCTL(vbi_fdin, VIDIOC_S_FMT, &vfmt2) != 0)
+         if (IOCTL(vbiIn[bufIdx].fd, VIDIOC_S_FMT, &vfmt2) != 0)
          {
             debug2("BtDriver-OpenVbiBuf: ioctl(VIDIOC_S_FMT) failed with errno %d: %s", errno, strerror(errno));
             vfmt2 = vfmt2_copy;
@@ -1575,45 +1574,24 @@ static void BtDriver_OpenVbiBuf( void )
 
          VbiDecodeSetSamplingRate(vfmt2.fmt.vbi.sampling_rate, vfmt2.fmt.vbi.start[0]);
 
-         zvbi_rd.sampling_rate     = vfmt2.fmt.vbi.sampling_rate;
-         zvbi_rd.bytes_per_line    = vfmt2.fmt.vbi.samples_per_line;
-         zvbi_rd.offset            = vfmt2.fmt.vbi.offset;
-         zvbi_rd.start[0]          = vfmt2.fmt.vbi.start[0];
-         zvbi_rd.count[0]          = vfmt2.fmt.vbi.count[0];
-         zvbi_rd.start[1]          = vfmt2.fmt.vbi.start[1];
-         zvbi_rd.count[1]          = vfmt2.fmt.vbi.count[1];
-         zvbi_rd.interlaced        = !!(vfmt2.fmt.vbi.flags & V4L2_VBI_INTERLACED);
-         zvbi_rd.synchronous       = !(vfmt2.fmt.vbi.flags & V4L2_VBI_UNSYNC);
+         vbiIn[bufIdx].zvbiRawDec.sampling_rate     = vfmt2.fmt.vbi.sampling_rate;
+         vbiIn[bufIdx].zvbiRawDec.bytes_per_line    = vfmt2.fmt.vbi.samples_per_line;
+         vbiIn[bufIdx].zvbiRawDec.offset            = vfmt2.fmt.vbi.offset;
+         vbiIn[bufIdx].zvbiRawDec.start[0]          = vfmt2.fmt.vbi.start[0];
+         vbiIn[bufIdx].zvbiRawDec.count[0]          = vfmt2.fmt.vbi.count[0];
+         vbiIn[bufIdx].zvbiRawDec.start[1]          = vfmt2.fmt.vbi.start[1];
+         vbiIn[bufIdx].zvbiRawDec.count[1]          = vfmt2.fmt.vbi.count[1];
+         vbiIn[bufIdx].zvbiRawDec.interlaced        = !!(vfmt2.fmt.vbi.flags & V4L2_VBI_INTERLACED);
+         vbiIn[bufIdx].zvbiRawDec.synchronous       = !(vfmt2.fmt.vbi.flags & V4L2_VBI_UNSYNC);
       }
       else
       {
-         ifdebug2(errno != EINVAL, "ioctl VIDIOCGVBIFMT error %d: %s", errno, strerror(errno));
-         dprintf1("BTTV driver version 0x%X\n", IOCTL(vbi_fdin, BTTV_VERSION, NULL));
-
-         bufSize = IOCTL(vbi_fdin, BTTV_VBISIZE, NULL);
-         if (bufSize == -1)
-         {
-            perror("ioctl BTTV_VBISIZE");
-         }
-         else if ( (bufSize < VBI_DEFAULT_BPL) ||
-                   (bufSize > VBI_MAX_LINESIZE * VBI_MAX_LINENUM) ||
-                   ((bufSize % VBI_DEFAULT_BPL) != 0) )
-         {
-            fprintf(stderr, "BTTV_VBISIZE: illegal buffer size %ld\n", bufSize);
-         }
-         else
-         {  // ok
-            bufLines    = bufSize / VBI_DEFAULT_BPL;
-            bufLineSize = VBI_DEFAULT_BPL;
-
-            zvbi_rd.count[0] = (bufSize / VBI_DEFAULT_BPL) >> 1;
-            zvbi_rd.count[1] = (bufSize / VBI_DEFAULT_BPL) - zvbi_rd.count[0];
-         }
+         debug2("ioctl VIDIOCGVBIFMT error %d: %s", errno, strerror(errno));
       }
 #endif  // not NetBSD
 
       // pass parameters to zvbi slicer
-      if (vbi_raw_decoder_add_services(&zvbi_rd, VBI_SLICED_TELETEXT_B | VBI_SLICED_VPS, 0)
+      if (vbi_raw_decoder_add_services(&vbiIn[bufIdx].zvbiRawDec, VBI_SLICED_TELETEXT_B | VBI_SLICED_VPS, 0)
            != (VBI_SLICED_TELETEXT_B | VBI_SLICED_VPS) )
       {
          fprintf(stderr, "Failed to initialize VBI slicer for teletext & VPS\n");
@@ -1622,8 +1600,115 @@ static void BtDriver_OpenVbiBuf( void )
       }
    }
 
-   assert(rawbuf == NULL);
-   rawbuf = xmalloc(bufLines * bufLineSize);
+   assert(vbiIn[bufIdx].rawbuf == NULL);
+   vbiIn[bufIdx].rawbuf = xmalloc(bufLines * bufLineSize);
+}
+
+// ---------------------------------------------------------------------------
+//
+//
+static bool BtDriver_DecodeFrameBuf( uint bufIdx )
+{
+   uchar *pData;
+   uint  line;
+   size_t bufSize;
+   ssize_t stat;
+   bool result = FALSE;
+
+   bufSize = bufLineSize * bufLines;
+   stat = read(vbiIn[bufIdx].fd, vbiIn[bufIdx].rawbuf, bufSize);
+
+   #if defined(__NetBSD__) || defined(__FreeBSD__)
+   alarm(0);
+   #endif
+
+   if (stat > 0)
+   {
+      // DVB demux is opened non-blocking because we do not know packet size per frame;
+      // use select() for waiting until data is available (master sends signals upon events)
+      if (vbiIn[bufIdx].dvbPid != -1)
+      {
+         vbi_sliced sliced[128];
+         const uint8_t * restPtr = (uint8_t*) vbiIn[bufIdx].rawbuf;
+         unsigned int restBuf = stat;
+         int64_t pts;
+
+         while (restBuf > 0)
+         {
+            unsigned lineCount = vbi_dvb_demux_cor(vbiIn[bufIdx].zvbiDemux,
+                                                   sliced, sizeof(sliced) / sizeof(sliced[bufIdx]),
+                                                   &pts,
+                                                   &restPtr, &restBuf);
+            if (lineCount > 0)
+            {
+               if (pts > vbiIn[bufIdx].zvbiLastTimestamp + (90000 * 1.5 * 1 / 25))   // PTS resolution 90kHz
+                  vbiIn[bufIdx].zvbiLastFrameNo += 2;
+               else
+                  vbiIn[bufIdx].zvbiLastFrameNo += 1;
+               vbiIn[bufIdx].zvbiLastTimestamp = pts;
+               TtxDecode_NewVbiFrame(bufIdx, vbiIn[bufIdx].zvbiLastFrameNo);
+
+               for (line=0; line < lineCount; line++)
+               {
+                  if ((sliced[line].id & VBI_SLICED_TELETEXT_B) != 0)
+                  {
+                     TtxDecode_AddPacket(bufIdx, sliced[line].data + 0, sliced[line].line);
+                  }
+                  else if ((sliced[line].id & VBI_SLICED_VPS) != 0)
+                  {
+                     TtxDecode_AddVpsData(bufIdx, sliced[line].data);
+                  }
+                  // else WSS, CAPTION: discard
+               }
+            }
+         }
+         result = TRUE;
+      }
+      else if (stat >= bufLineSize)  // V4L2
+      {
+         if (pVbiBuf->slicerType == VBI_SLICER_TRIVIAL)
+         {
+            #if !defined (__NetBSD__) && !defined (__FreeBSD__)
+            // retrieve frame sequence counter from the end of the buffer
+            VbiDecodeStartNewFrame(*(uint32_t *)(vbiIn[bufIdx].rawbuf + stat - 4));
+            #else
+            VbiDecodeStartNewFrame(0);
+            #endif
+
+            pData = vbiIn[bufIdx].rawbuf;
+            for (line=0; line < (uint)stat/bufLineSize; line++, pData += bufLineSize)
+            {
+               VbiDecodeLine(pData, line, TRUE);
+               //printf("%02d: %08lx\n", line, *((ulong*)pData-4));  // frame counter
+            }
+         }
+         else // if (pVbiBuf->slicerType == VBI_SLICER_ZVBI)
+         {
+            #if !defined (__NetBSD__) && !defined (__FreeBSD__)
+            ZvbiSliceAndProcess(&vbiIn[bufIdx].zvbiRawDec, vbiIn[bufIdx].rawbuf, *(uint32_t *)(vbiIn[bufIdx].rawbuf + stat - 4));
+            #else
+            ZvbiSliceAndProcess(&vbiIn[bufIdx].zvbiRawDec, vbiIn[bufIdx].rawbuf, 0);
+            #endif
+         }
+         result = TRUE;
+      }
+      else if (stat < 0)
+      {
+         if (errno == EBUSY)
+         {  // Linux v4l2 API allows multiple open but only one capturing process
+            debug1("BtDriver-DecodeFrame[%d]: device busy - abort", bufIdx);
+            pVbiBuf->failureErrno = errno;
+            pVbiBuf->hasFailed = TRUE;
+         }
+         else if ((errno != EINTR) && (errno != EAGAIN))
+            debug4("BtDriver-DecodeFrame[%d]: read fd:%d returned %d: %s", bufIdx, vbiIn[bufIdx].fd, errno, strerror(errno));
+      }
+      else if (stat >= 0)
+      {
+         debug3("BtDriver-DecodeFrame[%d]: short read: %ld of %ld", vbiIn[bufIdx].fd, (long)stat, (long)bufSize);
+      }
+   }
+   return result;
 }
 
 // ---------------------------------------------------------------------------
@@ -1631,11 +1716,6 @@ static void BtDriver_OpenVbiBuf( void )
 //
 static void BtDriver_DecodeFrame( void )
 {
-   uchar *pData;
-   uint  line;
-   size_t bufSize;
-   ssize_t stat;
-
    #if defined(__NetBSD__) || defined(__FreeBSD__)
    // wait max. 10 seconds for the read to complete. After this time
    // close /dev/vbi in the signal handler to avoid endless blocking
@@ -1644,112 +1724,39 @@ static void BtDriver_DecodeFrame( void )
 
    // DVB demux is opened non-blocking because we do not know packet size per frame;
    // use select() for waiting until data is available (master sends signals upon events)
-   if (vbiDvbPid != -1)
+   if (vbiIn[0].dvbPid != -1)
    {
+      int max_fd = 0;
       fd_set ins;
       FD_ZERO(&ins);
-      FD_SET(vbi_fdin, &ins);
-
-      int sel = select(vbi_fdin + 1, &ins, NULL, NULL, NULL);  // infinitly
-      if (sel <= 0)
-         return;
-   }
-
-   bufSize = bufLineSize * bufLines;
-   stat = read(vbi_fdin, rawbuf, bufSize);
-
-   #if defined(__NetBSD__) || defined(__FreeBSD__)
-   alarm(0);
-   #endif
-
-   if ((vbiDvbPid != -1) && (stat > 0))
-   {
-      vbi_sliced sliced[128];
-      const uint8_t * restPtr = (uint8_t*) rawbuf;
-      unsigned int restBuf = stat;
-      int64_t pts;
-
-      while (restBuf > 0)
+      for (uint bufIdx = 0; bufIdx < vbiInCount; ++bufIdx)
       {
-         unsigned lineCount = vbi_dvb_demux_cor(zvbi_demux,
-                                                sliced, sizeof(sliced) / sizeof(sliced[0]),
-                                                &pts,
-                                                &restPtr, &restBuf);
-         if (lineCount > 0)
-         {
-            if (pts > zvbiLastTimestamp + (90000 * 1.5 * 1 / 25))   // PTS resolution 90kHz
-               zvbiLastFrameNo += 2;
-            else
-               zvbiLastFrameNo += 1;
-            zvbiLastTimestamp = pts;
-            VbiDecodeStartNewFrame(zvbiLastFrameNo);
+         assert(vbiIn[bufIdx].fd != -1);
+         if (vbiIn[bufIdx].fd > max_fd)
+            max_fd = vbiIn[bufIdx].fd;
+         FD_SET(vbiIn[bufIdx].fd, &ins);
+      }
 
-            for (line=0; line < lineCount; line++)
+      int sel = select(max_fd + 1, &ins, NULL, NULL, NULL);  // infinitly
+      if (sel > 0)
+      {
+         for (uint bufIdx = 0; bufIdx < vbiInCount; ++bufIdx)
+         {
+            if (FD_ISSET(vbiIn[bufIdx].fd, &ins))
             {
-               if ((sliced[line].id & VBI_SLICED_TELETEXT_B) != 0)
-               {
-                  TtxDecode_AddPacket(sliced[line].data + 0, sliced[line].line);
-               }
-               else if ((sliced[line].id & VBI_SLICED_VPS) != 0)
-               {
-                  TtxDecode_AddVpsData(sliced[line].data);
-               }
-               // else WSS, CAPTION: discard
+               if (BtDriver_DecodeFrameBuf(bufIdx) == FALSE)
+                  break;
             }
          }
       }
-   }
-   else if ((vbiDvbPid == -1) && (stat >= bufLineSize))
-   {
-      if (pVbiBuf->slicerType == VBI_SLICER_TRIVIAL)
+      else if (sel < 0)
       {
-         #if !defined (__NetBSD__) && !defined (__FreeBSD__)
-         // retrieve frame sequence counter from the end of the buffer
-         VbiDecodeStartNewFrame(*(uint32_t *)(rawbuf + stat - 4));
-         #else
-         VbiDecodeStartNewFrame(0);
-         #endif
-
-         #ifndef SAA7134_0_2_2
-         pData = rawbuf;
-         for (line=0; line < (uint)stat/bufLineSize; line++, pData += bufLineSize)
-         {
-            VbiDecodeLine(pData, line, TRUE);
-            //printf("%02d: %08lx\n", line, *((ulong*)pData-4));  // frame counter
-         }
-         #else  // SAA7134_0_2_2
-         // workaround for bug in saa7134-0.2.2: the 2nd field of every frame is one buffer late
-         pData = rawbuf + (16 * bufLineSize);
-         for (line=16; line < 32; line++, pData += bufLineSize)
-            VbiDecodeLine(pData, line, TRUE);
-         pData = rawbuf;
-         for (line=0; line < 16; line++, pData += bufLineSize)
-            VbiDecodeLine(pData, line, TRUE);
-         #endif
-      }
-      else // if (pVbiBuf->slicerType == VBI_SLICER_ZVBI)
-      {
-         #if !defined (__NetBSD__) && !defined (__FreeBSD__)
-         ZvbiSliceAndProcess(&zvbi_rd, rawbuf, *(uint32_t *)(rawbuf + stat - 4));
-         #else
-         ZvbiSliceAndProcess(&zvbi_rd, rawbuf, 0);
-         #endif
+         ifdebug2(errno != EINTR, "BtDriver-DecodeFrame: select returned %d: %s", errno, strerror(errno));
       }
    }
-   else if (stat < 0)
+   else  // V4L2
    {
-      if (errno == EBUSY)
-      {  // Linux v4l2 API allows multiple open but only one capturing process
-         debug0("BtDriver-DecodeFrame: device busy - abort");
-         pVbiBuf->failureErrno = errno;
-         pVbiBuf->hasFailed = TRUE;
-      }
-      else if ((errno != EINTR) && (errno != EAGAIN))
-         debug2("BtDriver-DecodeFrame: read returned %d: %s", errno, strerror(errno));
-   }
-   else if (stat >= 0)
-   {
-      debug2("BtDriver-DecodeFrame: short read: %ld of %ld", (long)stat, (long)bufSize);
+      BtDriver_DecodeFrameBuf(0);
    }
 #if DUMP_TTX_PACKETS == ON
    fflush(stdout);
@@ -1876,7 +1883,7 @@ static void * BtDriver_Main( void * foo )
    sigset_t sigmask;
 
    pVbiBuf->vbiSlaveRunning = TRUE;
-   vbi_fdin = -1;
+   vbiIn[0].fd = -1;
    #if defined(__NetBSD__) || defined(__FreeBSD__)
    video_fd = -1;
    #endif
@@ -1892,8 +1899,12 @@ static void * BtDriver_Main( void * foo )
 
    // open the VBI device and inform the master about the result (via the hasFailed flag)
    pthread_mutex_lock(&vbi_start_mutex);
-   if (vbi_fdin == -1)
-      BtDriver_OpenVbi();
+   if (vbiIn[0].fd == -1)
+   {
+      vbiInCount = pVbiBuf->cardIsDvb ? pVbiBuf->dvbPidCnt : 1;
+      for (uint bufIdx = 0; bufIdx < vbiInCount; ++bufIdx)
+         BtDriver_OpenVbi(bufIdx);
+   }
    if (pVbiBuf->hasFailed)
       acqShouldExit = TRUE;
    pthread_cond_signal(&vbi_start_cond);
@@ -1904,21 +1915,27 @@ static void * BtDriver_Main( void * foo )
       if (pVbiBuf->hasFailed == FALSE)
       {
          #if !defined (__NetBSD__) && !defined (__FreeBSD__)
-         if ((vbi_fdin != -1) &&
+         if ((vbiIn[0].fd != -1) &&
              ((vbiCardIndex != pVbiBuf->cardIndex) ||
-              (vbiDvbPid != (pVbiBuf->cardIsDvb ? pVbiBuf->dvbPid : -1))))
+              (vbiInCount != pVbiBuf->dvbPidCnt) ||
+              (vbiIn[0].dvbPid != (pVbiBuf->cardIsDvb ? pVbiBuf->dvbPid[0] : -1))))
          #else
-         if ((vbi_fdin != -1) &&
+         if ((vbiIn[0].fd != -1) &&
              ((vbiCardIndex != pVbiBuf->cardIndex) ||
               (vbiInputIndex != pVbiBuf->inputIndex) ||
-              (vbiDvbPid != (pVbiBuf->cardIsDvb ? pVbiBuf->dvbPid : -1))))
+              (vbiInCount != pVbiBuf->dvbPidCnt) ||
+              (vbiIn[0].dvbPid != (pVbiBuf->cardIsDvb ? pVbiBuf->dvbPid[0] : -1))))
          #endif
          {  // switching to a different device -> close the previous one
-            BtDriver_CloseVbi(vbi_fdin != -1);
+            bool keepVideoOpen = (vbiIn[0].fd != -1);
+            for (uint bufIdx = 0; bufIdx < MAX_VBI_DVB_STREAMS; ++bufIdx)
+               BtDriver_CloseVbi(bufIdx, keepVideoOpen);
          }
-         if (vbi_fdin == -1)
+         if (vbiIn[0].fd == -1)
          {  // acq was switched on -> open device
-            BtDriver_OpenVbi();
+            vbiInCount = pVbiBuf->cardIsDvb ? pVbiBuf->dvbPidCnt : 1;
+            for (uint bufIdx = 0; bufIdx < vbiInCount; ++bufIdx)
+               BtDriver_OpenVbi(bufIdx);
          }
          else
          {  // device is open -> capture the VBI lines of this frame
@@ -1932,7 +1949,8 @@ static void * BtDriver_Main( void * foo )
       }
    }
 
-   BtDriver_CloseVbi(FALSE);
+   for (uint bufIdx = 0; bufIdx < vbiInCount; ++bufIdx)
+      BtDriver_CloseVbi(bufIdx, FALSE);
 
    pVbiBuf->hasFailed = TRUE;
    pVbiBuf->vbiSlaveRunning = FALSE;
@@ -1948,7 +1966,8 @@ static void * BtDriver_Main( void * foo )
 //
 bool BtDriver_Init( void )
 {
-   signal(SIGUSR1, SIG_IGN);
+   struct sigaction sa = { .sa_handler = SIG_IGN };
+   sigaction(SIGUSR1, &sa, NULL);
 
    #if defined(__NetBSD__) || defined(__FreeBSD__)
    // install signal handler to implement read timeout on /dev/vbi
@@ -1961,8 +1980,10 @@ bool BtDriver_Init( void )
    pVbiBuf->vbiSlaveRunning = FALSE;
    pVbiBuf->slicerType = VBI_SLICER_TRIVIAL;
 
-   vbi_fdin = -1;
+   for (uint bufIdx = 0; bufIdx < MAX_VBI_DVB_STREAMS; ++bufIdx)
+      vbiIn[bufIdx].fd = -1;
    video_fd = -1;
+   vbiInCount = 1;
 
    pthread_cond_init(&vbi_start_cond, NULL);
    pthread_mutex_init(&vbi_start_mutex, NULL);
