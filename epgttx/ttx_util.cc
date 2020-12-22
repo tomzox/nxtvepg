@@ -123,12 +123,15 @@ bool str_concat_title(string& title, const string& str2, bool if_cont_only)
             && (   (title[title.length() - del1 - 1] == ':')
                 || (title[title.length() - del1 - 1] == ',')
                 || (title[title.length() - del1 - 1] == '&')
+                || (title[title.length() - del1 - 1] == '+')
                 || (title[title.length() - del1 - 1] == '-') )
             && (p_start != str2.end()) )
    {
       // keep the ':' plus a single whitespace, then append the second string
       // unless there's a hyphen without leading space, then add no blank after
-      if (   (title[title.length() - del1 - 1] == '-')
+      if (   (   (title[title.length() - del1 - 1] == '-')
+              || (title[title.length() - del1 - 1] == '&')
+              || (title[title.length() - del1 - 1] == '+'))
           && (title[title.length() - del1 - 2] != ' '))
         title.erase(title.end() - del1, title.end());
       else
@@ -136,7 +139,20 @@ bool str_concat_title(string& title, const string& str2, bool if_cont_only)
       title.append(p_start, str2.end());
       result = true;
    }
-   else if (!if_cont_only)
+   else if (if_cont_only)
+   {
+      // parentheses left open in first line, closed in next -> allow concatenation
+      string::size_type opp = title.find('(');
+      if (   (opp != string::npos)
+          && (title.find(')', opp + 1) == string::npos)
+          && (str2.find(')') != string::npos))
+      {
+         title.replace(title.end() - del1, title.end(),
+                       p_start, str2.end());
+         result = true;
+      }
+   }
+   else //if (!if_cont_only)
    {
       if (del1 > 0)
          title.erase(title.end() - del1);

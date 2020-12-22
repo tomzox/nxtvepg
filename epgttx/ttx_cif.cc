@@ -42,44 +42,52 @@ using namespace std;
  * This function must be called once during start-up and after each channel
  * change to initialize the database for teletext acquisition.
  */
-void ttx_db_init( void )
+void * ttx_db_create( void )
 {
-   ttx_db.flush();
-   ttx_chn_id.flush();
+   return (void*) (new TTX_DB);
+}
+
+void ttx_db_destroy( void * db )
+{
+   TTX_DB * const ttx_db = (TTX_DB*) db;
+   delete ttx_db;
 }
 
 /**
  * This function is called after capturing a packet 8/30 or VPS and extracting
  * the enclosed CNI (channel identification code.)
  */
-void ttx_db_add_cni(unsigned cni)
+void ttx_db_add_cni(void * db, unsigned cni)
 {
-   ttx_chn_id.add_cni(cni);
+   TTX_DB * const ttx_db = (TTX_DB*) db;
+
+   ttx_db->chn_id.add_cni(cni);
 }
 
 /**
  * This function adds the given teletext packet to the database. The function
  * should be called for each captured packet, filtering is done internally.
  */
-bool ttx_db_add_pkg( int page, int ctrl, int pkgno, const uint8_t * p_data, time_t ts )
+bool ttx_db_add_pkg( void * db, int page, int ctrl, int pkgno, const uint8_t * p_data, time_t ts )
 {
+   TTX_DB * const ttx_db = (TTX_DB*) db;
    static int cur_page = -1;
    static int cur_sub = -1;
 
    if (page < 0x100)
       page += 0x800;
 
-   if (ttx_db.page_acceptable(page))
+   if (ttx_db->page_db.page_acceptable(page))
    {
       if (pkgno == 0)
       {
          cur_page = page;
          cur_sub = ctrl & 0x3F7F;
-         ttx_db.add_page(cur_page, cur_sub, ctrl, p_data, ts);
+         ttx_db->page_db.add_page(cur_page, cur_sub, ctrl, p_data, ts);
       }
       else
       {
-         ttx_db.add_page_data(cur_page, cur_sub, pkgno, p_data);
+         ttx_db->page_db.add_page_data(cur_page, cur_sub, pkgno, p_data);
       }
    }
 }
@@ -89,15 +97,16 @@ bool ttx_db_add_pkg( int page, int ctrl, int pkgno, const uint8_t * p_data, time
  * EPG data from the previously captured teletext packets. The result is written
  * to the given file.
  */
-int ttx_db_parse( int pg_start, int pg_end, int expire_min,
+int ttx_db_parse( void * db, int pg_start, int pg_end, int expire_min,
                   const char * p_xml_in, const char * p_xml_out,
                   const char * p_ch_name, const char * p_ch_id )
 {
+   TTX_DB * const ttx_db = (TTX_DB*) db;
    int result = 0;
 
    // parse and export programme data
    // grab new XML data from teletext
-   vector<OV_PAGE*> ov_pages = ParseAllOvPages(pg_start, pg_end);
+   vector<OV_PAGE*> ov_pages = ParseAllOvPages(&ttx_db->page_db, pg_start, pg_end);
 
    ParseAllContent(ov_pages);
 
@@ -111,7 +120,7 @@ int ttx_db_parse( int pg_start, int pg_end, int expire_min,
    if (!NewSlots.empty()) {
       XMLTV xmltv;
 
-      xmltv.SetChannelName(p_ch_name, p_ch_id);
+      xmltv.SetChannelName(ttx_db, p_ch_name, p_ch_id);
 
       xmltv.SetExpireTime(expire_min);
 
@@ -139,8 +148,9 @@ int ttx_db_parse( int pg_start, int pg_end, int expire_min,
  * This function may be called after acquisition to dump all captured teletext
  * pages in the given page number range to the given file.
  */
-void ttx_db_dump(const char * p_name, int pg_start, int pg_end)
+void ttx_db_dump(void * db, const char * p_name, int pg_start, int pg_end)
 {
-   DumpRawTeletext(p_name, pg_start, pg_end);
-}
+   TTX_DB * const ttx_db = (TTX_DB*) db;
 
+   DumpRawTeletext(ttx_db, p_name, pg_start, pg_end);
+}

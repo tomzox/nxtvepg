@@ -58,6 +58,6 @@ private:
    char m_separator;  ///< HH:MM separator character
 };
 
-T_OV_LINE_FMT DetectOvFormat(int ov_start, int ov_end);
+T_OV_LINE_FMT DetectOvFormat(TTX_PAGE_DB * db, int ov_start, int ov_end);
 
 #endif // __TTX_OV_FMT_H

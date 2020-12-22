@@ -751,12 +751,12 @@ void XMLTV::ExportXmltv(list<TV_SLOT>& NewSlots, const char * p_file_name,
    fclose(fp);
 }
 
-void XMLTV::SetChannelName(const char * user_chname, const char * user_chid)
+void XMLTV::SetChannelName(TTX_DB * db, const char * user_chname, const char * user_chid)
 {
    // get channel name from teletext header packets
-   m_ch_name = user_chname ? string(user_chname) : ParseChannelName();
+   m_ch_name = user_chname ? string(user_chname) : ParseChannelName(&db->page_db);
 
-   m_ch_id = user_chid ? string(user_chid) : ttx_chn_id.get_ch_id();
+   m_ch_id = user_chid ? string(user_chid) : db->chn_id.get_ch_id();
 
    if (m_ch_name.length() == 0) {
       m_ch_name = m_ch_id;

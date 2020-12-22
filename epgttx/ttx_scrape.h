@@ -43,7 +43,7 @@ class TV_SLOT;
 class OV_PAGE
 {
 public:
-   OV_PAGE(int page, int sub);
+   OV_PAGE(TTX_PAGE_DB * db, int page, int sub);
    ~OV_PAGE();
    bool parse_slots(int foot_line, const T_OV_LINE_FMT& pgfmt);
    bool parse_ov_date();
@@ -64,6 +64,7 @@ private:
    friend class TV_SLOT;
    bool parse_end_time(const string& text, const string& ctrl, int& hour, int& min);
 private:
+   TTX_PAGE_DB * const mp_db;
    const int    m_page;
    const int    m_sub;
    T_PG_DATE    m_date;
@@ -76,11 +77,12 @@ private:
 class OV_SLOT
 {
 public:
-   OV_SLOT(int hour, int min, bool is_tip);
+   OV_SLOT(TTX_PAGE_DB * db, int hour, int min, bool is_tip);
    ~OV_SLOT();
 private:
    friend class OV_PAGE;
    friend class TV_SLOT;
+   TTX_PAGE_DB * const mp_db;
    time_t       m_start_t;
    time_t       m_stop_t;
    int          m_hour;
@@ -139,7 +141,7 @@ private:
    int          m_slot_idx;
 };
 
-std::vector<OV_PAGE*> ParseAllOvPages(int ov_start, int ov_end);
+std::vector<OV_PAGE*> ParseAllOvPages(TTX_PAGE_DB * db, int ov_start, int ov_end);
 void ParseAllContent(std::vector<OV_PAGE*>& ov_pages);
 std::vector<TTX_PG_HANDLE> CheckMissingPages(std::vector<OV_PAGE*>& ov_pages);
 void FilterExpiredSlots(std::list<TV_SLOT>& Slots, int expire_min);

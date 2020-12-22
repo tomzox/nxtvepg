@@ -22,7 +22,9 @@
 class T_PG_DATE
 {
 public:
-   T_PG_DATE() {
+   T_PG_DATE(TTX_PAGE_DB * db)
+      : mp_db(db)
+   {
       m_mday = -1;
       m_month = -1;
       m_year = -1;
@@ -45,12 +47,13 @@ public:
    time_t convert_time(int hour, int min, int date_off) const;
    int calc_date_delta(const T_PG_DATE& slot2) const;
 private:
+   TTX_PAGE_DB * const mp_db;
    int m_mday;
    int m_month;
    int m_year;
    int m_date_off;
 };
 
-string ParseChannelName();
+string ParseChannelName(TTX_PAGE_DB * db);
 
 #endif // __TTX_DATE_H

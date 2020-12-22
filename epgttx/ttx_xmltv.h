@@ -28,7 +28,7 @@ public:
    void ImportXmltvFile(const char * fname);
    void ExportXmltv(list<TV_SLOT>& NewSlots, const char * p_file_name,
                     const char * p_my_ver, const char * p_my_url);
-   void SetChannelName(const char * user_chname, const char * user_chid);
+   void SetChannelName(TTX_DB * db, const char * user_chname, const char * user_chid);
    void SetExpireTime(int expire_min);
 private:
    map<string,string> m_merge_prog;

@@ -36,7 +36,8 @@ using namespace std;
 #include "ttx_scrape.h"
 
 
-OV_SLOT::OV_SLOT(int hour, int min, bool is_tip)
+OV_SLOT::OV_SLOT(TTX_PAGE_DB * db, int hour, int min, bool is_tip)
+   : mp_db(db)
 {
    m_hour = hour;
    m_min = min;
@@ -153,9 +154,11 @@ time_t OV_SLOT::convert_start_t(const T_PG_DATE * pgdate, int date_off) const
 }
 
 
-OV_PAGE::OV_PAGE(int page, int sub)
-   : m_page(page)
+OV_PAGE::OV_PAGE(TTX_PAGE_DB * db, int page, int sub)
+   : mp_db(db)
+   , m_page(page)
    , m_sub(sub)
+   , m_date(db)
    , m_sub_page_skip(0)
    , m_head(-1)
    , m_foot(23)
@@ -306,9 +309,9 @@ void ParseVpsLabel(string& text, const string& text_pred, T_VPS_TIME& vps_data, 
  *   Teilnahmebedingungen: Seite 881      
  *     Türkei-Urlaub jetzt buchen! ...504 
  */
-int ParseFooter(int page, int sub, int head)
+int ParseFooter(TTX_PAGE_DB * db, int page, int sub, int head)
 {
-   const TTX_DB_PAGE * pgtext = ttx_db.get_sub_page(page, sub);
+   const TTX_DB_PAGE * pgtext = db->get_sub_page(page, sub);
    smatch whats;
    int foot;
 
@@ -356,7 +359,7 @@ int ParseFooter(int page, int sub, int head)
  * - bg color is changed by first changing the fg color (codes 0x0-0x7),
  *   then switching copying fg over bg color (code 0x1D)
  */
-int ParseFooterByColor(int page, int sub)
+int ParseFooterByColor(TTX_PAGE_DB * db, int page, int sub)
 {
    int ColCount[8] = {0};
    int LineCol[24] = {0};
@@ -366,7 +369,7 @@ int ParseFooterByColor(int page, int sub)
    // - ignore top-most header and one footer line
    // - ignore missing lines (although they would display black (except for
    //   double-height) but we don't know if they're intentionally missing)
-   const TTX_DB_PAGE * pgtext = ttx_db.get_sub_page(page, sub);
+   const TTX_DB_PAGE * pgtext = db->get_sub_page(page, sub);
    for (int line = 4; line <= 23; line++) {
       // get first non-blank char; skip non-color control chars
       static const regex expr1("^[^\\x21-\\x7F]*\\x1D");
@@ -528,7 +531,7 @@ void RemoveTrailingPageFooter(string& text)
  */
 int OV_SLOT::parse_desc_title(int page, int sub)
 {
-   const TTX_DB_PAGE * pgctrl = ttx_db.get_sub_page(page, sub);
+   const TTX_DB_PAGE * pgctrl = mp_db->get_sub_page(page, sub);
 
    string title_ov;
    unsigned first_subt = 1;
@@ -655,10 +658,10 @@ int OV_SLOT::parse_desc_title(int page, int sub)
  * Compare two text pages line-by-line until a difference is found.
  * Thus identical lines on sub-pages can be excluded from descriptions.
  */
-int CorrelateDescTitles(int page, int sub1, int sub2, int head)
+int CorrelateDescTitles(TTX_PAGE_DB * db, int page, int sub1, int sub2, int head)
 {
-   const TTX_DB_PAGE * pgctrl1 = ttx_db.get_sub_page(page, sub1);
-   const TTX_DB_PAGE * pgctrl2 = ttx_db.get_sub_page(page, sub2);
+   const TTX_DB_PAGE * pgctrl1 = db->get_sub_page(page, sub1);
+   const TTX_DB_PAGE * pgctrl2 = db->get_sub_page(page, sub2);
 
    for (unsigned line = head; line < TTX_DB_PAGE::TTX_TEXT_LINE_CNT; line++) {
       const string& p1 = pgctrl1->get_ctrl(line);
@@ -680,9 +683,9 @@ int CorrelateDescTitles(int page, int sub1, int sub2, int head)
  * Search page index markers in description pages and return the sub-page count
  * - see next function for details
  */
-int MatchSubPageCnt(int page, int sub)
+int MatchSubPageCnt(TTX_PAGE_DB * db, int page, int sub)
 {
-   const TTX_DB_PAGE * pgctrl = ttx_db.get_sub_page(page, sub);
+   const TTX_DB_PAGE * pgctrl = db->get_sub_page(page, sub);
    smatch whats;
    int result = -1;
 
@@ -889,13 +892,13 @@ bool DescFormatCastTable(vector<string>& Lines)
    return result;
 }
 
-string ParseDescContent(int page, int sub, int head, int foot)
+string ParseDescContent(TTX_PAGE_DB * db, int page, int sub, int head, int foot)
 {
    T_VPS_TIME vps_data;
    smatch whats;
    vector<string> Lines;
 
-   const TTX_DB_PAGE * pgctrl = ttx_db.get_sub_page(page, sub);
+   const TTX_DB_PAGE * pgctrl = db->get_sub_page(page, sub);
    bool is_nl = 0;
    int fg_bg = -1;
    string desc;
@@ -998,9 +1001,9 @@ void OV_SLOT::parse_desc_page(const T_PG_DATE * pg_date, int ref_count)
              page, buf, m_ov_title[0].c_str());
    }
 
-   for (TTX_DB::const_iterator p = ttx_db.first_sub_page(page);
-           p != ttx_db.end();
-              ttx_db.next_sub_page(page, p))
+   for (TTX_PAGE_DB::const_iterator p = mp_db->first_sub_page(page);
+           p != mp_db->end();
+              mp_db->next_sub_page(page, p))
    {
       int sub = p->first.sub();
 
@@ -1014,19 +1017,19 @@ void OV_SLOT::parse_desc_page(const T_PG_DATE * pg_date, int ref_count)
 
          int head = parse_desc_title(page, sub);
          if (first_sub >= 0)
-            head = CorrelateDescTitles(page, sub, first_sub, head);
+            head = CorrelateDescTitles(mp_db, page, sub, first_sub, head);
          else
             first_sub = sub;
 
-         int foot = ParseFooterByColor(page, sub);
-         int foot2 = ParseFooter(page, sub, head);
+         int foot = ParseFooterByColor(mp_db, page, sub);
+         int foot2 = ParseFooter(mp_db, page, sub, head);
          foot = (foot2 < foot) ? foot2 : foot;
          if (opt_debug) printf("DESC page %03X.%04X title matched: lines %d-%d\n", page, sub, head, foot);
 
          if (foot > head) {
             if (!m_ext_desc.empty())
                m_ext_desc += "\n";
-            m_ext_desc += ParseDescContent(page, sub, head, foot);
+            m_ext_desc += ParseDescContent(mp_db, page, sub, head, foot);
          }
          found = true;
       }
@@ -1092,7 +1095,7 @@ bool OV_PAGE::parse_slots(int foot_line, const T_OV_LINE_FMT& pgfmt)
    T_VPS_TIME vps_data;
    OV_SLOT * ov_slot = 0;
 
-   const TTX_DB_PAGE * pgctrl = ttx_db.get_sub_page(m_page, m_sub);
+   const TTX_DB_PAGE * pgctrl = mp_db->get_sub_page(m_page, m_sub);
    vps_data.m_new_vps_date = false;
 
    for (int line = 1; line <= 23; line++) {
@@ -1119,7 +1122,7 @@ bool OV_PAGE::parse_slots(int foot_line, const T_OV_LINE_FMT& pgfmt)
 
          if (opt_debug) printf("OV TITLE: \"%s\", %02d:%02d\n", pgfmt.extract_title(text).c_str(), hour, min);
 
-         ov_slot = new OV_SLOT(hour, min, is_tip);
+         ov_slot = new OV_SLOT(mp_db, hour, min, is_tip);
          m_slots.push_back(ov_slot);
 
          ov_slot->add_title(pgfmt.extract_title(ctrl));
@@ -1226,7 +1229,7 @@ int GetNextPageNumber(int page)
  * Check if two given teletext pages are adjacent
  * - both page numbers must have decimal digits only (i.e. match /[1-8][1-9][1-9]/)
  */
-bool CheckIfPagesAdjacent(int page1, int sub1, int sub_skip, int page2, int sub2)
+bool CheckIfPagesAdjacent(TTX_PAGE_DB * db, int page1, int sub1, int sub_skip, int page2, int sub2)
 {
    bool result = false;
 
@@ -1239,7 +1242,7 @@ bool CheckIfPagesAdjacent(int page1, int sub1, int sub_skip, int page2, int sub2
       // check for jump from last sub-page of prev page to first of new page
       int next = GetNextPageNumber(page1);
 
-      int last_sub = ttx_db.last_sub_page_no(page1);
+      int last_sub = db->last_sub_page_no(page1);
 
       if ( (next == page2) &&
            (sub1 + sub_skip == last_sub) &&
@@ -1252,7 +1255,7 @@ bool CheckIfPagesAdjacent(int page1, int sub1, int sub_skip, int page2, int sub2
 
 bool OV_PAGE::is_adjacent(const OV_PAGE * prev) const
 {
-   return CheckIfPagesAdjacent(prev->m_page, prev->m_sub, prev->m_sub_page_skip, m_page, m_sub);
+   return CheckIfPagesAdjacent(mp_db, prev->m_page, prev->m_sub, prev->m_sub_page_skip, m_page, m_sub);
 }
 
 /* ------------------------------------------------------------------------------
@@ -1508,11 +1511,11 @@ void OV_PAGE::check_continuity(vector<TTX_PG_HANDLE>& pg_list, OV_PAGE * prev)
 
       if (slot->m_ttx_ref != -1) {
          int page = slot->m_ttx_ref;
-         int last_sub = ttx_db.get_sub_page_cnt(page);
+         int last_sub = mp_db->get_sub_page_cnt(page);
          if (last_sub < 0) {
-            TTX_DB::const_iterator p = ttx_db.first_sub_page(page);
-            if (p != ttx_db.end()) {
-               last_sub = MatchSubPageCnt(page, p->first.sub());
+            TTX_PAGE_DB::const_iterator p = mp_db->first_sub_page(page);
+            if (p != mp_db->end()) {
+               last_sub = MatchSubPageCnt(mp_db, page, p->first.sub());
                if (last_sub == 1)
                   last_sub = 0;
             }
@@ -1523,15 +1526,15 @@ void OV_PAGE::check_continuity(vector<TTX_PG_HANDLE>& pg_list, OV_PAGE * prev)
          }
          if (last_sub == 0) {
             // pages labelled "1/1" may still have sub-pages, hence search for any, not sub-page #0
-            TTX_DB::const_iterator p = ttx_db.first_sub_page(page);
-            if (p == ttx_db.end()) {
+            TTX_PAGE_DB::const_iterator p = mp_db->first_sub_page(page);
+            if (p == mp_db->end()) {
                if (opt_debug) printf("MISSING DESC %03X.0 (for OV %03X.%d)\n", page, m_page, m_sub);
                pg_list.push_back(TTX_PG_HANDLE(page, 0));
            }
          }
          else if (last_sub > 0) {
             for (int sub = 1; sub <= last_sub; sub++) {
-               if (!ttx_db.sub_page_exists(page, sub)) {
+               if (!mp_db->sub_page_exists(page, sub)) {
                   if (opt_debug) printf("MISSING DESC %03X.%d of %d (for OV %03X.%d)\n",
                                         page, sub, last_sub, m_page, m_sub);
                   pg_list.push_back(TTX_PG_HANDLE(page, sub));
@@ -1551,14 +1554,14 @@ void OV_PAGE::check_continuity(vector<TTX_PG_HANDLE>& pg_list, OV_PAGE * prev)
  *   + c: determine dates
  *   + d: determine stop times
  */
-vector<OV_PAGE*> ParseAllOvPages(int ov_start, int ov_end)
+vector<OV_PAGE*> ParseAllOvPages(TTX_PAGE_DB * db, int ov_start, int ov_end)
 {
    vector<OV_PAGE*> ov_pages;
 
-   T_OV_LINE_FMT fmt = DetectOvFormat(ov_start, ov_end);
+   T_OV_LINE_FMT fmt = DetectOvFormat(db, ov_start, ov_end);
    if (fmt.is_valid()) {
 
-      for (TTX_DB::const_iterator p = ttx_db.begin(); p != ttx_db.end(); p++)
+      for (TTX_PAGE_DB::const_iterator p = db->begin(); p != db->end(); p++)
       {
          int page = p->first.page();
          int sub = p->first.sub();
@@ -1566,9 +1569,9 @@ vector<OV_PAGE*> ParseAllOvPages(int ov_start, int ov_end)
          if ((page >= ov_start) && (page <= ov_end)) {
             if (opt_debug) printf("OVERVIEW PAGE %03X.%04X\n", page, sub);
 
-            OV_PAGE * ov_page = new OV_PAGE(page, sub);
+            OV_PAGE * ov_page = new OV_PAGE(db, page, sub);
 
-            int foot = ParseFooterByColor(page, sub);
+            int foot = ParseFooterByColor(db, page, sub);
 
             if (ov_page->parse_slots(foot, fmt)) {
                if (ov_page->check_start_times()) {

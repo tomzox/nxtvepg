@@ -299,7 +299,7 @@ bool T_PG_DATE::ParseOvDate(int page, int sub, int head)
    int month = -1;
    int year = -1;
 
-   const TTX_DB_PAGE * pgtext = ttx_db.get_sub_page(page, sub);
+   const TTX_DB_PAGE * pgtext = mp_db->get_sub_page(page, sub);
    int lang = pgtext->get_lang();
 
    string wday_match = GetDateNameRegExp(WDayNames, lang, DATE_NAME_FULL);
@@ -513,7 +513,7 @@ bool T_PG_DATE::ParseDescDate(int page, int sub, time_t ov_start_t, int date_off
    //int lend_min = -1;
    bool check_time = false;
 
-   const TTX_DB_PAGE * pgtext = ttx_db.get_sub_page(page, sub);
+   const TTX_DB_PAGE * pgtext = mp_db->get_sub_page(page, sub);
    int lang = pgtext->get_lang();
    string wday_match = GetDateNameRegExp(WDayNames, lang, DATE_NAME_FULL);
    string wday_abbrv_match = GetDateNameRegExp(WDayNames, lang, DATE_NAME_ABBRV);
@@ -812,7 +812,7 @@ const char * T_PG_DATE::trace_str() const
  * Determine channel name and ID from teletext header packets
  * - remove clock, date and page number: rest should be channel name
  */
-string ParseChannelName()
+string ParseChannelName(TTX_PAGE_DB * db)
 {
    map<string,int> ChName;
    string wday_match;
@@ -823,7 +823,7 @@ string ParseChannelName()
    static regex expr3[8];
    static regex expr4[8];
 
-   for (TTX_DB::const_iterator p = ttx_db.begin(); p != ttx_db.end(); p++) {
+   for (TTX_PAGE_DB::const_iterator p = db->begin(); p != db->end(); p++) {
       int page = p->first.page();
       if ( (((page>>4)&0xF) <= 9) && ((page&0xF) <= 9) ) {
          if (p->second->get_lang() != lang) {

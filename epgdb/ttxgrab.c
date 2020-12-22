@@ -19,7 +19,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: ttxgrab.c,v 1.19 2020/06/24 07:31:05 tom Exp tom $
+ *  $Id: ttxgrab.c,v 1.20 2020/12/23 17:25:31 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB
@@ -83,6 +83,7 @@ static struct
    uchar        curPgHdRep[HEADER_CHECK_LEN];
    uint32_t     cniDecInd[CNI_TYPE_COUNT];
    bool         postProcDone;
+   void       * ttx_db;
    TTX_GRAB_STATS stats;
 } ttxGrabState;
 
@@ -296,7 +297,7 @@ static void TtxGrab_ProcessCni( void )
    // retrieve new CNI from teletext decoder, if any
    if ( TtxDecode_GetCniAndPil(&newCni, NULL, &cniType, ttxGrabState.cniDecInd, NULL, NULL) )
    {
-      ttx_db_add_cni(newCni);
+      ttx_db_add_cni(ttxGrabState.ttx_db, newCni);
    }
 }
 
@@ -344,7 +345,8 @@ bool TtxGrab_ProcessPackets( void )
          // skip file output if disabled (note all other processing is intentionally done anyways)
          if (ttxGrabState.refPgDiffCnt == 0)
          {
-            ttx_db_add_pkg( pVbl->pageno,
+            ttx_db_add_pkg( ttxGrabState.ttx_db,
+                            pVbl->pageno,
                             pVbl->ctrl_lo | (pVbl->ctrl_hi << 16),
                             pVbl->pkgno,
                             pVbl->data,
@@ -555,7 +557,7 @@ void TtxGrab_PostProcess( const char * pName, bool reset )
    {
       char * pKeptInpFile = xmalloc(strlen(pName) + 20);
       sprintf(pKeptInpFile, TTX_CAP_FILE_PAT, pName);
-      ttx_db_dump(pKeptInpFile, 100, 899);
+      ttx_db_dump(ttxGrabState.ttx_db, pKeptInpFile, 100, 899);
       xfree(pKeptInpFile);
    }
 
@@ -573,7 +575,8 @@ void TtxGrab_PostProcess( const char * pName, bool reset )
    dprintf4("TtxGrab-PostProcess: name:'%s' expire:%d merge:'%s' out:'%s'\n",
             pName, ttxGrabState.expireMin, (pXmlMergeFile != NULL) ? pXmlMergeFile : "", pXmlTmpFile);
 
-   if (ttx_db_parse(ttxGrabState.startPage, ttxGrabState.stopPage, ttxGrabState.expireMin,
+   if (ttx_db_parse(ttxGrabState.ttx_db,
+                    ttxGrabState.startPage, ttxGrabState.stopPage, ttxGrabState.expireMin,
                     pXmlMergeFile, pXmlTmpFile, 0, 0) == 0)
    {
       // replace XML file with temporary output: XML_OUT_FILE_PAT
@@ -594,7 +597,8 @@ void TtxGrab_PostProcess( const char * pName, bool reset )
 
    if (reset)
    {
-      ttx_db_init();
+      ttx_db_destroy(ttxGrabState.ttx_db);
+      ttxGrabState.ttx_db = NULL;
    }
 
    if (pXmlMergeFile != NULL)
@@ -627,7 +631,10 @@ bool TtxGrab_Start( uint startPage, uint stopPage, bool enableOutput )
    ttxGrabState.havePgHd = FALSE;
    memset(ttxGrabState.cniDecInd, 0, sizeof(ttxGrabState.cniDecInd));
 
-   ttx_db_init();
+   if (ttxGrabState.ttx_db == NULL)
+   {
+      ttxGrabState.ttx_db = ttx_db_create();
+   }
 
    return result;
 }
@@ -638,7 +645,8 @@ bool TtxGrab_Start( uint startPage, uint stopPage, bool enableOutput )
 //
 void TtxGrab_Stop( void )
 {
-   ttx_db_init();
+   ttx_db_destroy(ttxGrabState.ttx_db);
+   ttxGrabState.ttx_db = NULL;
 }
 
 // ---------------------------------------------------------------------------

@@ -34,10 +34,6 @@ using namespace std;
 #include "ttx_util.h"
 #include "ttx_db.h"
 
-// global data
-TTX_DB ttx_db;
-TTX_CHN_ID ttx_chn_id;
-
 #if !defined (USE_LIBZVBI)
 const uint8_t unhamtab[256] =
 {
@@ -380,31 +376,31 @@ void TTX_DB_BTT::flush()
 
 /* ------------------------------------------------------------------------- */
 
-TTX_DB::~TTX_DB()
+TTX_PAGE_DB::~TTX_PAGE_DB()
 {
    for (iterator p = m_db.begin(); p != m_db.end(); p++) {
       delete p->second;
    }
 }
 
-bool TTX_DB::sub_page_exists(unsigned page, unsigned sub) const
+bool TTX_PAGE_DB::sub_page_exists(unsigned page, unsigned sub) const
 {
    return m_db.find(TTX_PG_HANDLE(page, sub)) != m_db.end();
 }
 
-const TTX_DB_PAGE* TTX_DB::get_sub_page(unsigned page, unsigned sub) const
+const TTX_DB_PAGE* TTX_PAGE_DB::get_sub_page(unsigned page, unsigned sub) const
 {
    const_iterator p = m_db.find(TTX_PG_HANDLE(page, sub));
    return (p != m_db.end()) ? p->second : 0;
 }
 
-TTX_DB::const_iterator TTX_DB::first_sub_page(unsigned page) const
+TTX_PAGE_DB::const_iterator TTX_PAGE_DB::first_sub_page(unsigned page) const
 {
    const_iterator p = m_db.lower_bound(TTX_PG_HANDLE(page, 0));
    return (p->first.page() == page) ? p : end();
 }
 
-TTX_DB::const_iterator& TTX_DB::next_sub_page(unsigned page, const_iterator& p) const
+TTX_PAGE_DB::const_iterator& TTX_PAGE_DB::next_sub_page(unsigned page, const_iterator& p) const
 {
    ++p;
    if (p->first.page() > page)
@@ -412,7 +408,7 @@ TTX_DB::const_iterator& TTX_DB::next_sub_page(unsigned page, const_iterator& p) 
    return p;
 }
 
-int TTX_DB::last_sub_page_no(unsigned page) const
+int TTX_PAGE_DB::last_sub_page_no(unsigned page) const
 {
    int last_sub = m_btt.get_last_sub(page);
    if (last_sub == -1) {
@@ -427,20 +423,20 @@ int TTX_DB::last_sub_page_no(unsigned page) const
    return last_sub;
 }
 
-int TTX_DB::get_sub_page_cnt(unsigned page) const
+int TTX_PAGE_DB::get_sub_page_cnt(unsigned page) const
 {
   return m_btt.get_last_sub(page);
 }
 
 // Decides if the page is acceptable for addition to the database.
-bool TTX_DB::page_acceptable(unsigned page) const
+bool TTX_PAGE_DB::page_acceptable(unsigned page) const
 {
    // decimal page (human readable) or TOP table
    return (   (((page & 0x0F) <= 9) && (((page >> 4) & 0x0F) <= 9))
            || m_btt.is_top_page(page));
 }
 
-TTX_DB_PAGE* TTX_DB::add_page(unsigned page, unsigned sub, unsigned ctrl, const uint8_t * p_data, time_t ts)
+TTX_DB_PAGE* TTX_PAGE_DB::add_page(unsigned page, unsigned sub, unsigned ctrl, const uint8_t * p_data, time_t ts)
 {
    TTX_PG_HANDLE handle(page, sub);
 
@@ -456,7 +452,7 @@ TTX_DB_PAGE* TTX_DB::add_page(unsigned page, unsigned sub, unsigned ctrl, const 
    return p->second;
 }
 
-void TTX_DB::add_page_data(unsigned page, unsigned sub, unsigned idx, const uint8_t * p_data)
+void TTX_PAGE_DB::add_page_data(unsigned page, unsigned sub, unsigned idx, const uint8_t * p_data)
 {
    if (m_btt.is_top_page(page)) {
       // forward the data to the BTT
@@ -475,7 +471,7 @@ void TTX_DB::add_page_data(unsigned page, unsigned sub, unsigned idx, const uint
    }
 }
 
-void TTX_DB::flush()
+void TTX_PAGE_DB::flush()
 {
    for (iterator p = m_db.begin(); p != m_db.end(); p++) {
       delete p->second;
@@ -488,7 +484,7 @@ void TTX_DB::flush()
  * control bit in the TTX header. Since the page is added again right after we
  * only invalidate the page contents, but keep the page.
  */
-void TTX_DB::erase_page_c4(int page, int sub)
+void TTX_PAGE_DB::erase_page_c4(int page, int sub)
 {
    TTX_PG_HANDLE handle(page, sub);
 
@@ -498,7 +494,7 @@ void TTX_DB::erase_page_c4(int page, int sub)
    }
 }
 
-double TTX_DB::get_acq_rep_stats()
+double TTX_PAGE_DB::get_acq_rep_stats()
 {
    int page_cnt = 0;
    int page_rep = 0;
@@ -519,7 +515,7 @@ double TTX_DB::get_acq_rep_stats()
  * - teletext control characters and mosaic is replaced by space
  * - used for -dump option, intended for debugging only
  */
-void DumpTextPages(const char * p_name)
+void DumpTextPages(TTX_DB * db, const char * p_name)
 {
    if (p_name != 0) {
       FILE * fp = fopen(p_name, "w");
@@ -528,21 +524,21 @@ void DumpTextPages(const char * p_name)
          exit(1);
       }
 
-      ttx_db.dump_db_as_text(fp);
+      db->page_db.dump_db_as_text(fp);
       fclose(fp);
    }
    else {
-      ttx_db.dump_db_as_text(stdout);
+      db->page_db.dump_db_as_text(stdout);
    }
 }
 
-void TTX_DB::dump_db_as_text(FILE * fp)
+void TTX_PAGE_DB::dump_db_as_text(FILE * fp)
 {
    for (iterator p = m_db.begin(); p != m_db.end(); p++) {
       p->second->dump_page_as_text(fp);
    }
 
-   ttx_db.m_btt.dump_btt_as_text(fp);
+   m_btt.dump_btt_as_text(fp);
 }
 
 void TTX_DB_PAGE::dump_page_as_text(FILE * fp)
@@ -559,7 +555,7 @@ void TTX_DB_PAGE::dump_page_as_text(FILE * fp)
  * Dump all loaded teletext data as Perl script
  * - the generated script can be loaded with the -verify option
  */
-void DumpRawTeletext(const char * p_name, int pg_start, int pg_end)
+void DumpRawTeletext(TTX_DB * db, const char * p_name, int pg_start, int pg_end)
 {
    FILE * fp = stdout;
 
@@ -574,9 +570,9 @@ void DumpRawTeletext(const char * p_name, int pg_start, int pg_end)
    fprintf(fp, "#!tv_grab_ttx -verify\n");
 
    // return TRUE to allow to "require" the file
-   ttx_db.dump_db_as_raw(fp, pg_start, pg_end);
+   db->page_db.dump_db_as_raw(fp, pg_start, pg_end);
 
-   ttx_chn_id.dump_as_raw(fp);
+   db->chn_id.dump_as_raw(fp);
 
    if (fp != stdout) {
       fclose(fp);
@@ -590,7 +586,7 @@ void TTX_CHN_ID::dump_as_raw(FILE * fp)
    }
 }
 
-void TTX_DB::dump_db_as_raw(FILE * fp, int pg_start, int pg_end)
+void TTX_PAGE_DB::dump_db_as_raw(FILE * fp, int pg_start, int pg_end)
 {
    // acq start time (for backwards compatibility with Perl version only)
    const_iterator first = m_db.begin();
@@ -600,7 +596,7 @@ void TTX_DB::dump_db_as_raw(FILE * fp, int pg_start, int pg_end)
    for (iterator p = m_db.begin(); p != m_db.end(); p++) {
       int page = p->first.page();
       if ((page >= pg_start) && (page <= pg_end)) {
-         int last_sub = ttx_db.last_sub_page_no(page);
+         int last_sub = last_sub_page_no(page);
 
          p->second->dump_page_as_raw(fp, last_sub);
       }
@@ -651,7 +647,7 @@ void TTX_DB_PAGE::dump_page_as_raw(FILE * fp, int last_sub)
  * Import a data file generated by DumpRawTeletext
  * - the function returns FALSE if the header isn't found (w/o error message)
  */
-bool ImportRawDump(const char * p_name)
+bool ImportRawDump(TTX_DB * db, const char * p_name)
 {
    FILE * fp;
 
@@ -708,7 +704,7 @@ bool ImportRawDump(const char * p_name)
          int cni = atox_substr(what[1]);
          int cnt = atoi_substr(what[2]);
          for (int idx = 0; idx < cnt; idx++) {
-            ttx_chn_id.add_cni(cni);
+            db->chn_id.add_cni(cni);
          }
       }
       else if (regex_match(buf, what, expr4)) {
@@ -774,10 +770,10 @@ bool ImportRawDump(const char * p_name)
       else if (regex_match(buf, what, expr11)) {
          assert(page != -1);
          int ctrl = sub | ((lang & 1) << (16+7)) | ((lang & 2) << (16+5)) | ((lang & 4) << (16+3));
-         TTX_DB_PAGE * pgtext = ttx_db.add_page(page, sub, ctrl, pg_data[0], timestamp);
+         TTX_DB_PAGE * pgtext = db->page_db.add_page(page, sub, ctrl, pg_data[0], timestamp);
          for (unsigned idx = 1; idx < pkg_idx; idx++) {
             if (pg_data_valid & (1 << idx))
-               ttx_db.add_page_data(page, sub, idx, pg_data[idx]);
+               db->page_db.add_page_data(page, sub, idx, pg_data[idx]);
          }
          for (unsigned idx = 1; idx < pg_cnt; idx++) {
             pgtext->inc_acq_cnt(timestamp);

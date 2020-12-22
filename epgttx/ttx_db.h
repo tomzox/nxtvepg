@@ -107,10 +107,10 @@ private:
    BTT_AIT_ELEM m_ait[44];
 };
 
-class TTX_DB
+class TTX_PAGE_DB
 {
 public:
-   ~TTX_DB();
+   ~TTX_PAGE_DB();
    typedef std::map<TTX_PG_HANDLE, TTX_DB_PAGE*>::iterator iterator;
    typedef std::map<TTX_PG_HANDLE, TTX_DB_PAGE*>::const_iterator const_iterator;
 
@@ -158,12 +158,14 @@ private:
    static const uint16_t NiToPdcCni[];
 };
 
-// global data
-extern TTX_DB ttx_db;
-extern TTX_CHN_ID ttx_chn_id;
+struct TTX_DB
+{
+   TTX_PAGE_DB page_db;
+   TTX_CHN_ID chn_id;
+};
 
-bool ImportRawDump(const char * p_name);
-void DumpTextPages(const char * p_name);
-void DumpRawTeletext(const char * p_name, int pg_start, int pg_end);
+bool ImportRawDump(TTX_DB * db, const char * p_name);
+void DumpTextPages(TTX_DB * db, const char * p_name);
+void DumpRawTeletext(TTX_DB * db, const char * p_name, int pg_start, int pg_end);
 
 #endif // __TTX_DB_H

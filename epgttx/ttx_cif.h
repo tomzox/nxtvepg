@@ -23,13 +23,14 @@
 extern "C" {
 #endif
 
-void ttx_db_init( void );
-void ttx_db_add_cni(unsigned cni);
-bool ttx_db_add_pkg( int page, int ctrl, int pkgno, const uint8_t * p_data, time_t ts );
-int ttx_db_parse( int pg_start, int pg_end, int expire_min,
+void * ttx_db_create( void );
+void ttx_db_destroy( void * db );
+void ttx_db_add_cni(void * db, unsigned cni);
+bool ttx_db_add_pkg( void * db, int page, int ctrl, int pkgno, const uint8_t * p_data, time_t ts );
+int ttx_db_parse( void * db, int pg_start, int pg_end, int expire_min,
                   const char * p_xml_in, const char * p_xml_out,
                   const char * p_ch_name, const char * p_ch_id );
-void ttx_db_dump(const char * p_name, int pg_start, int pg_end);
+void ttx_db_dump(void * db, const char * p_name, int pg_start, int pg_end);
 
 #if defined (__cplusplus)
 }

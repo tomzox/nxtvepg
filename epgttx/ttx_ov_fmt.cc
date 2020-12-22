@@ -229,19 +229,19 @@ T_OV_LINE_FMT T_OV_LINE_FMT::select_ov_fmt(vector<T_OV_LINE_FMT>& fmt_list)
  *  - TODO: detect color used to mark features (e.g. yellow on ARD) (WDR: ttx ref same color as title)
  *  - TODO: detect color used to distinguish title from subtitle/category (WDR,Tele5)
  */
-T_OV_LINE_FMT DetectOvFormat(int ov_start, int ov_end)
+T_OV_LINE_FMT DetectOvFormat(TTX_PAGE_DB * db, int ov_start, int ov_end)
 {
    vector<T_OV_LINE_FMT> fmt_list;
    T_OV_LINE_FMT fmt;
 
    // look at the first 5 pages (default start at page 301)
    int cnt = 0;
-   for (TTX_DB::const_iterator p = ttx_db.begin(); p != ttx_db.end(); p++)
+   for (TTX_PAGE_DB::const_iterator p = db->begin(); p != db->end(); p++)
    {
       int page = p->first.page();
       int sub = p->first.sub();
       if ((page >= ov_start) && (page <= ov_end)) {
-         const TTX_DB_PAGE * pgtext = ttx_db.get_sub_page(page, sub);
+         const TTX_DB_PAGE * pgtext = db->get_sub_page(page, sub);
 
          for (int line = 5; line <= 21; line++) {
             const string& text = pgtext->get_text(line);
