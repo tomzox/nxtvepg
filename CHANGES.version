@@ -1,4 +1,4 @@
-## $Id: CHANGES.version,v 1.19 2020/06/15 17:56:26 tom Exp tom $ ##
+## $Id: CHANGES.version,v 1.20 2020/12/23 17:29:35 tom Exp tom $ ##
 
 Steps to prepare new distribution:
 
@@ -25,6 +25,8 @@ copyright date contained in:
 - epgtcl/mainwin.tcl
 - tvsim/*.pod  [update only when modified]
 - www/index*html
+- www/man*html
+- www/man-ttx_grab.html
 
 RCS
 - check in all files, including TODO & CHANGES

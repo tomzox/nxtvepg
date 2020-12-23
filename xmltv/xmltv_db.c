@@ -76,7 +76,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: xmltv_db.c,v 1.18 2011/01/05 19:29:38 tom Exp tom $
+ *  $Id: xmltv_db.c,v 1.19 2020/06/21 08:48:00 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_XMLTV

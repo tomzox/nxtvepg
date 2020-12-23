@@ -1,11 +1,11 @@
 %define    prefix    /usr/local
-%define    version   2.8.1
+%define    version   2.9.0
 
 Summary:   nexTView EPG decoder and browser
 Name:      nxtvepg
 Version:   %{version}
 Release:   0
-Requires:  tcl >= 8.4, tk >= 8.4
+Requires:  tcl >= 8.5, tk >= 8.5
 Source0:   nxtvepg-%{version}.tar.gz
 Group:     Applications/Multimedia
 License:   GPL
@@ -13,25 +13,28 @@ URL:       http://prdownloads.sourceforge.net/nxtvepg/nxtvepg-%{version}.tar.gz
 BuildRoot: /tmp/nxtvepg-build
 
 %description
-nxtvepg allows to receive, analyze and browse TV programme schedules
-transmitted on top of Teletext as defined by the European
-Telecommunications Standards Institute (ETSI) in ETS 300 707:
-"Protocol for a TV Guide using electronic data transmission".
+The nxtvepg EPG software package supports receiving and browsing Nextview EPG
+on your PC. Nextview is an ETSI standard for transmission of Electronic TV
+Program Guides within (analog) TV broadcasts. Compared to Teletext with its
+pre-formatted schedule tables, Nextview is more flexible due to being based on
+a database, which allows for flexible searches; also the database covers
+schedules of most or all TV networks at once.
 
-As of September 2008 the following Nextview EPG providers are available:
+This free service was offered by several content providers in Germany, Austria,
+Switzerland, France, Belgium and Turkey up to apx. 2011. Together they covered
+the daily TV schedules of all major networks in these countries. However,
+Nextview EPG is not transmitted via digital TV signals (DVB), as DVB uses a
+different standard with similar features. That standard is not supported by
+this software. Therefore, as analog TV transmission has been stopped by now,
+the nxtvepg software is mostly of historical interest anymore. For more
+historic details see the Nextview EPG service description at the nxtvepg
+homepage.
 
-- for Germany and Austria: Kabel1 (coverage: apx. 32 networks)
-- for Switzerland: SF1, TSR1, TSI1, TV5 (coverage: apx. 37 networks)
-- for France: Canal+, M6, TV5 (coverage: 8 networks)
-- for Belgium: M6, TV5 (coverage: 32 networks)
-- for Turkey: TRT family (coverage: apx. 17 networks)
-
-If you don't receive any of those, then this software unfortunately is
-almost useless to you, except for the possibility to acquire EPG data
-from teletext and external sources via XMLTV (but those are mainly
-designed to accompany Nextview EPG so they won't work very well
-stand-alone.)  For more details on pre-requesites please refer to
-the documentation in the "Help" menus and manual page.
+Still useful features of this software are the integrated or standalone
+Teletext grabber, which allows extracting TV schedules from programme tables in
+Teletext and browsing them in the nxtvepg GUI, or exporting them to XMLTV
+format for use in another browser. Inversely, nxtvepg can be used for browsing
+data obtained in XMLTV format from other sources.
 
 %prep
 %setup

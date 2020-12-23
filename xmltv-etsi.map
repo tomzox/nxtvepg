@@ -1,8 +1,20 @@
 #
 #  This file maps channel identification codes in XMLTV files (for example
-#  <channel id="tele5.de"> ) to numerical VPS/PDC codes used inside nxtvepg.
-#  VPS/PDC are unique numbers assigned by the European standards document
-#  ETS 300 231. Run an EPG provider scan to find the codes for all channels.
+#  <channel id="tele5.de"> ) to numerical VPS/PDC codes transmitted for 
+#  identification within Teletext by European networks. This mapping is
+#  required firstly for correctly merging data of the same network from
+#  different sources and secondly for mapping data to a currently viewed
+#  TV channel (i.e. for on-screen display of EPG within live TV image).
+#
+#  VPS, PDC, and the ID within so-called "Packet 8/30/1" are unique numbers
+#  assigned by the European standards document ETS 300 231. Many networks
+#  have more than one kind of ID assigned, and also may transmit multiple
+#  kinds. nxtvepg will translate any received ID to the equivalent PDC ID,
+#  if a PDC ID is assigned to that network, or else to VPS, if one of that
+#  kind is assigned. To find which ID is actually is transmitted by a network,
+#  you can run an EPG scan in nxtvepg. This will print the ID for each network
+#  where one is received.
+#
 #  Note channel IDs (i.e. the right side string) may be assigned to one CNI
 #  only. Duplicate definitions will be ignored.
 #
@@ -15,7 +27,7 @@
 #  sections apply only to XMLTV documents with a matching source-info or
 #  source-data text (inside the <tv> tag or in <source-info><link>)
 #
-#  $Id: xmltv-etsi.map,v 1.8 2011/01/06 11:40:16 tom Exp tom $
+#  $Id: xmltv-etsi.map,v 1.9 2020/12/23 16:00:25 tom Exp tom $
 #
 [GLOBAL]
 1DCA 1.br-online.de
@@ -198,4 +210,3 @@ FFEF MTV
 [EXPORT|NexTView DE]
 FFF1 m6.fr
 FFEF mtv.de
-

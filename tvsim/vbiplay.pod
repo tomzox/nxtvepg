@@ -22,9 +22,9 @@
 #    should contain the converted files, so that the user is not forced
 #    to install Perl.
 #
-#  Author: Tom Zoerner
+#  Author: T. Zoerner
 #
-# $Id: vbiplay.pod,v 1.5 2004/03/23 15:54:54 tom Exp tom $
+# $Id: vbiplay.pod,v 1.6 2020/12/23 17:42:06 tom Exp tom $
 # ---------------------------------------------------------------------------
 
 =head1 NAME

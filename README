@@ -1,33 +1,32 @@
 Hi there,
 
-This software package supports receiving and browsing Nextview EPG on your
-PC. Nextview is an ETSI standard for transmission of Electronic TV Program
-Guides within (analog) TV broadcasts. Compared to Teletext with its
-pre-formatted schedule tables, Nextview is more flexible due to being based
-on a database, which allows for flexible searches; also the database covers
+The nxtvepg EPG software package supports receiving and browsing Nextview EPG
+on your PC. Nextview is an ETSI standard for transmission of Electronic TV
+Program Guides within (analog) TV broadcasts. Compared to Teletext with its
+pre-formatted schedule tables, Nextview is more flexible due to being based on
+a database, which allows for flexible searches; also the database covers
 schedules of most or all TV networks at once.
 
-As of December 2007, this free service was offered by various content
-providers in Germany, Austria, Switzerland, France, Belgium and Turkey:
-
-- in Germany and Austria: Kabel1 (coverage: apx. 32 networks)
-- in Switzerland: SF1, TSR1, TSI1, TV5 (coverage: apx. 37 networks)
-- in France: Canal+, M6, TV5 (coverage: 8 networks)
-- in Belgium: M6, TV5 (coverage: 32 networks)
-- in Turkey: TRT family (coverage: apx. 17 networks)
-
-Together they covered the daily TV schedules of all major networks in these
-countries. However, Nextview EPG is not transmitted via digital TV signals
-(i.e. DVB), as these use a different standard with similar features. That
-standard is not supported by this software. Therefore, as analog TV
-transmission has been stopped by now, the nxtvepg software is mostly of
-historical interest anymore.
+This free service was offered by several content providers in Germany, Austria,
+Switzerland, France, Belgium and Turkey up to apx. 2011. Together they covered
+the daily TV schedules of all major networks in these countries. However,
+Nextview EPG is not transmitted via digital TV signals (DVB), as DVB uses a
+different standard with similar features. That standard is not supported by
+this software. Therefore, as analog TV transmission has been stopped by now,
+the nxtvepg software is mostly of historical interest anymore. For more
+historic details see the Nextview EPG service description at the nxtvepg
+homepage: http://nxtvepg.sourceforge.net/intro.html
 
 Still useful features of this software are the integrated or standalone
-Teletext grabber, which allows extracting TV schedules from programme tables
-in Teletext and browsing them in the nxtvepg GUI, or exporting them to XMLTV
+Teletext grabber, which allows extracting TV schedules from programme tables in
+Teletext and browsing them in the nxtvepg GUI, or exporting them to XMLTV
 format for use in another browser. Inversely, nxtvepg can still be used for
 browsing data obtained in XMLTV format from other sources.
+
+For a comprehensive description of features of this software, please refer
+to the manual page: Type `man nxtvepg` in a shell (UNIX only), or open
+`manual.html` (English language) or `manual-de.html` (German) included in the
+package in a Web browser, or open http://nxtvepg.sourceforge.net/man.html
 
 
 The Nextview standard was developed by the major European consumer electronics
@@ -39,7 +38,6 @@ be kindly tolerated.
 
 nxtvepg is freeware, licensed under the GNU Public License 2. See file
 COPYRIGHT for details.
-
 
 System requirements:
 
@@ -63,36 +61,28 @@ TV boxes.)  NetBSD and FreeBSD versions supports all cards which are
 supported by the bktr driver.
 
 Linux software requirements:
-- for bttv kernel >= 2.0.35 (2.0.x was prone to freezes with bttv though,
-  hence upgrade to at least 2.2.x is highly recommended)
-- SAA7134 and CX23881 cards require at least kernel 2.4.x plus some v4l2
-  kernel patches (your Linux distribution may already include those if it
-  comes with saa7134 support), see http://www.bytesex.org/; alternatively
-  use kernel 2.6.2 or later, which works without patches.
-- video4linux and bttv drivers, bttv version >= 0.7.55 recommended;
-  saa7134 version >= 0.2.9 required; cx88xx driver (for cards with Conexant
-  CX23881 aka Bt881 capture chip) has no official release as of writing this,
-  use snapshot video4linux-20040330 or later from http://www.bytesex.org/
-- GNU C Compiler 2.93.3 or later, unless you got nxtvepg precompiled for
-  your platform. As of nxtvepg 2.9 a C++ compiler is required to compile
-  the teletext grabber (optional); This has only been tested with gcc-4.3.3
-- Tcl/Tk version 8.4 or later (version 8.5 recommended due to improvements
-  in appearance.) Sources available for download from http://www.tcl.tk/
-- Any release of X11R5 or X11R6
-  Note: X11 and Tcl/Tk are not required if you only build the daemon
 
-NetBSD software requirements:
-- kernel >= 1.5 including the bktr driver 2.17 or later,
-  available from http://vulture.dmem.strath.ac.uk/bt848/
-- GNU C Compiler, unless you got nxtvepg in a precompiled NetBSD package
-- Tcl/Tk version 8.4 or later
+- Either V4L2 drivers (i.e. video for Linux, API 2) when using analog
+  TV capture cards, or Digital TV drivers for DVB capture cards.
+- ZVBI library, for support of DVB capture cards with nxtvepg 2.x.
+  Sources are available at http://zapping.sourceforge.net/ZVBI/index.html
+- GNU C++ Compiler with support for C++14
+- Tcl/Tk version 8.5. (Note use of later Tcl/Tk releases is *not*
+  recommended due to changes in keyboard event handling.)
   Sources available for download from http://www.tcl.tk/
 - Any release of X11R5 or X11R6
   Note: X11 and Tcl/Tk are not required if you only build the daemon
 
+NetBSD software requirements:
+
+- kernel >= 1.5 including the bktr driver 2.17 or later,
+  available from http://vulture.dmem.strath.ac.uk/bt848/
+- other dependencies are same as for Linux.
+
 Windows software requirements:
+
 - Nothing actually: nxtvepg is shipped with all the required components.
-- Exception for Windows 95: the winsock2 DLL is required (ws2_32.dll, for
+- Exception for Windows 95: the winsock2 DLL is required (`ws2_32.dll`, for
   the daemon feature) which - in contrary to newer Windows versions - was
   not included with this OS.
 - Supported OS: Windows NT, Windows 2000, Windows XP, Windows 95/98/ME.
@@ -103,12 +93,13 @@ Windows software requirements:
   recognize your card or fails to load data, you may obtain the external
   VbiAcqWdmDrv.dll which allows to address your TV card via the vendor's
   WDM driver. This DLL is available separately at the nxtvepg homepage.
+- Note the Windows version does *not* support Digital TV capture cards.
 
 
 UNIX installation procedure (when compiling from source):
 
-- Recommended: first install a TV application like "xawtv" to make sure
-  sure your drivers work correctly.
+- Recommended: first install a TV application to verify that your TV card
+  drivers work correctly.
 
 - There's currently no "configure" script, so you have to manually check
   path definitions at the top of the Makefile, esp. for the Tcl/Tk libraries,
@@ -117,21 +108,18 @@ UNIX installation procedure (when compiling from source):
 - There are also several compile-time options in the Makefile which you
   might want to consider, however the defaults should work everywhere.
 
+  ATTENTION: To enable DVB support in any nxtvepg-2.x version, you need to
+  set compile-switch `USE_LIBZVBI`.
+
 - If you compile on a non-supported operating system or if you don't have a
   TV card or a supported driver, then replace epgvbi/btdrv4linux with module
   epgvbi/btdrv4dummy in the Makefiles (you still can use network acquisition
   mode to receive data from a supported platform)
 
-- As of nxtvepg-2.9 you need package "libboost-regex-dev", i.e. the Boost
-  regular expression library and header files. You can get it either
-  pre-compiled via "apt-get" or the package manager of your choice, or
-  directly from http://www.boost.org/.  You can remove compile-switch
-  "USE_TTX_GRABBER" in the Makefile to avoid this dependency.
-
 - make
   + Note: typing "make nxtvepg" will not work since there are other targets
     which need to be built first.  Hence just start make without parameters.
-  + If compilation fails with massive syntay errors, check the type
+  + If compilation fails with massive syntax errors, check the type
     definitions in epgctl/mytypes.h first.  Required types are: bool,
     schar, uchar, sint, uint, slong, ulong.  Compilation may fail if these
     are already defined in system header files; in this case you probably
@@ -163,12 +151,12 @@ UNIX installation procedure (when compiling from source):
 
 If the GUI shows up but does not react to any input, you probably
 need to tell Tcl/Tk where to find it's libraries. To do so, correct
-the paths in TCL_LIBRARY_PATH and TK_LIBRARY_PATH in the Makefile.
+the paths in `TCL_LIBRARY_PATH` and `TK_LIBRARY_PATH` in the Makefile.
 If you need to change anything besides the Makefile, please let me
 know about it (i.e. send me the diffs)
 
 
-Windows installation procedure:
+Windows installation procedure (for pre-compiled binary package):
 
 - Unpack the zip file into an empty directory.
 
@@ -202,17 +190,18 @@ Windows installation procedure:
   (most notably MTV and local TV channels.)
 
 
-Compilation procedure for Windows
+Compilation from source for Windows:
 
-- Note this is NOT required for regular users, only if you want to
-  change the software!
+- Note this is NOT required for regular releases for which a pre-compiled
+  binary release is provided. This is required only if you want to change
+  the software!
 - The source package as provided in the release distributions does not
   contain the Tcl/Tk libraries (DLLs).  You can simply copy those from
   the Windows binary package into the source root directory.  You could
   also use the original DLLs as available from http://www.tcl.tk/,
-  but you'd miss a few patches (see README.tcl*; patches were made
+  but you'd miss a few patches (see README.tcltk; patches were made
   (1) to catch shutdown messages (2) to disable use of the Windows
-  MessageBox() in tk_messageBox because it crashed the program and
+  MessageBox() in `tk_messageBox` because it crashed the program and
   (3) to insert the nxtvepg icon).  Note that prior to nxtvepg-2.5.0
   the sources also lacked the tcl/tk script libraries; these are
   available on request.
@@ -224,15 +213,11 @@ Compilation procedure for Windows
   installing Cygwin, start a shell, cd to the nxtvepg directory and type
   "make".  If you're not using NT or W2K you may have to adapt the OS
   detection code in Makefile and/or Makefile.win, i.e.
-  "ifeq ($(OS),Windows_NT)"
-- To compile the teletext grabber, the Boost regex library is required.
-  Get the sources from http://www.boost.org/ and compile them for
-  Windows. Note only library v 1.42 has been tested. Place the compiled
-  library into the boost/ sub-directory.
+  `ifeq ($(OS),Windows_NT)`
 - To generate the help menus from the documentation in POD format you
   need Perl5 (not essential unless you want to modify the help menus)
   from http://www.perl.org/ or as Cygwin package
-- If you want to compile the driver you should refer to the DScaler
+- If you want to compile the driver DLL you should refer to the DScaler
   documentation at http://www.dscaler.org/
 
 
@@ -352,10 +337,9 @@ In case nxtvepg crashes, or if you suspect internal errors, you need to
 recompile with debug support to allow me to analyze the problem.  Please
 add the -g option to CFLAGS in the Makefile and enable all debug options in
 mytypes.h by assigning ON instead of OFF. If you know which modules are
-responsible, you can also comment out DPRINTF_OFF at the top of those
+responsible, you can also comment out `DPRINTF_OFF` at the top of those
 modules. Then try to reproduce your problem and send me the resulting
 debug.out log file.
-
 
 The latest version of this software is available at:
 http://nxtvepg.sourceforge.net/

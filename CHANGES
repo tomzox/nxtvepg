@@ -5,6 +5,26 @@ features).  For patchlevel releases also internal changes might be listed in
 case they may fix bugs (or cause new ones)
 
 
+from 2.9.0pre4 to 2.9.0pre5 (2020-Dec-23)
+
+- The integrated teletext EPG grabber was upgraded to version tv_grab_ttx-2.2:
+  This version include updates and enhancements to scraping of EPG data from
+  teletext pages.
+- A major bug in XMLTV import was fixed, that caused spurious gaps in EPG
+  coverage (i.e. by dropping programme items with no description text).
+- A bug was fixed that caused a crash when merging a very large number of
+  XMLTV files.
+- The Linux driver interface was updated to remove remaining use of the
+  "v4l1" interface ("video for Linux", API version 1), so that channel changes
+  work with device drivers supporting v4l2 only.
+- Several bugs in usage of the ZBI library were fixed (only used when switch
+  USE_LIBZVBI is enabled in the Makefile) that caused "forced passive mode".
+- Network identification tables were updated according to latest ETSI specs.
+- Sources were adapted to compile without errors or warning with latest
+  version of tools. The dependency the "boost-regex" library was removed by
+  using C++11 instead.
+
+
 from 2.9.0pre3 to 2.9.0pre4 (2011-Jan-09)
 
 - Teletext grabber: The "Now&Next" acquisition phase was optimized further

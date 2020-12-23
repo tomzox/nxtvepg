@@ -21,9 +21,9 @@
 #    When the user changes the channel, the TV tuner is set to
 #    the according frequency and the EPG application is notified.
 #
-#  Author: Tom Zoerner
+#  Author: T. Zoerner
 #
-#  $Id: tvsim_gui.tcl,v 1.17 2008/09/14 19:23:22 tom Exp tom $
+#  $Id: tvsim_gui.tcl,v 1.18 2020/12/23 17:42:06 tom Exp tom $
 #
 #=CONST= ::pit_netwop_name 0
 #=CONST= ::pit_netwop_idx 1
@@ -452,7 +452,7 @@ proc CreateAbout {} {
       label .about.name -text "TV application interaction simulator - tvsim v$TVSIM_VERSION"
       pack .about.name -side top -pady 8
 
-      label .about.copyr1 -text "Copyright (C) 2002,2004,2005,2007 by Th. \"Tom\" Zörner"
+      label .about.copyr1 -text "Copyright (C) 2002,2004,2005,2007 by T. Zörner"
       label .about.copyr2 -text "tomzo@users.sourceforge.net"
       label .about.copyr3 -text "http://nxtvepg.sourceforge.net/" -font [list $font_family_fixed -12 normal] -foreground blue
       pack .about.copyr1 .about.copyr2 -side top

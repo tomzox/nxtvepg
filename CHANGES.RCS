@@ -23191,6 +23191,9 @@ epgui/uictrl.c [rev:1.61, 2020-06-21T07:37:46]:
 epgtcl/dlg_remind.tcl [rev:1.26, 2020-06-21T07:39:37]:
 - Fixed Tcl error upon start-up
 - error in debug output upon missing shortcut during start-up
+xmltv/xmltv_db.c [rev:1.19, 2020-06-21T08:48:00]:
+- Major bugfix XMLTV import:
+  - netwop index was overwritten to 0 for all PI that had no description text
 Makefile [rev:1.113, 2020-06-21T07:41:03]:
 - corrected doc rules for concurrent build
 - added address sanitizer (ASAN) support (commented by default)
@@ -23241,3 +23244,47 @@ epgui/pifilter.c [rev:1.97, 2020-07-05T19:04:17]:
 - PiFilter_ContextMenuAddFilter:
 - stripping series index post-fix for title search had no effect
   because "match complete" was used for sub-str filter
+xmltv-etsi.map [rev:1.9, 2020-12-23T16:00:25]:
+- improved comments at top
+- added a few identifiers to GLOBAL section
+README [rev:1.50, 2020-12-23T16:29:53]:
+- replaced intro with that from web page (e.g. removing provider list)
+- updated Linux system requirements and SW dependencies
+- added reference to feature description in manual page
+- prepared for mark-down format: use `...` quotes for identifiers
+CHANGES [rev:1.60, 2020-12-23T16:48:31]:
+- Updated for release 2.9.0pre5
+www/man-de.html [rev:1.6, 2020-12-23T17:03:27]:
+- Updated for release 2.9.0pre5
+www/man.html [rev:1.48, 2020-12-23T17:03:27]:
+- Updated for release 2.9.0pre5
+www/index.html [rev:1.115, 2020-12-23T17:04:49]:
+- Updated "News" section to include link to pre-release page
+www/man-ttx_grab.html [rev:1.4, 2020-12-23T17:06:45]:
+- Updated for release 2.2 of the TTX grabber
+www/ttx_grab.html [rev:1.8, 2020-12-23T17:07:34]:
+- Updated for release 2.2 of the TTX grabber
+epgdb/ttxgrab.c [rev:1.20, 2020-12-23T17:25:31]:
+- Adapted to change of ttx_cif.h in tv_grab_ttx-2.2:
+- dummy adaption to support for multiple instances of the grabber (unused
+  for now): added database instance pointer to all interfaces
+Makefile [rev:1.114, 2020-12-23T17:29:31]:
+epgtcl/mainwin.tcl [rev:1.268, 2020-12-23T17:27:07]:
+www/v4l2-index.html [rev:1.4, 2020-12-23T17:05:17]:
+tvsim/tvsim.pod [rev:1.11, 2020-12-23T17:42:06]:
+tvsim/tvsim_gui.tcl [rev:1.18, 2020-12-23T17:42:06]:
+tvsim/vbiplay.pod [rev:1.6, 2020-12-23T17:42:06]:
+tvsim/vbirec_gui.tcl [rev:1.14, 2020-12-23T17:42:06]:
+- Changed name in copyright from "Th." to "T."
+CHANGES.version [rev:1.20, 2020-12-23T17:29:35]:
+- Added www/man*.html to list of files with version number
+nxtvepg.spec [rev:1.29, 2020-12-23T17:33:58]:
+- updated for release 2.9.0
+- increased Tcl/Tk dependency from 8.4 to 8.5
+- updated description with that from README
+www/pre-releases.html [rev:1.96, 2020-12-23T18:45:01]:
+- Updated for release 2.9.0pre5:
+- added section on 3.0 development (github link)
+- replaced description of 2.9.0pre4 with 2.9.0pre5; added pre5 changelog
+- added links to github for sources
+- moved section on WDM drivers to below changelog

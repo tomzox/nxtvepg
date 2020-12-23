@@ -28,9 +28,9 @@
 #    will not work because there are other targets which need to be
 #    built first (read comments below for further explanations.)
 #
-#  Author: Tom Zoerner
+#  Author: T. Zoerner
 #
-#  $Id: Makefile,v 1.113 2020/06/21 07:41:03 tom Exp tom $
+#  $Id: Makefile,v 1.114 2020/12/23 17:29:31 tom Exp tom $
 #
 
 ifeq ($(OS),Windows_NT)
@@ -384,7 +384,7 @@ epgtcl/helptexts_de.tcl: nxtvepg-de.pod pod2help.pl
 nxtvepg.1: nxtvepg.pod epgctl/epgversion.h
 	EPG_VERSION_STR=`egrep '[ \t]*#[ \t]*define[ \t]*EPG_VERSION_STR' epgctl/epgversion.h | head -1 | sed -e 's#.*"\(.*\)".*#\1#'`; \
 	pod2man -date " " -center "Nextview EPG Decoder" -section "1" \
-	        -release "nxtvepg "$$EPG_VERSION_STR" (C) 2020 Tom Zoerner" \
+	        -release "nxtvepg "$$EPG_VERSION_STR" (C) 2020 T. Zoerner" \
 	   nxtvepg.pod > nxtvepg.1
 
 nxtvepgd.1: nxtvepg.1
@@ -402,7 +402,7 @@ manual-de.html: nxtvepg-de.pod epgctl/epgversion.h
 tvsim/tvsim.1: tvsim/tvsim.pod tvsim/tvsim_version.h
 	TVSIM_VERSION_STR=`egrep '[ \t]*#[ \t]*define[ \t]*TVSIM_VERSION_STR' tvsim/tvsim_version.h | head -1 | sed -e 's#.*"\(.*\)".*#\1#'`; \
 	pod2man -date " " -center "TV app interaction simulator" -section "1" \
-	        -release "tvsim "$$TVSIM_VERSION_STR" (C) 2002-2007 Tom Zoerner" \
+	        -release "tvsim "$$TVSIM_VERSION_STR" (C) 2002-2007 T. Zoerner" \
 	        tvsim/tvsim.pod > tvsim/tvsim.1; \
 
 tvsim/tvsim.html: tvsim/tvsim.pod tvsim/tvsim_version.h
@@ -412,7 +412,7 @@ tvsim/tvsim.html: tvsim/tvsim.pod tvsim/tvsim_version.h
 tvsim/vbirec.1: tvsim/vbirec.pod tvsim/tvsim_version.h
 	TVSIM_VERSION_STR=`egrep '[ \t]*#[ \t]*define[ \t]*TVSIM_VERSION_STR' tvsim/tvsim_version.h | head -1 | sed -e 's#.*"\(.*\)".*#\1#'`; \
 	pod2man -date " " -center "VBI recorder" -section "1" \
-	        -release "vbirec (C) 2002-2007 Tom Zoerner" \
+	        -release "vbirec (C) 2002-2007 T. Zoerner" \
 	        tvsim/vbirec.pod > tvsim/vbirec.1;
 
 tvsim/vbirec.html: tvsim/vbirec.pod tvsim/tvsim_version.h
@@ -422,7 +422,7 @@ tvsim/vbirec.html: tvsim/vbirec.pod tvsim/tvsim_version.h
 tvsim/vbiplay.1: tvsim/vbiplay.pod tvsim/tvsim_version.h
 	TVSIM_VERSION_STR=`egrep '[ \t]*#[ \t]*define[ \t]*TVSIM_VERSION_STR' tvsim/tvsim_version.h | head -1 | sed -e 's#.*"\(.*\)".*#\1#'`; \
 	pod2man -date " " -center "VBI playback tool" -section "1" \
-	        -release "vbiplay (C) 2002,2006 Tom Zoerner" \
+	        -release "vbiplay (C) 2002,2006 T. Zoerner" \
 	        tvsim/vbiplay.pod > tvsim/vbiplay.1
 
 tvsim/vbiplay.html: tvsim/vbiplay.pod tvsim/tvsim_version.h

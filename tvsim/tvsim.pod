@@ -22,9 +22,9 @@
 #    should contain the converted files, so that the user is not forced
 #    to install Perl.
 #
-#  Author: Tom Zoerner
+#  Author: T. Zoerner
 #
-# $Id: tvsim.pod,v 1.10 2005/03/06 19:46:44 tom Exp tom $
+# $Id: tvsim.pod,v 1.11 2020/12/23 17:42:06 tom Exp tom $
 # ---------------------------------------------------------------------------
 
 =head1 NAME

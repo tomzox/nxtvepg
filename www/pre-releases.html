@@ -1,6 +1,6 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/HTMLlat1.ent">
 <HTML lang="en">
-<!-- $Id: pre-releases.html,v 1.95 2020/06/14 15:49:33 tom Exp tom $ -->
+<!-- $Id: pre-releases.html,v 1.96 2020/12/23 18:45:01 tom Exp tom $ -->
 <HEAD>
 <TITLE>Developers and alpha testers download page</TITLE>
 <META http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
@@ -81,75 +81,62 @@ produce plenty of debug output.  Hence they should be used for evaluation only.
 Please do not redistribute.
 </P>
 
-<P>On this page you find:</P>
-<UL>
-<LI><A HREF="#pre_rel_nxtvepg">nxtvepg development snapshots</A>
-<LI><A HREF="#wdm_if_lib">WDM interface library</A>
-</UL>
+<!-- ------------------------------------------------------------------------ -->
+<BR><HR WIDTH="75%">
+
+<H2><A NAME="nxtvepg_3_0_0">nxtvepg 3.0 development line</A></H2>
+
+<P>
+A new major release is currently under development.
+This branch drops support for nexTView EPG due to lack of content providers and
+instead optimizes nxtvepg for use as XMLTV browser and Teletext EPG grabber via
+DVB capture cards. (Note nxtvepg does not support capturing from DVB for MS
+Windows yet.)
+</P><P>
+You can download the latest sources from the
+<A HREF="https://github.com/tomzox/nxtvepg">nxtvepg github site</A>.
+Use the instructions provided in README for building the executable.
+</P>
+
+<!--
+<P>
+Note the format of the "nxtvepg.rc/ini" configuration storage file will change
+with this release. The file will be automatically upgraded upon
+the first start when using an rc/ini file written by an older version.
+Remember to make a backup copy, so that you can still return to older versions.
+Also note that the protocol between the nxtvepg client and daemon does change,
+hence use the same version of nxtvepg both on client and server side.
+</P>
+-->
 
 <!-- ------------------------------------------------------------------------ -->
+<BR><HR WIDTH="75%">
 
 <H2><A NAME="pre_rel_nxtvepg">nxtvepg 2.9.0 development line</A></H2>
 <P>
-The following packages contain a snapshot of the ongoing development on nxtvepg.
-Please refer to the <A HREF="#changelog">changelog</A> at the bottom of this page, or the
-<A HREF="http://sourceforge.net/forum/forum.php?forum_id=217872">discussion forum</A>
-for background information.
+The packages below contain stable snapshots of development of the 2.9.0 release
+of nxtvepg. Release 2.9 will be the last version of nxtvepg to actually
+support nexTView EPG.
 </P>
-<!--
-a release candidate (beta #1) of the upcoming release.
-Please refer to the
-<A HREF="http://nxtvepg.sourceforge.net/changelog.html">changelog</A> and the
-<A HREF="http://sourceforge.net/mailarchive/forum.php?forum_id=14102">mailing list archives</A>
-for a history of changes.
--->
-<!--
-For a list of bug fixes (and a few new features) see the
-<A HREF="http://nxtvepg.sourceforge.net/changelog.html">changelog</A>.
-</P>
--->
 
 <!--
-<P>
-The latest release is 2.8.0,
-available on the regular <A HREF="download.html">download</A> page.
-</P>
+<I>no pre-releases are currently available</I>
 -->
 
-<!--
+<H3>nxtvepg pre-release 2.9.0pre5 (2020-Dec-23)</H3>
 <P>
-<B>Warning:</B> There's a change in the format of user-defined columns
-in the rc/ini file.  Once you start 2.4.1 your configuration will automatically
-be converted.  Make a copy of your old rc/ini file before you first start 2.4.1
-to be able to switch back to 2.4.0 in case you find any severe bugs in 2.4.1
+This pre-release contains mostly minor fixes to allow compilation with current
+compiler, video4linux driver, and library versions (i.e. adaption to 9 year
+evolution of those tools since the last release), plus a few bug-fixes.
 </P>
-<P>
-Note the format of rc/ini file has changed several times during pre-releases,
-the last time in <B>2.8.0pre17</B>.  The file will be automatically upgraded upon
-the first start when using an rc/ini file written by an older version.
-Remember to make a backup copy, so that you can still return to older versions.
-Also note that the protocol in-between the nxtvepg client and daemon has
-changed multiple times, hence use the same version of nxtvepg both on client
-and server side.
-
-<P>
-Note the acquisition daemon protocol has changed in 2.8.1 pre1 and pre2.
-Hence you cannot connect with an older client version to the current
-daemon version, or vice versa.
-</P>
--->
-
-<H3>nxtvepg pre-release 2.9.0pre4 (January 9th 2011)</H3>
 <P>
 Details on changes in this and older releases is available in the
-<A HREF="#changelog">changelog</A>.
+<A HREF="#changelog">changelog</A> below on this page.
 </P>
+
 <UL>
-<!--
-<LI><I>no pre-releases are currently available</I>
--->
 <LI CLASS="spaced">Sources:
-    <A HREF="http://nxtvepg.sourceforge.net/tmp/nxtvepg-2.9.0pre4.tar.gz">nxtvepg-2.9.0pre4.tar.gz</A> (apx 1.8 MB)
+    <A HREF="http://nxtvepg.sourceforge.net/tmp/nxtvepg-2.9.0pre5.tar.gz">nxtvepg-2.9.0pre5.tar.gz</A> (apx 1.8 MB)
 <!--
 <BR>Note: if you want to test nxtvepg with
 <A HREF="http://nxtvepg.sourceforge.net/tmp/README-proxy.txt">VBI proxy</A>
@@ -158,8 +145,7 @@ Details on changes in this and older releases is available in the
 <A HREF="http://zapping.sourceforge.net/">zapping.sourceforge.net</A>.
 -->
 <LI CLASS="spaced">Win32 executable:
-    <A HREF="http://nxtvepg.sourceforge.net/tmp/nxtvepg-2.9.0pre4b-win.zip">nxtvepg-2.9.0pre4b-win.zip</A> (apx. 3.5 MB)
-    <BR><B>2011-01-15</B>: Updated nxtvepg.exe due to a crash in the Teletext grabber: New version "2.9.0pre4b"
+    <A HREF="http://nxtvepg.sourceforge.net/tmp/nxtvepg-2.9.0pre5-win.zip">nxtvepg-2.9.0pre5-win.zip</A> (apx. 3.5 MB)
 <!--
 <BR><SPAN CLASS="anno">Does not contain libraries tcl85.dll and tk85.dll and other unchanged files.
    Please unzip the last official release 2.8.1 into the target directory and then
@@ -171,16 +157,12 @@ Details on changes in this and older releases is available in the
     <A HREF="http://nxtvepg.sourceforge.net/tmp/nxtvepg-2.8.1pre3-win-utf8.zip">nxtvepg-2.8.1pre3-win-utf8.zip</A> (apx.. 1.8 MB)
     <BR>Note this version is for users which want to import XMLTV documents which
     are encoded in UTF-8 (and cannot be converted to Latin-1 without losses.)
-    UTF-8 support is not complete yet. Note you can use UTF-8 support on UNIX
-    too be setting the 2 UTF switches in the Makefile.
+    UTF-8 support is not complete yet. (Note you can use UTF-8 support on UNIX
+    by uncommenting the line with the two "UTF" switches in "Makefile".)
 -->
-<!--
-<LI>If you haven't downloaded pre5, you'll also need new Tcl/Tk libraries:
-    <BR>Tcl/Tk 8.4.9 DLL: <A HREF="http://nxtvepg.sourceforge.net/tmp/nxtvepg-2.8.0pre5-tcltk.zip">nxtvepg-2.8.0pre5-tcltk.zip</A> (apx. 750 kB)
-    <BR>Just unpack this zip file in the directory which holds nxtvepg.exe
--->
-<LI CLASS="spaced">To enable use of vendor supplied WDM drivers you need an additional DLL which
-    was developed separately by Gérard Chevalier.  Download from below.
+<LI CLASS="spaced">To enable use of vendor supplied WDM drivers for analog TV capture cards,
+    you need an additional DLL which was developed separately by Gérard Chevalier.
+    Download from below.
 <!--
 <BR><B>Attention:</B> Please note that Win32 TV card configuration parameters
 and driver version have changed in pre7.
@@ -193,102 +175,14 @@ before you report them.
 </UL>
 
 <P>
+Alternatively you can download the sources from
+<A HREF="https://github.com/tomzox/nxtvepg">github</A>
+and build the executable yourself using instructions provided there.
+</P>
+
+<P>
 Older releases and associated files may still be available in the
 <A HREF="http://nxtvepg.sourceforge.net/tmp/">pre-release data directory</A>
-</P>
-
-<!-- ------------------------------------------------------------------------ -->
-
-<HR WIDTH="100%">
-
-<H2><A NAME="wdm_if_lib">WDM Support for nxtvepg</A></H2>
-<P>
-The WDM interface library was developed by Gerard Chevalier in 2004-2005.
-Afterwards it was maintained by T. Zoerner.
-</P><P>
-The following package contains the last release of the WDM interface
-library for Windows. It allows Windows users to optionally use drivers
-supplied by their card's manufacturer instead of the one which comes
-with nxtvepg.
-</P><P>
-Main goal of development is to help Windows users who cannot use nxtvepg at all because
-their TV card is not supported by nxtvepg's driver.  This is because
-currently VBI acquisition in the Windows port of nxtvepg is based exclusively
-on the <A HREF="http://dscaler.org/">DScaler</A> "dsdrv4" driver, which
-supports only cards based on Conexant BT878, CX23881 or Philips
-SAA7134 (and even among these only the ones with supported tuners.)
-Cards with chip sets from vendors which do not disclose specifications
-to support open source driver implementations cannot be supported
-this way.
-</P><P> 
-WDM support is useful for <B>Windows users only.</B>
-UNIX users need not look further.
-</P> 
-
-<H3>Download latest release: July 23rd 2006</H3>
-<UL>
-<LI>Interface library:
-    <A HREF="http://nxtvepg.sourceforge.net/tmp/nxtvepg-wdm-dll-20060723.zip">nxtvepg-wdm-dll-20060723.zip</A>
-<LI>WDM Driver sources
-    <A HREF="http://nxtvepg.sourceforge.net/tmp/VBIAcqWDMDrvSrc081905.zip">VBIAcqWDMDrvSrc081905.zip</A> (Visual Studio 2002-V7)
-</UL>
-<P>
-Unpack the ZIP archive into the same directory as nxtvepg,
-i.e. the DLL should be in the same directory as nxtvepg.exe.
-Additional instructions see README-WDM.txt in the zip file.
-</P><P>
-<B>Important note:</B> To use the library you need version 70d
-of the Microsoft Visual C run-time library (i.e. <KBD>msvcr70d.dll</KBD>)
-For legal reasons it is not included here. There are however plenty of
-sources for it on the web, you can
-<A HREF="http://www.google.de/search?q=msvcr70d.dll">search for msvcr70d.dll with Google</A>.
-</P>
-
-<H3>Known problems</H3>
-<P>
-The following bugs/open issues are already known:
-</P>
-<UL>
-<LI>When initially selecting a WDM source in the TV card input configuration
-    dialog, video source selection may not work (device is allegedly busy.)
-    If that happens, just close the dialog with OK and open it again.
-    After that the video input selection should work.
-<LI>TV channel/frequency conversion doesn't work for all channel tables yet.
-    If you live in Germany and have cable, you need to have a file named
-    VBIAcqWDMDrv.ini in the same directory as VBIAcqWDMDrv.dll with the
-    following two lines:
-<PRE>
-[Debug Behaviour]
-ForceRFInput=c
-</PRE>
-    This file is already included in the package.
-<LI>The EPG provider scan must be run in <I>slow</I> mode (you can enable this
-    option at the bottom of the provider scan dialog window.)  Even then some
-    networks may appear duplicate in the scan.  If your provider isn't found
-    due to this, try running the scan again, or use a K!TV or DScaler channel
-    table and move your provider's channel to the first position.
-<LI>Hauppauge PVR 250/350 cards are not supported yet.
-</UL>
-
-<H3>Tests feedback</H3>
-<P>
-This section lists card and system combinations currently reported as "working".
-<P>
-<UL>
-<LI>Leadtek WinFast TV2000XP Expert on Windows XP and Windows 2000
-<LI>Hauppauge WinTv PCI (Bt878 + Philips Tuner) on Windows XP
-<LI>Hauppauge WinTv Go on Windows XP
-<LI>Hauppauge WinTV PVR on Windows 2000
-<LI>Hauppauge WinTV PCI (new series with CX23881 chip) on W2K: <B>works partly</B><BR>
-    Appearently due to a bug in the WDM driver apx. half of the teletext pages
-    are lost; but if you're patient EPG reception is still possible.
-<LI>Typhoon card "Art.No. 90031" with Philips capture chip (SAA7134) on W2K
-<LI>Almost any card with Brooktree Bt878 or Bt848 capture chip when using the
-    free <A HREF="http://btwincap.sourceforge.net/">btwincap</A> WDM driver.
-</UL>
-<P>
-If you have questions or want to provide feedback, please use the
-<A HREF="http://sourceforge.net/forum/forum.php?forum_id=217872">discussion forum</A>.
 </P>
 
 <!-- ------------------------------------------------------------------------ -->
@@ -297,6 +191,26 @@ If you have questions or want to provide feedback, please use the
 <HR WIDTH="75%">
 
 <H2><A NAME="changelog">Change history</A></H2>
+
+<H3>Changes between 2.9.0pre4 and 2.9.0pre5 (2020-Dec-23)</H3>
+<UL>
+<LI>The integrated teletext EPG grabber was upgraded to version tv_grab_ttx-2.2:
+  This version include updates and enhancements to scraping of EPG data from
+  teletext pages.
+<LI>A major bug in XMLTV import was fixed, that caused spurious gaps in EPG
+  coverage (i.e. by dropping programme items with no description text).
+<LI>A bug was fixed that caused a crash when merging a very large number of
+  XMLTV files.
+<LI>The Linux driver interface was updated to remove remaining use of the
+  "v4l1" interface ("video for Linux", API version 1), so that channel changes
+  work with device drivers supporting v4l2 only.
+<LI>Several bugs in usage of the ZBI library were fixed (only used when switch
+  USE_LIBZVBI is enabled in the Makefile) that caused "forced passive mode".
+<LI>Network identification tables were updated according to latest ETSI specs.
+<LI>Sources were adapted to compile without errors or warning with latest
+  version of tools. The dependency the "boost-regex" library was removed by
+  using C++11 instead.
+</UL>
 
 <H3>Changes between 2.9.0pre3 and 2.9.0pre4 (2011-Jan-09)</H3>
 <UL>
@@ -384,6 +298,100 @@ If you have questions or want to provide feedback, please use the
   providers so that a "remove provider" button is added for "ghost" providers
   which don't match the ID of the actually transmitted EPG.
 </UL>
+
+<!-- ------------------------------------------------------------------------ -->
+
+<HR WIDTH="100%">
+
+<H2><A NAME="wdm_if_lib">WDM support for nxtvepg (analog capture devices)</A></H2>
+<P>
+The WDM interface library was developed by Gerard Chevalier in 2004-2005.
+Afterwards it was maintained by T. Zoerner.
+</P><P>
+The following package contains the last release of the WDM interface
+library for Windows. It allows Windows users to optionally use drivers
+supplied by their card's manufacturer instead of the one which comes
+with nxtvepg. Note only analog capture cards are supported (i.e. no DVB).
+</P><P>
+Main goal of development is to help Windows users who cannot use nxtvepg at all because
+their TV card is not supported by nxtvepg's driver.  This is because
+currently VBI acquisition in the Windows port of nxtvepg is based exclusively
+on the <A HREF="http://dscaler.org/">DScaler</A> "dsdrv4" driver, which
+supports only cards based on Conexant BT878, CX23881 or Philips
+SAA7134 (and even among these only the ones with supported tuners.)
+Cards with chip sets from vendors which do not disclose specifications
+to support open source driver implementations cannot be supported
+this way.
+</P><P> 
+WDM support is useful for <B>Windows users only.</B>
+UNIX users need not look further.
+</P> 
+
+<H3>Download latest release: July 23rd 2006</H3>
+<UL>
+<LI>Interface library:
+    <A HREF="http://nxtvepg.sourceforge.net/tmp/nxtvepg-wdm-dll-20060723.zip">nxtvepg-wdm-dll-20060723.zip</A>
+<LI>WDM Driver sources
+    <A HREF="http://nxtvepg.sourceforge.net/tmp/VBIAcqWDMDrvSrc081905.zip">VBIAcqWDMDrvSrc081905.zip</A> (Visual Studio 2002-V7)
+</UL>
+<P>
+Unpack the ZIP archive into the same directory as nxtvepg,
+i.e. the DLL should be in the same directory as nxtvepg.exe.
+Additional instructions see README-WDM.txt in the zip file.
+</P><P>
+<B>Important note:</B> To use the library you need version 70d
+of the Microsoft Visual C run-time library (i.e. <KBD>msvcr70d.dll</KBD>)
+For legal reasons it is not included here. There are however plenty of
+sources for it on the web, you can
+<A HREF="http://www.google.de/search?q=msvcr70d.dll">search for msvcr70d.dll with Google</A>.
+</P>
+
+<H3>Known problems</H3>
+<P>
+The following bugs/open issues are already known:
+</P>
+<UL>
+<LI>When initially selecting a WDM source in the TV card input configuration
+    dialog, video source selection may not work (device is allegedly busy.)
+    If that happens, just close the dialog with OK and open it again.
+    After that the video input selection should work.
+<LI>TV channel/frequency conversion doesn't work for all channel tables yet.
+    If you live in Germany and have cable, you need to have a file named
+    VBIAcqWDMDrv.ini in the same directory as VBIAcqWDMDrv.dll with the
+    following two lines:
+<PRE>
+[Debug Behaviour]
+ForceRFInput=c
+</PRE>
+    This file is already included in the package.
+<LI>The EPG provider scan must be run in <I>slow</I> mode (you can enable this
+    option at the bottom of the provider scan dialog window.)  Even then some
+    networks may appear duplicate in the scan.  If your provider isn't found
+    due to this, try running the scan again, or use a K!TV or DScaler channel
+    table and move your provider's channel to the first position.
+<LI>Hauppauge PVR 250/350 cards are not supported yet.
+</UL>
+
+<H3>Tests feedback</H3>
+<P>
+This section lists card and system combinations currently reported as "working".
+<P>
+<UL>
+<LI>Leadtek WinFast TV2000XP Expert on Windows XP and Windows 2000
+<LI>Hauppauge WinTv PCI (Bt878 + Philips Tuner) on Windows XP
+<LI>Hauppauge WinTv Go on Windows XP
+<LI>Hauppauge WinTV PVR on Windows 2000
+<LI>Hauppauge WinTV PCI (new series with CX23881 chip) on W2K: <B>works partly</B><BR>
+    Appearently due to a bug in the WDM driver apx. half of the teletext pages
+    are lost; but if you're patient EPG reception is still possible.
+<LI>Typhoon card "Art.No. 90031" with Philips capture chip (SAA7134) on W2K
+<LI>Almost any card with Brooktree Bt878 or Bt848 capture chip when using the
+    free <A HREF="http://btwincap.sourceforge.net/">btwincap</A> WDM driver.
+</UL>
+<P>
+If you have questions or want to provide feedback, please use the
+<A HREF="http://sourceforge.net/forum/forum.php?forum_id=217872">discussion forum</A>.
+</P>
 
 <!-- ------------------------------------------------------------------------ -->
 
