@@ -45,9 +45,9 @@
 
 #ifdef USE_TTX_GRABBER
 
-#define XML_OUT_FILE_PAT   "ttx-%s.xml.tmp"
+#define XML_OUT_FILE_PAT   "ttx-%s.xml"
+#define XML_OUT_FILE_TMP   ".tmp"
 #define TTX_CAP_FILE_PAT   "ttx-%s.dat"
-#define TTX_CAP_FILE_TMP   "ttx-%s.dat.tmp"
 
 #ifndef O_BINARY
 #define O_BINARY       0          // for M$-Windows only
@@ -546,6 +546,19 @@ bool TtxGrab_CheckPostProcess( uint bufIdx )
 // ---------------------------------------------------------------------------
 // Stop acquisition and start post-processing
 //
+char * TtxGrab_GetPath( const char * pName )
+{
+   char * pXmlTmpFile;
+
+   pXmlTmpFile = xmalloc(strlen(pName) + 20);
+   sprintf(pXmlTmpFile, XML_OUT_FILE_PAT, pName);
+
+   return pXmlTmpFile;
+}
+
+// ---------------------------------------------------------------------------
+// Stop acquisition and start post-processing
+//
 void TtxGrab_PostProcess( uint bufIdx, const char * pName, bool reset )
 {
    char * pXmlTmpFile;
@@ -562,7 +575,7 @@ void TtxGrab_PostProcess( uint bufIdx, const char * pName, bool reset )
 
    // build output file name (note: includes ".tmp" suffix which is removed later)
    pXmlTmpFile = xmalloc(strlen(pName) + 20);
-   sprintf(pXmlTmpFile, XML_OUT_FILE_PAT, pName);
+   sprintf(pXmlTmpFile, XML_OUT_FILE_PAT XML_OUT_FILE_TMP, pName);
 
    pXmlMergeFile = xstrdup(pXmlTmpFile);
    pXmlMergeFile[strlen(pXmlMergeFile) - 4] = 0;
@@ -583,7 +596,7 @@ void TtxGrab_PostProcess( uint bufIdx, const char * pName, bool reset )
       pXmlOutFile = xstrdup(pXmlTmpFile);
 
       // remove ".tmp" suffix from output file name
-      pXmlOutFile[strlen(pXmlOutFile) - 4] = 0;
+      pXmlOutFile[strlen(pXmlOutFile) - strlen(XML_OUT_FILE_TMP)] = 0;
 
       if (rename(pXmlTmpFile, pXmlOutFile) != 0)
       {

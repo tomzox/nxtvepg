@@ -156,7 +156,8 @@ static int MenuCmd_SetControlMenuStates( ClientData ttp, Tcl_Interp *interp, int
       eval_check(interp, comm);
 
       // enable "connect to acq. daemon" only if acq not already running locally
-      allow_opt = ((acqState.ttxGrabState == ACQDESCR_DISABLED) || acqState.isNetAcq);
+      allow_opt = RcFile_Query()->ttx.ttx_enable &&
+                  ((acqState.ttxGrabState == ACQDESCR_DISABLED) || acqState.isNetAcq);
       sprintf(comm, ".menubar.ctrl entryconfigure \"Connect to acq. daemon\" -state %s\n",
                     (allow_opt ? "normal" : "disabled"));
       eval_check(interp, comm);
@@ -1761,41 +1762,6 @@ static int MenuCmd_GetAcqConfig( ClientData ttp, Tcl_Interp *interp, int objc, T
 }
 
 // ----------------------------------------------------------------------------
-// Select acquisition mode and choose provider for acq
-// - called after change of acq mode via the config dialog
-// - parameters are taken from global Tcl variables, because the same
-//   update is required at startup
-//
-static int MenuCmd_UpdateAcqConfig( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
-{
-   const char * const pUsage = "Usage: C_UpdateAcqConfig <mode> <auto>";
-   int  autoStart;
-   int  result;
-
-   if ( (objc != 1+2) ||
-        (Tcl_GetBooleanFromObj(interp, objv[2], &autoStart) != TCL_OK) )
-   {  // parameter count is invalid
-      Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
-      result = TCL_ERROR;
-   }
-   else
-   {
-      RcFile_SetAcqMode(Tcl_GetString(objv[1]));
-
-      EpgSetup_AcquisitionMode(NETACQ_KEEP);
-
-      RcFile_SetAcqAutoStart(autoStart);
-      UpdateRcFile(TRUE);
-
-      // update help message in listbox if database is empty
-      UiControl_CheckDbState();
-
-      result = TCL_OK;
-   }
-   return result;
-}
-
-// ----------------------------------------------------------------------------
 // Append a line to the EPG scan messages
 //
 static void MenuCmd_AddEpgScanMsg( const char * pMsg, bool bold )
@@ -2765,16 +2731,17 @@ static int MenuCmd_GetTtxConfig( ClientData ttp, Tcl_Interp *interp, int objc, T
 
 // ----------------------------------------------------------------------------
 // Apply the user-configured client/server configuration
-// - called when client/server configuration dialog is closed
+// - called when teletext grabber configuration dialog is closed
 //
 static int MenuCmd_UpdateTtxConfig( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
 {
-   const char * const pUsage = "Usage: C_UpdateTtxConfig <list>";
+   const char * const pUsage = "Usage: C_UpdateTtxConfig <acq_mode> <acq_auto> <list>";
    RCFILE_TTX  rxTtxGrab;
    Tcl_Obj     ** cfArgv;
    int  cfArgc, cf_idx;
    int  tmpInt;
    int  keyIndex;
+   int  autoStart;
    int  result;
 
    static CONST84 char * pKeywords[] = { "enable", "net_count", "pg_start",
@@ -2782,14 +2749,18 @@ static int MenuCmd_UpdateTtxConfig( ClientData ttp, Tcl_Interp *interp, int objc
    enum ttxcf_keys { TTXGRAB_ENABLE, TTXGRAB_NET_COUNT, TTXGRAB_PG_START,
       TTXGRAB_PG_END, TTXGRAB_OV_PG, TTXGRAB_DURATION, TTXGRAB_KEEP };
 
-   if (objc != 2)
+   if ( (objc != 1+3) ||
+        (Tcl_GetBooleanFromObj(interp, objv[2], &autoStart) != TCL_OK) )
    {  // parameter count is invalid: none expected
       Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
       result = TCL_ERROR;
    }
    else
    {
-      result = Tcl_ListObjGetElements(interp, objv[1], &cfArgc, &cfArgv);
+      RcFile_SetAcqMode(Tcl_GetString(objv[1]));
+      RcFile_SetAcqAutoStart(autoStart);
+
+      result = Tcl_ListObjGetElements(interp, objv[3], &cfArgc, &cfArgv);
       if (result == TCL_OK)
       {
          ifdebug1(((cfArgc & 1) != 0), "MenuCmd-UpdateTtxConfig: warning: uneven number of params: %d", cfArgc);
@@ -2853,6 +2824,22 @@ static int MenuCmd_UpdateTtxConfig( ClientData ttp, Tcl_Interp *interp, int objc
       EpgSetup_AcquisitionMode(NETACQ_KEEP);
 
       UpdateRcFile(TRUE);
+
+      // update help message in listbox if database is empty
+      UiControl_CheckDbState();
+
+      // enable aquisition, if auto-start enabled
+      const RCFILE * pRc = RcFile_Query();
+      if ( (autoStart == ACQ_START_AUTO) &&
+           pRc->ttx.ttx_enable &&
+           !EpgScan_IsActive() && !EpgAcqCtl_IsActive() )
+      {
+         AutoStartAcq();
+      }
+      else if (pRc->ttx.ttx_enable == FALSE)
+      {
+         EpgAcqCtl_Stop();
+      }
    }
    return result;
 }
@@ -2971,7 +2958,6 @@ void MenuCmd_Init( void )
       Tcl_CreateObjCommand(interp, "C_GetPiExpireDelay", MenuCmd_GetPiExpireDelay, (ClientData) NULL, NULL);
       Tcl_CreateObjCommand(interp, "C_CountExpiredPi", MenuCmd_CountExpiredPi, (ClientData) NULL, NULL);
       Tcl_CreateObjCommand(interp, "C_GetAcqConfig", MenuCmd_GetAcqConfig, (ClientData) NULL, NULL);
-      Tcl_CreateObjCommand(interp, "C_UpdateAcqConfig", MenuCmd_UpdateAcqConfig, (ClientData) NULL, NULL);
 
       Tcl_CreateObjCommand(interp, "C_StartEpgScan", MenuCmd_StartEpgScan, (ClientData) NULL, NULL);
       Tcl_CreateObjCommand(interp, "C_StopEpgScan", MenuCmd_StopEpgScan, (ClientData) NULL, NULL);

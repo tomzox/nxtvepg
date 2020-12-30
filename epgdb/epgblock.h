@@ -265,7 +265,6 @@ typedef struct
 
 // pseudo CNIs
 #define MERGED_PROV_CNI        0x00FF
-#define XMLTV_TTX_PROV_CNI     0x800000FF
 
 #define XMLTV_PROV_CNI_BASE    0x00010000
 #define XMLTV_PROV_CNI_DELTA   0x00010000
@@ -275,7 +274,7 @@ typedef struct
 
 #define IS_NXTV_CNI(CNI)       ((((CNI) & ~0xFFFF) == 0) && ((CNI) != MERGED_PROV_CNI))
 #define IS_XMLTV_CNI(CNI)      (((CNI)>=XMLTV_PROV_CNI_BASE) && (((CNI)<=XMLTV_PROV_CNI_MAX)))
-#define IS_PSEUDO_CNI(CNI)     (((CNI)==MERGED_PROV_CNI) || ((CNI)==XMLTV_TTX_PROV_CNI))
+#define IS_PSEUDO_CNI(CNI)     ((CNI)==MERGED_PROV_CNI)
 
 // ----------------------------------------------------------------------------
 // Declaration of queue for acquisition

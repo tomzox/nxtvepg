@@ -20,7 +20,6 @@
 #
 #  $Id: dlg_acqmode.tcl,v 1.12 2011/01/05 19:13:39 tom Exp tom $
 #
-set acqmode_popup 0
 set netacqcf_popup 0
 set ttxgrab_popup 0
 
@@ -32,100 +31,9 @@ set netacqcf_view "both"
 #=CONST= ::acqcf_ret_mode_idx 0
 #=CONST= ::acqcf_ret_start_idx 1
 
-#=LOAD=PopupAcqMode
 #=LOAD=PopupNetAcqConfig
 #=LOAD=PopupTtxGrab
 #=DYNAMIC=
-
-## ---------------------------------------------------------------------------
-## Open popup for acquisition mode selection
-## - can not be popped up if /dev/video is busy
-##
-proc PopupAcqMode {} {
-   global acqmode_popup
-   global acqmode_ailist acqmode_names acqmode_start
-   global acqmode_sel
-   global is_unix
-
-   if {$acqmode_popup == 0} {
-
-      CreateTransientPopup .acqmode "Acquisition mode selection"
-      set acqmode_popup 1
-
-      # load list of providers
-      set acqmode_ailist {}
-      foreach {cni name} [C_GetProvCnisAndNames nxtv] {
-         lappend acqmode_ailist $cni
-         set acqmode_names($cni) $name
-      }
-      set acqmode_ailist [SortProvList $acqmode_ailist]
-
-      # initialize popup with current settings
-      set tmpl [C_GetAcqConfig]
-      set acqmode_sel [lindex $tmpl $::acqcf_ret_mode_idx]
-      set acqmode_start [lindex $tmpl $::acqcf_ret_start_idx]
-
-      # info text
-      #label .acqmode.info1 -text "If you have more than one EPG provider, you can\nselect here in which order their data is acquired:" -justify left
-      #pack  .acqmode.info1 -side top -pady 5 -padx 10 -anchor w
-
-      # checkbuttons for modes
-      frame .acqmode.mode
-      if $is_unix {
-         radiobutton .acqmode.mode.mode0 -text "Passive (no tuning or input selection)" -variable acqmode_sel -value "passive"
-         pack .acqmode.mode.mode0 -side top -anchor w
-      }
-      radiobutton .acqmode.mode.mode1 -text "External (input selection only)" -variable acqmode_sel -value "external"
-      radiobutton .acqmode.mode.mode3 -text "Cyclic: Full" -variable acqmode_sel -value "cyclic_2"
-      radiobutton .acqmode.mode.mode5 -text "Cyclic: Now->Full" -variable acqmode_sel -value "cyclic_02"
-      pack .acqmode.mode.mode1 .acqmode.mode.mode3 .acqmode.mode.mode5 -side top -anchor w
-      pack .acqmode.mode -side top -pady 10 -padx 10 -anchor w
-
-      # check-button to disable automatic acq-start upon program start (note "auto enabled" = 0)
-      checkbutton .acqmode.auto_acq -text "Start acquisition automatically" -variable acqmode_start -onvalue 0 -offvalue 1
-      pack .acqmode.auto_acq -side top -padx 10 -pady 10 -anchor w
-
-      # command buttons at the bottom of the window
-      frame .acqmode.cmd
-      button .acqmode.cmd.help -text "Help" -width 5 -command {PopupHelp $helpIndex(Acquisition modes)}
-      button .acqmode.cmd.abort -text "Abort" -width 5 -command {destroy .acqmode}
-      button .acqmode.cmd.ok -text "Ok" -width 5 -command {QuitAcqModePopup} -default active
-      pack .acqmode.cmd.help .acqmode.cmd.abort .acqmode.cmd.ok -side left -padx 10
-      pack .acqmode.cmd -side top -pady 10
-
-      bind .acqmode <Key-F1> {PopupHelp $helpIndex(Acquisition modes)}
-      bind .acqmode.cmd <Destroy> {+ set acqmode_popup 0}
-      bind .acqmode.cmd.ok <Return> {tkButtonInvoke %W}
-      bind .acqmode.cmd.ok <Escape> {tkButtonInvoke .acqmode.cmd.abort}
-      focus .acqmode.cmd.ok
-   } else {
-      raise .acqmode
-   }
-}
-
-# extract, apply and save the settings
-proc QuitAcqModePopup {} {
-   global acqmode_ailist acqmode_names acqmode_start
-   global acqmode_sel
-
-   if {[C_IsNetAcqActive default]} {
-      set tmpl [C_GetAcqConfig]
-      set old_acqmode_sel [lindex $tmpl $::acqcf_ret_mode_idx]
-      if {$old_acqmode_sel ne $acqmode_sel} {
-         # warn that params do not affect acquisition running remotely
-         tk_messageBox -type ok -icon info -message "Please note that this does not update the acquisition mode on server side."
-      }
-   }
-
-   C_UpdateAcqConfig $acqmode_sel $acqmode_start
-
-   # free memory
-   unset acqmode_ailist acqmode_sel acqmode_start
-   if {[info exists acqmode_names]} {unset acqmode_names}
-
-   # close the popup window
-   destroy .acqmode
-}
 
 ##  --------------------------------------------------------------------------
 ##  Creates the remote acquisition configuration dialog
@@ -382,6 +290,8 @@ proc PopupTtxGrab {} {
    global ttxgrab_tmpcf
    global font_normal font_fixed
    global ttxgrab_popup
+   global acqmode_start
+   global acqmode_sel
 
    if {$ttxgrab_popup == 0} {
 
@@ -419,11 +329,20 @@ proc PopupTtxGrab {} {
       set ttxgrab_tmpcf(pg_start) [TtxGrab_Hex2Dec $ttxgrab_tmpcf(pg_start)]
       set ttxgrab_tmpcf(pg_end) [TtxGrab_Hex2Dec $ttxgrab_tmpcf(pg_end)]
 
+      # initialize current acq mode settings
+      set tmpl [C_GetAcqConfig]
+      set acqmode_sel [lindex $tmpl $::acqcf_ret_mode_idx]
+      set acqmode_start [lindex $tmpl $::acqcf_ret_start_idx]
+
       checkbutton .ttxgrab.ena_chk -text "Enable teletext grabber" -variable ttxgrab_tmpcf(enable) \
                                    -command TtxGrab_Enabled
-      pack  .ttxgrab.ena_chk -side top -padx 10 -pady 10 -anchor w
+      pack  .ttxgrab.ena_chk -side top -padx 10 -pady 5 -anchor w
 
-      frame .ttxgrab.all
+      # check-button to disable automatic acq-start upon program start (note "auto enabled" = 0)
+      checkbutton .ttxgrab.ena_auto -text "Start acquisition automatically" -variable acqmode_start -onvalue 0 -offvalue 1
+      pack .ttxgrab.ena_auto -side top -padx 10 -pady 0 -anchor w
+
+      labelframe .ttxgrab.all -text "Teletext options"
       set gridrow 0
       label .ttxgrab.all.chcnt_lab -text "Number of TV channels to grab:"
       grid  .ttxgrab.all.chcnt_lab -row $gridrow -column 0 -sticky w -padx 5
@@ -451,7 +370,17 @@ proc PopupTtxGrab {} {
       label .ttxgrab.all.dur_lab2 -text {[seconds]} -font $font_normal
       grid  .ttxgrab.all.dur_lab2 -row $gridrow -column 2 -columnspan 2 -sticky w -padx 5
       incr gridrow
-      pack  .ttxgrab.all -side top -pady 10 -padx 10 -anchor w
+      pack  .ttxgrab.all -side top -pady 5 -padx 10 -fill x -expand 1
+
+      # checkbuttons for acquisition modes
+      labelframe .ttxgrab.mode -text "Acquisition mode"
+      #label .ttxgrab.mode.info1 -text "If you have more than one EPG provider, you can\nselect here in which order their data is acquired:" -justify left
+      #pack  .ttxgrab.mode.info1 -side top -pady 5 -padx 10 -anchor w
+      radiobutton .ttxgrab.mode.mode1 -text "Cyclic: Full" -variable acqmode_sel -value "cyclic_2"
+      radiobutton .ttxgrab.mode.mode2 -text "Cyclic: Now->Full" -variable acqmode_sel -value "cyclic_02"
+      radiobutton .ttxgrab.mode.mode0 -text "Passive (no tuning or input selection)" -variable acqmode_sel -value "passive"
+      pack .ttxgrab.mode.mode1 .ttxgrab.mode.mode2 .ttxgrab.mode.mode0 -side top -anchor w
+      pack .ttxgrab.mode -side top -padx 10 -pady 5 -fill x -expand 1
 
       checkbutton .ttxgrab.keep_ttx -text "Keep teletext raw capture data (for debugging)" -variable ttxgrab_tmpcf(keep_ttx)
       pack  .ttxgrab.keep_ttx -side top -padx 10 -pady 5 -anchor w
@@ -576,6 +505,7 @@ proc TtxGrab_IntCheck {int low item} {
 # save & apply the settings
 proc QuitTtxGrabPopup {} {
    global ttxgrab_tmpcf
+   global acqmode_start acqmode_sel
 
    if $ttxgrab_tmpcf(enable) {
       set ok 0
@@ -613,11 +543,21 @@ proc QuitTtxGrabPopup {} {
    }
 
    if $ok {
+      if {[C_IsNetAcqActive default]} {
+         set tmpl [C_GetAcqConfig]
+         set old_acqmode_sel [lindex $tmpl $::acqcf_ret_mode_idx]
+         if {$old_acqmode_sel ne $acqmode_sel} {
+            # warn that params do not affect acquisition running remotely
+            tk_messageBox -type ok -icon info -message "Please note that this does not update the acquisition mode on server side."
+         }
+      }
+
       # pass params to C level
-      C_UpdateTtxConfig [array get ttxgrab_tmpcf]
+      C_UpdateTtxConfig $acqmode_sel $acqmode_start [array get ttxgrab_tmpcf]
 
       # free memory
       array unset ttxgrab_tmpcf
+      unset acqmode_sel acqmode_start
 
       # close the popup window
       destroy .ttxgrab

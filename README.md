@@ -1,85 +1,60 @@
-Hi there,
+# nxtvepg - XMLTV EPG browser & Teletext EPG scraper
 
-The nxtvepg EPG software package supports receiving and browsing Nextview EPG
-on your PC. Nextview is an ETSI standard for transmission of Electronic TV
-Program Guides within (analog) TV broadcasts. Compared to Teletext with its
-pre-formatted schedule tables, Nextview is more flexible due to being based on
-a database, which allows for flexible searches; also the database covers
-schedules of most or all TV networks at once.
+*Today*, nxtvepg is a browser for EPG data stored in XMLTV files. Additionally,
+nxtvepg comes with an integrated Teletext grabber, which allows extracting TV
+schedules from programme tables in Teletext and browsing them immediately in
+the nxtvepg GUI, or exporting them to XMLTV format for use in another browser.
 
-This free service was offered by several content providers in Germany, Austria,
-Switzerland, France, Belgium and Turkey up to apx. 2011. Together they covered
-the daily TV schedules of all major networks in these countries. However,
-Nextview EPG is not transmitted via digital TV signals (DVB), as DVB uses a
-different standard with similar features. That standard is not supported by
-this software. Therefore, as analog TV transmission has been stopped by now,
-the nxtvepg software is mostly of historical interest anymore. For more
-historic details see the Nextview EPG service description at the nxtvepg
-homepage: http://nxtvepg.sourceforge.net/intro.html
-
-Still useful features of this software are the integrated or standalone
-Teletext grabber, which allows extracting TV schedules from programme tables in
-Teletext and browsing them in the nxtvepg GUI, or exporting them to XMLTV
-format for use in another browser. Inversely, nxtvepg can still be used for
-browsing data obtained in XMLTV format from other sources.
+*Historically*, nxtvepg was developed for receiving and browsing Nextview EPG.
+Nextview is an ETSI standard for transmission of Electronic TV Program Guides
+within (analog) TV broadcasts. However, as the world has switched to digital
+TV broadcast since, it is no longer in use today. Current versions of nxtvepg
+no longer support the format, despite keeping the name of the SW package.
 
 For a comprehensive description of features of this software, please refer
 to the manual page: Type `man nxtvepg` in a shell (UNIX only), or open
 `manual.html` (English language) or `manual-de.html` (German) included in the
-package in a Web browser, or open http://nxtvepg.sourceforge.net/man.html
+package in a Web browser, or open <http://nxtvepg.sourceforge.net/man.html>
 
-
-The Nextview standard was developed by the major European consumer electronics
-manufacturers under the hood of the European Telecommunications Standards
-Institute (http://www.etsi.org/) in 1995-1997 and is freely available as
-standard number ETS 300 707. The author of this software has no connections
-whatsoever to the ETSI - but he still hopes this software distribution will
-be kindly tolerated.
-
-nxtvepg is freeware, licensed under the GNU Public License 2. See file
-COPYRIGHT for details.
-
-System requirements:
+## System requirements
 
 Hardware minimum requirements are a PC or workstation with performance
-equivalent to a 90 MHz Intel Pentium CPU and 128 MB of RAM (note nxtvepg
-is also known to work fine on Power-PC and Ultra-Sparc platforms.)
-Additionally an analog TV tuner card is required. In some cases you
-may also be able to use a DVB card as input, see below.
+equivalent to a 90 MHz Intel Pentium CPU and 128 MB of RAM (note nxtvepg is
+also known to work fine on Power-PC and Ultra-Sparc platforms.) For teletext
+grabber, a DVB or analog TV tuner card is required and you need to be able
+to receive a network that transmits Teletext service with programme tables.
 
-The Windows version supports all PCI TV cards based either on the capture
-chips Brooktree Fusion Bt878/Bt848, sucessor Conexant CX23881 or
-Philips SAA7134 via the internal "dsdrv4" driver (which is taken from
-the DScaler project.)  With the help of an external DLL (currently not
-included - please refer to the download page) additionally all cards
-which come with a WDM Driver which supports "VBI" decoding (e.g. teletext)
-are supported.
+The Windows version supports all analog TV cards plugged-in via PCI and based
+either on the capture chips Brooktree Fusion Bt878/Bt848, sucessor Conexant
+CX23881 or Philips SAA7134 via the internal "dsdrv4" driver (which is taken
+from the DScaler project.)  With the help of an external DLL (currently not
+included - please refer to the download page) additionally all cards which come
+with a WDM Driver which supports "VBI" decoding (e.g. teletext) are supported.
+DVB is currently not supported for Windows.
 
 The Linux version supports all cards for which a "video4linux" or v4l2
 compatible driver exists (e.g. bttv, saa7134, cx8800, possibly even USB
 TV boxes.)  NetBSD and FreeBSD versions supports all cards which are
 supported by the bktr driver.
 
-Linux software requirements:
+### Linux software requirements
 
 - Either V4L2 drivers (i.e. video for Linux, API 2) when using analog
   TV capture cards, or Digital TV drivers for DVB capture cards.
-- ZVBI library, for support of DVB capture cards with nxtvepg 2.x.
-  Sources are available at http://zapping.sourceforge.net/ZVBI/index.html
 - GNU C++ Compiler with support for C++14
 - Tcl/Tk version 8.5. (Note use of later Tcl/Tk releases is *not*
   recommended due to changes in keyboard event handling.)
-  Sources available for download from http://www.tcl.tk/
+  Sources available for download from <http://www.tcl.tk/>
 - Any release of X11R5 or X11R6
   Note: X11 and Tcl/Tk are not required if you only build the daemon
 
-NetBSD software requirements:
+### NetBSD software requirements
 
 - kernel >= 1.5 including the bktr driver 2.17 or later,
-  available from http://vulture.dmem.strath.ac.uk/bt848/
+  available from <http://vulture.dmem.strath.ac.uk/bt848/>
 - other dependencies are same as for Linux.
 
-Windows software requirements:
+### Windows software requirements
 
 - Nothing actually: nxtvepg is shipped with all the required components.
 - Exception for Windows 95: the winsock2 DLL is required (`ws2_32.dll`, for
@@ -96,7 +71,7 @@ Windows software requirements:
 - Note the Windows version does *not* support Digital TV capture cards.
 
 
-UNIX installation procedure (when compiling from source):
+## UNIX installation procedure (when compiling from source)
 
 - Recommended: first install a TV application to verify that your TV card
   drivers work correctly.
@@ -108,55 +83,51 @@ UNIX installation procedure (when compiling from source):
 - There are also several compile-time options in the Makefile which you
   might want to consider, however the defaults should work everywhere.
 
-  ATTENTION: To enable DVB support in any nxtvepg-2.x version, you need to
-  set compile-switch `USE_LIBZVBI`.
-
 - If you compile on a non-supported operating system or if you don't have a
   TV card or a supported driver, then replace epgvbi/btdrv4linux with module
   epgvbi/btdrv4dummy in the Makefiles (you still can use network acquisition
   mode to receive data from a supported platform)
 
-- make
-  + Note: typing "make nxtvepg" will not work since there are other targets
-    which need to be built first.  Hence just start make without parameters.
-  + If compilation fails with massive syntax errors, check the type
-    definitions in epgctl/mytypes.h first.  Required types are: bool,
-    schar, uchar, sint, uint, slong, ulong.  Compilation may fail if these
-    are already defined in system header files; in this case you probably
-    have to comment out nxtvepg's definition.
-  + If compilation fails due to missing "include files", you probably lack
-    development versions of standard libraries. On Debian/Ubuntu you need:
-    apt-get install tcl8.4 tcl8.4-dev tk8.4 tk8.4-dev
-    apt-get install libx11-dev libxmu6 libxmu-dev
-  + To build the "nxtvepgd" executable type "make daemon" or "make all".
-    This will compile one extra module and otherwise just link a smaller
-    executable which does not contain the graphical user interface.
-  + To compile the tvsim test & development suite too, invoke "make all"
-    (Note these tools are not installed into system directories since they
-    are intended for temporary use in debugging only.)
-  + Intermediate objects and the binaries are generated in a subdirectory
-    named build-<platform> (e.g. build-i386 for an Intel compatible)
+- `make`
+    * Note: typing `make nxtvepg` will not work since there are other targets
+      which need to be built first.  Hence just start make without parameters.
+    * If compilation fails with massive syntax errors, check the type
+      definitions in epgctl/mytypes.h first.  Required types are: bool,
+      schar, uchar, sint, uint, slong, ulong.  Compilation may fail if these
+      are already defined in system header files; in this case you probably
+      have to comment out nxtvepg's definition.
+    * If compilation fails due to missing "include files", you probably lack
+      development versions of standard libraries. On Debian/Ubuntu you need:
+      `apt-get install tcl8.4 tcl8.4-dev tk8.4 tk8.4-dev`
+      `apt-get install libx11-dev libxmu6 libxmu-dev`
+    * To build the "nxtvepgd" executable type `make daemon` or `make all`.
+      This will compile one extra module and otherwise just link a smaller
+      executable which does not contain the graphical user interface.
+    * To compile the tvsim test & development suite too, invoke `make all`
+      (Note these tools are not installed into system directories since they
+      are intended for temporary use in debugging only.)
+    * Intermediate objects and the binaries are generated in a subdirectory
+      named `build-<platform>` (e.g. build-i386 for an Intel compatible)
 
-- make install
+- `make install`
   This will copy the nxtvepg and nxtvepgd executables and their respective
   manual pages into system directories and set up a directory where the
   databases are stored.  Usually you need to "su root" to have permission
   to do so.
 
-- Invoke the application and start a provider scan from the Configure menu.
-  Alternatively, tune a Nextview provider's TV channel with a TV application
-  (see provider list at the top of this file) and let nxtvepg run in parallel,
-  it should automatically pick up incoming Nextview EPG data.  Further
-  details can be found in the man page or help menu, section "Getting Started"
+- Invoke the application with the name of a pre-existing XMLTV file name on
+  the command line. If you plan to use the EPG grabberm start nxtvepg without
+  command line parameters and follow the instructions in the main window, or
+  read manual chapter "Getting Started".
 
 If the GUI shows up but does not react to any input, you probably
-need to tell Tcl/Tk where to find it's libraries. To do so, correct
+need to tell Tcl/Tk where to find its libraries. To do so, correct
 the paths in `TCL_LIBRARY_PATH` and `TK_LIBRARY_PATH` in the Makefile.
 If you need to change anything besides the Makefile, please let me
 know about it (i.e. send me the diffs)
 
 
-Windows installation procedure (for pre-compiled binary package):
+## Windows installation procedure (for pre-compiled binary package)
 
 - Unpack the zip file into an empty directory.
 
@@ -190,7 +161,7 @@ Windows installation procedure (for pre-compiled binary package):
   (most notably MTV and local TV channels.)
 
 
-Compilation from source for Windows:
+### Compilation from source for Windows
 
 - Note this is NOT required for regular releases for which a pre-compiled
   binary release is provided. This is required only if you want to change
@@ -198,17 +169,15 @@ Compilation from source for Windows:
 - The source package as provided in the release distributions does not
   contain the Tcl/Tk libraries (DLLs).  You can simply copy those from
   the Windows binary package into the source root directory.  You could
-  also use the original DLLs as available from http://www.tcl.tk/,
+  also use the original DLLs as available from <http://www.tcl.tk/>,
   but you'd miss a few patches (see README.tcltk; patches were made
   (1) to catch shutdown messages (2) to disable use of the Windows
   MessageBox() in `tk_messageBox` because it crashed the program and
-  (3) to insert the nxtvepg icon).  Note that prior to nxtvepg-2.5.0
-  the sources also lacked the tcl/tk script libraries; these are
-  available on request.
+  (3) to insert the nxtvepg icon).
 - Fastest way is to cross-compile for Windows under Linux.  You need to
-  install "mingw32" package and then type "make -f Makefile.win"
+  install "mingw32" package and then type `make -f Makefile.win`
 - Alternatively you can install GNU/Cygwin on your Windows host, see
-  http://www.cygwin.com/  Most important are packages for make, gcc,
+  <http://www.cygwin.com/>.  Most important are packages for make, gcc,
   mingw ("Minimalistic GNU for Windows") and win32 header files.  After
   installing Cygwin, start a shell, cd to the nxtvepg directory and type
   "make".  If you're not using NT or W2K you may have to adapt the OS
@@ -216,63 +185,63 @@ Compilation from source for Windows:
   `ifeq ($(OS),Windows_NT)`
 - To generate the help menus from the documentation in POD format you
   need Perl5 (not essential unless you want to modify the help menus)
-  from http://www.perl.org/ or as Cygwin package
+  from <http://www.perl.org/> or as Cygwin package
 - If you want to compile the driver DLL you should refer to the DScaler
-  documentation at http://www.dscaler.org/
+  documentation at <http://www.dscaler.org/>
 
 
-Explanation of Windows TV card driver error messages:
+### Explanation of Windows TV card driver error messages
 
-- "Failed to load the TV card driver. (...)"
+- "Failed to load the TV card driver. (...)":
   This message can unfortunately have many causes. For the most probable
   causes an explanation is appended to the message.  The following hints
   may help you:
 
   1. You may not have the driver files "dsdrv4.sys" and "dsdrv4.vxd"
-  in the working directory of nxtvepg. This may happen if you specify
-  a working directory (e.g. in a shortcut definition) that differs from
-  the one that contains the nxtvepg.exe. Don't do that, use the -dbdir
-  and -rcfile options instead to specify where configuration files are
-  searched for.
+     in the working directory of nxtvepg. This may happen if you specify
+     a working directory (e.g. in a shortcut definition) that differs from
+     the one that contains the nxtvepg.exe. Don't do that, use the -dbdir
+     and -rcfile options instead to specify where configuration files are
+     searched for.
 
   2. On Windows NT and Windows 2000 you need to have administrator privileges
-  the very first time you start nxtvepg, to be able to install the TV card
-  driver.  The driver attempts to set up permissions in a way that afterwards
-  every user can start its "DsDrv4" service. However if that fails (the causes
-  for failure are still under investigation; all feedback is appreciated) you
-  need to have special privileges to start the driver: on NT you must be
-  in the Administrator group, on W2K and XP you need "Power user" status
-  (also called "main user").
+     the very first time you start nxtvepg, to be able to install the TV card
+     driver.  The driver attempts to set up permissions in a way that afterwards
+     every user can start its "DsDrv4" service. However if that fails (the causes
+     for failure are still under investigation; all feedback is appreciated) you
+     need to have special privileges to start the driver: on NT you must be
+     in the Administrator group, on W2K and XP you need "Power user" status
+     (also called "main user").
 
   3. You're using driver files of a wrong version.  You must use the version
-  that comes with nxtvepg or a newer version.  nxtvepg attempts to upgrade
-  the driver automatically to the required version, but that may fail if the
-  service cannot be stopped (e.g. other application still using it) or
-  permissions don't allow to remove the service.
+     that comes with nxtvepg or a newer version.  nxtvepg attempts to upgrade
+     the driver automatically to the required version, but that may fail if the
+     service cannot be stopped (e.g. other application still using it) or
+     permissions don't allow to remove the service.
 
-  Note: to force windows to use the new driver version which comes with
-  nxtvepg, you can remove or rename all other files named dsdrv4.sys
-  and dsdrv4.vxd on your harddisk.  Because usually Windows does not use
-  the drivers in the current directory if a driver path was previously
-  stored in the registry (e.g. during installation of another application
-  which is based in dsdrv4)
+     Note: to force windows to use the new driver version which comes with
+     nxtvepg, you can remove or rename all other files named dsdrv4.sys
+     and dsdrv4.vxd on your harddisk.  Because usually Windows does not use
+     the drivers in the current directory if a driver path was previously
+     stored in the registry (e.g. during installation of another application
+     which is based in dsdrv4)
 
   4. You're starting nxtvepg from a network drive:  this is not allowed
-  for reasons of stability.  Move the nxtvepg directory onto a local
-  drive (e.g. C:)
+     for reasons of stability.  Move the nxtvepg directory onto a local
+     drive (e.g. C:)
 
   5. The "DSdrv4" service entry in the registry may be messed up.
-  You can remove all keys that match "dsdrv4". Note:  you should delete
-  not only those in the CurrentControlSet, but those in all control sets.
-  Only required in exceptional cases.
+     You can remove all keys that match "dsdrv4". Note:  you should delete
+     not only those in the CurrentControlSet, but those in all control sets.
+     Only required in exceptional cases.
 
-  If none of these seem to be the cause, you can enable logging to a
-  file in the "TV card input" dialog in the Configure menu.  The log
-  file "dsdrv.log" is created in the nxtvepg working directory.  If you
-  don't get the driver to work, feel free to mail the log file and
-  a dump of the dsdrv4 service registry entry (using "regedit") to me.
+     If none of these seem to be the cause, you can enable logging to a
+     file in the "TV card input" dialog in the Configure menu.  The log
+     file "dsdrv.log" is created in the nxtvepg working directory.  If you
+     don't get the driver to work, feel free to mail the log file and
+     a dump of the dsdrv4 service registry entry (using "regedit") to me.
 
-- "No supported capture cards found on PCI bus"
+- "No supported capture cards found on PCI bus":
   Nxtvepg scans the PCI bus for devices with certain vendor and device
   codes which are specific to every video capture chip.  If your TV card
   is not detected, this means it's either not connected to the PCI bus
@@ -280,26 +249,26 @@ Explanation of Windows TV card driver error messages:
   by another freeware app, you can mail me and I'll see if I can support
   it in nxtvepg, too.
 
-- "Capture card #%d not found (found %d cards)"
+- "Capture card #%d not found (found %d cards)":
   If there's at least one card found, lower the card index below the
   number of available cards, i.e. if you have two cards, specify index
   0 or 1. The card index can be given either on the command line with
   the -card option or in the "TV card input" configuration dialog.
 
-- "Capture card #x (with <X> chip) cannot be locked!",
+- "Capture card #x (with <X> chip) cannot be locked!":
   There may be a different application already using the TV card. On
   M$ Windows you cannot run, e.g. a TV application in parallel to
   nxtvepg (unless the TV app supports interaction with nxtvepg) or
   teletext decoders (if you have only one TV card).
 
-- "Warning: no tuner found on TV card I2C bus"
+- "Warning: no tuner found on TV card I2C bus":
   No tuner was found during the I2C bus scan.  Currently nxtvepg supports
   only generic tuner chips.  Some cards (e.g. from Pinnacle) have very
   exotic tuners which need special care.  Currently you can only use these
   by selection "external" acquisition mode and using a TV app to tune the
   channel (make sure to terminate the TV app before you start nxtvepg)
 
-- "Failed to allocate RISC code memory",
+- "Failed to allocate RISC code memory":
   "Failed to allocate DMA page table memory" or
   "VBI Memory for DMA not Allocated". These mesages mean that the kernel
   could not allocate RAM for data transfers from the TV card. Reboot and
@@ -307,7 +276,7 @@ Explanation of Windows TV card driver error messages:
   which is allocated is relatively small (in comparison to the amount a
   TV application would require to transfer image data.)
 
-- "Capturing is already enabled in the TV card"
+- "Capturing is already enabled in the TV card":
   Only one video application may use the TV card at the same time. nxtvepg
   will refuse to start acquisition if capturing is already enabled to
   prevent interfering with an on-going DMA transfer and possibly crashing
@@ -320,7 +289,7 @@ specific problems is rather limited.
 
 
 
-Problem and bug reports:
+## Problem and bug reports
 
 Before you email me any bug reports, please check the manual page as well
 as the TODO and CHANGES files. And be *comprehensive* in describing your
@@ -342,7 +311,7 @@ modules. Then try to reproduce your problem and send me the resulting
 debug.out log file.
 
 The latest version of this software is available at:
-http://nxtvepg.sourceforge.net/
+<http://nxtvepg.sourceforge.net/>
 
 Best way to provide feedback is via the discussion forum at the above site,
 but you can also contact me personally at: tomzo (at) users.sourceforge.net

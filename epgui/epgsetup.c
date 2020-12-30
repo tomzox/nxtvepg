@@ -31,6 +31,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <unistd.h>
+#include <errno.h>
 
 #include "epgctl/mytypes.h"
 #include "epgctl/debug.h"
@@ -965,15 +967,62 @@ void EpgSetup_TtxGrabber( void )
 {
    const RCFILE * pRc = RcFile_Query();
 
-   if (pRc->ttx.ttx_enable == FALSE)
+   TtxGrab_SetConfig( pRc->db.piexpire_cutoff, pRc->ttx.keep_ttx_data );
+}
+
+// ---------------------------------------------------------------------------
+// Query if the given XMLTV file is target for acquisition
+// - regardless if working on the file currently
+//
+bool EpgSetup_QueryTtxPath( const char * pXmlPath )
+{
+   char cwd[1024 + 1];
+   uint idx;
+   EPGACQ_TUNER_PAR * pTtxFreqs;
+   char * pTtxNames;
+   uint ttxFreqCount;
+   bool result = FALSE;
+
+   if (EpgSetup_GetTtxConfig(&ttxFreqCount, &pTtxNames, &pTtxFreqs))
    {
-      // TODO inversely enable acq when grabber is enabled
-      EpgAcqCtl_Stop();
+      // TODO make target directory configurable
+      if ((getcwd(cwd, sizeof(cwd)) != NULL) && (cwd[0] == '/'))
+      {
+         // FIXME use realpath(); port to Windows; move to different file
+         const char * pDir = strrchr(pXmlPath, '/');
+         if (pDir != NULL)
+         {
+            if (pXmlPath[0] != '/')
+               return FALSE;
+            if (strncmp(pXmlPath, cwd, pDir - 1 - pXmlPath) != 0)
+               return FALSE;
+            pXmlPath = pDir + 1;
+         }
+
+         if (pTtxNames != NULL)
+         {
+            const char * pNames = pTtxNames;
+            for (idx = 0; (idx < ttxFreqCount) && !result; idx++)
+            {
+               char * pTtxPath = TtxGrab_GetPath(pNames);
+               result = (strcmp(pTtxPath, pXmlPath) == 0);
+
+               while(*(pNames++) != 0)
+                  ;
+               xfree(pTtxPath);
+            }
+         }
+      }
+      else
+         debug1("EpgSetup-QueryTtxPath: getcwd failed: %s\n", strerror(errno));
    }
-   else
-   {
-      TtxGrab_SetConfig( pRc->db.piexpire_cutoff, pRc->ttx.keep_ttx_data );
-   }
+
+   if (pTtxNames != NULL)
+      xfree(pTtxNames);
+   if (pTtxFreqs != NULL)
+      xfree(pTtxFreqs);
+
+   return result;
 }
 #endif // USE_TTX_GRABBER
 

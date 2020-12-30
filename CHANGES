@@ -5,6 +5,17 @@ features).  For patchlevel releases also internal changes might be listed in
 case they may fix bugs (or cause new ones)
 
 
+from 2.9.0 to 3.0.0 (still under development)
+
+- Removed support for Nextview EPG, as this service is no longer provided.
+- Integrated support for capturing EPG from DVB TV cards (Linux only)
+- Concurrent acquitision from multiple DVB channels
+- Switched internal text encoding to UTF-8 for data imported from XMLTV
+- Replaced Nextview-specific "series" filter with "recurring titles"
+- Improved support for XMLTV import: allow specifying multiple files
+  on the command line
+
+
 from 2.9.0pre4 to 2.9.0pre5 (2020-Dec-23)
 
 - The integrated teletext EPG grabber was upgraded to version tv_grab_ttx-2.2:

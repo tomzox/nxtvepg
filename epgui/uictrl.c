@@ -129,8 +129,8 @@ static const char * UiControl_GetDbStateMsg( EPGDB_STATE state )
 
       case EPGDB_ACQ_NO_TUNER:
          pMsg = "The loaded database is empty, or all programmes are expired. "
-                "Since you have configured an external video input source, "
-                "you have to manually select a TV channel at the "
+                "Since you have configured a video input source that does not support "
+                "channel tuning, you have to manually select a TV channel at the "
                 "external video equipment to enable nxtvepg to refresh its database. "
                 "After channel changes wait apx. 20 seconds for acquisition to start.";
          break;
@@ -145,29 +145,30 @@ static const char * UiControl_GetDbStateMsg( EPGDB_STATE state )
 
       case EPGDB_ACQ_PASSIVE:
          pMsg = "The loaded database is empty, or all programmes are expired. "
-                "You have configured acquisition mode to passive, so data for "
-                "this provider can only be acquired if you use another application "
-                "to tune to it's TV channel.";
+                "You have configured acquisition mode to passive, so EPG data "
+                "can only be acquired once you use another application to tune to "
+                "the selected EPG provider's TV channel.";
          break;
 
       case EPGDB_ACQ_WAIT:
          pMsg = "The loaded database is empty, or all programmes are expired. "
-                "Please wait a few seconds until EPG data is received "
-                "or select a different provider via the Configure menu.";
+                "Please wait a few minutes until EPG data is received "
+                "or select a different EPG source via the Control menu.";
          break;
 
       case EPGDB_ACQ_WAIT_DAEMON:
          pMsg = "The loaded database is empty, or all programmes are expired. "
-                "The acquisition daemon is currently working on a different provider. "
-                "Either change the daemon's acquisition mode to \"Follow-UI\" "
-                "or select a different provider via the Configure menu.";
+                "The EPG acquisition daemon is active, however not working on the "
+                "EPG source selected for display. "
+                "Choose a different source via the Control menu.";
          break;
 
       case EPGDB_ACQ_OTHER_PROV:
          pMsg = "The loaded database is empty, or all programmes are expired. "
-                "This provider is not in your selection for acquisition! "
-                "Please choose a different provider, or change the "
-                "acquisition mode via the Configure menu.";
+                "The Teletext EPG grabber is active, but not working on the "
+                "EPG source selected for display. "
+                "Choose a different source via the Control menu, or reconfigure "
+                "the Teletext grabber via the Configure menu.";
          break;
 
       case EPGDB_EMPTY:
@@ -179,7 +180,7 @@ static const char * UiControl_GetDbStateMsg( EPGDB_STATE state )
       case EPGDB_PREFILTERED_EMPTY:
          pMsg = "None of the programmes in this database match your network "
                 "preselection. Either add more networks for this provider or "
-                "select a different one in the Configure menus. Starting the "
+                "select a different one in the Configure menus. Starting EPG "
                 "acquisition might also help.";
          break;
 
@@ -222,6 +223,7 @@ static EPGDB_STATE UiControl_GetDbState( void )
       }
       else
 #endif
+      // TODO Check if TTX configured: RcFile_Query()->ttx.ttx_enable
       if (EpgContextCtl_GetProvCount() == 0)
          dbState = EPGDB_PROV_NONE;
       else
@@ -229,16 +231,17 @@ static EPGDB_STATE UiControl_GetDbState( void )
    }
    else
    {  // AI present, but no PI in database
+      acqWorksOnUi = FALSE;
 
       // check if acquisition is working for the browser database
-      if ( (acqState.ttxGrabState == ACQDESCR_NET_CONNECT) ||
-           (acqState.ttxGrabState == ACQDESCR_DISABLED) ||
-           (acqState.ttxGrabState == ACQDESCR_SCAN) )
-         acqWorksOnUi = FALSE;
-      else if ( EpgDbContextIsMerged(pUiDbContext) )
-         acqWorksOnUi = EpgContextMergeCheckForCni(pUiDbContext, XMLTV_TTX_PROV_CNI);  // TODO dummy CNI - check for channel name?
-      else
-         acqWorksOnUi = !EpgDbContextIsXmltv(pUiDbContext);  // TODO check teletext grabber 
+      if ( (acqState.ttxGrabState != ACQDESCR_NET_CONNECT) &&
+           (acqState.ttxGrabState != ACQDESCR_DISABLED) &&
+           (acqState.ttxGrabState != ACQDESCR_SCAN) )
+      {
+         const char * pXmlPath = XmltvCni_LookupProviderPath(uiCni);
+         if (pXmlPath != NULL)
+            acqWorksOnUi = EpgSetup_QueryTtxPath(pXmlPath);
+      }
 
       if (acqState.ttxGrabState == ACQDESCR_NET_CONNECT)
       {  // in network acq mode: no stats available yet
@@ -252,14 +255,10 @@ static EPGDB_STATE UiControl_GetDbState( void )
       {
          dbState = EPGDB_WAIT_SCAN;
       }
-      else if ((acqState.mode == ACQMODE_PASSIVE) || (acqState.mode == ACQMODE_EXTERNAL))
+      else if (acqState.mode == ACQMODE_PASSIVE)
       {
          if ((acqState.ttxGrabState == ACQDESCR_RUNNING) && acqWorksOnUi)
-         {  // note: this state should actually never be reached, because once acq has reached
-            // "running" state an AI has been received and usually some PI too, so the UI db
-            // would no longer be empty
             dbState = EPGDB_ACQ_WAIT;
-         }
          else
             dbState = EPGDB_ACQ_PASSIVE;
       }
@@ -275,7 +274,7 @@ static EPGDB_STATE UiControl_GetDbState( void )
                dbState = EPGDB_ACQ_ACCESS_DEVICE;
                break;
             default:
-               fatal1("EpgAcqCtl-GetDbState: illegal state %d", acqState.passiveReason);
+               fatal1("UiControl-GetDbState: illegal state %d", acqState.passiveReason);
                dbState = EPGDB_ACQ_PASSIVE;
                break;
          }
@@ -529,6 +528,9 @@ static void UiControl_LoadAcqDb( ClientData clientData )
                   {
                      EpgContextCtl_Close(pDbContext);
 
+                     PiBox_Refresh();
+                     UiControl_AiStateChange(DB_TARGET_UI);
+
                      if (count > 1)
                      {
                         AddMainIdleEvent(UiControl_LoadAcqDb, NULL, TRUE);
@@ -543,6 +545,8 @@ static void UiControl_LoadAcqDb( ClientData clientData )
       else if ( EpgDbContextIsXmltv(pUiDbContext) )
       {
          cni = EpgDbContextGetCni(pUiDbContext);
+
+         dprintf1("UiControl-LoadAcqDb: XMLTV DB 0x%04X\n", cni);
 
          if ( EpgContextCtl_GetAiUpdateTime(cni, FALSE) <
                 EpgContextCtl_GetAiUpdateTime(cni, TRUE) )
@@ -843,11 +847,7 @@ static void UiControl_AcqPassive( ClientData clientData )
 
    sprintf(comm2, "tk_messageBox -type ok -icon warning -parent . "
                   "-message {Since the selected input source is not a TV tuner, "
-                            #ifndef WIN32
-                            "only the 'passive' and 'external' acquisition modes are possible. "
-                            #else
-                            "only the 'external' acquisition mode is possible. "
-                            #endif
+                            "only the 'passive' acquisition mode is possible. "
                             "Change either source or mode to avoid this message."
                             "}\n");
    eval_check(interp, comm2);

@@ -110,6 +110,7 @@ static EPGACQTTX_CTL  acqCtl;
 
 #ifdef USE_TTX_GRABBER
 static bool EpgAcqTtx_UpdateProvider( void );
+static bool EpgAcqTtx_DetectSource( void );
 
 // ---------------------------------------------------------------------------
 // Helper function which looks up a channel's XML file name
@@ -214,6 +215,8 @@ static bool EpgAcqTtx_TtxStart( void )
 {
    bool result = FALSE;
 
+   dprintf1("EpgAcqTtx-TtxStart: active:%d\n", acqCtl.ttxActiveCount);
+
    // TODO: use generic params if source is yet unknown
    if (acqCtl.ttxActiveCount > 0)
    {
@@ -302,6 +305,36 @@ void EpgAcqTtx_Suspend( void )
 
 #ifdef USE_TTX_GRABBER
 // ---------------------------------------------------------------------------
+// Tune the selected provider & piggy-back channels on the same transponder
+//
+static void EpgAcqTtx_TunePid( void )
+{
+   const EPGACQ_TUNER_PAR * par = &acqCtl.pSources[acqCtl.ttxSrcIdx[0]].freq;
+   int pidList[MAX_VBI_DVB_STREAMS];
+   uint pidCount = 1;
+
+   pidList[0] = par->ttxPid;
+
+   if (acqCtl.ttxActiveCount == 1)
+   {
+      for (uint idx = 0; (idx < acqCtl.ttxSrcCount) && (pidCount < MAX_VBI_DVB_STREAMS); ++idx)
+      {
+         if (   (acqCtl.pSources[idx].srcDone == FALSE)
+             && (acqCtl.pSources[idx].freq.freq == par->freq)
+             && (idx != acqCtl.ttxSrcIdx[0]) )
+         {
+            dprintf2("EpgAcqTtx-TunePid: piggy-backing channel %d (%s)\n", idx, EpgAcqTtx_GetChannelName(idx));
+            pidList[pidCount] = acqCtl.pSources[idx].freq.ttxPid;
+            acqCtl.ttxSrcIdx[pidCount] = idx;
+            pidCount += 1;
+         }
+      }
+      acqCtl.ttxActiveCount = pidCount;
+   }
+   BtDriver_TuneDvbPid(pidList, pidCount);
+}
+
+// ---------------------------------------------------------------------------
 // Switch database and TV channel to the current acq provider & handle errors
 // - called upon start of acquisition or configuration changes (db or acq mode)
 // - called upon the start of a cycle phase for one db, or to get out of
@@ -326,28 +359,8 @@ static bool EpgAcqTtx_UpdateProvider( void )
 
             if (result)
             {
-               int pidList[MAX_VBI_DVB_STREAMS];
-               uint pidCount = 1;
-
-               pidList[0] = par->ttxPid;
-
-               if (acqCtl.ttxActiveCount == 1)
-               {
-                  for (uint idx = 0; (idx < acqCtl.ttxSrcCount) && (pidCount < MAX_VBI_DVB_STREAMS); ++idx)
-                  {
-                     if (   (acqCtl.pSources[idx].srcDone == FALSE)
-                         && (acqCtl.pSources[idx].freq.freq == par->freq)
-                         && (idx != acqCtl.ttxSrcIdx[0]) )
-                     {
-                        dprintf2("EpgAcqTtx-UpdateProvider: piggy-backing channel %d (%s)\n", idx, EpgAcqTtx_GetChannelName(idx));
-                        pidList[pidCount] = acqCtl.pSources[idx].freq.ttxPid;
-                        acqCtl.ttxSrcIdx[pidCount] = idx;
-                        pidCount += 1;
-                     }
-                  }
-                  acqCtl.ttxActiveCount = pidCount;
-               }
-               BtDriver_TuneDvbPid(pidList, pidCount);
+               // request PID for selected channel and others sharing frequency
+               EpgAcqTtx_TunePid();
             }
          }
       }
@@ -365,9 +378,14 @@ static bool EpgAcqTtx_UpdateProvider( void )
 
    acqCtl.state = TTXACQ_STATE_STARTUP;
    if (result)
+   {
       acqCtl.acqStartTime = now;
+   }
    else
+   {
       acqCtl.ttxActiveCount = 0;
+      EpgAcqTtx_DetectSource();
+   }
 
    return result;
 }
@@ -439,7 +457,6 @@ static sint EpgAcqTtx_GetNextSrc( sint ttxSrcIdx )
 
 // ---------------------------------------------------------------------------
 // Try to determine current source in (forced) passive mode
-// - TODO: external sources: frequency match not possible! (Must still support passive mode)
 //
 static bool EpgAcqTtx_DetectSource( void )
 {
@@ -463,9 +480,10 @@ static bool EpgAcqTtx_DetectSource( void )
          if (idx < acqCtl.ttxSrcCount)
          {
             dprintf3("EpgAcqTtx-DetectSource: freq %ld -> src=%d (%s)\n", par.freq, idx, EpgAcqTtx_GetChannelName(idx));
+            acqCtl.ttxActiveCount = 1;
             acqCtl.ttxSrcIdx[0] = idx;
-            // TODO all PIDs on this freq
-            BtDriver_TuneDvbPid(&acqCtl.pSources[idx].freq.ttxPid, 1);
+            // request PID for selected channel and others sharing frequency
+            EpgAcqTtx_TunePid();
             result = TRUE;
          }
          else
@@ -485,7 +503,6 @@ static bool EpgAcqTtx_DetectSource( void )
 
 // ---------------------------------------------------------------------------
 // Check if the requested channel is still tuned
-// - TODO: external sources: frequency match not possible!
 //
 static bool EpgAcqTtx_CheckSourceFreq( uint idx )
 {
@@ -633,7 +650,6 @@ bool EpgAcqTtx_MonitorSources( void )
       bool inRange = EpgAcqTtx_MonitorInRange(now, &lock);
 
       if ( (acqCtl.mode != ACQMODE_PASSIVE) &&
-           (acqCtl.mode != ACQMODE_EXTERNAL) &&
            (acqCtl.passiveReason == ACQPASSIVE_NONE) )
       {
          assert(acqCtl.ttxActiveCount > 0);
@@ -782,8 +798,7 @@ bool EpgAcqTtx_MonitorSources( void )
          }
          acqCtl.lastDoneTime = time(NULL);
       }
-      if ( (acqCtl.mode != ACQMODE_PASSIVE) &&
-           (acqCtl.mode != ACQMODE_EXTERNAL) )
+      if (acqCtl.mode != ACQMODE_PASSIVE)
       {
          if ( (acqCtl.cyclePhase == ACQMODE_PHASE_NOWNEXT) &&
               (acqCtl.pSources[acqCtl.ttxSrcIdx[0]].srcDone == FALSE) )
@@ -829,7 +844,6 @@ bool EpgAcqTtx_MonitorSources( void )
    else // try to get out of forced passive mode periodically
    if ( (acqCtl.passiveReason != ACQPASSIVE_NONE) &&
         (acqCtl.mode != ACQMODE_PASSIVE) &&
-        (acqCtl.mode != ACQMODE_EXTERNAL) &&
         ((acqCtl.ttxActiveCount == 0) || (acqCtl.pSources[acqCtl.ttxSrcIdx[0]].srcDone)) &&
         (now >= acqCtl.chanChangeTime + TTX_FORCED_PASV_INTV) )
    {

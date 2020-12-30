@@ -49,6 +49,7 @@ void TtxGrab_GetStatistics( uint bufIdx, TTX_GRAB_STATS * pStats );
 void TtxGrab_PostProcess( uint bufIdx, const char * pName, bool reset );
 bool TtxGrab_CheckPostProcess( uint bufIdx );
 void TtxGrab_GetPageStats( uint bufIdx, bool * pInRange, bool * pRangeDone, bool * pSourceLock, uint * pPredictDelay );
+char * TtxGrab_GetPath( const char * pName );
 
 void TtxGrab_Init( void );
 void TtxGrab_Exit( void );

@@ -84,8 +84,6 @@ static void EpgAcqCtl_InitCycle( void );
 static void EpgAcqCtl_ChannelChange( void );
 static bool EpgAcqCtl_UpdateProvider( bool changeDb );
 
-#define IS_TTX_ACQ_CNI(CNI)    ((CNI) == XMLTV_TTX_PROV_CNI)
-
 // ---------------------------------------------------------------------------
 // Determine state of acquisition for user information
 // - mainly used for the main window status line and acq statistics window
@@ -100,7 +98,7 @@ void EpgAcqCtl_DescribeAcqState( EPGACQ_DESCR * pAcqState )
       if (EpgScan_IsActive())
       {
          memset(pAcqState, 0, sizeof(EPGACQ_DESCR));
-         pAcqState->ttxGrabState = ACQDESCR_DISABLED;
+         pAcqState->ttxGrabState = ACQDESCR_SCAN;
       }
       else if (acqCtl.acqEnabled == FALSE)
       {
@@ -144,9 +142,6 @@ void EpgAcqCtl_GetAcqModeStr( const EPGACQ_DESCR * pAcqState,
       {
          case ACQMODE_PASSIVE:
             *ppModeStr = "passive";
-            break;
-         case ACQMODE_EXTERNAL:
-            *ppModeStr = "external";
             break;
          default:
             switch (pAcqState->cyclePhase)
@@ -377,7 +372,14 @@ bool EpgAcqCtl_Start( void )
 
          if (BtDriver_StartAcq())
          {
-            result = EpgAcqCtl_UpdateProvider(TRUE);
+            if (EpgAcqCtl_UpdateProvider(TRUE))
+            {
+               result = TRUE;
+            }
+            else
+            {
+               BtDriver_StopAcq();
+            }
          }
       }
 
@@ -491,7 +493,7 @@ bool EpgAcqCtl_TuneProvider( const EPGACQ_TUNER_PAR * par, EPGACQ_PASSIVE * pMod
 
          if (par->freq != 0)
          {
-            if ((acqCtl.mode != ACQMODE_EXTERNAL) && (acqCtl.haveWarnedInpSrc == FALSE))
+            if (acqCtl.haveWarnedInpSrc == FALSE)
             {  // warn the user, but only once
                UiControlMsg_AcqPassive();
             }
@@ -558,7 +560,6 @@ static void EpgAcqCtl_InitCycle( void )
          acqCtl.cyclePhase = ACQMODE_PHASE_FULL;
          break;
       case ACQMODE_PASSIVE:
-      case ACQMODE_EXTERNAL:
       case ACQMODE_NETWORK:
       default:
          // phase value not used in these modes; set arbritrary value

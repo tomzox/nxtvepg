@@ -787,7 +787,6 @@ static void StatsWin_UpdateDbStatusLine( ClientData clientData )
    #endif
 
    isPassiveAcq = (acqState.mode == ACQMODE_PASSIVE) ||
-                  (acqState.mode == ACQMODE_EXTERNAL) ||
                   (acqState.passiveReason != ACQPASSIVE_NONE);
 
    // TODO: in passive mode use either source (careful: use matching provname!)
@@ -858,14 +857,6 @@ static void StatsWin_UpdateDbStatusLine( ClientData clientData )
             sprintf(comm + strlen(comm), ", %d%% complete", ACQ_COUNT_TO_PERCENT(allCount, aiTotal));
          }
          strcat(comm, " (passive mode)");
-      }
-      else if (acqState.mode == ACQMODE_EXTERNAL)
-      {
-         if ((acqState.ttxGrabState == ACQDESCR_RUNNING) && (aiTotal != 0))
-         {
-            sprintf(comm + strlen(comm), ", %d%% complete", ACQ_COUNT_TO_PERCENT(allCount, aiTotal));
-         }
-         strcat(comm, " (external)");
       }
       else if (acqState.passiveReason != ACQPASSIVE_NONE)
       {

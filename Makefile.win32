@@ -354,7 +354,7 @@ zip: all
 	zip -9 $$ARCHIVE -l manual.html manual-de.html Nxtvepg.ad \
 	                    xmltv-etsi.map; \
 	zip -9 -j $$ARCHIVE dsdrv/CX2388xCards.ini dsdrv/SAA713xCards.ini; \
-	for v in TODO README CHANGES COPYRIGHT; do \
+	for v in TODO README.md CHANGES COPYRIGHT; do \
 	   mv $$v $${v}.txt; \
 	   zip -9 -l $$ARCHIVE $${v}.txt; \
 	   mv $${v}.txt $$v; \

@@ -351,7 +351,7 @@ static void EventHandler_SigHup( ClientData clientData )
 {
    if (EpgScan_IsActive() == FALSE)
    {
-      if ( EpgAcqCtl_IsActive() )
+      if ( EpgAcqCtl_IsActive() == FALSE )
       {  // acq currently not running -> start
          AutoStartAcq();
       }

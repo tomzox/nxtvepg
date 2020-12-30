@@ -34,7 +34,6 @@ typedef enum
 {
    ACQMODE_PASSIVE,         // do not touch /dev/video
    ACQMODE_NETWORK,         // connect to remote server
-   ACQMODE_EXTERNAL,        // set input source, then passive
    ACQMODE_CYCLIC_2,        // cyclic: full only
    ACQMODE_CYCLIC_02,       // cyclic: now->all
    ACQMODE_COUNT

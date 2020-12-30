@@ -122,7 +122,7 @@ typedef struct
 static const RCPARSE_ENUM rcEnum_AcqMode[] =
 {
    { "passive", ACQMODE_PASSIVE },
-   { "external", ACQMODE_EXTERNAL },
+   { "external", ACQMODE_PASSIVE /*ACQMODE_EXTERNAL*/ },  // obsolete
    { "cyclic_2", ACQMODE_CYCLIC_2 },
    { "cyclic_02", ACQMODE_CYCLIC_02 },
    { "follow-ui", ACQMODE_CYCLIC_2 /*ACQMODE_FOLLOW_UI*/ },  // obsolete

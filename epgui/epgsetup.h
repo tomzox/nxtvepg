@@ -47,6 +47,7 @@ bool EpgSetup_DaemonAcquisitionMode( bool forcePassive, int maxPhase );
 void EpgSetup_CardDriver( int cardIndex );
 void EpgSetup_NetAcq( bool isServer );
 void EpgSetup_TtxGrabber( void );
+bool EpgSetup_QueryTtxPath( const char * pXmlPath );
 EPGDB_CONTEXT * EpgSetup_MergeDatabases( void );
 bool IsRemoteAcqDefault( void );
 #ifdef WIN32

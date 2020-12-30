@@ -740,14 +740,13 @@ proc CreateMenubar {} {
    .menubar.ctrl add command -label "Quit" -command {destroy .; update}
    # Config menu
    menu .menubar.config -tearoff 0
-   .menubar.config add command -label "Acquisition mode..." -command PopupAcqMode
 #=IF=defined(USE_TTX_GRABBER)
    .menubar.config add command -label "Teletext grabber..." -command PopupTtxGrab
 #=ENDIF=
-   .menubar.config add command -label "TV channel scan..." -command PopupEpgScan
    .menubar.config add command -label "TV card input..." -command PopupHardwareConfig
    .menubar.config add command -label "TV app. interaction..." -command XawtvConfigPopup
    .menubar.config add command -label "Client/Server..." -command PopupNetAcqConfig
+   .menubar.config add command -label "TV channel scan..." -command PopupEpgScan
    .menubar.config add separator
    .menubar.config add command -label "Select attributes..." -command PopupColumnSelection
    .menubar.config add command -label "Attribute composition..." -command PopupUserDefinedColumns

@@ -222,14 +222,14 @@ an immediate exit).  This mode is intended for debugging purposes only.
 
 In daemon mode this option overrides the acquisition mode setting in
 the configuration file and forces acquisition into passive mode (see
-L<"ACQUISITION MODES">).  The configuration file is not changed, so that
+L<"DATA ACQUISITION">).  The configuration file is not changed, so that
 you can use different acquisition strategies for daemon and GUI.
 
 =item B<-acqonce> I<phase>
 
 In daemon mode this option will automatically stop acquisition and
 terminate the daemon after the given phase has been completed. Phases
-are as defined in L<"ACQUISITION MODES">, namely I<now> or I<full>.
+are as defined in L<"DATA ACQUISITION">, namely I<now> or I<full>.
 
 If you want to run another program from inside a script after nxtvepg
 has finished, use the I<-nodetach> option (UNIX only)  Then the
@@ -843,11 +843,9 @@ run the grabber once per day.
 You can monitor acquisition progress using the "Aquisition statistics"
 dialog in the Control menu. See L<"STATISTICS"> for details.
 
+=head2 Acquisition modes
 
-
-=head1 ACQUISITION MODES
-
-The acquisition mode configuration dialog allows selecting an acquisition
+The teletext grabber configuration dialog allows selecting an acquisition
 strategy. The first two are for the special case that you do not receive
 TV via the internal tuner, so that nxtvepg cannot switch channels. The
 others are for controlling the timing for searching EPG on multiple channels.
@@ -856,7 +854,6 @@ others are for controlling the timing for searching EPG on multiple channels.
 
 =item B<Passive>
 
-UNIX only:
 In this mode the software never accesses the video device and never changes
 the input channel or tuner frequency.  It's useful if you want to set up the
 source with command line tools like I<v4lctl>. If you're using applications
@@ -871,24 +868,9 @@ database should be completely empty, no data will appear until you tune in
 the content provider's channel manually with an external application. Because
 of this, passive mode is depreciated.
 
-=item B<External>
-
-This is the recommended mode for Composite or S-Video input sources. Only
-the input source will be set; the tuner is not touched. Hence the TV
-channel has to be selected either externally (e.g. in a satellite receiver
-connected to the Composite or S-Video input sockets) or by a different
-application (e.g. TV application, UNIX only), just like in passive mode.
-
-On Windows systems this mode can be used if your tuner is not known to
-nxtvepg, i.e. if the TV channel scan does not find any channels with all of the
-available tuner types. In this case tune in the TV channel with a
-TV application; then quit this application and start nxtvepg. When you
-view the acquisition statistics from the Control menu, the VPS/PDC code
-of the tuned channel should appear in the lower half of the window.
-
 =item B<Cyclic: Full>
 
-This default mode works straight-forward as described in chapter
+This default mode works straight-forward as described at the start of chapter
 L<"DATA ACQUISITION">. This means, each channel in the channel table is
 tune for as long as it takes to load all required sub-pages and then the
 full EPG is scraped and written. Acquisition is complete after a single
@@ -984,7 +966,7 @@ version changes.
 Additionally there may be a note about the current mode of acquisition,
 like the current phase for cyclic acquisition modes or "forced passive" when
 nxtvepg is not able to change the channel, maybe due to a TV application
-running in parallel. See L<"ACQUISITION MODES"> for details.
+running in parallel. See L<"DATA ACQUISITION"> for details.
 
 
 =head2 Timescale popup window
@@ -1954,6 +1936,25 @@ can be added via the Configure menu
 
 Summary of commands available from the Control menu:
 
+=head2 Load XMLTV file
+
+Open the XMLTV file selection dialog.  This dialog lists all XMLTV files
+in the current directory.  When selecting a file in the list, the provider
+and grabber names included in the XML file and the list of covered channels
+are shown in the info boxes on the right side of the dialog.
+
+When you leave the dialog with Ok, the selected XMLTV file will
+be loaded into the browser.  If the file hasn't been updated for a
+long time, the programme list might be empty though (i.e. all programmes
+expired). In that case restart the grabber you used to create the file.
+
+
+=head2 Merge XMLTV files
+
+Open a dialog that allows to merge several databases into one.
+See L<"MERGED DATABASES"> for details.
+
+
 
 =head2 Enable acquisition
 
@@ -1995,8 +1996,11 @@ is in use.
 =head2 Connect to acq. daemon
 
 Connect to or disconnect from an acquisition daemon, running in the
-background on the same host, or somewhere else in the network.  The
-address of the daemon and other parameters are configured in the
+background on the same host, or somewhere else in the network.  This
+option is enabled only if the teletext grabber is configured (see
+L<"CONFIGURATION"> section "Teletext grabber").
+
+The address of the daemon and other parameters are configured in the
 I<Client/Server> menu (see L<"CONFIGURATION">, section "Client/Server").
 By default the daemon
 is started on the local host.  The main advantage of using the daemon
@@ -2244,36 +2248,11 @@ If you have started acquisition as a daemon, it will not be terminated
 Summary of commands available from the Configure menu:
 
 
-=head2 Load XMLTV file
-
-Open the XMLTV file selection dialog.  This dialog lists all XMLTV files
-in the current directory.  When selecting a file in the list, the provider
-and grabber names included in the XML file and the list of covered channels
-are shown in the info boxes on the right side of the dialog.
-
-When you leave the dialog with Ok, the selected XMLTV file will
-be loaded into the browser.  If the file hasn't been updated for a
-long time, the programme list might be empty though (i.e. all programmes
-expired). In that case restart the grabber you used to create the file.
-
-
-=head2 Merge XMLTV files
-
-Open a dialog that allows to merge several databases into one.
-See L<"MERGED DATABASES"> for details.
-
-
-=head2 Acquisition mode
-
-Open a dialog that allows to control the background acquisition process.
-See L<"ACQUISITION MODES"> for more details.
-
-
 =head2 Teletext grabber
 
 Open a dialog which allows to enable and configure the teletext EPG
 grabber.  The grabber works by cyclically tuning all TV channels,
-loading the TV overview teletext pages (e.g. 301-399 in Germany)
+loading the TV overview teletext pages (e.g. 301-399 for most German networks)
 and building a small database from them.  For titles which contain
 references to other teletext pages, the grabber loads these pages
 too and extracts descriptions from them.  Finally the grabber's
@@ -2283,11 +2262,12 @@ A disadvantage of teletext is the long time it takes to grab the data.
 The cause for
 the long duration is that most TV networks use sub-pages in their
 TV-schedules, so that it takes several cycles until all parts of a
-given page are loaded, usually 90 - 120 seconds.  Assuming only
-30 TV networks, the total load time is more than 45 minutes. Another
+given page are loaded, usually 90 - 120 seconds. However when using
+DVB, this is extenuated by allowing concurrent capture from channels
+sharing a transponder.  Another
 difficulty encountered by the teletext grabber is the lack of a
 standardized format for the schedules.  Hence the data extraction
-cannot always work correctly.  In particular the capabilities to
+cannot always work perfectly.  In particular the capabilities to
 extract theme categories and additional attributes are very limited.
 But these disadvantages can be compensated by merging teletext EPG
 with other sources (see L<"MERGED DATABASES">)
@@ -2301,7 +2281,7 @@ Currently you cannot change the order or skip any programmes, but
 you can limit the number of channels in the configuration dialog.
 
 Note: When acquisition mode "Cyclic: Now - All" is selected
-(see L<"ACQUISITION MODES">) the grabber uses an optimized
+(see L<"DATA ACQUISITION">) the grabber uses an optimized
 strategy during the "Now" stage in which waiting times are
 minimized by changing the order in which EPG data is read.
 This way the grabber requires about 15-20 seconds per channel

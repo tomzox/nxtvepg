@@ -133,11 +133,11 @@ Nur UNIX: Im Daemon-Modus verhindert diese Option, dass sich der Prozess vom Ter
 
 =item B<-acqpassive>
 
-Im Daemon-Modus überschreibt diese Option die Akquisitionseinstellung der Konfigurationsdatei und zwingt die Akquisition in den passiven Modus (siehe L<"ACQUISITION MODES">). Die Konfigurationsdatei wird nicht geändert, sodass Sie verschiedene Akqusitionsstrategien für Daemon und GUI verwenden können.
+Im Daemon-Modus überschreibt diese Option die Akquisitionseinstellung der Konfigurationsdatei und zwingt die Akquisition in den passiven Modus (siehe L<"DATA ACQUISITION">). Die Konfigurationsdatei wird nicht geändert, sodass Sie verschiedene Akqusitionsstrategien für Daemon und GUI verwenden können.
 
 =item B<-acqonce> I<phase>
 
-Im Daemon-Modus hält diese Option automatisch die Akquisition an und beendet den Daemon nachdem die vorgegebene Phase für alle Provider abgeschlossen wurde. Die Phasen sind die gleichen wie unter L<"ACQUISITION MODES"> definiert, d.h. I<now> oder I<full>.
+Im Daemon-Modus hält diese Option automatisch die Akquisition an und beendet den Daemon nachdem die vorgegebene Phase für alle Provider abgeschlossen wurde. Die Phasen sind die gleichen wie unter L<"DATA ACQUISITION"> definiert, d.h. I<now> oder I<full>.
 
 Falls Sie nach dem Schließen von nxtvepg ein anderes Programm starten möchten, verwenden Sie Option I<-nodetach> (nur auf UNIX verfügbar). In diesem Fall wird die aufrufende Shell mit dem Start des nächsten Kommandos in Ihrem Skript warten bis nxtvepg beendet ist. Auf Windows gibt es keinen einfachen Weg um dies zu erreichen, da nxtvepg keine so genannte "Console"-Applikation ist und somit immer im Hintergrund gestartet wird. Deshalb benötigen Sie eine Skript-Sprache die es erlaubt darauf zu warten, dass nxtvepg terminiert.
 
@@ -307,23 +307,17 @@ Wenn Sie nicht den TV-Tuner als Eingang wählen (d.h. Sie wählen eine externe Que
 TV-Programmtabellen in Teletext werden üblicherweise nur einmal täglich aktualisiert (es sei den es treten aktuelle Programmänderungen auf). Von daher ist es ausreichend die Akquisition einmal täglich laufen zu lassen.
 Sie können den Fortschritt der Akquisition über das Fenster mit der Zeitskalen- und Datenbankstatistik über das Control-Menü beobachten. Siehe L<"STATISTICS"> für Details.
 
-=head1 ACQUISITION MODES
+=head2 Acquisition modes
 
-Der Dialog zur Konfiguration des Akquisitionsmodus ermöglicht es Ihnen die Strategie für Akquisition von EPG Daten zu beeinflussen: Die ersten beiden Modi sind nur für den Spezialfall dass sie nicht den Tuner der TV-KArte verwenden, so dass nxtveog keine TV-Sender umschalten kann. Die anderen Modi bestimmen die zeitliche Abfolge in der Daten gesucht werden.
+Der Dialog zur Konfiguration des Teletext-Grabbers ermöglicht es Ihnen die Strategie für Akquisition von EPG Daten zu beeinflussen: Die ersten beiden Modi sind nur für den Spezialfall dass sie nicht den Tuner der TV-KArte verwenden, so dass nxtveog keine TV-Sender umschalten kann. Die anderen Modi bestimmen die zeitliche Abfolge in der Daten gesucht werden.
 
 =over 4
 
 =item B<Passive>
 
-Nur UNIX: In diesem Modus greift die Software nie auf das Video-Gerät zu und ändert auch nie Input-Kanal oder Tuner-Frequenz. Dies ist nützlich, wenn Sie das Setup der Quelle über Befehlszeilen-Tools wie I<v4lctl> durchführen wollen. Verwenden Sie Applikationen die Videodaten verarbeitet (z.B. eine TV-Anwendung), brauchen Sie diesen Modus nicht, weil nxtvepg automatisch in den passiven Modus umschaltet, wenn ein Kanalwechsel aus diesem Grund fehlschlägt.
+In diesem Modus greift die Software nie auf das Video-Gerät zu und ändert auch nie Input-Kanal oder Tuner-Frequenz. Dies ist nützlich, wenn Sie das Setup der Quelle über Befehlszeilen-Tools wie I<v4lctl> durchführen wollen. Verwenden Sie Applikationen die Videodaten verarbeitet (z.B. eine TV-Anwendung), brauchen Sie diesen Modus nicht, weil nxtvepg automatisch in den passiven Modus umschaltet, wenn ein Kanalwechsel aus diesem Grund fehlschlägt.
 
 Bitte beachten Sie: wenn nxtvepg den TV-Kanal nicht kontrolliert, kann es sich nicht automatisch um die Aktualisierung Ihrer Datenbank kümmern. Sogar wenn die Browserdatenbank komplett leer sein sollte, werden keine Daten erscheinen bis Sie den Kanal des Providers manuell über eine externe Applikation angesteuert haben. Aus diesem Grund ist von der Verwendung des passiven Modus abzuraten.
-
-=item B<External>
-
-Dies ist der für Composite- oder S-Video-Input-Quellen empfohlene Modus. Nur die Input-Quelle wird gesetzt; der Tuner bleibt unberührt. Infolgedessen muss der Providerkanal entweder extern gewählt werden (z.B. in einem Satellitenreceiver, der mit dem Composite- oder S-Video-Eingang verbunden ist) oder durch eine andere Anwendung (z.B. TV-Anwendung, nur UNIX), genau wie im passiven Modus.
-
-Auf Windows-Systemen kann dieser Modus verwendet werden, falls der Tuner nxtvepg nicht bekannt ist, d.h. wenn der EPG-Suchlauf mit allen Tuner-Typen keine Kanäle findet. In diesem Fall stellen Sie den Provider-Kanal mittels der TV-Anwendung ein; danach beenden Sie diese Anwendung und starten nxtvepg. Wenn Sie daraufhin über das Control-Menü in die Akquisitionsstatistik sehen, sollte der VPS/PDC-Code des eingestellten Kanals in der unteren Hälfte des Fensters erscheinen.
 
 =item B<Cyclic: Full>
 
@@ -359,7 +353,7 @@ Ist die Akquisition derzeit nicht aktiv, wird darauf hingewiesen. Gegebenenfalls
 
 Andernfalls werden Sie den Sendernamen des Inhaltproviders sehen und einen Prozentsatz, der den Akquisitionsprozess beschreibt. Zu bemerken ist, dass sich dieser Prozentsatz von der prozentualen Gesamtfüllrate unterscheiden kann, die mit der Browserdatenbank übergeben wird, da sie ebenso Blöcke widerspiegelt, die aufgrund von Versions-Änderungen neu geladen werden müssen.
 
-Zusätzlich kann ein Hinweis über den aktuellen Modus der Akquisition erscheinen, wie die aktuelle Phase für zyklische Akquisitionsmodi oder "I<forced passive>" wenn nxtvepg nicht in der Lage ist, den TV-Kanal zu wechseln (u.U. weil eine TV-Anwendung parallel läuft). Siehe L<"ACQUISITION MODES"> für Details.
+Zusätzlich kann ein Hinweis über den aktuellen Modus der Akquisition erscheinen, wie die aktuelle Phase für zyklische Akquisitionsmodi oder "I<forced passive>" wenn nxtvepg nicht in der Lage ist, den TV-Kanal zu wechseln (u.U. weil eine TV-Anwendung parallel läuft). Siehe L<"DATA ACQUISITION"> für Details.
 
 =head2 Timescale popup window
 
@@ -773,6 +767,16 @@ Die optionale, vierte Sektion ist standardmäßig leer, kann aber dazu verwendet w
 
 Übersicht der im Control-Menü verfügbaren Befehle:
 
+=head2 Load XMLTV file
+
+Öffnet den Dialog Laden von EPG Daten aus einer Datei im XMLTV format. Dieser Dialog zeigt alle XMLTV Dateien im aktuellen Verzeichnis an. Wurde eine Datei angewählt, werden in dieser XML Datei enthaltenen Informationen über die Quelle der Daten die Liste der abgedeckten Sender angezeigt.
+
+Wird der Dialog mit OK verlassen, wird die ausgewählte XMLTV Datei in den Browser geladen. Wurde die Datenbank über längere Zeit nicht aufgefrischt, kann die Programmliste leer sein. In dem Fall sollten Sie den zur Erstellung der Datei verwendeten EPG-grabber nochmals starten.
+
+=head2 Merge XMLTV files
+
+Öffnet einen Dialog, der erlaubt, mehrere Datenbanken in eine zusammenzuführen. Siehe L<"MERGED DATABASES"> für Details.
+
 =head2 Enable acquisition
 
 Schaltet die EPG Datenakquisition temporär an oder aus. Diese Option ist nur wählbar wenn der Teletext EPG grabber configuriert wurde (siehe L<"CONFIGURATION">, Kapitel "Teletext grabber").  Wenn Sie den Browser starten, wird die Akquisition automatisch aktiviert (bei automatischem Start auftretende Fehler werden jedoch stillschweigend ignoriert). Sie können den automatischen Start mit dem Befehlszeilenschalter B<-noacq> abstellen, oder indem sie den Teletext-Grabber über die Konfiguration deaktivieren. Das Abschalten der Akquisition erlaubt anderen Anwendungen, wie z.B. einer TV-Applikation, die TV-Karte zu nutzen und TV-Kanäle zu wechseln.
@@ -911,29 +915,15 @@ Schließt alle Fenster und beendet die Anwendung. Wurde die Akquisition als Daemo
 
 Übersicht der im Configure-Menü verfügbaren Befehle:
 
-=head2 Load XMLTV file
-
-Öffnet den Dialog Laden von EPG Daten aus einer Datei im XMLTV format. Dieser Dialog zeigt alle XMLTV Dateien im aktuellen Verzeichnis an. Wurde eine Datei angewählt, werden in dieser XML Datei enthaltenen Informationen über die Quelle der Daten die Liste der abgedeckten Sender angezeigt.
-
-Wird der Dialog mit OK verlassen, wird die ausgewählte XMLTV Datei in den Browser geladen. Wurde die Datenbank über längere Zeit nicht aufgefrischt, kann die Programmliste leer sein. In dem Fall sollten Sie den zur Erstellung der Datei verwendeten EPG-grabber nochmals starten.
-
-=head2 Merge XMLTV files
-
-Öffnet einen Dialog, der erlaubt, mehrere Datenbanken in eine zusammenzuführen. Siehe L<"MERGED DATABASES"> für Details.
-
-=head2 Acquisition mode
-
-Öffnet einen Dialog, der erlaubt, den Hintergrund-Akquisitionsprozess zu steuern. Siehe L<"ACQUISITION MODES"> für weitere Details.
-
 =head2 Teletext grabber
 
-Öffnet einen Dialog, mit dem der Teletext EPG Grabber eingeschaltet und konfiguriert werden kann.  Um EPG Daten aus dem Teletext zu laden, werden reihum alle TV-Kanäle eingestellt, die TV-Übersichtsseiten gelesen (meist 301-399) und daraus eine Programmliste erstellt. Falls für einzelne Programme Referenzen auf weitere Teletext-Seiten angegeben sind, wird versucht von dort Beschreibungstexte zu laden.  Die Ausgabe des Teletext-Grabbers erfolgt in einzelne Dateien im XMLTV-Format. Für jeden TV-Sender wird eine getrennte XML Datei angelegt.
+Öffnet einen Dialog, mit dem der Teletext EPG Grabber eingeschaltet und konfiguriert werden kann.  Um EPG Daten aus dem Teletext zu laden, werden reihum alle TV-Kanäle eingestellt, die TV-Übersichtsseiten gelesen (für deutsche Sender meist 301-399) und daraus eine Programmliste erstellt. Falls für einzelne Programme Referenzen auf weitere Teletext-Seiten angegeben sind, wird versucht von dort Beschreibungstexte zu laden.  Die Ausgabe des Teletext-Grabbers erfolgt in einzelne Dateien im XMLTV-Format. Für jeden TV-Sender wird eine getrennte XML Datei angelegt.
 
-Ein Nachteil dieses Grabbers ist die lange Ladezeit. Diese kommt hauptsächlich dadurch zustande, dass die TV-Übersicht auf mehrere Unterseiten einzelner Teletext-Seiten verteilt sind. Dadurch werden mehrere Teletext-Zyklen für jeden TV-Sender benötigt um alle relevanten Seiten zu laden, meist mindestens 90 - 120 Sekunden. Bei nur 30 TV-Sendern beträgt die Ladezeit also insgesamt schon 45 Minuten.  Ein weiteres zentrales Problem besteht darin dass die TV-Übersicht kein einheitliches Format hat, so dass die Erkennung nicht immer zuverlässig arbeiten kann. Insbesondere können aktuell keine Kategorien erkannt werden.  Dieser Nachteil kann jedoch überwunden werden, indem die aus dem Teletext gewonnenen Daten anderer Quellen vereinigt werden (siehe L<"MERGED DATABASES">)
+Ein Nachteil dieses Grabbers ist die lange Ladezeit. Diese kommt hauptsächlich dadurch zustande, dass die TV-Übersicht auf mehrere Unterseiten einzelner Teletext-Seiten verteilt sind. Dadurch werden mehrere Teletext-Zyklen für jeden TV-Sender benötigt um alle relevanten Seiten zu laden, meist mindestens 90 - 120 Sekunden. Bei Empfang via DVB ist jedoch paralleler Empfang von Sendern auf demselbem Transponder möglich, was die Ladezeit um Faktor 5 bis 8 beschleunigen kann.  Ein weiteres zentrales Problem besteht darin dass die TV-Übersicht kein einheitliches Format hat, so dass die Erkennung nicht immer zuverlässig arbeiten kann. Insbesondere können aktuell keine Themenkategorien erkannt werden.  Dieser Nachteil kann jedoch überwunden werden, indem die aus dem Teletext gewonnenen Daten anderer Quellen vereinigt werden (siehe L<"MERGED DATABASES">)
 
 Falls Sie noch keine TV-Applikation konfiguriert haben wird beim Start des Grabbers eine diesbezügliche Fehlermeldung erscheinen, denn der Grabber benötigt eine TV-Kanaltabelle. Der Grabber liest EPG Daten ab dem ersten in der Tabelle gelisteten Sender und danach der Reihe nach die folgenden Sender. Diese Reihenfolge läßt sich momentan noch nicht ändern, jedoch können Sie die Anzahl der Sender begrenzen.
 
-Tipp: Wenn der Akquisitionsmodus "Cyclic: Now - All" selektiert ist (siehe auch L<"ACQUISITION MODES">) wird während der "Now" Phase eine optimierte Strategie verwendet bei der die Reihenfolge der Sender so gelegt wird dass Wartezeiten minimiert werden. Damit kann ein Schnitt von 15-20 Sekunden pro Sender erreicht werden.  In der "Full" Phase werden dann immer für die bei I<capture duration> angegebene Zeit Teletext-Daten gelesen; normalerweise sind dies 90 Sekunden (solch eine lange Zeit ist nötig da viele Sender die Programminfos auf Unterseiten legen, die nicht in jedem Teletextzyklus enthalten sind.)
+Tipp: Wenn der Akquisitionsmodus "Cyclic: Now - All" selektiert ist (siehe auch L<"DATA ACQUISITION">) wird während der "Now" Phase eine optimierte Strategie verwendet bei der die Reihenfolge der Sender so gelegt wird dass Wartezeiten minimiert werden. Damit kann ein Schnitt von 15-20 Sekunden pro Sender erreicht werden.  In der "Full" Phase werden dann immer für die bei I<capture duration> angegebene Zeit Teletext-Daten gelesen; normalerweise sind dies 90 Sekunden (solch eine lange Zeit ist nötig da viele Sender die Programminfos auf Unterseiten legen, die nicht in jedem Teletextzyklus enthalten sind.)
 
 Um die vom Teletext gelesenen EPG Daten zu verwenden, müssen Sie zuerst warten bis der grabber alle Sender einmal ausgelesen hat. Danach sollten Sie für jeden Sender eine XML Datei im nxtvepg Verzeichnis vorfinden (mit Namen im Muster "ttx-XXX.xml" wobei XXX die jeweiligen Sendernamen sind.) Diese Dateien tauchen dann in der Liste des "Load XMLTV file" Dialogs auf und können wie anderen XMLTV Dateien verwendet werden, insbesondere auch für die Zusammenführung via "Merge" (siehe L<"MERGED DATABASES">)
 
