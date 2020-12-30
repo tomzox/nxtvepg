@@ -1391,7 +1391,7 @@ int main( int argc, char *argv[] )
       eval_check(interp, "proc RemoveTuneTvButton {} {}\n");
       Xawtv_Init(NULL, NULL);
       // pass driver parameters to the driver
-      BtDriver_Configure(videoCardIndex, BTDRV_SOURCE_DVB, 0 /*prio*/, 0, 0, 0, 0, 0);
+      BtDriver_Configure(videoCardIndex, BTDRV_SOURCE_DVB, 0 /*prio*/);
       //TODO BtDriver_TuneDvbPid(230);
       if ( BtDriver_StartAcq() )
       #endif

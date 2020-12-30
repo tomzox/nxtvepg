@@ -72,7 +72,10 @@ typedef enum
    EPGDB_NOT_INIT,
    EPGDB_TVCARD_CFG,
    EPGDB_WAIT_SCAN,
+   EPGDB_PROV_NONE_BUT_ACQ,
+   EPGDB_PROV_NONE_BUT_TTX,
    EPGDB_PROV_NONE,
+   EPGDB_PROV_SEL_OR_TTX,
    EPGDB_PROV_SEL,
    EPGDB_ACQ_NO_TUNER,
    EPGDB_ACQ_ACCESS_DEVICE,
@@ -117,9 +120,26 @@ static const char * UiControl_GetDbStateMsg( EPGDB_STATE state )
          pMsg = "Please wait until the channel scan has finished.";
          break;
 
-      case EPGDB_PROV_NONE:
+      case EPGDB_PROV_NONE_BUT_ACQ:
+         pMsg = "No EPG data is loaded yet. The Teletext EPG grabber is running, "
+                "but its data is not selected for display. Use the Control menu "
+                "for loading an XMLTV file or Teletext EPG.";
+         break;
+
+      case EPGDB_PROV_NONE_BUT_TTX:
          pMsg = "No EPG data is loaded. If you have XMLTV files with EPG data, "
                 "use the Control menu for loading them. Else configure the Teletext EPG "
+                "grabber for creating XMLTV files via acquisition from a TV capture card.";
+         break;
+
+      case EPGDB_PROV_NONE:
+         pMsg = "No EPG data is loaded. If you have XMLTV files with EPG data, "
+                "use the Control menu for loading them.";
+         break;
+
+      case EPGDB_PROV_SEL_OR_TTX:
+         pMsg = "No XMLTV file selected. Please load one or more via the Control menu."
+                "Else configure the Teletext EPG "
                 "grabber for creating XMLTV files via acquisition from a TV capture card.";
          break;
 
@@ -223,11 +243,17 @@ static EPGDB_STATE UiControl_GetDbState( void )
       }
       else
 #endif
-      // TODO Check if TTX configured: RcFile_Query()->ttx.ttx_enable
-      if (EpgContextCtl_GetProvCount() == 0)
-         dbState = EPGDB_PROV_NONE;
+      int drvType = RcFile_Query()->tvcard.drv_type;
+      if (drvType == BTDRV_SOURCE_UNDEF)
+      {
+         drvType = BtDriver_GetDefaultDrvType();
+      }
+      if (acqState.ttxGrabState != ACQDESCR_DISABLED)
+         dbState = EPGDB_PROV_NONE_BUT_ACQ;
+      else if (EpgContextCtl_GetProvCount() == 0)
+         dbState = ((drvType != BTDRV_SOURCE_NONE) ? EPGDB_PROV_NONE_BUT_TTX : EPGDB_PROV_NONE);
       else
-         dbState = EPGDB_PROV_SEL;
+         dbState = ((drvType != BTDRV_SOURCE_NONE) ? EPGDB_PROV_SEL_OR_TTX : EPGDB_PROV_SEL_OR_TTX);
    }
    else
    {  // AI present, but no PI in database

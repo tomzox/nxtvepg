@@ -149,51 +149,25 @@ int BtDriver_GetDeviceOwnerPid( void )
 // ---------------------------------------------------------------------------
 // Interface to GUI
 //
-#ifndef WIN32
-const char * BtDriver_GetCardName( uint cardIdx )
+const char * BtDriver_GetCardName( int drvType, uint cardIdx, bool showDrvErr )
 {
    if (cardIdx == 0)
-      return "Bt8x8 dummy";
+      return "Dummy TV card";
    else
       return NULL;
 }
-#else  // WIN32
+
+bool BtDriver_CheckCardParams( int drvType, uint sourceIdx, uint input )
+{
+   return TRUE;
+}
+
 BTDRV_SOURCE_TYPE BtDriver_GetDefaultDrvType( void )
 {
    return BTDRV_SOURCE_PCI;
 }
 
-const char * BtDriver_GetCardNameFromList( uint cardIdx, uint listIdx )
-{
-   return NULL;
-}
-
-bool BtDriver_EnumCards( uint drvType, uint cardIdx, uint cardType,
-                         uint * pChipType, const char ** pName, bool showDrvErr )
-{
-   return FALSE;
-}
-
-bool BtDriver_QueryCardParams( uint cardIdx, sint * pCardType, sint * pTunerType, sint * pPllType )
-{
-   return FALSE;
-}
-
-bool BtDriver_CheckCardParams( uint drvType, uint cardIdx, uint chipId, uint cardType, uint tunerType, uint pll, uint input )
-{
-   return TRUE;
-}
-
-const char * BtDriver_GetTunerName( uint tunerIdx )
-{
-   if (tunerIdx == 0)
-      return "Tuner dummy";
-   else
-      return NULL;
-}
-#endif
-
-const char * BtDriver_GetInputName( uint cardIdx, uint cardType, uint drvType, uint inputIdx )
+const char * BtDriver_GetInputName( uint cardIdx, uint cardType, int drvType, uint inputIdx )
 {
    if (inputIdx == 0)
       return "Dummy input";
@@ -210,4 +184,3 @@ bool BtDriver_Configure( int sourceIdx, int drvType, int prio, int chipType, int
 void BtDriver_SelectSlicer( VBI_SLICER_TYPE slicerType )
 {
 }
-

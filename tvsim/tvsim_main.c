@@ -830,8 +830,7 @@ void BtDriver_StopAcq( void )
 }
 
 
-bool BtDriver_Configure( int sourceIdx, int drvType, int prio, int chipType, int cardType,
-                         int tunerType, int pllType, bool wdmStop )
+bool BtDriver_Configure( int sourceIdx, int drvType, int prio)
 {
    return TRUE;
 }
@@ -1410,7 +1409,6 @@ static bool SetHardwareConfig( uint cardIdx )
    const RCFILE * pRc = RcFile_Query();
    uint drvType, prio;
 #ifdef WIN32
-   uint wdmStop;
    //uint slicer, input;
 #endif
    bool result;
@@ -1421,21 +1419,11 @@ static bool SetHardwareConfig( uint cardIdx )
 #ifdef WIN32
    //input   = pRc->tvcard.input;
    //slicer  = pRc->tvcard.slicer_type;
-   wdmStop = pRc->tvcard.wdm_stop;
 
-   if ( (drvType == BTDRV_SOURCE_WDM) ||
-        (cardIdx < pRc->tvcard.winsrc_count) )
+   // pass the hardware config params to the driver
+   if (drvType == BTDRV_SOURCE_WDM)
    {
-      uint  chipType, cardType, tuner, pll;
-
-      // retrieve card specific parameters
-      chipType = pRc->tvcard.winsrc[cardIdx][EPGTCL_TVCF_CHIP_IDX];
-      cardType = pRc->tvcard.winsrc[cardIdx][EPGTCL_TVCF_CARD_IDX];
-      tuner    = pRc->tvcard.winsrc[cardIdx][EPGTCL_TVCF_TUNER_IDX];
-      pll      = pRc->tvcard.winsrc[cardIdx][EPGTCL_TVCF_PLL_IDX];
-
-      // pass the hardware config params to the driver
-      result = BtDriver_Configure(cardIdx, drvType, prio, chipType, cardType, tuner, pll, wdmStop);
+      result = BtDriver_Configure(cardIdx, drvType, prio);
    }
    else
    {
@@ -1447,7 +1435,7 @@ static bool SetHardwareConfig( uint cardIdx )
       result = FALSE;
    }
 #else
-   result = BtDriver_Configure(cardIdx, drvType, prio, 0, 0, 0, 0, 0);
+   result = BtDriver_Configure(cardIdx, drvType, prio);
 #endif
    return result;
 }

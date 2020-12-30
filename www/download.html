@@ -75,8 +75,14 @@ width="125" height="37" alt="SourceForge.net Logo"></a></span></span>
 
 <H1>Download nxtvepg</H1>
 <P>
-The last nxtvepg release is version <B>2.8.1</B>.
+The last nxtvepg release is version <B>2.8.1</B> from 2008.
 (See also <A HREF="changelog.html">change history</A>.)
+</P>
+<P>
+More recently, a pre-release of version 2.9.0 is available at
+<A HREF="pre-releases.html">ongoing development</A>. Current work
+on release 3.0 is available in source at the
+<A HREF="https://github.com/tomzox/nxtvepg">nxtvepg github site</A>.
 </P>
 <P>
 When upgrading from older releases on Windows, you should keep a copy of your
@@ -185,64 +191,51 @@ For developers: A demo application for TV application interaction is available
 Hardware minimum requirements are a PC or workstation with performance
 equivalent to a 90 MHz Intel Pentium CPU and 128 MB of RAM (note nxtvepg
 is also known to work fine on Power-PC and Ultra-Sparc platforms.)
-Additionally an analog TV tuner card is required. (With some workarounds
-<A HREF="intro.html#DVB">DVB</A> can be made to work too on Linux.)
+Optionally, for using the Teletext EPG grabber, a digital or analog
+TV capture card is required.
 </P><P>
-The Windows version supports most PCI capture cards based either on the
-capture chips Brooktree Fusion Bt878/Bt848, successor Conexant CX23881 or
-Philips SAA7134 using the internal "dsdrv4"
-(<A HREF="http://www.dscaler.org/">DScaler</A>) driver.  
-Additional cards may be supported by using the card vendor's WDM driver and
-a separate <A HREF="pre-releases.html#wdm_if_lib">WDM interface library</A>.
+The MS Windows version supports only analog TV cards that are supported via
+the provided WDM driver interface DLL (i.e. the included `VbiAcqWdmDrv.dll`).
+Pre-requisite for that is a vendor-provided WDM driver module that supports
+"VBI" decoding (e.g. teletext; see also
+<A HREF="pre-releases.html#wdm_if_lib">WDM interface library</A>).
+Digital TV cards (DVB) ard currently not supported for Windows. (Note the
+integrated DScaler-based PCI driver was removed from nxtvepg in version 3.0.0).
 </P><P>
-The Linux version supports all cards for which a
-<A HREF="http://roadrunner.swansea.uk.linux.org/v4l.shtml">video4linux</A>
-or <A HREF="http://bytesex.org/">v4l2</A> driver exists
-(e.g. bttv, saa7134 and cx8800.) Acquisition from DVB devices works when compiling
-with the <A HREF="http://zapping.sourceforge.net/doc/libzvbi/index.html">ZVBI library</A>
-(by uncommenting "-DUSE_LIBZVBI" in the nxtvepg Makefile.)
+The Linux version supports DVB TV cards (currently limited to cable channels)
+and analog TV cards for which a video4linux driver exists (API version 2).
 The NetBSD and FreeBSD versions support all cards which are supported by the
-<A HREF="http://vulture.dmem.strath.ac.uk/bt848/">bktr driver</A>.
+"bktr" driver.
 </P>
 
 <DIV CLASS="box">
 <H3>Linux software requirements</H3>
 <UL>
-<LI><I>video4linux</I> drivers with <I>VBI</I> support for your TV card.
+<LI>For the Teletext EPG grabber (optional): <I>v4l2</I> (i.e. "video4linux",
+  version 2) drivers with <I>VBI</I> support for your TV card.
   Since kernel version 2.6.x, the vanilla kernels include working drivers
   for the most used analog TV cards, so you'll probably need no extra drivers.
   Restrictions: bttv drivers in kernel versions 2.6.16 or newer are supported
   by nxtvepg 2.7.7 or newer only. bttv drivers in kernel versions 2.6.21 or
   newer require nxtvepg version 2.8.0 or later.<BR>
-  Older kernel versions:
-  <UL>
-  <LI>TV cards with Brooktree Bt848 or Bt878 capture chip: Kernel 2.0.35 or newer and
-    <A HREF="http://bytesex.org/bttv">bttv</A> driver version &gt;= 0.7.55; for
-    kernel 2.4 or older a separate video4linux kernel module is also required.
-  <LI>TV cards with Philips SAA7134 capture chip: kernel 2.4.x with
-    <A HREF="http://bytesex.org/saa7134/">saa7134</A> driver 0.2.9 or newer, plus
-    <A HREF="http://roadrunner.swansea.uk.linux.org/v4l.shtml">video4linux</A> module.
-  <LI>TV cards with Conexant 2388x capture chip: kernel 2.4.x plus cx88xx driver from
-    snapshot video4linux-20040330 or newer (note there were no official driver releases
-    for these chips before kernel line 2.6)
-  </UL>
-<LI>GNU C Compiler (version 2.95.3 or 3.2 or later) unless you got nxtvepg
-  pre-compiled for your platform
-<LI><A HREF="http://tcl.tk/">Tcl/Tk</A> version 8.4 or later
-  (version 8.5 is recommended due to improved widget appearance.)
+<LI>GNU C++ Compiler with support for C++14
+  (unless you got nxtvepg pre-compiled for your platform)
+<LI><A HREF="http://tcl.tk/">Tcl/Tk</A> version 8.5
+  (Note use of later Tcl/Tk releases is <B>not</B> recommended due to incompatible
+  changes in keyboard event handling.)
 <LI>Any release of X11R5 or X11R6.
-  Note: X11 and Tcl/Tk are not required when building the "nxtvepgd" daemon only.
 </UL>
+<P>
+Note: X11 and Tcl/Tk are not required when building the "nxtvepgd" daemon only.
+</P>
 </DIV>
 
 <DIV CLASS="box">
 <H3>NetBSD software requirements</H3>
 <UL>
 <LI>kernel &gt;= 1.5 including the
-<A HREF="http://vulture.dmem.strath.ac.uk/bt848/">bktr driver</A> 2.17 or later,
-<LI>GNU C Compiler, unless you got nxtvepg in a pre-compiled NetBSD package
-<LI><A HREF="http://tcl.tk/">Tcl/Tk</A> version 8.4 or later
-  (version 8.5 is recommended due to improved widget appearance.)
+   <A HREF="http://vulture.dmem.strath.ac.uk/bt848/">bktr driver</A> 2.17 or later,
+<LI>Other dependencies are same as for Linux.
 </UL>
 </DIV>
 
@@ -253,8 +246,7 @@ The NetBSD and FreeBSD versions support all cards which are supported by the
   recent) or FreeBSD 5, i.e. a system that contains the bktr(4)-driver 2.18 or
   later. Older installations of FreeBSD (2.x, 3.x, 4.x) may be upgraded with the
   latest <A HREF="http://vulture.dmem.strath.ac.uk/bt848/">bktr driver</A>.
-<LI><A HREF="http://tcl.tk/">Tcl/Tk</A> version 8.4 or later
-  (version 8.5 is recommended due to improved widget appearance.)
+<LI>Other dependencies are same as for NetBSD.
 </UL>
 <P>
 Installation instructions: Update your ports collection and install the
@@ -270,15 +262,20 @@ have a look at the
 <DIV CLASS="box">
 <H3>Windows software requirements</H3>
 <UL>
-<LI>No additional software is required: nxtvepg is shipped with all the required components.
-<LI>Exception for Windows 95: the winsock2 DLL is required (ws2_32.dll, for the daemon
-feature) which - in contrary to newer Windows versions - was not included with this OS.
+<LI>For the Teletext EPG grabber (optional): A WDM driver for your TV card
+  that supports VBI decoding. Use of the WDM driver (based on DirectShow)
+  requires DirectX 9 or later.
+<LI>Exception for Windows 95: the winsock2 DLL is required (ws2_32.dll, for the
+   daemon feature) which - in contrary to newer Windows versions - was not
+   included with this OS.
 <LI>All Windows versions starting with Windows 95 are supported.
-<LI>Note: On Windows NT and Windows 2000 you need to run nxtvepg under an
-account with special privileges (you must be allowed to install &amp; start a service).
-This is not neccessary when using the
-<A HREF="pre-releases.html#wdm_if_lib">WDM interface library</A>
+<LI>Unlike for the UNIX variants, Tcl/Tk libraries are included in the
+  nxtvepg package, so there are no further dependencies.
 </UL>
+<P>
+Note the Windows version currently does <B>not</B> support Digital TV capture
+cards.
+</P>
 </DIV>
 </DIV>
 

@@ -99,12 +99,11 @@ void Daemon_SystemClockCmd( EPG_CLOCK_CTRL_MODE clockMode )
    uint   freqCount;
    char * pErrMsg;
 
-   EpgSetup_CardDriver(mainOpts.videoCardIndex);
-
    BtDriver_SelectSlicer(VBI_SLICER_ZVBI);
    BtDriver_SetChannelProfile(VBI_CHANNEL_PRIO_BACKGROUND);
 
-   if (BtDriver_StartAcq())
+   if ( EpgSetup_CardDriver(mainOpts.videoCardIndex) &&
+        BtDriver_StartAcq() )
    {
       if (WintvCfg_GetFreqTab(&pNameList, &pFreqTab, &freqCount, &pErrMsg) == FALSE)
       {
@@ -119,7 +118,7 @@ void Daemon_SystemClockCmd( EPG_CLOCK_CTRL_MODE clockMode )
 
       if (BtDriver_TuneChannel(RcFile_Query()->tvcard.input, &pFreqTab[0], FALSE, &isTuner) == FALSE)
       {
-         fprintf(stderr, "nxtveog: FATAL: Tuning channel \"%s\": %s\n", pNameList, BtDriver_GetLastError());
+         fprintf(stderr, "nxtvepg: FATAL: Tuning channel \"%s\": %s\n", pNameList, BtDriver_GetLastError());
          exit(1);
       }
       BtDriver_TuneDvbPid(&pFreqTab[0].ttxPid, 1);
@@ -1029,12 +1028,12 @@ void Daemon_Start( void )
 
    // pass configurable parameters to the network server (e.g. enable logging)
    EpgSetup_NetAcq(TRUE);
-   EpgSetup_CardDriver(mainOpts.videoCardIndex);
 #ifdef USE_TTX_GRABBER
    EpgSetup_TtxGrabber();
 #endif
 
-   if (EpgSetup_DaemonAcquisitionMode(mainOpts.optAcqPassive, mainOpts.optAcqOnce))
+   if ( EpgSetup_CardDriver(mainOpts.videoCardIndex) &&
+        EpgSetup_DaemonAcquisitionMode(mainOpts.optAcqPassive, mainOpts.optAcqOnce) )
    {
       #ifndef WIN32
       Daemon_SignalSetup();

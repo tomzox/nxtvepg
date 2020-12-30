@@ -805,23 +805,20 @@ bool EpgSetup_DaemonAcquisitionMode( bool forcePassive, int maxPhase )
 // - called at startup or after user configuration via the GUI
 // - the card index can also be set via command line and is passed here
 //   from main; a value of -1 means don't care
+// - result indicates if driver is OK for acquisition start
 //
-void EpgSetup_CardDriver( int newCardIndex )
+bool EpgSetup_CardDriver( int newCardIndex )
 {
    const RCFILE * pRc = RcFile_Query();
    RCFILE_TVCARD rcCard;
    int  drvType, cardIdx, input, prio, slicer;
-   int  chipType, cardType, tuner, pll, wdmStop;
+   bool result = FALSE;
 
    drvType = pRc->tvcard.drv_type;
    cardIdx = pRc->tvcard.card_idx;
    input   = pRc->tvcard.input;
    prio    = pRc->tvcard.acq_prio;
    slicer  = pRc->tvcard.slicer_type;
-   wdmStop = pRc->tvcard.wdm_stop;
-
-   chipType = EPGTCL_PCI_ID_UNKNOWN;
-   cardType = tuner = pll = 0;
 
    if ((newCardIndex >= 0) && (newCardIndex != cardIdx))
    {
@@ -841,48 +838,36 @@ void EpgSetup_CardDriver( int newCardIndex )
       drvType = BtDriver_GetDefaultDrvType();
    }
 
-#ifdef WIN32
-   if (drvType == BTDRV_SOURCE_PCI)
-   {
-      if (cardIdx < pRc->tvcard.winsrc_count)
-      {
-         // retrieve card specific parameters
-         chipType = pRc->tvcard.winsrc[cardIdx][EPGTCL_TVCF_CHIP_IDX];
-         cardType = pRc->tvcard.winsrc[cardIdx][EPGTCL_TVCF_CARD_IDX];
-         tuner    = pRc->tvcard.winsrc[cardIdx][EPGTCL_TVCF_TUNER_IDX];
-         pll      = pRc->tvcard.winsrc[cardIdx][EPGTCL_TVCF_PLL_IDX];
-      }
-      else
-         debug2("EpgSetup-CardDriver: no config for card #%d (have %d cards)", cardIdx, pRc->tvcard.winsrc_count);
-   }
-#endif
-
    if (drvType == BTDRV_SOURCE_NONE)
    {
+      BtDriver_Configure(cardIdx, drvType, prio);
       EpgAcqCtl_Stop();
    }
    else
    {
       // pass the hardware config params to the driver
-      if (BtDriver_Configure(cardIdx, drvType, prio, chipType, cardType, tuner, pll, wdmStop))
+      if (BtDriver_Configure(cardIdx, drvType, prio))
       {
          // pass the input selection to acquisition control
          EpgAcqCtl_SetInputSource(input, slicer);
+         result = TRUE;
       }
       else
+      {
+         debug1("EpgSetup-CardDriver: setup for cardIdx:%d failed\n", newCardIndex);
          EpgAcqCtl_Stop();
+      }
    }
+   return result;
 }
 
 // ----------------------------------------------------------------------------
 // Check if the selected TV card is configured properly
 //
-#ifdef WIN32
 bool EpgSetup_CheckTvCardConfig( void )
 {
    const RCFILE * pRc;
    uint  drvType, cardIdx, input;
-   uint  chipType, cardType, tuner, pll;
    bool  result = FALSE;
 
    pRc = RcFile_Query();
@@ -891,22 +876,7 @@ bool EpgSetup_CheckTvCardConfig( void )
    cardIdx = pRc->tvcard.card_idx;
    input = pRc->tvcard.input;
 
-   if ( (drvType == BTDRV_SOURCE_PCI) &&
-        (cardIdx < pRc->tvcard.winsrc_count) )
-   {
-      // retrieve card specific parameters
-      chipType = pRc->tvcard.winsrc[cardIdx][EPGTCL_TVCF_CHIP_IDX];
-      cardType = pRc->tvcard.winsrc[cardIdx][EPGTCL_TVCF_CARD_IDX];
-      tuner    = pRc->tvcard.winsrc[cardIdx][EPGTCL_TVCF_TUNER_IDX];
-      pll      = pRc->tvcard.winsrc[cardIdx][EPGTCL_TVCF_PLL_IDX];
-
-      result = BtDriver_CheckCardParams(drvType, cardIdx, chipType, cardType, tuner, pll, input);
-   }
-   else if (drvType == BTDRV_SOURCE_WDM)
-   {
-      result = BtDriver_CheckCardParams(drvType, cardIdx, 0, 0, 0, 0, input);
-   }
-   else if (drvType == BTDRV_SOURCE_UNDEF)
+   if (drvType == BTDRV_SOURCE_UNDEF)
    {
       result = FALSE;
    }
@@ -914,20 +884,21 @@ bool EpgSetup_CheckTvCardConfig( void )
    {
       result = TRUE;
    }
+   else
+   {
+      result = BtDriver_CheckCardParams(drvType, cardIdx, input);
+   }
 
    return result;
 }
-#endif
 
 // ----------------------------------------------------------------------------
 // Check if a TV card is available
 //
-#ifdef WIN32
 bool EpgSetup_HasLocalTvCard( void )
 {
    return (RcFile_Query()->tvcard.drv_type != BTDRV_SOURCE_NONE);
 }
-#endif
 
 // ----------------------------------------------------------------------------
 // Pass network connection and server configuration down to acq control

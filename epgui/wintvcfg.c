@@ -57,9 +57,7 @@
 #include "epgvbi/tvchan.h"
 #include "epgvbi/syserrmsg.h"
 #ifdef WIN32
-#include "dsdrv/tvcard.h"
 #include "epgvbi/winshm.h"
-#include "dsdrv/wintuner.h"
 #endif
 #include "epgui/rcfile.h"
 #include "epgui/epgmain.h"

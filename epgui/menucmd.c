@@ -64,9 +64,6 @@
 #include "epgvbi/tvchan.h"
 #include "epgvbi/btdrv.h"
 #include "epgtcl/dlg_hwcfg.h"
-#ifdef WIN32
-#include "dsdrv/debuglog.h"
-#endif
 
 
 static void MenuCmd_EpgScanHandler( ClientData clientData );
@@ -143,9 +140,7 @@ static int MenuCmd_SetControlMenuStates( ClientData ttp, Tcl_Interp *interp, int
          allow_opt = ( (acqState.ttxGrabState == ACQDESCR_DISABLED) ||
                        (acqState.isNetAcq == FALSE) ||
                        (acqState.isNetAcq && EpgAcqClient_IsLocalServer()) );
-#ifdef WIN32
          allow_opt &= EpgSetup_HasLocalTvCard();
-#endif
       }
       else
       {
@@ -197,8 +192,11 @@ static int MenuCmd_SetControlMenuStates( ClientData ttp, Tcl_Interp *interp, int
 //
 void AutoStartAcq( void )
 {
-   if ( (RcFile_Query()->acq.acq_start == ACQ_START_AUTO) &&
-        (RcFile_Query()->ttx.ttx_enable) )
+   const RCFILE * pRc = RcFile_Query();
+
+   if ( (pRc->acq.acq_start == ACQ_START_AUTO) &&
+        (pRc->ttx.ttx_enable) &&
+        (pRc->tvcard.drv_type != BTDRV_SOURCE_NONE) )
    {
 #ifndef WIN32
       EpgSetup_AcquisitionMode(NETACQ_DEFAULT);
@@ -284,14 +282,12 @@ static void MenuCmd_StartLocalAcq( Tcl_Interp * interp )
    #endif
    bool wasNetAcq;
 
-   #ifdef WIN32
-   // Win32 only: warn user if TV card is not configured
-   if ( !EpgSetup_CheckTvCardConfig() &&
-        MenuCmd_PopupTvCardSetup() )
+   // Warn user if TV card is not configured
+   if ( !EpgSetup_CheckTvCardConfig() && MenuCmd_PopupTvCardSetup() )
    {
+      // User quit popup via "cancel" button
       return;
    }
-   #endif
 
    // save previous acq mode to detect mode changes
    wasNetAcq = IsRemoteAcqDefault();
@@ -2004,33 +2000,6 @@ static void MenuCmd_EpgScanHandler( ClientData clientData )
 }
 
 // ----------------------------------------------------------------------------
-// Win32: Get list of all tuner types
-// - on Linux the tuner is already configured in the bttv driver
-//
-static int MenuCmd_GetTunerList( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
-{
-   #ifdef WIN32
-   const char * pName;
-   Tcl_Obj * pResultList;
-   uint idx;
-
-   pResultList = Tcl_NewListObj(0, NULL);
-   idx = 0;
-   while (1)
-   {
-      pName = BtDriver_GetTunerName(idx);
-      if (pName != NULL)
-         Tcl_ListObjAppendElement(interp, pResultList, TranscodeToUtf8(EPG_ENC_SYSTEM, NULL, pName, NULL));
-      else
-         break;
-      idx += 1;
-   }
-   Tcl_SetObjResult(interp, pResultList);
-   #endif
-   return TCL_OK;
-}
-
-// ----------------------------------------------------------------------------
 // Retrieve list of physically present cards from driver
 // - this list may no longer match the configured card list, hence for WIN32
 //   the chip type is stored in the config data and compared to the scan result
@@ -2063,39 +2032,9 @@ static int MenuCmd_ScanTvCards( ClientData ttp, Tcl_Interp *interp, int objc, Tc
       cardIdx = 0;
       do
       {
-#ifndef WIN32
-         pName = BtDriver_GetCardName(cardIdx, drvType);
+         pName = BtDriver_GetCardName(drvType, cardIdx, showDrvErr);
          if (pName != NULL)
             Tcl_ListObjAppendElement(interp, pResultList, TranscodeToUtf8(EPG_ENC_SYSTEM, NULL, pName, NULL));
-#else
-         const RCFILE * pRc = RcFile_Query();
-         uint  cardType;
-         uint  chipType;
-
-         if ( (drvType == BTDRV_SOURCE_PCI) &&
-              (cardIdx < pRc->tvcard.winsrc_count) )
-         {
-            // retrieve card specific parameters
-            chipType = pRc->tvcard.winsrc[cardIdx][EPGTCL_TVCF_CHIP_IDX];
-            cardType = pRc->tvcard.winsrc[cardIdx][EPGTCL_TVCF_CARD_IDX];
-         }
-         else
-         {
-            chipType = EPGTCL_PCI_ID_UNKNOWN;
-            cardType = 0;
-         }
-
-         pName = NULL;
-         if ( (BtDriver_EnumCards(drvType, cardIdx, cardType,
-                                  &chipType, &pName, showDrvErr) == FALSE)
-              || (pName == NULL) )
-         {
-            break;
-         }
-
-         Tcl_ListObjAppendElement(interp, pResultList, Tcl_NewIntObj(chipType));
-         Tcl_ListObjAppendElement(interp, pResultList, TranscodeToUtf8(EPG_ENC_SYSTEM, NULL, pName, NULL));
-#endif
 
          cardIdx += 1;
       }
@@ -2108,201 +2047,21 @@ static int MenuCmd_ScanTvCards( ClientData ttp, Tcl_Interp *interp, int objc, Tc
 }
 
 // ----------------------------------------------------------------------------
-// Win32: Query TV card driver for card properties (default or auto-detected)
-// - only applicable to dsdrv sources (i.e. never used for WDM)
-//
-static int MenuCmd_QueryCardParams( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
-{
-#ifdef WIN32
-   const char * const pUsage = "Usage: C_HwCfgQueryCardParams <card-idx> <card-type>";
-   Tcl_Obj * pResultList;
-   sint tuner, pll;
-   int  cardIndex;
-   int  cardType;
-   int  result;
-
-   if ( (objc != 3) ||
-        (Tcl_GetIntFromObj(interp, objv[1], &cardIndex) != TCL_OK) ||
-        (Tcl_GetIntFromObj(interp, objv[2], &cardType) != TCL_OK) )
-   {  // parameter count is invalid
-      Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
-      result = TCL_ERROR;
-   }
-   else
-   {
-      if (BtDriver_QueryCardParams(cardIndex, &cardType, &tuner, &pll))
-      {
-         pResultList = Tcl_NewListObj(0, NULL);
-
-         Tcl_ListObjAppendElement(interp, pResultList, Tcl_NewIntObj(cardType));
-         Tcl_ListObjAppendElement(interp, pResultList, Tcl_NewIntObj(tuner));
-         Tcl_ListObjAppendElement(interp, pResultList, Tcl_NewIntObj(pll));
-
-         Tcl_SetObjResult(interp, pResultList);
-      }
-      result = TCL_OK;
-   }
-   return result;
-#else
-   return TCL_OK;
-#endif
-}
-
-// ----------------------------------------------------------------------------
-// Win32: Update TV card config data in rc file
-// - called when TV card config dialog is closed with "OK"
-//
-static int MenuCmd_UpdateTvCardConfig( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
-{
-#ifdef WIN32
-   const char * const pUsage = "Usage: C_HwCfgUpdateTvCardConfig <card-idx> <param-1> ...";
-   int  cardIdx;
-   int  cfgIdx;
-   int  value;
-   uint cfgList[EPGTCL_TVCF_IDX_COUNT];
-   int  result;
-
-   if (objc != 1+1+EPGTCL_TVCF_IDX_COUNT)
-   {  // parameter count is invalid
-      Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
-      result = TCL_ERROR;
-   }
-   else if (Tcl_GetIntFromObj(interp, objv[1], &cardIdx) != TCL_OK)
-   {
-      result = TCL_ERROR;
-   }
-   else
-   {
-      result = TCL_OK;
-      for (cfgIdx = 0; (cfgIdx < EPGTCL_TVCF_IDX_COUNT) && (result == TCL_OK); cfgIdx++)
-      {
-         result = Tcl_GetIntFromObj(interp, objv[1+1+cfgIdx], &value);
-         if (result == TCL_OK)
-         {
-            cfgList[cfgIdx] = value;
-         }
-      }
-      if (result == TCL_OK)
-      {
-         RcFile_UpdateTvCardWinSrc(cardIdx, cfgList, EPGTCL_TVCF_IDX_COUNT);
-         UpdateRcFile(TRUE);
-
-         EpgSetup_CardDriver(-1);
-
-         // update help message in listbox if database is empty
-         UiControl_CheckDbState();
-      }
-   }
-   return result;
-#else
-   return TCL_OK;
-#endif
-}
-
-// ----------------------------------------------------------------------------
-// Win32: Return TV card config data as stored in rc file
-// - for each configured card a list of parameters is returned
-// - only applicable to dsdrv sources (i.e. never used for WDM)
-//
-static int MenuCmd_GetTvCardConfig( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
-{
-#ifdef WIN32
-   const char * const pUsage = "Usage: C_HwCfgGetTvCardConfig";
-   const RCFILE * pRc;
-   Tcl_Obj * pResultList;
-   Tcl_Obj * pParamList;
-   int  cardIdx;
-   int  cfgIdx;
-   int  result;
-
-   if (objc != 1)
-   {  // parameter count is invalid
-      Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
-      result = TCL_ERROR;
-   }
-   else
-   {
-      pRc = RcFile_Query();
-      pResultList = Tcl_NewListObj(0, NULL);
-
-      for (cardIdx = 0; cardIdx < pRc->tvcard.winsrc_count; cardIdx++)
-      {
-         pParamList = Tcl_NewListObj(0, NULL);
-
-         for (cfgIdx = 0; cfgIdx < EPGTCL_TVCF_IDX_COUNT; cfgIdx++)
-         {
-            Tcl_ListObjAppendElement(interp, pParamList, Tcl_NewIntObj(pRc->tvcard.winsrc[cardIdx][cfgIdx]));
-         }
-         Tcl_ListObjAppendElement(interp, pResultList, pParamList);
-      }
-      Tcl_SetObjResult(interp, pResultList);
-      result = TCL_OK;
-   }
-   return result;
-#else
-   return TCL_OK;
-#endif
-}
-
-// ----------------------------------------------------------------------------
-// Get list of all TV card names
-//
-static int MenuCmd_GetTvCardNameList( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
-{
-   const char * const pUsage = "Usage: C_HwCfgGetTvCardNameList <card-idx>";
-#ifdef WIN32
-   const char * pName;
-   Tcl_Obj * pResultList;
-   uint idx;
-#endif
-   int  cardIndex;
-   int  result;
-
-   if ( (objc != 2) || (Tcl_GetIntFromObj(interp, objv[1], &cardIndex) != TCL_OK) )
-   {  // parameter count is invalid
-      Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
-      result = TCL_ERROR;
-   }
-   else
-   {
-#ifdef WIN32
-      pResultList = Tcl_NewListObj(0, NULL);
-      idx = 0;
-      do
-      {
-         pName = BtDriver_GetCardNameFromList(cardIndex, idx);
-         if (pName != NULL)
-            Tcl_ListObjAppendElement(interp, pResultList, TranscodeToUtf8(EPG_ENC_SYSTEM, NULL, pName, NULL));
-
-         idx += 1;
-      }
-      while (pName != NULL);
-
-      Tcl_SetObjResult(interp, pResultList);
-#endif
-      result = TCL_OK;
-   }
-   return result;
-}
-
-// ----------------------------------------------------------------------------
 // Get list of all input types
 //
 static int MenuCmd_GetInputList( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
 {
-   const char * const pUsage = "Usage: C_HwCfgGetInputList <card index> <WIN32 card type> <WIN32 drv type>";
+   const char * const pUsage = "Usage: C_HwCfgGetInputList <card_index> <drv_type>";
    const char * pName;
    Tcl_Obj * pResultList;
    int  cardIndex;
-   int  cardType;
    int  drvType;
    uint inputIdx;
    int  result;
 
-   if ( (objc != 4) ||
+   if ( (objc != 1+2) ||
         (Tcl_GetIntFromObj(interp, objv[1], &cardIndex) != TCL_OK) ||
-        (Tcl_GetIntFromObj(interp, objv[2], &cardType) != TCL_OK) ||
-        (Tcl_GetIntFromObj(interp, objv[3], &drvType) != TCL_OK) )
+        (Tcl_GetIntFromObj(interp, objv[2], &drvType) != TCL_OK) )
    {  // parameter count is invalid
       Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
       result = TCL_ERROR;
@@ -2313,7 +2072,7 @@ static int MenuCmd_GetInputList( ClientData ttp, Tcl_Interp *interp, int objc, T
       inputIdx = 0;
       while (1)
       {
-         pName = BtDriver_GetInputName(cardIndex, cardType, drvType, inputIdx);
+         pName = BtDriver_GetInputName(cardIndex, drvType, inputIdx);
 
          if (pName != NULL)
             Tcl_ListObjAppendElement(interp, pResultList, TranscodeToUtf8(EPG_ENC_SYSTEM, NULL, pName, NULL));
@@ -2328,7 +2087,7 @@ static int MenuCmd_GetInputList( ClientData ttp, Tcl_Interp *interp, int objc, T
    return result;
 }
 
-#ifdef WIN32
+#if 0  // unused code
 // ----------------------------------------------------------------------------
 // Helper func: read integer from global Tcl var
 //
@@ -2389,7 +2148,6 @@ static int MenuCmd_GetHardwareConfig( ClientData ttp, Tcl_Interp *interp, int ob
       Tcl_ListObjAppendElement(interp, pResultList, Tcl_NewIntObj(drvType));
       Tcl_ListObjAppendElement(interp, pResultList, Tcl_NewIntObj(pRc->tvcard.acq_prio));
       Tcl_ListObjAppendElement(interp, pResultList, Tcl_NewIntObj(pRc->tvcard.slicer_type));
-      Tcl_ListObjAppendElement(interp, pResultList, Tcl_NewBooleanObj(pRc->tvcard.wdm_stop));
 
       Tcl_SetObjResult(interp, pResultList);
       result = TCL_OK;
@@ -2403,13 +2161,12 @@ static int MenuCmd_GetHardwareConfig( ClientData ttp, Tcl_Interp *interp, int ob
 //
 static int MenuCmd_UpdateHardwareConfig( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
 {
-   const char * const pUsage = "Usage: C_UpdateHardwareConfig <card-idx> <input-idx> <drv-type> <prio> <slicer> <wdm-stop=0/1>";
+   const char * const pUsage = "Usage: C_UpdateHardwareConfig <card-idx> <input-idx> <drv-type> <prio> <slicer>";
    RCFILE_TVCARD rcCard;
    int  cardIdx, input, drvType, prio, slicer;
-   int  wdmStop;
    int  result;
 
-   if (objc != 1+6)
+   if (objc != 1+5)
    {  // parameter count is invalid
       Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
       result = TCL_ERROR;
@@ -2418,8 +2175,7 @@ static int MenuCmd_UpdateHardwareConfig( ClientData ttp, Tcl_Interp *interp, int
              (Tcl_GetIntFromObj(interp, objv[2], &input) != TCL_OK) ||
              (Tcl_GetIntFromObj(interp, objv[3], &drvType) != TCL_OK) ||
              (Tcl_GetIntFromObj(interp, objv[4], &prio) != TCL_OK) ||
-             (Tcl_GetIntFromObj(interp, objv[5], &slicer) != TCL_OK) ||
-             (Tcl_GetBooleanFromObj(interp, objv[6], &wdmStop) != TCL_OK) )
+             (Tcl_GetIntFromObj(interp, objv[5], &slicer) != TCL_OK) )
    {
       result = TCL_ERROR;
    }
@@ -2432,14 +2188,9 @@ static int MenuCmd_UpdateHardwareConfig( ClientData ttp, Tcl_Interp *interp, int
       rcCard.input = input;
       rcCard.acq_prio = prio;
       rcCard.slicer_type = slicer;
-      rcCard.wdm_stop = wdmStop;
 
       RcFile_SetTvCard(&rcCard);
       UpdateRcFile(TRUE);
-
-      #ifdef WIN32
-      HwDrv_SetLogging(MenuCmd_ReadTclInt(interp, "hwcf_dsdrv_log", 0));
-      #endif
 
       EpgSetup_CardDriver(-1);
 
@@ -2964,12 +2715,7 @@ void MenuCmd_Init( void )
       Tcl_CreateObjCommand(interp, "C_SetEpgScanSpeed", MenuCmd_SetEpgScanSpeed, (ClientData) NULL, NULL);
 
       Tcl_CreateObjCommand(interp, "C_HwCfgScanTvCards", MenuCmd_ScanTvCards, (ClientData) NULL, NULL);
-      Tcl_CreateObjCommand(interp, "C_HwCfgGetTvCardNameList", MenuCmd_GetTvCardNameList, (ClientData) NULL, NULL);
       Tcl_CreateObjCommand(interp, "C_HwCfgGetInputList", MenuCmd_GetInputList, (ClientData) NULL, NULL);
-      Tcl_CreateObjCommand(interp, "C_HwCfgGetTunerList", MenuCmd_GetTunerList, (ClientData) NULL, NULL);
-      Tcl_CreateObjCommand(interp, "C_HwCfgQueryCardParams", MenuCmd_QueryCardParams, (ClientData) NULL, NULL);
-      Tcl_CreateObjCommand(interp, "C_HwCfgUpdateTvCardConfig", MenuCmd_UpdateTvCardConfig, (ClientData) NULL, NULL);
-      Tcl_CreateObjCommand(interp, "C_HwCfgGetTvCardConfig", MenuCmd_GetTvCardConfig, (ClientData) NULL, NULL);
       Tcl_CreateObjCommand(interp, "C_GetHardwareConfig", MenuCmd_GetHardwareConfig, (ClientData) NULL, NULL);
       Tcl_CreateObjCommand(interp, "C_UpdateHardwareConfig", MenuCmd_UpdateHardwareConfig, (ClientData) NULL, NULL);
       Tcl_CreateObjCommand(interp, "C_CheckTvCardConfig", MenuCmd_TclCbCheckTvCardConfig, (ClientData) NULL, NULL);

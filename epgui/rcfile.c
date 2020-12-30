@@ -215,14 +215,14 @@ static const RCPARSE_CFG rcParseCfg_tvcard[] =
    { RC_TYPE_INT,  RC_OFF(tvcard.input), "hwcf_input", RC_OFF_NONE(), 0, NULL },
    { RC_TYPE_INT,  RC_OFF(tvcard.acq_prio), "hwcf_acq_prio", RC_OFF_NONE(), 0, NULL },
    { RC_TYPE_INT,  RC_OFF(tvcard.slicer_type), "hwcf_slicer_type", RC_OFF_NONE(), 0, NULL },
-   { RC_TYPE_INT,  RC_OFF(tvcard.wdm_stop), "hwcf_wdm_stop", RC_OFF_NONE(), 0, NULL },
+   { RC_TYPE_INT,  RC_OFF(tvcard.wdm_stop), "hwcf_wdm_stop", RC_OFF_NONE(), 0, NULL },  // obsolete
    // note: following must match RCFILE_MAX_WINSRC_COUNT
-   { RC_TYPE_INT,  RC_OFF(tvcard.winsrc_count), "tvcardcf_count", RC_OFF_NONE(), 0, NULL },
-   { RC_TYPE_INT,  RC_OFF(tvcard.winsrc[0]), "tvcardcf_0", RC_OFF(tvcard.winsrc_param_count[0]), EPGTCL_TVCF_IDX_COUNT, NULL },
-   { RC_TYPE_INT,  RC_OFF(tvcard.winsrc[1]), "tvcardcf_1", RC_OFF(tvcard.winsrc_param_count[1]), EPGTCL_TVCF_IDX_COUNT, NULL },
-   { RC_TYPE_INT,  RC_OFF(tvcard.winsrc[2]), "tvcardcf_2", RC_OFF(tvcard.winsrc_param_count[2]), EPGTCL_TVCF_IDX_COUNT, NULL },
-   { RC_TYPE_INT,  RC_OFF(tvcard.winsrc[3]), "tvcardcf_3", RC_OFF(tvcard.winsrc_param_count[3]), EPGTCL_TVCF_IDX_COUNT, NULL },
-   { RC_TYPE_INT,  RC_OFF(tvcard.winsrc[4]), "tvcardcf_4", RC_OFF(tvcard.winsrc_param_count[4]), EPGTCL_TVCF_IDX_COUNT, NULL },
+   { RC_TYPE_INT,  RC_OFF(tvcard.winsrc_count), "tvcardcf_count", RC_OFF_NONE(), 0, NULL },  // obsolete
+   { RC_TYPE_INT,  RC_OFF(tvcard.winsrc[0]), "tvcardcf_0", RC_OFF(tvcard.winsrc_param_count[0]), 4, NULL },  // obsolete
+   { RC_TYPE_INT,  RC_OFF(tvcard.winsrc[1]), "tvcardcf_1", RC_OFF(tvcard.winsrc_param_count[1]), 4, NULL },  // obsolete
+   { RC_TYPE_INT,  RC_OFF(tvcard.winsrc[2]), "tvcardcf_2", RC_OFF(tvcard.winsrc_param_count[2]), 4, NULL },  // obsolete
+   { RC_TYPE_INT,  RC_OFF(tvcard.winsrc[3]), "tvcardcf_3", RC_OFF(tvcard.winsrc_param_count[3]), 4, NULL },  // obsolete
+   { RC_TYPE_INT,  RC_OFF(tvcard.winsrc[4]), "tvcardcf_4", RC_OFF(tvcard.winsrc_param_count[4]), 4, NULL },  // obsolete
 };
 static const RCPARSE_CFG rcParseCfg_ttx[] =
 {
@@ -1738,30 +1738,6 @@ void RcFile_RemoveProvider( uint cni )
 }
 
 // ----------------------------------------------------------------------------
-// Win32: write TV card driver parameters
-//
-void RcFile_UpdateTvCardWinSrc( uint cardIdx, const uint * pParams, uint paramCount )
-{
-   dprintf3("RcFile-UpdateTvCardWinSrc: card %d: %d, ... (%d elems)\n", cardIdx, pParams[0], paramCount);
-
-   if (cardIdx < RCFILE_MAX_WINSRC_COUNT)
-   {
-      if (paramCount == EPGTCL_TVCF_IDX_COUNT)
-      {
-         memcpy(mainRc.tvcard.winsrc[cardIdx], pParams, sizeof(mainRc.tvcard.winsrc[0]));
-         mainRc.tvcard.winsrc_param_count[cardIdx] = EPGTCL_TVCF_IDX_COUNT;
-
-         if (mainRc.tvcard.winsrc_count < cardIdx + 1)
-            mainRc.tvcard.winsrc_count = cardIdx + 1;
-      }
-      else
-         fatal2("RcFile-UpdateTvCardWinSrc: invalid param count %d != %d", paramCount, EPGTCL_TVCF_IDX_COUNT);
-   }
-   else
-      debug2("RcFile-UpdateTvCardWinSrc: too many cards %d >= %d)", cardIdx, RCFILE_MAX_WINSRC_COUNT);
-}
-
-// ----------------------------------------------------------------------------
 // Return pointer to configuration data
 //
 const RCFILE * RcFile_Query( void )
@@ -1808,10 +1784,8 @@ void RcFile_Init( void )
    mainRc.ttx.ttx_ov_pg = TTXGRAB_DFLT_OV_PG;
    mainRc.ttx.ttx_duration = TTXGRAB_DFLT_DURATION;
 
-#ifdef WIN32
    mainRc.tvcard.drv_type = BTDRV_SOURCE_UNDEF;
    mainRc.tvcard.wdm_stop = TRUE;
-#endif
 
    mainRc.db.piexpire_cutoff = EPGDB_DFLT_EXPIRE_TIME;
 }

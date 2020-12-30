@@ -44,16 +44,14 @@ void EpgSetup_OpenUiDb( void );
 void EpgSetup_DbExpireDelay( void );
 void EpgSetup_AcquisitionMode( NETACQ_SET_MODE netAcqSetMode );
 bool EpgSetup_DaemonAcquisitionMode( bool forcePassive, int maxPhase );
-void EpgSetup_CardDriver( int cardIndex );
+bool EpgSetup_CardDriver( int cardIndex );
 void EpgSetup_NetAcq( bool isServer );
 void EpgSetup_TtxGrabber( void );
 bool EpgSetup_QueryTtxPath( const char * pXmlPath );
 EPGDB_CONTEXT * EpgSetup_MergeDatabases( void );
 bool IsRemoteAcqDefault( void );
-#ifdef WIN32
-bool EpgSetup_CheckTvCardConfig( void );
 bool EpgSetup_HasLocalTvCard( void );
-#endif
+bool EpgSetup_CheckTvCardConfig( void );
 
 #endif  // __EPGSETUP_H
 

@@ -135,11 +135,11 @@ typedef struct
    uint         input;
    uint         acq_prio;
    uint         slicer_type;
-   uint         wdm_stop;
+   uint         wdm_stop;  // obsolete
 
    uint         winsrc_count;
-   uint         winsrc_param_count[RCFILE_MAX_WINSRC_COUNT]; // dummy
-   uint         winsrc[RCFILE_MAX_WINSRC_COUNT][EPGTCL_TVCF_IDX_COUNT];
+   uint         winsrc_param_count[RCFILE_MAX_WINSRC_COUNT]; // obsolete
+   uint         winsrc[RCFILE_MAX_WINSRC_COUNT][4];  // obsolete, former EPGTCL_TVCF_IDX_COUNT
 } RCFILE_TVCARD;
 
 typedef struct
@@ -242,7 +242,6 @@ bool RcFile_UpdateMergedProvSelection( void );
 void RcFile_UpdateDbMergeOptions( uint type, const uint * pCniList, uint cniCount );
 bool RcFile_UpdateProvFrequency( uint cni, uint freq );
 void RcFile_RemoveProvider( uint cni );
-void RcFile_UpdateTvCardWinSrc( uint cardIdx, const uint * pParams, uint paramCount );
 
 const RCFILE * RcFile_Query( void );
 

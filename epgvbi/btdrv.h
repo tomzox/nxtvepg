@@ -16,19 +16,17 @@
  *
  *    This header file defines the interface between Nextview EPG
  *    acquisition (including EPG scan) and the driver support module.
- *    Except for configuration functions, the interface is platform,
- *    driver and TV capture chip independent, i.e. the same functions
- *    are provided for UNIX (v4l and bktr drivers) and M$ Windows
- *    (DScaler driver and WDM)
+ *    Except for configuration functions, the interface is largely
+ *    kept independent of platform, driver and TV capture chip.
  *
- *    Currently all UNIX platfors use the btdrv4linux implementation
+ *    Currently all UNIX platforms use the btdrv4linux implementation
  *    of the driver support module, M$ Windows uses btdrv4win. For
  *    other platforms there's a btdrv4dummy module (won't allow
  *    acquisition from a TV card, however you can still receive data
  *    from a daemon in the network).  Ports for additional platforms
  *    are always welcome.
  *
- *    Note: the prefix "BtDriver" has only historical reasons: at the
+ *    Note: The prefix "BtDriver" has only historical reasons: at the
  *    time the driver was written there was only Linux bttv.  Even long
  *    after, only cards with the Brooktree family of capture chips were
  *    supported.
@@ -100,7 +98,6 @@ typedef enum
 {
 #ifdef WIN32
    BTDRV_SOURCE_WDM = 0,
-   BTDRV_SOURCE_PCI = 1,
 #else
    BTDRV_SOURCE_ANALOG = 0,
    BTDRV_SOURCE_DVB = 1,
@@ -274,8 +271,8 @@ typedef struct
    bool      vbiSlaveRunning;   // --:  TRUE while slave thread is running
    int       failureErrno;
 
+   BTDRV_SOURCE_TYPE drvType;
    uchar     cardIndex;
-   bool      cardIsDvb;
    int       dvbPid[MAX_VBI_DVB_STREAMS];
    int       dvbPidCnt;
    int       chnPrio;
@@ -336,28 +333,18 @@ bool BtDriver_Restart( void );
 bool BtDriver_GetState( bool * pEnabled, bool * pHasDriver, uint * pCardIdx );
 #endif
 void BtDriver_SetChannelProfile( VBI_CHANNEL_PRIO_TYPE prio );
-bool BtDriver_CheckDevice( void );
 void BtDriver_CloseDevice( void );
 
 // configuration interface
 #if defined(__NetBSD__) || defined(__FreeBSD__)
 void BtDriver_ScanDevices( bool isMasterProcess );
 #endif
-const char * BtDriver_GetInputName( uint cardIdx, uint cardType, uint drvType, uint inputIdx );
-bool BtDriver_Configure( int sourceIdx, int drvType, int prio, int chipType, int cardType,
-                         int tunerType, int pllType, bool wdmStop );
+const char * BtDriver_GetInputName( uint sourceIdx, int drvType, uint inputIdx );
+bool BtDriver_Configure( int sourceIdx, int drvType, int prio );
 void BtDriver_SelectSlicer( VBI_SLICER_TYPE slicerType );
 BTDRV_SOURCE_TYPE BtDriver_GetDefaultDrvType( void );
-#ifndef WIN32
-const char * BtDriver_GetCardName( uint cardIdx, bool dvb );
-#else
-const char * BtDriver_GetCardNameFromList( uint cardIdx, uint listIdx );
-const char * BtDriver_GetTunerName( uint tunerIdx );
-bool BtDriver_EnumCards( uint drvType, uint cardIdx, uint cardType,
-                         uint * pChipType, const char ** pName, bool showDrvErr );
-bool BtDriver_QueryCardParams( uint cardIdx, sint * pCardType, sint * pTunerType, sint * pPllType );
-bool BtDriver_CheckCardParams( uint drvType, uint cardIdx, uint chipId, uint cardType, uint tunerType, uint pll, uint input );
-#endif
+bool BtDriver_CheckCardParams( int drvType, uint cardIdx, uint input );
+const char * BtDriver_GetCardName( int drvType, uint cardIdx, bool showDrvErr );
 
 
 #endif  // __BTDRV_H

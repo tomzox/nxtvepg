@@ -68,7 +68,6 @@ TCL_L   = 85
 
 GUILIBS += -L$(BUILD_DIR) -ltk$(TCL_L) -ltcl$(TCL_L)
 ACQLIBS += -lws2_32
-ACQLIBS += -L$(BUILD_DIR)/dsdrv -ltvcard -ldsdrv
 
 # define this if you don't want to load external Tcl/Tk init scripts
 DEFS   += -DUSE_PRECOMPILED_TCL_LIBS
@@ -106,7 +105,7 @@ INCS      += -I$(BUILD_DIR)
 
 # ----- don't change anything below ------------------------------------------
 
-SUBDIRS = epgvbi epgdb epgctl epgui epgtcl tvsim dsdrv xmltv epgttx
+SUBDIRS = epgvbi epgdb epgctl epgui epgtcl tvsim xmltv epgttx
 
 EPGSRC  = epgvbi/btdrv4win epgvbi/vbidecode epgvbi/zvbidecoder \
           epgvbi/ttxdecode epgvbi/hamming epgvbi/cni_tables epgvbi/tvchan \
@@ -142,11 +141,6 @@ TCLSRC  = epgtcl/mainwin epgtcl/dlg_hwcfg epgtcl/dlg_xawtvcf \
           epgtcl/mclistbox epgtcl/combobox epgtcl/rnotebook epgtcl/htree
 TCLLSRC = epgtcl/tcl_libs epgtcl/tk_libs epgtcl/ttk_libs
 
-DSDRV_CSRC    = dsdrv/dsdrv34 dsdrv/hwdrv dsdrv/hwpci dsdrv/hwmem dsdrv/debuglog
-TVCARD_CSRC   = dsdrv/bt8x8 dsdrv/bt8x8_i2c dsdrv/bt8x8_typ \
-                dsdrv/saa7134 dsdrv/saa7134_i2c dsdrv/saa7134_typ \
-                dsdrv/cx2388x dsdrv/cx2388x_typ dsdrv/wintuner \
-                dsdrv/cfg_parse dsdrv/wintuner_typ
 TVSIM_CSRC    = tvsim/tvsim_main tvsim/winshmclnt
 TVSIM_CSRC2   = epgvbi/btdrv4win epgvbi/tvchan epgvbi/vbidecode epgvbi/zvbidecoder \
                 epgvbi/ttxdecode epgvbi/hamming epgvbi/cni_tables epgvbi/syserrmsg \
@@ -189,13 +183,13 @@ tvsim   :: build_dir tcl_headers_tvsim $(BUILD_DIR)/tvsim.exe $(BUILD_DIR)/vbire
 tvmans  :: tvsim/tvsim.html tvsim/vbirec.html tvsim/vbiplay.html
 all     :: devel daemon tvsim tvmans verifyxml
 
-$(BUILD_DIR)/nxtvepg.exe: $(BUILD_DIR)/dsdrv/libdsdrv.a $(BUILD_DIR)/dsdrv/libtvcard.a $(NXTV_OBJS) $(TCL_TK_LIBS)
+$(BUILD_DIR)/nxtvepg.exe: $(NXTV_OBJS) $(TCL_TK_LIBS)
 	$(LD) $(LDFLAGS) $(NXTV_OBJS) $(GUILIBS) $(ACQLIBS) -o $@
 
-$(BUILD_DIR)/nxtvepgd.exe: $(BUILD_DIR)/dsdrv/libdsdrv.a $(BUILD_DIR)/dsdrv/libtvcard.a $(DAEMON_OBJS)
+$(BUILD_DIR)/nxtvepgd.exe: $(DAEMON_OBJS)
 	$(LD) $(LDFLAGS) $(DAEMON_OBJS) $(ACQLIBS) -o $@
 
-$(BUILD_DIR)/tvsim.exe: $(BUILD_DIR)/dsdrv/libdsdrv.a $(BUILD_DIR)/dsdrv/libtvcard.a $(TVSIM_OBJS) $(TCL_TK_LIBS)
+$(BUILD_DIR)/tvsim.exe: $(TVSIM_OBJS) $(TCL_TK_LIBS)
 	$(LD) $(LDFLAGS) $(TVSIM_OBJS) $(GUILIBS) $(ACQLIBS) -o $@
 
 $(BUILD_DIR)/vbirec.exe: $(VBIREC_OBJS) $(TCL_TK_LIBS)
@@ -203,12 +197,6 @@ $(BUILD_DIR)/vbirec.exe: $(VBIREC_OBJS) $(TCL_TK_LIBS)
 
 $(BUILD_DIR)/vbiplay.exe: $(VBIPLAY_OBJS)
 	$(LD) $(LDFLAGS) $(VBIPLAY_OBJS) $(GUILIBS) $(ACQLIBS) -o $@
-
-$(BUILD_DIR)/dsdrv/libdsdrv.a: $(DSDRV_OBJS)
-	$(AR) r $(BUILD_DIR)/dsdrv/libdsdrv.a $(DSDRV_OBJS)
-
-$(BUILD_DIR)/dsdrv/libtvcard.a: $(TVCARD_OBJS)
-	$(AR) r $(BUILD_DIR)/dsdrv/libtvcard.a $(TVCARD_OBJS)
 
 .SUFFIXES: .cc .c .o .tcl
 
@@ -350,10 +338,9 @@ zip: all
 	$(STRIP) $(BUILD_DIR)/nxtvepg.exe; \
 	$(STRIP) $(BUILD_DIR)/nxtvepgd.exe; \
 	zip -9 -j $$ARCHIVE $(BUILD_DIR)/nxtvepg.exe $(BUILD_DIR)/nxtvepgd.exe; \
-	zip -9 $$ARCHIVE tcl$(TCL_L).dll tk$(TCL_L).dll NextViewPlugin.dll dsdrv4.sys dsdrv4.vxd nxtvepg.ico; \
+	zip -9 $$ARCHIVE tcl$(TCL_L).dll tk$(TCL_L).dll NextViewPlugin.dll nxtvepg.ico; \
 	zip -9 $$ARCHIVE -l manual.html manual-de.html Nxtvepg.ad \
 	                    xmltv-etsi.map; \
-	zip -9 -j $$ARCHIVE dsdrv/CX2388xCards.ini dsdrv/SAA713xCards.ini; \
 	for v in TODO README.md CHANGES COPYRIGHT; do \
 	   mv $$v $${v}.txt; \
 	   zip -9 -l $$ARCHIVE $${v}.txt; \
