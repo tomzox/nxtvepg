@@ -4,27 +4,25 @@ Your feedback is always welcome, so feel free to mail me if you want to
 boost any item's priority, find more points that need to be fixed or if
 you have ideas for additional features.
 
-Release 2.9.0pre5
-- convert README to mark-down format
-- update WWW with "news" about 2.9.0pre5 and 3.0 development in git
-
 Post-Nextview EPG:
-- Load XMLTV: allow changing directory & selecting multiple
-- Merge XMLTV: like load, but add selected file to current one
-- automatically reload XMLTV when files are changed on disk
-- remove USE_XMLTV
+- New DB type: "Load Teletext EPG...": automatically follow TTX acq, even if DB not exist yet
 - move USE_TTX_GRABBER to exclude all acqusition if not set
 - apply expire only when merging new data into db by acq
   always load all data & allow unmasking expired PI via filter dialog
 - XMLTV load: don't drop overlapping blocks; load as "defective"?
+- network name dialog: C_GetProvCnisAndNames "." makes no sense;
+  use current provider or merged list only?
+- merge: warn upon dialog open if input XMLTV file in old merge config no longer exists
+- merge dialog, "configure" sub-menu: simplify to single list with
+  "extended" selection (i.e. allow multiple selections)
 - DVB: automatic detection of teletext PID (in channel scan or otherwise)
 - DVB-S support
 - mplayer & VDR plugin for EPG display
 - store TTX DBs in the dbdir
-- DE manual: sync "DATA ACQUISITION" and "ACQUISITION MODES"
+- show DB status in "Load XMLTV" dialog window: number of PI, expired %%
 - remove use of PDC theme table: create table from themes found in XMLTV
-- teletext: concurrent acquisition of multiple PID per transponder
-- teletext: store cycle index & phase in RC file for restarting from that point
+- teletext: forced-passive mode not working due to reset
+- teletext: use mtime to determine start of acq
 - teletext: use TV channel name as XMLTV display name
 - teletext acq stats: percentage cycle loaded (i.e. cycles done vs. max. sub-page count)
 - teletext configuration dialog

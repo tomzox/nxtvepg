@@ -3535,7 +3535,7 @@ proc PopupColumnSelection {} {
       pack .colsel.intromsg -side top -fill x
 
       frame .colsel.all
-      SelBoxCreate .colsel.all colsel_ailist colsel_selist colsel_names
+      SelBoxCreate .colsel.all colsel_ailist colsel_selist colsel_names 12 0
       .colsel.all.ai.ailist configure -width 20
       .colsel.all.sel.selist configure -width 20
 
@@ -4318,51 +4318,6 @@ proc ColumnHeaderButtonRel {col} {
    set colsel_resize_phase 0
 }
 
-
-## ---------------------------------------------------------------------------
-## Sort a list of provider CNIs according to user preference
-##
-proc SortProvList {ailist} {
-   global sortProvListArr
-
-   set prov_selection [C_GetProvSelection]
-
-   if {[info exists prov_selection] && ([llength $prov_selection] > 0)} {
-      set idx 0
-      foreach cni $prov_selection {
-         set sortProvListArr($cni) $idx
-         incr idx
-      }
-      foreach cni $ailist {
-         if {![info exists sortProvListArr($cni)]} {
-            set sortProvListArr($cni) $idx
-            incr idx
-         }
-      }
-      set result [lsort -command SortProvList_cmd $ailist]
-      unset sortProvListArr
-   } else {
-      set result $ailist
-   }
-   return $result
-}
-
-# helper procedur for sorting the provider list
-proc SortProvList_cmd {a b} {
-   global sortProvListArr
-
-   if {[info exists sortProvListArr($a)] && [info exists sortProvListArr($b)]} {
-      if       {$sortProvListArr($a) < $sortProvListArr($b)} {
-         return -1
-      } elseif {$sortProvListArr($a) > $sortProvListArr($b)} {
-         return  1
-      } else {
-         return 0
-      }
-   } else {
-      return 0
-   }
-}
 
 ## ---------------------------------------------------------------------------
 ## Display error message & help text inside PI listbox

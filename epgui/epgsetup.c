@@ -345,7 +345,7 @@ static bool EpgSetup_InitMergeDbNetwops( uint provCniCount, const uint * pProvCn
       else
       {  // no network list configured for this provider -> include all networks in the DB
 
-         pPeek = EpgContextCtl_Peek(pProvCniTab[dbIdx], CTX_FAIL_RET_NULL);
+         pPeek = EpgContextCtl_Peek(pProvCniTab[dbIdx], CTX_RELOAD_ERR_NONE);
          if (pPeek != NULL)
          {
             EpgDbLockDatabase(pPeek, TRUE);
@@ -576,17 +576,20 @@ void EpgSetup_OpenUiDb( void )
    }
    else if (cni != 0)
    {  // regular database
-      pUiDbContext = EpgContextCtl_Open(cni, FALSE, CTX_FAIL_RET_DUMMY, CTX_RELOAD_ERR_REQ);
+      pUiDbContext = EpgContextCtl_Open(cni, FALSE, CTX_RELOAD_ERR_REQ);
 
-      if (EpgDbContextGetCni(pUiDbContext) == cni)
+      if (pUiDbContext == NULL)
+      {
+         pUiDbContext = EpgContextCtl_OpenDummy();
+      }
+      else if (EpgDbContextGetCni(pUiDbContext) == cni)
       {
          RcFile_UpdateXmltvProvAtime(cni, time(NULL), TRUE);
       }
    }
    else
-   {  // no CNI specified -> load any db or use dummy
-      pUiDbContext = EpgContextCtl_OpenAny(CTX_RELOAD_ERR_REQ);
-      cni = EpgDbContextGetCni(pUiDbContext);
+   {  // no CNI specified -> dummy db
+      pUiDbContext = EpgContextCtl_OpenDummy();
    }
 
    // note: the usual provider change events are not triggered here because

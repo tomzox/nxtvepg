@@ -41,6 +41,14 @@
 #include <time.h>
 #include <string.h>
 #include <errno.h>
+#include <sys/stat.h>
+#ifndef WIN32
+#include <sys/types.h>
+#include <dirent.h>
+#include <unistd.h>
+#else
+#include <windows.h>
+#endif
 
 #include "epgctl/mytypes.h"
 #include "epgctl/debug.h"
@@ -84,6 +92,23 @@ typedef struct CTX_CACHE_struct
 
 } CTX_CACHE;
 
+typedef struct
+{
+   uint                 listAllocSize;
+   uint                 listCount;
+   uint               * pCniList;
+} CTX_SCAN_LIST;
+
+// ----------------------------------------------------------------------------
+// local definitions
+//
+#ifdef WIN32
+#define PATH_SEPARATOR       '\\'
+#define PATH_SEPARATOR_STR   "\\"
+#else
+#define PATH_SEPARATOR       '/'
+#define PATH_SEPARATOR_STR   "/"
+#endif
 
 // ---------------------------------------------------------------------------
 // local variables
@@ -93,6 +118,9 @@ static CTX_CACHE * pContextDummy;       // empty context, used when no provider 
 static bool contextScanDone;            // at least one dbdir scan done
 static time_t expireDelayPi;            // PI expire time threshold for new databases
 
+
+static time_t EpgContextCtl_GetMtime( const char * pFilename );
+static void EpgContextCtl_ScanDbDir( const char * pDirPath, const char * pExtension, CTX_SCAN_LIST * pCniBuf );
 
 #if DEBUG_SWITCH == ON
 // ---------------------------------------------------------------------------
@@ -248,33 +276,6 @@ static CTX_CACHE * EpgContextCtl_SearchCni( uint cni )
 }
 
 // ---------------------------------------------------------------------------
-// Search for the "newest" provider amongst unopened ones
-//
-static CTX_CACHE * EpgContextCtl_SearchNewest( void )
-{
-   CTX_CACHE  * pContext;
-   CTX_CACHE  * pWalk;
-
-   pContext = NULL;
-
-   pWalk = pContextCache;
-   while (pWalk != NULL)
-   {
-      if ( (pWalk->state == CTX_CACHE_STAT) ||
-           (pWalk->state == CTX_CACHE_PEEK) )
-      {
-         if ((pContext == NULL) || (pWalk->mtime > pContext->mtime))
-         {
-            pContext = pWalk;
-         }
-      }
-      pWalk = pWalk->pNext;
-   }
-
-   return pContext;
-}
-
-// ---------------------------------------------------------------------------
 // Load a database, i.e. upgrade from stat or peek state to open
 //
 static EPGDB_RELOAD_RESULT EpgContextCtl_Load( CTX_CACHE * pContext )
@@ -352,7 +353,7 @@ static EPGDB_RELOAD_RESULT EpgContextCtl_Load( CTX_CACHE * pContext )
          pContext->state = CTX_CACHE_ERROR;
       }
       else
-      {  // peek is in use, but complete load failed (e.g. file is truncated)
+      {  // DB is in use, but complete load failed (e.g. file is truncated)
          // XXX cannot destroy the db
          // note: don't write the error code into the context as it's previously been
          // loaded OK; the code is returned to the caller though
@@ -463,98 +464,13 @@ EPGDB_CONTEXT * EpgContextCtl_Peek( uint cni, int failMsgMode )
 }
 
 // ---------------------------------------------------------------------------
-// Load any provider: use an already open one or load the latest dumped one
-// - for clients which don't care about the CNI
-// - searches for the latest updated one, to avoid loading an empty db
-//
-EPGDB_CONTEXT * EpgContextCtl_OpenAny( int failMsgMode )
-{
-   CTX_CACHE  * pContext;
-   CTX_CACHE  * pWalk;
-   EPGDB_RELOAD_RESULT reloadErr;
-   EPGDB_RELOAD_RESULT maxErr;
-   time_t       maxAiTimestamp;
-   uint errCni;
-
-   // search for the newest among the open databases
-   pContext = NULL;
-   pWalk    = pContextCache;
-   maxAiTimestamp = 0;
-   while (pWalk != NULL)
-   {
-      if ( (pWalk->state == CTX_CACHE_OPEN) &&
-           (pWalk->pDbContext != NULL) && (pWalk->pDbContext->pAiBlock != NULL) )
-      {
-         if ( (pContext == NULL) ||
-              (pWalk->pDbContext->pAiBlock->acqTimestamp > maxAiTimestamp) )
-         {
-            maxAiTimestamp = pWalk->pDbContext->pAiBlock->acqTimestamp;
-            pContext = pWalk;
-         }
-      }
-      pWalk = pWalk->pNext;
-   }
-
-   if (pContext != NULL)
-   {  // found an open one
-      pContext->openRefCount += 1;
-   }
-   else
-   {  // no db open yet -> search and reload the "newest"
-
-      maxErr  = EPGDB_RELOAD_OK;
-      errCni = 0;
-
-      // loop until a database could be successfully loaded
-      // (note: the loop is guaranteed to terminate because in each pass one db is marked erronous)
-      while ( (pContext = EpgContextCtl_SearchNewest()) != NULL )
-      {
-         // found a database which is not open yet
-         reloadErr = EpgContextCtl_Load(pContext);
-         if (reloadErr == EPGDB_RELOAD_OK)
-         {
-            // a database has been loaded -> terminate the loop
-            break;
-         }
-         else
-         {  // reload failed -> downgrade provider into an error state, try next one
-            if (RELOAD_ERR_WORSE(reloadErr, maxErr))
-            {  // worst error so far -> save it to report it to the user later
-               maxErr  = reloadErr;
-               errCni = pContext->provCni;
-            }
-         }
-      }
-
-      if (pContext == NULL)
-      {  // no db found (or all failed to load) -> return dummy
-         dprintf1("EpgContextCtl-OpenAny: return dummy context 0x%0lx\n", (long)pContextDummy);
-         pContext = pContextDummy;
-         pContextDummy->openRefCount += 1;
-      }
-
-      // report errors to the user interface
-      if ((errCni != 0) && (maxErr != EPGDB_RELOAD_OK))
-      {
-         UiControlMsg_ReloadError(errCni, maxErr, failMsgMode, FALSE);
-      }
-   }
-
-   assert(EpgContextCtl_CheckConsistancy());
-   assert(pContext != NULL);  // should never return NULL - instead returns dummy context
-
-   return pContext->pDbContext;
-}
-
-// ---------------------------------------------------------------------------
 // Open a database for a specific (or the last used) provider
-// - if the db fails to be loaded, the handling is controlled by failRetMode
 // - errors are reported to the GUI asynchronously; note: an error may have been
 //   reported even if load succeeded, in case caller used CNI=0 and one of the
 //   dbs found had an error
 //
-static CTX_CACHE * EpgContextCtl_OpenInt( CTX_CACHE * pContext, bool isNew, bool forceOpen,
-                                          CTX_FAIL_RET_MODE failRetMode, int failMsgMode )
+static CTX_CACHE * EpgContextCtl_OpenInt( CTX_CACHE * pContext, bool isNew,
+                                          bool forceOpen, int failMsgMode )
 {
    EPGDB_RELOAD_RESULT reloadErr;
 
@@ -564,6 +480,19 @@ static CTX_CACHE * EpgContextCtl_OpenInt( CTX_CACHE * pContext, bool isNew, bool
            ((forceOpen == FALSE) || (pContext->pDbContext->modified)) )
       {  // database already open
          dprintf4("EpgContextCtl-Open: prov %04X found in cache, state %s, peek/open refCount %d/%d\n", pContext->provCni, CtxCacheStateStr(pContext->state), pContext->peekRefCount, pContext->openRefCount);
+
+         // check for content change
+         if (pContext->openRefCount == 0)
+         {
+            const char * pXmlPath = XmltvCni_LookupProviderPath(pContext->provCni);
+            if ( (pXmlPath != NULL) &&
+                 (pContext->mtime < EpgContextCtl_GetMtime(pXmlPath)) )
+            {
+               dprintf1("EpgContextCtl-Open: reloading prov %04X due to mtime change\n", pContext->provCni);
+               // reload the database, ignoring error
+               EpgContextCtl_Load(pContext);
+            }
+         }
          pContext->openRefCount += 1;
       }
       else if ( (pContext->state == CTX_CACHE_STAT) ||
@@ -604,8 +533,7 @@ static CTX_CACHE * EpgContextCtl_OpenInt( CTX_CACHE * pContext, bool isNew, bool
 // ---------------------------------------------------------------------------
 // Open a database for a specific (or the last used) provider
 //
-EPGDB_CONTEXT * EpgContextCtl_Open( uint cni, bool forceOpen,
-                                    CTX_FAIL_RET_MODE failRetMode, int failMsgMode )
+EPGDB_CONTEXT * EpgContextCtl_Open( uint cni, bool forceOpen, int failMsgMode )
 {
    CTX_CACHE     * pContext;
    bool isNew;
@@ -614,7 +542,7 @@ EPGDB_CONTEXT * EpgContextCtl_Open( uint cni, bool forceOpen,
    {
       pContext = EpgContextCtl_SearchCni(cni);
       if (pContext == NULL)
-      {  // not found during the initial db directory scan
+      {  // not found during the directory scan
          // do reverse-lookup of the XML file path by CNI
          const char * pXmlPath = XmltvCni_LookupProviderPath(cni);
          if (pXmlPath != NULL)
@@ -633,64 +561,13 @@ EPGDB_CONTEXT * EpgContextCtl_Open( uint cni, bool forceOpen,
 
       if (pContext != NULL)
       {
-         pContext = EpgContextCtl_OpenInt(pContext, isNew, forceOpen, failRetMode, failMsgMode);
+         pContext = EpgContextCtl_OpenInt(pContext, isNew, forceOpen, failMsgMode);
       }
    }
    else
    {  // merged database etc. is not allowed here
       fatal1("EpgContextCtl-Open: illegal CNI 0x%04X", cni);
       pContext = NULL;
-   }
-
-   // handle failures according to the given failure handling mode
-   if (pContext == NULL)
-   {  // provider with the given CNI not found or failed to load
-      switch (failRetMode)
-      {
-         case CTX_FAIL_RET_DUMMY:
-            // return a reference to the "dummy" database
-            dprintf0("EpgContextCtl-Open: return dummy context\n");
-            pContext = pContextDummy;
-            pContextDummy->openRefCount += 1;
-            break;
-
-         case CTX_FAIL_RET_CREATE:
-            // create a new, empty database - for acquisition only
-            dprintf1("EpgContextCtl-Open: create new context for CNI 0x%04X\n", cni);
-            pContext = EpgContextCtl_SearchCni(cni);
-            if (pContext == NULL)
-            {
-               pContext = EpgContextCtl_CreateNew();
-               // add the new context to the cache
-               pContext->pNext = pContextCache;
-               pContextCache = pContext;
-            }
-            else
-            {
-               assert(pContext->state == CTX_CACHE_ERROR);
-               if (pContext->pDbContext == NULL)
-               {
-                  pContext->pDbContext = EpgDbCreate();
-               }
-            }
-            pContext->state         = CTX_CACHE_OPEN;
-            pContext->reloadErr     = EPGDB_RELOAD_OK;
-            pContext->openRefCount  = 1;
-            // insert the CNI of the new provider - an AI block has to be added with the same CNI
-            pContext->provCni = cni;
-            pContext->pDbContext->provCni = cni;
-            break;
-
-         case CTX_FAIL_RET_NULL:
-            // return NULL pointer - failure checked and handled by caller
-            break;
-
-         default:
-            fatal1("EpgContextCtl-Open: illegal failRetMode %d", failRetMode);
-            pContext = pContextDummy;
-            pContextDummy->openRefCount += 1;
-            break;
-      }
    }
    assert(EpgContextCtl_CheckConsistancy());
 
@@ -853,6 +730,25 @@ void EpgContextCtl_IsLoaded( uint cni )
 #endif
 
 // ---------------------------------------------------------------------------
+// Get modification time of the given XML file
+//
+static time_t EpgContextCtl_GetMtime( const char * pFilename )
+{
+   time_t mtime = 0;
+#ifndef WIN32
+   struct stat st;
+   if (stat(pFilename, &st) == 0)
+#else
+   struct _stat st;
+   if (_stat(pFilename, &st) == 0)
+#endif
+   {
+      mtime = st.st_mtime;
+   }
+   return mtime;
+}
+
+// ---------------------------------------------------------------------------
 // Query database for a modification timestamp
 // - XMLTV: capture time is equivalent with the file modification time
 //   XXX this is not correct for TTX grabber on channels with multiple networks (e.g. Arte/Kika)
@@ -878,7 +774,7 @@ time_t EpgContextCtl_GetAiUpdateTime( uint cni, bool reload )
 
       pXmlPath = XmltvCni_LookupProviderPath(cni);
       if (pXmlPath != NULL)
-         lastAiUpdate = Xmltv_GetMtime(pXmlPath);
+         lastAiUpdate = EpgContextCtl_GetMtime(pXmlPath);
       else
          lastAiUpdate = 0;
 
@@ -913,13 +809,14 @@ void EpgContextCtl_SetPiExpireDelay( time_t expireDelay )
 }
 
 // ---------------------------------------------------------------------------
-// Get number of available providers
+// Query if any provides are available (current directory by default)
 // - provider databases which are already known to be defective are not counted
 //
-uint EpgContextCtl_GetProvCount( void )
+bool EpgContextCtl_HaveProviders( void )
 {
+   CTX_SCAN_LIST cniList;
    CTX_CACHE * pContext;
-   uint count;
+   bool result = FALSE;
 
    assert(EpgContextCtl_CheckConsistancy());
 
@@ -927,44 +824,17 @@ uint EpgContextCtl_GetProvCount( void )
    if (contextScanDone == FALSE)
    {
       dprintf0("EpgContextCtl-GetProvCount: starting scan\n");
-      EpgContextCtl_ScanDbDir();
-   }
+      EpgContextCtl_ScanDbDir(".", ".xml", &cniList);
+      contextScanDone = TRUE;
 
-   count = 0;
-   pContext = pContextCache;
-   while (pContext != NULL)
-   {
-      if ( (pContext->state == CTX_CACHE_STAT) ||
-           (pContext->state == CTX_CACHE_PEEK) ||
-           (pContext->state == CTX_CACHE_OPEN) )
+      if (cniList.listCount > 0)
       {
-         count += 1;
+         xfree(cniList.pCniList);
+         result = TRUE;
       }
-      pContext = pContext->pNext;
    }
-
-   return count;
-}
-
-// ---------------------------------------------------------------------------
-// Get list of available providers
-// - the list is dynamically allocated and must be freed by the caller
-//
-const uint * EpgContextCtl_GetProvList( uint * pCount )
-{
-   CTX_CACHE * pContext;
-   uint * pCniList;
-   uint count, idx;
-
-   // determine the number of providers
-   count = EpgContextCtl_GetProvCount();
-   if (count > 0)
+   else
    {
-      // allocate memory for the result table
-      pCniList = xmalloc(count * sizeof(uint));
-
-      // build the list
-      idx = 0;
       pContext = pContextCache;
       while (pContext != NULL)
       {
@@ -972,46 +842,95 @@ const uint * EpgContextCtl_GetProvList( uint * pCount )
               (pContext->state == CTX_CACHE_PEEK) ||
               (pContext->state == CTX_CACHE_OPEN) )
          {
-            pCniList[idx++] = pContext->provCni;
+            result = TRUE;
+            break;
          }
          pContext = pContext->pNext;
       }
    }
-   else
-      pCniList = NULL;
+
+   return result;
+}
+
+// ---------------------------------------------------------------------------
+// Get list of available providers
+// - the list is dynamically allocated and must be freed by the caller
+//
+const uint * EpgContextCtl_GetProvList( const char * pPath, uint * pCount )
+{
+   CTX_SCAN_LIST cniList;
+
+   EpgContextCtl_ScanDbDir(pPath, ".xml", &cniList);
 
    // return the length of the returned list
    if (pCount != NULL)
-      *pCount = count;
+      *pCount = cniList.listCount;
 
    // note: the list must be freed by the caller!
-   return pCniList;
+   return cniList.pCniList;
+}
+
+// ---------------------------------------------------------------------------
+// Append a CNI value to the dynamically growing list
+//
+static void EpgContextCtl_PushScanCni( uint cni, CTX_SCAN_LIST * pCniBuf )
+{
+   // append the CNI to the list
+   if (pCniBuf->pCniList == NULL)
+   {
+      pCniBuf->listAllocSize = 100;
+      pCniBuf->pCniList = xmalloc(sizeof(*pCniBuf->pCniList) * pCniBuf->listAllocSize);
+   }
+   else if (pCniBuf->listCount >= pCniBuf->listAllocSize)
+   {
+      pCniBuf->listAllocSize *= 2;
+      pCniBuf->pCniList = xrealloc(pCniBuf->pCniList, sizeof(*pCniBuf->pCniList) * pCniBuf->listAllocSize);
+   }
+   pCniBuf->pCniList[pCniBuf->listCount] = cni;
+   pCniBuf->listCount += 1;
 }
 
 // ---------------------------------------------------------------------------
 // Callback function used during directory scan
 //
-static void EpgContextCtl_DirScanCb( uint cni, const char * pPath, sint mtime )
+static void EpgContextCtl_DirScanCb( const char * pFilePath, sint mtime, CTX_SCAN_LIST * pCniBuf )
 {
    CTX_CACHE * pContext;
+   uint cni;
 
-   pContext = EpgContextCtl_SearchCni(cni);
-   if (pContext != NULL)
-   {  // this file is already known
-      if ( (pContext->state == CTX_CACHE_ERROR) &&
-           (pContext->mtime != mtime) )
-      {  // previous syntax error may be gone -> upgrade context status
-         dprintf1("EpgContextCtl-DirScanCb: prov 0x%04X from ERROR to STAT\n", pContext->provCni);
-         pContext->state = CTX_CACHE_STAT;
+   dprintf1("EpgContextCtl-DirScanCb: scanning %s\n", pFilePath);
+
+   // TODO skip if already known and mtime unchanged?
+   EPGDB_RELOAD_RESULT errCode = Xmltv_CheckHeader(pFilePath);
+   if (errCode == EPGDB_RELOAD_OK)
+   {
+      cni = XmltvCni_MapProvider(pFilePath);
+
+      pContext = EpgContextCtl_SearchCni(cni);
+      if (pContext != NULL)
+      {  // this file is already known
+         if ( (pContext->state == CTX_CACHE_ERROR) &&
+              (pContext->mtime != mtime) )
+         {  // previous syntax error may be gone -> upgrade context status
+            dprintf1("EpgContextCtl-DirScanCb: prov 0x%04X from ERROR to STAT\n", pContext->provCni);
+            pContext->state = CTX_CACHE_STAT;
+         }
+         else
+         {
+            dprintf2("EpgContextCtl-DirScanCb: prov 0x%04X already in state %s\n", pContext->provCni, CtxCacheStateStr(pContext->state));
+         }
       }
       else
-      {
-         dprintf2("EpgContextCtl-DirScanCb: prov 0x%04X already in state %s\n", pContext->provCni, CtxCacheStateStr(pContext->state));
+      {  // new file -> add a context
+         pContext = EpgContextCtl_AddStat(cni, mtime, pFilePath);
       }
+
+      EpgContextCtl_PushScanCni(cni, pCniBuf);
    }
    else
-   {  // new file -> add a context
-      pContext = EpgContextCtl_AddStat(cni, mtime, pPath);
+   {
+      dprintf1("EpgContextCtl-DirScanCb: XMLTV error: %s\n", Xmltv_TranslateErrorCode(errCode & ~EPGDB_RELOAD_XML_MASK));
+      // TODO cache error
    }
 }
 
@@ -1019,12 +938,104 @@ static void EpgContextCtl_DirScanCb( uint cni, const char * pPath, sint mtime )
 // Re-scan for new, changed or removed database files
 // - called when the provider selection menu is opened
 //
-void EpgContextCtl_ScanDbDir( void )
+static void EpgContextCtl_ScanDbDir( const char * pDirPath, const char * pExtension, CTX_SCAN_LIST * pCniBuf )
 {
-   dprintf0("EpgContextCtl-ScanDbDir\n");
-   contextScanDone = TRUE;
+#ifndef WIN32
+   DIR    *dir;
+   struct dirent *entry;
+   struct stat st;
+   char   *pFilePath;
+   uint   extlen, flen;
 
-   Xmltv_ScanDir(".", ".xml", &EpgContextCtl_DirScanCb);
+   if ((pDirPath != NULL) && (pExtension != NULL) && (pCniBuf != NULL))
+   {
+      dprintf2("EpgContextCtl-ScanDbDir: %s ext:%s\n", pDirPath, pExtension);
+      memset(pCniBuf, 0, sizeof(*pCniBuf));
+      extlen = strlen(pExtension);
+
+      dir = opendir(pDirPath);
+      if (dir != NULL)
+      {
+         while ((entry = readdir(dir)) != NULL)
+         {
+            flen = strlen(entry->d_name);
+            if ( (extlen == 0) ||
+                 ( (flen > extlen) &&
+                   (strcmp(entry->d_name + flen - strlen(pExtension), pExtension) == 0) ))
+            {
+               pFilePath = xmalloc(strlen(pDirPath) + 1 + flen + 1);
+               sprintf(pFilePath, "%s" PATH_SEPARATOR_STR "%s", pDirPath, entry->d_name);
+
+               // get file status
+               if (stat(pFilePath, &st) == 0)
+               {
+                  // check if it's a regular file; reject directories, devices, pipes etc.
+                  if (S_ISREG(st.st_mode))
+                  {
+                     EpgContextCtl_DirScanCb(pFilePath, st.st_mtime, pCniBuf);
+                  }
+                  else
+                     dprintf1("Xmltv-ScanDir: not a regular file: %s (skipped)\n", pFilePath);
+               }
+               else
+                  dprintf2("Xmltv-ScanDir: failed stat %s: %s\n", pFilePath, strerror(errno));
+
+               xfree(pFilePath);
+            }
+         }
+         closedir(dir);
+      }
+      else
+         fprintf(stderr, "failed to open XML directory %s: %s\n", pDirPath, strerror(errno));
+   }
+   else
+      fatal0("Xmltv-ScanDir: illegal NULL ptr param");
+
+#else // WIN32
+   HANDLE hFind;
+   WIN32_FIND_DATA finddata;
+   SYSTEMTIME  systime;
+   char *pDirPattern;
+   struct tm tm;
+   bool bMore;
+   uint flen;
+   char *pFilePath;
+
+   if ((pDirPath != NULL) && (pExtension != NULL) && (pCniBuf != NULL))
+   {
+      dprintf2("EpgContextCtl-ScanDbDir: %s ext:%s\n", pDirPath, pExtension);
+      memset(pCniBuf, 0, sizeof(*pCniBuf));
+
+      pDirPattern = xmalloc(strlen(pDirPath) + 2 + strlen(pExtension) + 1);
+      sprintf(pDirPattern, "%s\\*%s", pDirPath, pExtension);
+
+      hFind = FindFirstFile(pDirPattern, &finddata);
+      bMore = (hFind != (HANDLE) -1);
+      while (bMore)
+      {
+         flen = strlen(finddata.cFileName);
+         pFilePath = xmalloc(strlen(pDirPath) + 1 + flen + 1);
+         sprintf(pFilePath, "%s" PATH_SEPARATOR_STR "%s", pDirPath, finddata.cFileName);
+
+         FileTimeToSystemTime(&finddata.ftLastWriteTime, &systime);
+         dprintf7("DB %s:  %02d:%02d:%02d - %02d.%02d.%04d\n", finddata.cFileName, systime.wHour, systime.wMinute, systime.wSecond, systime.wDay, systime.wMonth, systime.wYear);
+         memset(&tm, 0, sizeof(tm));
+         tm.tm_sec   = systime.wSecond;
+         tm.tm_min   = systime.wMinute;
+         tm.tm_hour  = systime.wHour;
+         tm.tm_mday  = systime.wDay;
+         tm.tm_mon   = systime.wMonth - 1;
+         tm.tm_year  = systime.wYear - 1900;
+
+         EpgContextCtl_DirScanCb(pFilePath, mktime(&tm), pCniBuf);
+
+         xfree(pFilePath);
+         bMore = FindNextFile(hFind, &finddata);
+      }
+      FindClose(hFind);
+      xfree(pDirPattern);
+   }
+#endif
 
    assert(EpgContextCtl_CheckConsistancy());
 }

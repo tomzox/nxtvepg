@@ -238,7 +238,7 @@ void Daemon_StartDump( void )
    else if (provCnt > 0)
    {
       uint provCni = XmltvCni_MapProvider(pXmlFiles[0]);
-      pUiDbContext = EpgContextCtl_Open(provCni, FALSE, CTX_FAIL_RET_NULL, CTX_RELOAD_ERR_REQ);
+      pUiDbContext = EpgContextCtl_Open(provCni, FALSE, CTX_RELOAD_ERR_REQ);
       if (pUiDbContext == NULL)
          printf("<!-- nxtvepg failed to load database %04X -->\n", provCni);
    }

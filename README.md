@@ -13,9 +13,11 @@ TV broadcast since, it is no longer in use today. Since version 3.0.0, nxtvepg
 no longer support the format, despite keeping the name of the SW package.
 
 For a comprehensive description of features of this software, please refer
-to the manual page: Type `man nxtvepg` in a shell (UNIX only), or open
+to the manual page: In the source package, see [nxtvepg.pod](./nxtvepg.pod);
+after installation, type `man nxtvepg` in a shell (UNIX only), or open
 `manual.html` (English language) or `manual-de.html` (German) included in the
-package in a Web browser, or open <http://nxtvepg.sourceforge.net/man.html>
+pre-compiled package in a Web browser, or open
+<http://nxtvepg.sourceforge.net/man.html>
 
 ## System requirements
 

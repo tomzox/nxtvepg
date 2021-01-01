@@ -684,7 +684,7 @@ static int MenuCmd_ChangeProvider( ClientData ttp, Tcl_Interp *interp, int objc,
       if (Tcl_GetIntFromObj(interp, objv[1], &cni) == TCL_OK)
       {
          // note: illegal CNIs 0 and 0x00ff are caught in the open function
-         pDbContext = EpgContextCtl_Open(cni, TRUE, CTX_FAIL_RET_NULL, CTX_RELOAD_ERR_REQ);
+         pDbContext = EpgContextCtl_Open(cni, TRUE, CTX_RELOAD_ERR_REQ);
          if (pDbContext != NULL)
          {
             EpgContextCtl_Close(pUiDbContext);
@@ -751,6 +751,63 @@ static int MenuCmd_GetCniDescription( ClientData ttp, Tcl_Interp *interp, int ob
             pCniDesc = TranscodeToUtf8(EPG_ENC_ISO_8859_1, NULL, pName, NULL);
          }
          Tcl_SetObjResult(interp, pCniDesc);
+      }
+      result = TCL_OK;
+   }
+
+   return result;
+}
+
+// ----------------------------------------------------------------------------
+// Return service name and list of networks of the given database
+// - used by provider selection popup
+//
+static int MenuCmd_GetProvServiceName( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
+{
+   const char * const pUsage = "Usage: C_GetProvServiceName <cni>";
+   const AI_BLOCK * pAi;
+   EPGDB_CONTEXT  * pPeek;
+   const char * pStr;
+   int cni;
+   int result;
+
+   if (objc != 1+1)
+   {  // parameter count is invalid
+      Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
+      result = TCL_ERROR;
+   }
+   else if ( Tcl_GetIntFromObj(interp, objv[1], &cni) )
+   {  // the parameter is not an integer
+      result = TCL_ERROR;
+   }
+   else
+   {
+      if (IS_XMLTV_CNI(cni))
+      {
+         pPeek = EpgContextCtl_Peek(cni, CTX_RELOAD_ERR_ANY);
+         if (pPeek != NULL)
+         {
+            // TODO optimize to avoid PEEK? - XML file name is sufficient
+            EpgDbLockDatabase(pPeek, TRUE);
+            pAi = EpgDbGetAi(pPeek);
+            if (pAi != NULL)
+            {
+               pStr = AI_GET_SERVICENAME(pAi);
+               Tcl_SetObjResult(interp, TranscodeToUtf8(EPG_ENC_XMLTV, NULL, pStr, NULL));
+            }
+            EpgDbLockDatabase(pPeek, FALSE);
+
+            EpgContextCtl_ClosePeek(pPeek);
+         }
+      }
+      else if (cni == MERGED_PROV_CNI)
+      {
+         Tcl_SetObjResult(interp, Tcl_NewStringObj("merged", -1));
+      }
+      else
+      {
+         fatal1("MenuCmd-GetProvServiceName: CNI neither merged nor XML:0x%X\n", cni);
+         Tcl_SetObjResult(interp, Tcl_NewStringObj("unknown", -1));
       }
       result = TCL_OK;
    }
@@ -865,79 +922,38 @@ static int MenuCmd_GetCurrentDatabaseCni( ClientData ttp, Tcl_Interp *interp, in
 }
 
 // ----------------------------------------------------------------------------
-// Get list of provider CNIs in order or preference
-// - last providers selected by the user are always moved to the front
-// - used by GUI to sort databases whenever a provider choice is offered
-//
-static int MenuCmd_GetProvSelection( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
-{
-   const char * const pUsage = "Usage: C_GetProvSelection";
-   const RCFILE * pRc;
-   Tcl_Obj * pResultList;
-   char cni_buf[16+2+1];
-   uint idx;
-   int result;
-
-   if (objc != 1)
-   {  // parameter count is invalid
-      Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
-      result = TCL_ERROR;
-   }
-   else
-   {
-      pResultList = Tcl_NewListObj(0, NULL);
-
-      pRc = RcFile_Query();
-      if (pRc != NULL)
-      {
-         for (idx=0; idx < pRc->db.prov_sel_count; idx++)
-         {
-            sprintf(cni_buf, "0x%04X", pRc->db.prov_selection[idx]);
-            Tcl_ListObjAppendElement(interp, pResultList, Tcl_NewStringObj(cni_buf, -1));
-         }
-      }
-      Tcl_SetObjResult(interp, pResultList);
-      result = TCL_OK;
-   }
-
-   return result;
-}
-
-// ----------------------------------------------------------------------------
 // Get list of provider CNIs and names
 // - for provider selection and merge popup
 //
 static int MenuCmd_GetProvCnisAndNames( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
 {
-   const char * const pUsage = "Usage: C_GetProvCnisAndNames [nxtv]";
+   const char * const pUsage = "Usage: C_GetProvCnisAndNames <dir>";
    const AI_BLOCK * pAi;
    const uint * pCniList;
    EPGDB_CONTEXT  * pPeek;
+   const char * pDir;
    Tcl_Obj * pResultList;
    char buf[16+2+1];
    uint idx, cniCount;
-   bool nxtv_only;
    int result;
 
-   if ((objc != 1) && ((objc != 1+1) || strcmp(Tcl_GetString(objv[1]), "nxtv")))
+   if (objc != 1+1)
    {  // parameter count is invalid
       Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
       result = TCL_ERROR;
    }
    else
    {
+      pDir = Tcl_GetString(objv[1]);
       pResultList = Tcl_NewListObj(0, NULL);
-      nxtv_only = (objc == 1+1);
 
-      EpgContextCtl_ScanDbDir();
-
-      pCniList = EpgContextCtl_GetProvList(&cniCount);
-      for (idx=0; idx < cniCount; idx++)
+      pCniList = EpgContextCtl_GetProvList(pDir, &cniCount);
+      if (pCniList != NULL)
       {
-         pPeek = EpgContextCtl_Peek(pCniList[idx], CTX_RELOAD_ERR_ANY);
-         if (pPeek != NULL)
+         for (idx=0; idx < cniCount; idx++)
          {
-            if (!nxtv_only || !EpgDbContextIsXmltv(pPeek))
+            pPeek = EpgContextCtl_Peek(pCniList[idx], CTX_RELOAD_ERR_ANY);
+            if (pPeek != NULL)
             {
                EpgDbLockDatabase(pPeek, TRUE);
                pAi = EpgDbGetAi(pPeek);
@@ -949,14 +965,12 @@ static int MenuCmd_GetProvCnisAndNames( ClientData ttp, Tcl_Interp *interp, int 
                   Tcl_ListObjAppendElement(interp, pResultList, TranscodeToUtf8(EPG_ENC_XMLTV, NULL, AI_GET_SERVICENAME(pAi), NULL));
                }
                EpgDbLockDatabase(pPeek, FALSE);
+
+               EpgContextCtl_ClosePeek(pPeek);
             }
-
-            EpgContextCtl_ClosePeek(pPeek);
          }
-      }
-      if (pCniList != NULL)
          xfree((void *) pCniList);
-
+      }
       Tcl_SetObjResult(interp, pResultList);
       result = TCL_OK;
    }
@@ -2690,8 +2704,8 @@ void MenuCmd_Init( void )
       Tcl_CreateObjCommand(interp, "C_ChangeProvider", MenuCmd_ChangeProvider, (ClientData) NULL, NULL);
 
       Tcl_CreateObjCommand(interp, "C_UpdateLanguage", MenuCmd_UpdateLanguage, (ClientData) NULL, NULL);
-      Tcl_CreateObjCommand(interp, "C_GetProvSelection", MenuCmd_GetProvSelection, (ClientData) NULL, NULL);
       Tcl_CreateObjCommand(interp, "C_GetCniDescription", MenuCmd_GetCniDescription, (ClientData) NULL, NULL);
+      Tcl_CreateObjCommand(interp, "C_GetProvServiceName", MenuCmd_GetProvServiceName, (ClientData) NULL, NULL);
       Tcl_CreateObjCommand(interp, "C_GetProvServiceInfos", MenuCmd_GetProvServiceInfos, (ClientData) NULL, NULL);
       Tcl_CreateObjCommand(interp, "C_GetCurrentDatabaseCni", MenuCmd_GetCurrentDatabaseCni, (ClientData) NULL, NULL);
       Tcl_CreateObjCommand(interp, "C_GetProvCnisAndNames", MenuCmd_GetProvCnisAndNames, (ClientData) NULL, NULL);

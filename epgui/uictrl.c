@@ -236,21 +236,17 @@ static EPGDB_STATE UiControl_GetDbState( void )
 
    if (uiCni == 0)
    {  // no AI block in current UI database
-#ifdef WIN32
-      if (EpgSetup_CheckTvCardConfig() == FALSE)
-      {
-         dbState = EPGDB_TVCARD_CFG;
-      }
-      else
-#endif
       int drvType = RcFile_Query()->tvcard.drv_type;
       if (drvType == BTDRV_SOURCE_UNDEF)
       {
          drvType = BtDriver_GetDefaultDrvType();
       }
+      //if (EpgSetup_CheckTvCardConfig() == FALSE)
+      //   dbState = EPGDB_TVCARD_CFG;
+      //else
       if (acqState.ttxGrabState != ACQDESCR_DISABLED)
          dbState = EPGDB_PROV_NONE_BUT_ACQ;
-      else if (EpgContextCtl_GetProvCount() == 0)
+      else if (EpgContextCtl_HaveProviders() == FALSE)
          dbState = ((drvType != BTDRV_SOURCE_NONE) ? EPGDB_PROV_NONE_BUT_TTX : EPGDB_PROV_NONE);
       else
          dbState = ((drvType != BTDRV_SOURCE_NONE) ? EPGDB_PROV_SEL_OR_TTX : EPGDB_PROV_SEL_OR_TTX);
@@ -545,7 +541,7 @@ static void UiControl_LoadAcqDb( ClientData clientData )
             }
             if (count > 0)
             {
-               pDbContext = EpgContextCtl_Open(cni, TRUE, CTX_FAIL_RET_NULL, CTX_RELOAD_ERR_NONE);
+               pDbContext = EpgContextCtl_Open(cni, TRUE, CTX_RELOAD_ERR_NONE);
                if (pDbContext != NULL)
                {
                   dprintf2("UiControl-LoadAcqDb: merge DB 0x%04X (first DB of %d)\n", cni, count);
@@ -577,7 +573,7 @@ static void UiControl_LoadAcqDb( ClientData clientData )
          if ( EpgContextCtl_GetAiUpdateTime(cni, FALSE) <
                 EpgContextCtl_GetAiUpdateTime(cni, TRUE) )
          {
-            pDbContext = EpgContextCtl_Open(cni, TRUE, CTX_FAIL_RET_NULL, CTX_RELOAD_ERR_NONE);
+            pDbContext = EpgContextCtl_Open(cni, TRUE, CTX_RELOAD_ERR_NONE);
             if (pDbContext != NULL)
             {
                EpgContextCtl_Close(pUiDbContext);

@@ -152,7 +152,7 @@ proc PopupNetwopSelection {} {
          }
 
          frame .netsel.lb
-         SelBoxCreate .netsel.lb netsel_ailist netsel_selist netsel_names
+         SelBoxCreate .netsel.lb netsel_ailist netsel_selist netsel_names 20 1
          pack  .netsel.lb -side top -fill both -expand 1
 
          global netsel_off_name
@@ -323,16 +323,19 @@ proc NetselUpdateTimes {} {
 ##  --------------------------------------------------------------------------
 ##  Helper functions for selecting and ordering list items
 ##
-proc SelBoxCreate {lbox arr_ailist arr_selist arr_names} {
+proc SelBoxCreate {lbox arr_ailist arr_selist arr_names lwidth do_scrollbar} {
    upvar $arr_ailist ailist
    upvar $arr_selist selist
    upvar $arr_names names
 
    # determine listbox height and check if scrollbar is required
    set lbox_height [llength $ailist]
-   set do_scrollbar 0
+   if {[llength $selist] > $lbox_height} {
+      set lbox_height [llength $selist]
+   }
+   #set do_scrollbar 0
    if {$lbox_height > 20} {
-      set lbox_height 15
+      set lbox_height 20
       set do_scrollbar 1
    }
 
@@ -340,7 +343,7 @@ proc SelBoxCreate {lbox arr_ailist arr_selist arr_names} {
    frame $lbox.ai
    scrollbar $lbox.ai.sb -orient vertical -command [list $lbox.ai.ailist yview] -takefocus 0
    if $do_scrollbar { pack $lbox.ai.sb -fill y -side left }
-   listbox $lbox.ai.ailist -exportselection false -height $lbox_height -width 12 \
+   listbox $lbox.ai.ailist -exportselection false -height $lbox_height -width $lwidth \
                            -selectmode extended -yscrollcommand [list $lbox.ai.sb set]
    relief_listbox $lbox.ai.ailist
    pack $lbox.ai.ailist -side left -fill both -expand 1
@@ -366,7 +369,7 @@ proc SelBoxCreate {lbox arr_ailist arr_selist arr_names} {
    ## third column: selected providers in selected order
    frame $lbox.sel
    scrollbar $lbox.sel.sb -orient vertical -command [list $lbox.sel.selist yview] -takefocus 0
-   listbox $lbox.sel.selist -exportselection false -height $lbox_height -width 12 \
+   listbox $lbox.sel.selist -exportselection false -height $lbox_height -width $lwidth \
                             -selectmode extended -yscrollcommand [list $lbox.sel.sb set]
    relief_listbox $lbox.sel.selist
    if $do_scrollbar { pack $lbox.sel.sb -fill y -side left }
@@ -385,6 +388,20 @@ proc SelBoxCreate {lbox arr_ailist arr_selist arr_names} {
    # initialize command button state
    # (all disabled until an item is selected from either the left or right list)
    event generate $lbox.sel.selist <<ListboxSelect>>
+}
+
+# replace the complete contents of the AI list
+proc SelBoxUpdateList {lbox arr_ailist arr_selist arr_names} {
+   upvar $arr_ailist ailist
+   upvar $arr_selist selist
+   upvar $arr_names names
+
+   $lbox.ai.ailist delete 0 end
+
+   foreach item $ailist {
+      $lbox.ai.ailist insert end $names($item)
+   }
+   $lbox.ai.ailist configure -height 20
 }
 
 # selected items in the AI CNI list are appended to the selection list

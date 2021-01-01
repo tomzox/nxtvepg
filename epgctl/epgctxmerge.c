@@ -99,7 +99,7 @@ static bool EpgDbMergeOpenDatabases( EPGDB_MERGE_CONTEXT * pMergeContext, bool i
       if (pMergeContext->prov[dbIdx].pDbContext == NULL)
       {
          cni = pMergeContext->prov[dbIdx].provCni;
-         pMergeContext->prov[dbIdx].pDbContext = EpgContextCtl_Open(cni, FALSE, CTX_FAIL_RET_NULL, (isForAcq ? CTX_RELOAD_ERR_ACQ : CTX_RELOAD_ERR_REQ));
+         pMergeContext->prov[dbIdx].pDbContext = EpgContextCtl_Open(cni, FALSE, (isForAcq ? CTX_RELOAD_ERR_ACQ : CTX_RELOAD_ERR_REQ));
 
          if (EpgDbContextGetCni(pMergeContext->prov[dbIdx].pDbContext) != cni)
          {  // one database could not be loaded -> abort merge

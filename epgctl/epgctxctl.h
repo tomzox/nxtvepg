@@ -26,12 +26,6 @@
 // ---------------------------------------------------------------------------
 // Declaration of modes for handling database open failure
 //
-typedef enum
-{
-   CTX_FAIL_RET_NULL,       // return NULL pointer upon error
-   CTX_FAIL_RET_DUMMY,      // return dummy context (empty db, not for acq)
-   CTX_FAIL_RET_CREATE,     // create new, empty db with given CNI, for acq
-} CTX_FAIL_RET_MODE;
 
 // result codes for reload and peek (ordered by increasing user relevance)
 typedef enum
@@ -52,17 +46,14 @@ typedef enum
 // Declaration of service interface functions
 //
 EPGDB_CONTEXT * EpgContextCtl_Peek( uint cni, int failMsgMode );
-EPGDB_CONTEXT * EpgContextCtl_Open( uint cni, bool forceOpen,
-                                    CTX_FAIL_RET_MODE failRetMode, int failMsgMode );
-EPGDB_CONTEXT * EpgContextCtl_OpenAny( int failMsgMode );
+EPGDB_CONTEXT * EpgContextCtl_Open( uint cni, bool forceOpen, int failMsgMode );
 EPGDB_CONTEXT * EpgContextCtl_OpenDummy( void );
 void EpgContextCtl_Close( EPGDB_CONTEXT * pContext );
 void EpgContextCtl_ClosePeek( EPGDB_CONTEXT * pDbContext );
 
-uint EpgContextCtl_GetProvCount( void );
-const uint * EpgContextCtl_GetProvList( uint * pCount );
+bool EpgContextCtl_HaveProviders( void );
+const uint * EpgContextCtl_GetProvList( const char * pPath, uint * pCount );
 time_t EpgContextCtl_GetAiUpdateTime( uint cni, bool reload );
-void EpgContextCtl_ScanDbDir( void );
 
 void EpgContextCtl_SetPiExpireDelay( time_t expireDelay );
 

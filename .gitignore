@@ -1,5 +1,7 @@
 *.swp
 *.o
+core
+core.*
 ttx-*.xml
 tags
 debug.out

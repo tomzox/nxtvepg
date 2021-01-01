@@ -1560,7 +1560,8 @@ void RcFile_AddXmltvNetwork( uint provCni, uint netCni, const char * pChnId )
 }
 
 // ----------------------------------------------------------------------------
-//  Update the provider preference order: move the last selected CNI to the front
+// Update the provider preference order: move the last selected CNI to the front
+// - note: only the first item is used currently; rest of the list is OBSOLETE
 //
 bool RcFile_UpdateProvSelection( uint cni )
 {

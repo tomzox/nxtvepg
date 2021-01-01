@@ -200,41 +200,17 @@ Hinweis für Windows-Benutzer: alle diese Optionen sind - sofern nicht anders ang
 
 Bevor Sie TV-Programmdaten aus dem Teletext laden können (im Folgenden I<Akquisition> genannt), müssen Sie noch einige Einstellungen vornehmen. Welche das sind, hängt von der Ausstattung des Rechners ab und wird in diesem Kapitel beschrieben. Solange das Browserfenster keine Daten enthält, wird ein gelb unterlegter Hilfetext angezeigt.
 
-Um nur XMLTV Dateien aus anderen Quellen zu laden und anzuzeigen sind jedoch keinerlei Einstellungen erforderlich.
+Um nur XMLTV Dateien aus anderen Quellen zu laden und anzuzeigen sind jedoch keinerlei Einstellungen erforderlich. Falls keine TV-Karte verfügbar ist oder Sie diese in nxtvepg nicht verwenden möchten, selektieren Sie Treiber-Type "None" im "TV-card input" Dialog im Configure Menü.
 
 Dieses Handbuch beschreibt alle Eigenschaften von nxtvepg im Detail. Sie müssen nicht alles davon auf einmal lesen, um die Software bedienen zu können. Es empfiehlt sich jedoch, wenigstens die Abschnitte L<"BASIC BROWSING">, L<"DATA ACQUISITION"> und L<"FILTERING"> durchzugehen.
 
 =head2 TV card Setup on M$ Windows
 
-Windows-Anwender müssen zuerst den Treiber für ihre TV-Karte im Dialog "TV card input" vom Configure-Menü aus konfigurieren (weitere Informationen siehe auch L<"CONFIGURATION">, Kapitel "TV card input"). UNIX-Anwender können diesen Abschnitt überspringen.
-
-Zuerst müssen Sie entscheiden welchen Treibertyp Sie verwenden möchten: Für TV-Karten mit Brooktree Bt8x8 oder Philips SAA713x Capture-Chips ist der interne I<dsdrv> Treiber zu empfehlen. Für TV-Karten mit Conexant CX2388x Capture-Chips ist hingegen ein WDM-Treiber zu empfehlen. Generell ist der interne Treiber besser für nxtvepg geeignet da er für Teletext-Datenakquisition optimiert wurde. Die von den Herstellern mitgelieferten WDM Treiber hingegen sind üblicherweise für Video optimiert und unterstützen Teletext oft nur schlecht oder gar nicht.  Allerdings unterstüzt der "dsdrv" Treiber nicht alle TV-Karten; zudem treten speziell bei Karten mit Conexant Chip manchmal Konflikte auf wenn der WDM Treiber auch installiert ist (siehe auch Beschreibung zur Option "Stop conflicting WDM drivers...")
+Windows-Anwender müssen zuerst den Treiber für ihre TV-Karte im Dialog "TV card input" vom Configure-Menü aus konfigurieren (weitere Informationen siehe auch L<"CONFIGURATION">, Kapitel "TV card input"). Seit Version 3.0 unerstützt nxtveog nur noch WDM Treiber.
 
 nxtvepg erlaubt die Verwendung von WDM Treibern nur mittels einer "Interface Library" (VBIAcqWDMDrv.dll), die Sie separat von der nxtvepg homepage herunterladen müssen. Der Grund dafür ist dass WDM Unterstützung in nxtvepg noch in einer beta-Testphase ist. Die DLL muß ins selbe Verzeichnis wie nxtvepg.exe gelegt werden.  Solange Sie die Library nicht installiert haben, sehen Sie eine Fehlermeldung "Failed to load WDM interface library" beim Versuch auf eine WDM Quelle umzuschalten.
 
-Bei Verwendung des WDM-Treibers können Sie das folgende Kapitel überspringen.
-
-Falls Sie gar keinen funktionierenden Treiber finden, können Sie als letzte Option nxtvepg parallel zu K!TV laufen lassen. In dem Fall übernimmt die TV-Applikation die Teletext-Akquisition ohne so dass nxtvepg gar nicht auf die TV-Karte zugreifen muß.
-
-=head2 Dsdrv driver configuration on M$ Windows
-
-Um den I<dsdrv> Treiber zu konfigurieren öffnen Sie den "TV card input" dialog und betätigen Sie den Button "I<Configure card>" in der Mitte des Dialogfeldes.  Der Button ist deaktiviert falls keine unterstützten TV-Capture-Chips auf Ihrem System gefunden wurden. (In dem Fall werden Sie außerdem eine Meldung I<"PCI scan failed"> sehen; eine Erklärung dieser und weiterer Fehlermeldungen als auch eine Liste unterstützter TV-Karten findet sich in der README Datei.)  In dem Fall bleibt Ihnen nur die Möglichkeit den WDM Treiber zu verwenden.
-
-Drücken Sie zunächst den Button I<Autodetect> im rechten Teil des Dialogfensters. Falls vorhanden, wird der nichtflüchtige Speicher (EEPROM) Ihrer Karte gelesen, um den Hersteller und das Modell zu bestimmen. Im Optimalfall können so alle benötigten Parameter automatisch bestimmt werden. Klappt dies, werden alle benötigten Kartenparameter gesetzt und Sie brauchen nichts weiter zu tun, als den Konfigurations-Dialog mit OK zu schließen. Wenn Sie wollen, können Sie jedoch automatisch ermittelte Werte (z.B. Tuner-Typ) mit den unten beschriebenen Optionen überschreiben.
-
-Erscheint ein Hinweis, dass zwar die Karte jedoch nicht der Tuner bestimmt werden konnte, können die nächsten Absätze übersprungen werden und es geht beim manuellen Einstellen des Tuners weiter.
-
-Wird der TV-Karten-Typ nicht automatisch erkannt, können Sie ihn in der linken Auswahlliste suchen und dann auf den Button "I<Pick from list>" klicken oder direkt auf den Listeneintrag doppelklicken. Bitte beachten Sie: Die Liste der TV-Karten ist die selbe wie bei der TV-Anwendung B<DScaler> (ähnlich wie B<K!TV>); das gleiche gilt auch für die Tuner-Liste. Im Zweifelsfall ist es am einfachsten, in der Konfiguration von DScaler nachzusehen und den Karten-Typ von dort zu übernehmen.
-
-Bei bestimmten Karten-Typen wird die Karte nach manueller Kartenauswahl nach dem Tuner-Typ abgefragt. Schlägt dies fehl, erscheint eine Mitteilung und Sie müssen den Tuner manuell auswählen.
-
-Um einen Tuner-Typen zu konfigurieren öffnen Sie das Popup-Menü "Tunerauswahl" indem Sie auf den Button I<Configure> klicken und einen Eintrag auswählen. Bei vielen Karten steht der Tuner-Typ auf der Verpackung. Sicherer ist es, den Tuner-Typ vom silbernen Abschirmgehäuse auf der Karte selbst abzulesen.
-
-Ein paar klärende Hinweise zu den Einstellungen: Bei vielen Karten ist der ausgewählte Karten-Typ für nxtvepg nicht relevant (d.h. nur der Tuner-Typ und für Bt878-Karten der PLL). Keine Sorge, wenn die Karte nicht in der Liste zu finden ist. Es funktioniert auch, wenn Sie einfach irgendeinen PAL- oder SECAM-Karteneintrag aus der Liste nehmen und die anderen Parameter manuell setzen. Mit dem Start eines EPG-Suchlaufs können Sie die Konfiguration überprüfen. Zuvor müssen Sie jedoch das Konfigurations-Untermenü mit OK verlassen, damit die Änderungen übernommen werden. Der Einfachheit halber können Sie den Dialog zur Karten-Konfiguration mit einem Button im Dialogfenster des EPG-Suchlaufs öffnen.
-
-Tipp zur Auswahl des Tuners: In Deutschland, Österreich oder der Schweiz ist vermutlich ein PAL-Tuner richtig, in Frankreich einer der SECAM-Typen. Bei Auswahl eines falschen Tuners gibt es entweder überhaupt keinen Empfang (der EPG-Suchlauf läuft einfach durch und schlägt vor, die Antenne zu überprüfen) oder es werden nur wenige Sender empfangen.
-
-Bei Karten, die mit einem Brooktree-Chip (Bt878 u.a.) ausgestattet sind, muss die Art der PLL-Initialisierung immer eingestellt werden. Diese Einstellungen sind direkt mit der Kartenauswahl verknüpft. Deshalb brauchen Sie dies nicht manuell vorzunehmen. Normalerweise ist der richtige Wert für "I<PLL initialization>" bei PAL- und SECAM-Karten entweder "I<No init>" oder "I<28 MHz>". (Wurde der falsche Wert ausgewählt, haben Sie überhaupt keinen Empfang.)
+Falls Sie gar keinen funktionierenden Treiber finden, können Sie als letzte Option nxtvepg parallel zur TV-Applikation "K!TV" laufen lassen. In dem Fall übernimmt die TV-Applikation die Teletext-Akquisition ohne so dass nxtvepg gar nicht auf die TV-Karte zugreifen muß.
 
 =head2 Video input configuration
 
@@ -483,9 +459,13 @@ Das Diagramm links zeigt den Verlauf der prozentualen Füllung für Stream 1 und S
 
 =head1 MERGED DATABASES
 
-Wenn Sie Datenbanken verschiedener XMLTV Quellen miteinander vergleichen, werden Sie des Öfteren feststellen, dass jeder ein oder mehrere nette Features bereithält oder Sender beinhaltet, die einem anderen fehlen. Anstatt ständig zwischen den einzelnen Providern hin und her zu wechseln, erlaubt das Datenbank-Merging (to merge (engl.): mischen, zusammenführen), Features oder Sender von unterschiedlichen Quellen in eine neu erzeugte Datenbank zu kombinieren.
+Unter "Merge" versteht man das Zusammenführen von EPG Daten aus verschiedenen XMLTV Dateien.  Der primäre Einsatz des Mechanismus ist für den Fall, dass Sie mehrere EPG Anbieter verwenden die unterschiedliche Teilmengen der empfangbaren Sender abdecken. Durch den Merge, können Sie eine Datenbank erzeugen die die Sender aller EPG Anbieter enthält.
 
-Wählen  Sie den Eintrag "B<Merge XMLTV files>" im B<Configure>-Menü aus, erhalten Sie einen Dialog mit zwei Listenfeldern: das Linke davon enthält eine Liste aller im Moment verfügbaren Datenbanken. Das Rechte stellt eine Liste der Datenbanken dar, die Sie miteinander zusammenführen wollen. Sie können Einträge in dieser Liste hinzufügen, löschen und neu sortieren. Sind Sie fertig mit Ihrer Auswahl, drücken Sie B<OK>, um das Zusammenführen zu starten und zu der neuen Datenbank zu wechseln.
+Ein weiterer Einsatz ist der Fall das Sie mehrere EPG Anbieter verwenden die dieselben Sender abdecken. In dem Fall erlaubt der Merge die Daten für jedes TV-Programm in der Anzeige zu vereinigen. Für Informationen wie Beschreibungstexte werden die Daten aller EPG Anbieter aneinendergeügt. Für Informationstypen wo das Aneinanderfügen nicht sinnvoll ist, wird die Information aus den Daten des ersten Anbieters angezeigt (d.h. die Reihenfolge der Auswahl ist relevant; Details siehe unten).
+
+Über den Menüeintrag B<Merge XMLTV files> im B<Control>-Menü erhalten Sie einen Dialog mit zwei Listenfeldern: das Linke davon enthält eine Liste von XMLTV Dateien. Ein anderes Verzeichnis kann mit Click auf den Knopf neben dem Eingabefeld gewählt werden. Der Verzeichnisname kann auch manuell editiert werden; Nach Drücken der Return-Taste wird die Liste der Dateien aktualisiert. (Zu beachten ist dass nur Dateien mit Endung ".xml" und gültigem XMLTV Format in der Liste angezeigt werden.)
+
+Das rechte Liste stellt die Dateien dar, die Sie zusammenführen wollen. Bei der ersten Verwendung des Dialogs wird die Liste leer sein; Bei späteren Aufrufen wird die zuletzt verwendete Auswahl wieder angezeight. Sie können Einträge in dieser Liste hinzufügen, durch Auswahl eines Eintrags in der linken Liste und Drücken des "Add" Knopfes. Einträge können aus der Lste gelöscht werden durch Auswahl eines oder mehrerer Einträge und Drücken des "Delete" Knopfes. Die Reihenfolge kann durch Auswahl von einem oder mehreren Einträgen und Drücken der beiden Pfeil-Knöpfe geändert werden. Sind Sie fertig mit Ihrer Auswahl, drücken Sie B<OK>, um das Zusammenführen der ausgeählten Dateien zu starten und die so neu erzeugte EPG Datenbank anzuzeigen.
 
 Durch das Anordnen der Provider in Ihrer Auswahl, weisen Sie ihnen Prioritäten zu, die für eine Konfliktlösung sehr wichtig sind. Ein Konflikt tritt dann auf, wenn Start- und Stopzeiten der Sendung bei den Providern verschieden sind. Die Wahrscheinlichkeit solch eines Konfliktes hängt von der Qualität Ihrer Provider ab; theoretisch sollten sie nie auftreten, außer wenn kurzfristige Programmänderungen erfolgen. In der Realität sind solche Konflikte gar nicht so unwahrscheinlich, speziell bei Sendungen, die früh am Morgen ausgestrahlt werden. Sie sollten den verlässlichsten Provider an die erste Stelle setzen, da widersprüchliche Sendungen von darunter stehenden Providern abgelehnt werden, d.h. nicht mit in die zusammengeführte Datenbank aufgenommen werden.
 
@@ -769,9 +749,11 @@ Die optionale, vierte Sektion ist standardmäßig leer, kann aber dazu verwendet w
 
 =head2 Load XMLTV file
 
-Öffnet den Dialog Laden von EPG Daten aus einer Datei im XMLTV format. Dieser Dialog zeigt alle XMLTV Dateien im aktuellen Verzeichnis an. Wurde eine Datei angewählt, werden in dieser XML Datei enthaltenen Informationen über die Quelle der Daten die Liste der abgedeckten Sender angezeigt.
+Öffnet den Dialog Laden von EPG Daten aus einer Datei im XMLTV format. Dieser Dialog zeigt alle XMLTV Dateien im Verzeichnis an das im Eingabefeld an der Oberseite des Dialogfensters ausgewählt ist. Ein anderes Verzeichnis kann mit Click auf den Knopf neben dem Eingabefeld gewählt werden. Der Verzeichnisname kann auch manuell editiert werden; Nach Drücken der Return-Taste wird die Liste der Dateien aktualisiert. (Zu beachten ist dass nur Dateien mit Endung ".xml" und gültigem XMLTV Format in der Liste angezeigt werden.)
 
-Wird der Dialog mit OK verlassen, wird die ausgewählte XMLTV Datei in den Browser geladen. Wurde die Datenbank über längere Zeit nicht aufgefrischt, kann die Programmliste leer sein. In dem Fall sollten Sie den zur Erstellung der Datei verwendeten EPG-grabber nochmals starten.
+Wurde eine Datei in der Liste durch Anclicken selektiert, werden in dieser XML Datei enthaltenen Informationen über die Quelle der Daten die Liste der abgedeckten Sender rechts im Dialogfenster angezeigt. Durch Doppelclick auf einen Dateinamen, oder den OK Knopf, wird die ausgewählte XMLTV Datei in den Browser geladen.
+
+Wurde die Datenbank über längere Zeit nicht aufgefrischt, kann die Programmliste leer sein. In dem Fall sollten Sie den zur Erstellung der Datei verwendeten EPG-grabber nochmals starten.
 
 =head2 Merge XMLTV files
 
@@ -779,9 +761,11 @@ Wird der Dialog mit OK verlassen, wird die ausgewählte XMLTV Datei in den Browse
 
 =head2 Enable acquisition
 
-Schaltet die EPG Datenakquisition temporär an oder aus. Diese Option ist nur wählbar wenn der Teletext EPG grabber configuriert wurde (siehe L<"CONFIGURATION">, Kapitel "Teletext grabber").  Wenn Sie den Browser starten, wird die Akquisition automatisch aktiviert (bei automatischem Start auftretende Fehler werden jedoch stillschweigend ignoriert). Sie können den automatischen Start mit dem Befehlszeilenschalter B<-noacq> abstellen, oder indem sie den Teletext-Grabber über die Konfiguration deaktivieren. Das Abschalten der Akquisition erlaubt anderen Anwendungen, wie z.B. einer TV-Applikation, die TV-Karte zu nutzen und TV-Kanäle zu wechseln.
+Schaltet die Teletext-EPG Datenakquisition temporär an oder aus. Diese Option ist nur wählbar wenn der Teletext EPG grabber konfiguriert wurde (siehe L<"CONFIGURATION">, Kapitel "Teletext grabber") und eine TV-Karte verfügbar ist.
 
-Sie werden eine Fehlermeldung erhalten, wenn das Gerät bereits von einer anderen Anwendung belegt ist (es gibt einige Anwendungen, die gut mit nxtvepg kooperieren, aber normalerweise sollten Sie alle anderen Video-bezogenen Applikationen vor dem Start der Akquisition beenden). Ebenso erhalten Sie eine Fehlermeldung wenn Sie keine Berechtigung besitzen auf das Gerät zuzugreifen (UNIX, siehe auch L<"FILES">) bzw. den Treiber zu starten (Windows). Bei vermuteten Treiber- oder Empfangsproblemen, testen Sie am Besten zuerst mit einer TV-Anwendung, da diese mit Hilfe des TV-Bilds eine leichtere Fehlerdiagnose erlaubt. Siehe auch L<"GETTING STARTED">.
+Wenn Sie den Browser starten, wird die Akquisition automatisch aktiviert falls die entsprechende Option im Teletext-Grabber Konfirmationsmenü angwählt wurde. Sie können den automatischen Start temporär unterdrücken, indem Sie Befehlszeilenschalter B<-noacq> auf der Kommandozeile angeben. Das Abschalten der Akquisition erlaubt anderen Anwendungen, wie z.B. einer TV-Applikation, die TV-Karte zu nutzen und TV-Kanäle zu wechseln.
+
+Sie werden eine Fehlermeldung erhalten, wenn das Gerät bereits von einer anderen Anwendung belegt ist. Ebenso erhalten Sie eine Fehlermeldung, wenn Sie keine Berechtigung besitzen auf das Gerät zuzugreifen (UNIX, siehe auch L<"FILES">) bzw. den Treiber zu starten (Windows). Bei vermuteten Treiber- oder Empfangsproblemen, testen Sie am Besten zuerst mit einer TV-Anwendung, da diese mit Hilfe des TV-Bilds eine leichtere Fehlerdiagnose erlaubt. Siehe auch L<"GETTING STARTED">.
 
 UNIX: Wird die Akquisition ausgeschaltet, wird auch das I</dev/vbi> device freigegeben. Die Akquisition kann auch automatisch an- und ausgeschalten werden (d.h. von einem Shell-Skript aus) indem man das Signal HUP (z.B. mit dem Befehl kill(1)) an einen der nxtvepg-Prozesse oder -Threads sendet. Sollten Sie einen Daemon zur Akquisition benutzen (siehe nächster Befehl), müssen Sie das Signal an einen der Daemon-Prozesse/-Threads senden. Um dies zu vereinfachen, wird die "PID" des Prozesses der den Device geöffnet hält in F</tmp/.vbi.pid> gespeichert.
 

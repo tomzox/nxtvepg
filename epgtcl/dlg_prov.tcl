@@ -28,9 +28,6 @@ set epgscan_popup 0
 set epgscan_opt_slow 0
 set epgscan_opt_ftable 0
 
-set tzcfg_default {1 60 0}
-set timezone_popup 0
-
 # called by tv application config dialog
 proc EpgScan_UpdateTvApp {} {
    global epgscan_opt_ftable
@@ -65,36 +62,41 @@ proc ProvWin_Create {} {
    global provwin_popup
    global font_normal entry_disabledforeground
    global provwin_servicename
-   global provwin_ailist
+   global provwin_dir
 
    if {$provwin_popup == 0} {
-
-      # build list of available providers
-      set provwin_ailist {}
-      foreach {cni name} [C_GetProvCnisAndNames] {
-         # build list of CNIs
-         lappend provwin_ailist $cni
-         # build array of provider network names
-         set provwin_names($cni) $name
-      }
-      # sort CNI list according to user preferences
-      set provwin_ailist [SortProvList $provwin_ailist]
-
-      if {[llength $provwin_ailist] == 0} {
-         # no providers found -> abort
-         tk_messageBox -type ok -icon info -message "There are no providers available yet.\nPlease start a provider scan from the Configure menu."
-         return
-      }
-
-      CreateTransientPopup .provwin "Provider Selection"
+      CreateTransientPopup .provwin "Load XMLTV file"
       set provwin_popup 1
+
+      # directory selection is kept across dialog being closed/reopened
+      if {![info exists provwin_dir]} {
+         set provwin_dir [file normalize "."]
+      }
+
+      # entry field for directory
+      frame  .provwin.dir
+      label  .provwin.dir.prompt -text "Select directory:"
+      pack   .provwin.dir.prompt -side left
+      entry  .provwin.dir.filename -textvariable provwin_dir -font $::font_fixed -width 30
+      pack   .provwin.dir.filename -side left -padx 5 -fill x -expand 1
+      bind   .provwin.dir.filename <Return> ProvWin_UpdateList
+      button .provwin.dir.dlgbut -image $::fileImage -command {
+         set dir [tk_chooseDirectory -initialdir $provwin_dir -mustexist 1 -parent .provwin \
+                                     -title "Select directory for loading XMLTV files"]
+         if {$dir ne ""} {
+            set provwin_dir $dir
+            ProvWin_UpdateList
+         }
+      }
+      pack  .provwin.dir.dlgbut -side left -padx 5
+      pack  .provwin.dir -side top -pady 10 -fill x -expand 1
 
       # list of providers at the left side of the window
       frame .provwin.n
       frame .provwin.n.b
       scrollbar .provwin.n.b.sb -orient vertical -command {.provwin.n.b.list yview} -takefocus 0
       pack .provwin.n.b.sb -side left -fill y
-      listbox .provwin.n.b.list -width 12 -height 5 -selectmode single -exportselection 0 \
+      listbox .provwin.n.b.list -width 20 -height 5 -selectmode single -exportselection 0 \
                                 -yscrollcommand {.provwin.n.b.sb set}
       relief_listbox .provwin.n.b.list
       pack .provwin.n.b.list -side left -fill both -expand 1
@@ -109,7 +111,7 @@ proc ProvWin_Create {} {
       label .provwin.n.info.service.header -text "Name of service"
       pack  .provwin.n.info.service.header -side top -anchor nw
       entry .provwin.n.info.service.name -state disabled $entry_disabledforeground black \
-                                         -textvariable provwin_servicename -width 45
+                                         -textvariable provwin_servicename -width 40
       pack  .provwin.n.info.service.name -side top -anchor nw -fill x
       pack  .provwin.n.info.service -side top -anchor nw -fill x
 
@@ -132,7 +134,7 @@ proc ProvWin_Create {} {
 
       # buttons at the bottom of the window
       frame .provwin.cmd
-      button .provwin.cmd.help -text "Help" -width 5 -command {PopupHelp $helpIndex(Configuration) "Load XMLTV file"}
+      button .provwin.cmd.help -text "Help" -width 5 -command {PopupHelp $helpIndex(Control) "Load XMLTV file"}
       button .provwin.cmd.abort -text "Abort" -width 5 -command {destroy .provwin}
       button .provwin.cmd.ok -text "Ok" -width 5 -command ProvWin_Exit -default active
       bind .provwin.cmd.ok <Return> {tkButtonInvoke .provwin.cmd.ok}
@@ -144,23 +146,55 @@ proc ProvWin_Create {} {
       bind .provwin.n <Destroy> {+ set provwin_popup 0}
       focus .provwin.cmd.ok
 
-      # fill the listbox with the provider's network names
-      foreach cni $provwin_ailist {
-         .provwin.n.b.list insert end $provwin_names($cni)
-      }
-
-      # select the entry of the currently opened provider (if any)
-      set index [lsearch -exact $provwin_ailist [C_GetCurrentDatabaseCni]]
-      if {$index >= 0} {
-         .provwin.n.b.list selection set $index
-         ProvWin_Select
-      }
+      ProvWin_UpdateList
 
       wm resizable .provwin 1 1
       update
       wm minsize .provwin [winfo reqwidth .provwin] [winfo reqheight .provwin]
    } else {
       raise .provwin
+   }
+}
+
+proc ProvWin_NameSortCmp {a b} {
+   global provwin_names
+   return [string compare -nocase $provwin_names($a) $provwin_names($b)]
+}
+
+# callback for directory changes
+proc ProvWin_UpdateList {} {
+   global provwin_dir provwin_ailist provwin_names
+
+   # build list of available providers
+   set provwin_ailist {}
+   foreach {cni name} [C_GetProvCnisAndNames $provwin_dir] {
+      # build list of CNIs
+      lappend provwin_ailist $cni
+      # build array of provider network names
+      set provwin_names($cni) $name
+   }
+   # sort CNI list by provider name
+   set provwin_ailist [lsort -command ProvWin_NameSortCmp $provwin_ailist]
+
+   if {[llength $provwin_ailist] == 0} {
+      # no providers found -> abort
+      #tk_messageBox -type ok -icon info -message "There are no providers available yet.\nPlease start a provider scan from the Configure menu."
+      #return
+      #TODO
+   }
+
+   .provwin.n.b.list delete 0 end
+
+   # fill the listbox with the provider's network names
+   foreach cni $provwin_ailist {
+      .provwin.n.b.list insert end $provwin_names($cni)
+   }
+
+   # select the entry of the currently opened provider (if any)
+   set index [lsearch -exact $provwin_ailist [C_GetCurrentDatabaseCni]]
+   if {$index >= 0} {
+      .provwin.n.b.list selection set $index
+      ProvWin_Select
    }
 }
 
@@ -210,46 +244,56 @@ proc ProvWin_Exit {} {
 ##
 proc PopupProviderMerge {} {
    global provmerge_popup
-   global provmerge_ailist provmerge_selist provmerge_names provmerge_cf
+   global provmerge_ailist provmerge_selist provwin_names provmerge_cf
+   global provwin_dir
    global ProvmergeOptLabels
 
    if {$provmerge_popup == 0} {
-      # get CNIs and names of all known providers
-      set provmerge_ailist {}
-      foreach {cni name} [C_GetProvCnisAndNames] {
-         lappend provmerge_ailist $cni
-         set provmerge_names($cni) $name
+      # directory selection is kept across dialog being closed/reopened
+      if {![info exists provwin_dir]} {
+         set provwin_dir [file normalize "."]
       }
-      set provmerge_ailist [SortProvList $provmerge_ailist]
-
+      set provmerge_ailist {}
       set provmerge_selist {}
       foreach cni [C_GetMergeProviderList] {
-         if {[lsearch -exact $provmerge_ailist $cni] != -1} {
-            lappend provmerge_selist $cni
-         }
-      }
-      if {[llength $provmerge_selist] == 0} {
-         set provmerge_selist $provmerge_ailist
+         # TODO warn if file no longer exists
+         lappend provmerge_selist $cni
+         set provwin_names($cni) [C_GetProvServiceName $cni]
       }
       catch {array set provmerge_cf [C_GetMergeOptions]}
-
-      if {[llength $provmerge_ailist] == 0} {
-         # no providers found -> abort
-         tk_messageBox -type ok -icon info -message "There are no providers available yet.\nPlease start a provider scan from the Configure menu."
-         return
-      }
 
       # create the popup window
       CreateTransientPopup .provmerge "Merge XMLTV files"
       set provmerge_popup 1
 
-      message .provmerge.msg -aspect 600 -text "This dialog allows loading and merging multiple XMLTV files. Note the order of files in the list on the right defines their priority in case of conflicts:"
+      label .provmerge.msg -text "This dialog allows loading and merging multiple XMLTV files. Note the order of\nfiles in the list on the right defines their priority in case of conflicts:"
       pack .provmerge.msg -side top -expand 1 -fill x -pady 5
+
+      # entry field for directory
+      frame  .provmerge.dir
+      label  .provmerge.dir.prompt -text "Select directory:"
+      pack   .provmerge.dir.prompt -side left
+      entry  .provmerge.dir.filename -textvariable provwin_dir -font $::font_fixed -width 30
+      pack   .provmerge.dir.filename -side left -padx 5 -fill x -expand 1
+      bind   .provmerge.dir.filename <Return> ProvMerge_UpdateList
+      button .provmerge.dir.dlgbut -image $::fileImage -command {
+         set dir [tk_chooseDirectory -initialdir $provwin_dir -mustexist 1 -parent .provmerge \
+                                     -title "Select directory for loading XMLTV files"]
+         if {$dir ne ""} {
+            set provwin_dir $dir
+            ProvMerge_UpdateList
+         }
+      }
+      pack  .provmerge.dir.dlgbut -side left -padx 5
+      pack  .provmerge.dir -side top -pady 5 -fill x -expand 1
 
       # create the two listboxes for database selection
       frame .provmerge.lb
-      SelBoxCreate .provmerge.lb provmerge_ailist provmerge_selist provmerge_names
+      SelBoxCreate .provmerge.lb provmerge_ailist provmerge_selist provwin_names 30 1
       pack .provmerge.lb -side top
+
+      # populate the AI list
+      ProvMerge_UpdateList
 
       # create menu for option sub-windows
       array set ProvmergeOptLabels {
@@ -298,16 +342,37 @@ proc PopupProviderMerge {} {
       bind .provmerge <Key-F1> {PopupHelp $helpIndex(Merged databases)}
       bind .provmerge <Alt-KeyPress> [bind Menubutton <Alt-KeyPress>]
       focus .provmerge.cmd.ok
+
+      wm resizable .provmerge 1 1
+      update
+      wm minsize .provmerge [winfo reqwidth .provmerge] [winfo reqheight .provmerge]
    } else {
       raise .provmerge
    }
 }
 
+# callback for directory changes
+proc ProvMerge_UpdateList {} {
+   global provmerge_ailist provwin_names
+   global provwin_dir
+
+   set provmerge_ailist {}
+   foreach {cni name} [C_GetProvCnisAndNames $provwin_dir] {
+      lappend provmerge_ailist $cni
+      set provwin_names($cni) $name
+   }
+   # sort CNI list by provider name
+   set provmerge_ailist [lsort -command ProvWin_NameSortCmp $provmerge_ailist]
+
+   SelBoxUpdateList .provmerge.lb provmerge_ailist provmerge_selist provwin_names
+}
+
+
 # create menu for option selection
 set provmergeopt_popup {}
 
 proc PopupProviderMergeOpt {cfoption} {
-   global provmerge_selist provmerge_cf provmerge_names
+   global provmerge_selist provmerge_cf provwin_names
    global provmerge_popup provmergeopt_popup
    global ProvmergeOptLabels
 
@@ -326,7 +391,7 @@ proc PopupProviderMergeOpt {cfoption} {
 
          # create the two listboxes for database selection
          frame .provmergeopt.lb
-         SelBoxCreate .provmergeopt.lb provmerge_selist provmerge_cf($cfoption) provmerge_names
+         SelBoxCreate .provmergeopt.lb provmerge_selist provmerge_cf($cfoption) provwin_names 12 0
          pack .provmergeopt.lb -side top
 
          # create cmd buttons at bottom
@@ -355,7 +420,7 @@ proc PopupProviderMergeOpt {cfoption} {
          foreach widget [info commands .provmergeopt.lb.*] {
             destroy $widget
          }
-         SelBoxCreate .provmergeopt.lb provmerge_selist provmerge_cf($cfoption) provmerge_names
+         SelBoxCreate .provmergeopt.lb provmerge_selist provmerge_cf($cfoption) provwin_names 12 0
 
          # make the sure the popup is not obscured by other windows
          raise .provmergeopt
@@ -382,7 +447,7 @@ proc ProvMerge_Reset {} {
 proc ProvMerge_Quit {cause} {
    global provmerge_popup provmergeopt_popup
    global provmerge_selist provmerge_cf
-   global provmerge_names ProvmergeOptLabels
+   global provwin_names ProvmergeOptLabels
 
    # check the configuration parameters for consistancy
    if {[string compare $cause "Ok"] == 0} {
@@ -400,8 +465,8 @@ proc ProvMerge_Quit {cause} {
             if {[string compare $vlist $provmerge_selist] != 0} {
                foreach cni $vlist {
                   if {[lsearch -exact $provmerge_selist $cni] == -1} {
-                     if {[info exists provmerge_names($cni)]} {
-                        set provname " ($provmerge_names($cni))"
+                     if {[info exists provwin_names($cni)]} {
+                        set provname " ($provwin_names($cni))"
                      } else {
                         set provname {}
                      }

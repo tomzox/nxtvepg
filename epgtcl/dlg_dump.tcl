@@ -314,7 +314,7 @@ proc PopupHtmlColumnSelection {} {
       pack .htmlcols.intromsg -side top -fill x -expand 1
 
       frame .htmlcols.all
-      SelBoxCreate .htmlcols.all htmlcols_ailist htmlcols_selist colsel_names
+      SelBoxCreate .htmlcols.all htmlcols_ailist htmlcols_selist colsel_names 12 0
       .htmlcols.all.ai.ailist configure -width 20
       .htmlcols.all.sel.selist configure -width 20
 

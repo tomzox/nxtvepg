@@ -27,9 +27,5 @@ EPGDB_CONTEXT * Xmltv_Load( FILE * fp, uint provCni, const char * pProvName, boo
 EPGDB_CONTEXT * Xmltv_CheckAndLoad( const char * pFilename, uint provCni, bool isPeek, uint * pErrCode, time_t * pMtime );
 const char * Xmltv_TranslateErrorCode( uint detection );
 bool Xmltv_IsXmlDocument( uint detection );
-time_t Xmltv_GetMtime( const char * pFilename );
-
-void Xmltv_ScanDir( const char * pDirPath, const char * pExtension,
-                    void (*pCb)(uint cni, const char * pPath, sint mtime) );
 
 #endif // __XMLTV_MAIN_H
