@@ -3363,7 +3363,7 @@ release 3.0.
 
 =head1 COPYRIGHT
 
-Copyright (C) 1999 - 2011, 2020 by T. Zoerner.
+Copyright (C) 1999 - 2011, 2020 - 2021 by T. Zoerner.
 All rights reserved.
 
 Additional copyrights apply to portions of the code herein.

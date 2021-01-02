@@ -361,7 +361,7 @@ epgtcl/helptexts_de.tcl: nxtvepg-de.pod pod2help.pl
 nxtvepg.1: nxtvepg.pod epgctl/epgversion.h
 	EPG_VERSION_STR=`egrep '[ \t]*#[ \t]*define[ \t]*EPG_VERSION_STR' epgctl/epgversion.h | head -1 | sed -e 's#.*"\(.*\)".*#\1#'`; \
 	pod2man -date " " -center "Nextview EPG Decoder" -section "1" \
-	        -release "nxtvepg "$$EPG_VERSION_STR" (C) 2020 T. Zoerner" \
+	        -release "nxtvepg "$$EPG_VERSION_STR" (C) 2021 T. Zoerner" \
 	   nxtvepg.pod > nxtvepg.1
 
 nxtvepgd.1: nxtvepg.1

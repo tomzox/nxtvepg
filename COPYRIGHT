@@ -1,6 +1,6 @@
 This message applies to all files within this release:
 
-    Copyright (C) 1999 - 2011, 2020 T. Zoerner
+    Copyright (C) 1999 - 2011, 2020-2021 T. Zoerner
     All rights reserved.
 
     This program is free software; you can redistribute it and/or modify
@@ -25,12 +25,6 @@ This message applies to all files within this release:
 
     Multidec BT8x8 Driver:
        Copyright (C) 2000 Espresso (echter_espresso@hotmail.com)
-
-    DScaler Driver:
-       Copyright (c) 2001 John Adcock.  All rights reserved.
-
-    DScaler Driver Interface:
-       Copyright (c) 2002 E-nek.
 
     AleVT teletext latin-1 font tables:
        Copyright (C) 1998,1999 Edgar Toernig (froese@gmx.de)
@@ -60,15 +54,11 @@ This message applies to all files within this release:
     Linux saa7134 and cx8800 capture chip drivers:
        (c) 2001,02 Gerd Knorr <kraxel@bytesex.org> [SuSE Labs]
 
-    DScaler SAA7134 and CX23881 drivers:
-       Copyright (c) 2002 Atsushi Nakagawa.  All rights reserved.
-       Copyright (c) 2002 John Adcock.  All rights reserved.
-
-    DScaler I2C bus protocol implementation:
-       Copyleft 2001 itt@myself.com
-
-    zvbi - Raw VBI slicer:
+    zvbi library - Raw VBI slicer:
        Copyright (C) 2000, 2001, 2002 Michael H. Schimek
+
+    zvbi library - DVB de-multiplexing:
+       Copyright (C) 2004, 2006, 2007 Michael H. Schimek
 
     Mclistbox version 1.02 (Tcl/Tk widget extension)
        Copyright (c) 1999, Bryan Douglas Oakley, All Rights Reserved.
@@ -90,6 +80,22 @@ This message applies to all files within this release:
     German translation of nxtvepg.pod
        Copyright (C) 2004,2005 by Kurt Lettmaier and Olaf Nöhring
        Released under the GPL.
+
+
+    Credits for source code that once was included in this project
+    but since has been removed:
+
+    DScaler Driver:
+       Copyright (c) 2002-2004 Atsushi Nakagawa.  All rights reserved.
+       Copyright (c) 2001-2002 John Adcock.  All rights reserved.
+       Copyright (C) 1996,97,98 Ralph  Metzler (rjkm@thp.uni-koeln.de)
+       Copyright (C) 2000 Espresso (echter_espresso@hotmail.com)
+       Copyright (C) 1997 Markus Schroeder (schroedm@uni-duesseldorf.de)
+       Copyright (C) 1997,1998 Gerd Knorr (kraxel@goldbach.in-berlin.de)
+       Copyleft 2001 itt@myself.com
+
+    DScaler Driver Interface (initial implementation):
+       Copyright (c) 2002 E-nek.
 
 
 Have fun.

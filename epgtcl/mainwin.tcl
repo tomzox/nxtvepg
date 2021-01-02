@@ -3430,7 +3430,7 @@ proc CreateAbout {} {
       #label .about.tcl_version -text " Tcl/Tk version $tcl_patchLevel"
       #pack .about.tcl_version -side top
 
-      label .about.copyr1 -text "Copyright (C) 1999 - 2011, 2020 by T. Zörner"
+      label .about.copyr1 -text "Copyright (C) 1999 - 2011, 2020 - 2021 by T. Zörner"
       label .about.copyr2 -text $NXTVEPG_MAILTO
       label .about.copyr3 -text $NXTVEPG_URL -font $font_fixed -foreground blue
       pack .about.copyr1 .about.copyr2 -side top
@@ -4361,7 +4361,7 @@ proc PiBox_DisplayErrorMessage {text} {
       $wid insert end "nxtvepg\n" bold24Tag
       $wid insert end "Receiving and Browsing TV Programme Listings on your PC\n" bold16Tag
       $wid window create end -window ${wid}.nxtvlogo
-      $wid insert end "\n\nCopyright (C) 1999 - 2011, 2020 by T. Zoerner\n" bold12Tag
+      $wid insert end "\n\nCopyright (C) 1999 - 2011, 2020 - 2021 by T. Zoerner\n" bold12Tag
       $wid insert end "$NXTVEPG_MAILTO\n\n" bold12Tag
       $wid tag add centerTag 1.0 {end - 1 lines}
       $wid insert end "This program is free software; you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation. This program is distributed in the hope that it will be useful, but without any warranty. See the GPL for more details.\n\n" wrapTag

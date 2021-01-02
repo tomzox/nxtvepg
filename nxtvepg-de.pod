@@ -1416,7 +1416,7 @@ Ursprünglich wurde nxtvepg als Dekoder für das vom European Telecommunications S
 
 =head1 COPYRIGHT
 
-Copyright (C) 1999 - 2009, 2020 by Th. Zörner. Alle Rechte vorbehalten.
+Copyright (C) 1999 - 2009, 2020 - 2021 by Th. Zörner. Alle Rechte vorbehalten.
 
 Zusätzliche Copyrights gelten für Teile des verwendeten Quelltexts. Bitte in der Datei COPYRIGHT und den Kommentaren im Quelltext nach Details sehen.
 

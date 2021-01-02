@@ -5,7 +5,6 @@ boost any item's priority, find more points that need to be fixed or if
 you have ideas for additional features.
 
 Post-Nextview EPG:
-- copyright 2021
 - xmltv-etsi.map: use .config/nxtvepg instead of "." in xmltv_cni.c
 - New DB type: "Load Teletext EPG...": automatically follow TTX acq, even if DB not exist yet
 - move USE_TTX_GRABBER to exclude all acqusition if not set
