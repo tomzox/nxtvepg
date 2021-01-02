@@ -255,6 +255,7 @@ static EPGDB_STATE UiControl_GetDbState( void )
    {  // AI present, but no PI in database
       acqWorksOnUi = FALSE;
 
+#ifdef USE_TTX_GRABBER
       // check if acquisition is working for the browser database
       if ( (acqState.ttxGrabState != ACQDESCR_NET_CONNECT) &&
            (acqState.ttxGrabState != ACQDESCR_DISABLED) &&
@@ -264,6 +265,7 @@ static EPGDB_STATE UiControl_GetDbState( void )
          if (pXmlPath != NULL)
             acqWorksOnUi = EpgSetup_QueryTtxPath(pXmlPath);
       }
+#endif
 
       if (acqState.ttxGrabState == ACQDESCR_NET_CONNECT)
       {  // in network acq mode: no stats available yet
@@ -947,6 +949,7 @@ void UiControlMsg_AcqEvent( ACQ_EVENT acqEvent )
 void UpdateRcFile( bool immediate )
 {
    Tcl_DString dstr;
+   const char * pRcFile = ((mainOpts.rcfile != NULL) ? mainOpts.rcfile : mainOpts.defaultRcFile);
    char * pErrMsg = NULL;
    FILE * fp;
    size_t wlen;
@@ -960,7 +963,7 @@ void UpdateRcFile( bool immediate )
    }
    #endif
 
-   fp = RcFile_WriteCreateFile(mainOpts.rcfile, &pErrMsg);
+   fp = RcFile_WriteCreateFile(pRcFile, &pErrMsg);
    if (fp != NULL)
    {
       // write C level sections
@@ -991,7 +994,7 @@ void UpdateRcFile( bool immediate )
       }
       Tcl_ResetResult(interp);
 
-      RcFile_WriteCloseFile(fp, writeOk, mainOpts.rcfile, &pErrMsg);
+      RcFile_WriteCloseFile(fp, writeOk, pRcFile, &pErrMsg);
    }
    if (pErrMsg != NULL)
    {
@@ -1005,6 +1008,7 @@ void UpdateRcFile( bool immediate )
 //
 void LoadRcFile( void )
 {
+   const char * pRcFile = ((mainOpts.rcfile != NULL) ? mainOpts.rcfile : mainOpts.defaultRcFile);
    Tcl_DString msg_dstr;
    Tcl_DString cmd_dstr;
    Tcl_Obj  * pVarObj;
@@ -1012,7 +1016,7 @@ void LoadRcFile( void )
    char * pErrMsg = NULL;
 
    // first load the sections managed at epgui level
-   loadOk = RcFile_Load(mainOpts.rcfile, !mainOpts.isUserRcFile, &pErrMsg);
+   loadOk = RcFile_Load(pRcFile, mainOpts.rcfile == NULL, &pErrMsg);
 
    if (pErrMsg != NULL)
    {
@@ -1023,7 +1027,7 @@ void LoadRcFile( void )
    // secondly load the sections managed at Tcl level
    if (loadOk)
    {
-      if (Tcl_ExternalToUtfDString(NULL, mainOpts.rcfile, -1, &msg_dstr) != NULL)
+      if (Tcl_ExternalToUtfDString(NULL, pRcFile, -1, &msg_dstr) != NULL)
       {
          Tcl_DStringInit(&cmd_dstr);
          Tcl_DStringAppend(&cmd_dstr, "LoadRcFile", -1);

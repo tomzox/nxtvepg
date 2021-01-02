@@ -79,25 +79,32 @@ char epg_rcs_id_str[] ATTRIBUTE_USED = EPG_VERSION_RCS_ID;
 //
 void CmdLine_AddRcFilePostfix( const char * pPostfix )
 {
+   const char * pRcFile;
    char * pTmp;
 
-   if (mainOpts.rcfile != NULL)
+   if (pPostfix != NULL)
    {
-      if (pPostfix != NULL)
+      if (mainOpts.rcfile != NULL)
+         pRcFile = mainOpts.rcfile;
+      else
+         pRcFile = mainOpts.defaultRcFile;
+
+      if (pRcFile != NULL)
       {
-         pTmp = xmalloc(strlen(mainOpts.rcfile) + 1 + strlen(pPostfix) + 1);
-         strcpy(pTmp, mainOpts.rcfile);
+         pTmp = xmalloc(strlen(pRcFile) + 1 + strlen(pPostfix) + 1);
+         strcpy(pTmp, pRcFile);
          strcat(pTmp, ".");
          strcat(pTmp, pPostfix);
 
-         xfree((void *) mainOpts.rcfile);
+         if (mainOpts.rcfile != NULL)
+            xfree((void *) mainOpts.rcfile);
          mainOpts.rcfile = pTmp;
       }
       else
-         debug0("CmdLine-AddRcFilePostfix: illegal NULL ptr param");
+         fatal0("CmdLine-AddRcFilePostfix: NULL rcfile name");
    }
    else
-      fatal0("CmdLine-AddRcFilePostfix: NULL rcfile name");
+      debug0("CmdLine-AddRcFilePostfix: illegal NULL ptr param");
 }
 
 // ---------------------------------------------------------------------------
@@ -154,13 +161,9 @@ static void Usage( const char *argv0, const char *argvn, const char * reason )
 
    const char * const pCommonUsage =
                    "       -rcfile <path>      \t: path and file name of setup file\n"
-                   "       -dbdir <path>       \t: directory where to store databases\n"
+                   "       -dbdir <path>       \t: directory for teletext XMLTV files\n"
                    #ifndef WIN32
-                   #ifdef EPG_DB_ENV
-                   "                           \t: default: $" EPG_DB_ENV "/" EPG_DB_DIR "\n"
-                   #else
-                   "                           \t: default: " EPG_DB_DIR "\n"
-                   #endif
+                   "                           \t: default: $HOME/.cache/nxtvepg\n"
                    #endif
                    "       -outfile <path>     \t: target file for export and other output\n"
                    "       -dump xml|html|pi|...\t: export database in various formats\n"
@@ -452,8 +455,6 @@ static void CmdLine_Parse( int argc, char * argv[] )
 
    mainOpts.pOptArgv0 = argv[0];
 
-   mainOpts.dbdir  = mainOpts.defaultDbDir;
-
    while (argIdx < argc)
    {
       if (argv[argIdx][0] == '-')
@@ -571,8 +572,8 @@ static void CmdLine_Parse( int argc, char * argv[] )
             {  // read file name of rc/ini file
                if (mainOpts.rcfile != NULL)
                   xfree((void *) mainOpts.rcfile);
+               // use dup to allow changing apending suffix upon version conflict
                mainOpts.rcfile = xstrdup(argv[argIdx + 1]);
-               mainOpts.isUserRcFile = TRUE;
                argIdx += 2;
             }
             else
@@ -758,37 +759,97 @@ static void CmdLine_Parse( int argc, char * argv[] )
       MainOptionError(argv[0], "-epgquery", "only useful together with -dump");
 }
 
+#ifndef WIN32
+// ---------------------------------------------------------------------------
+// Helper function for allocating a new string for a concatenation of strings
+//
+static char * CmdLine_ConcatPaths( const char * p1, const char * p2, const char * p3 )
+{
+   char * pStr;
+
+   if (p3 != NULL)
+   {
+      pStr = xmalloc(strlen(p1) + 1 + strlen(p2) + 1 + strlen(p3) + 1);
+      sprintf(pStr, "%s/%s/%s", p1, p2, p3);
+   }
+   else
+   {
+      pStr = xmalloc(strlen(p1) + 1 + strlen(p2) + 1);
+      sprintf(pStr, "%s/%s", p1, p2);
+   }
+   return pStr;
+}
+
+// ---------------------------------------------------------------------------
+// Create config and cache directories
+//
+static void CmdLine_CreateTree( const char * pPath, bool isDir )
+{
+   const char * pPathEnd;
+   char * pTmp;
+
+   if (access(pPath, F_OK) != 0)
+   {
+      pTmp = xmalloc(strlen(pPath) + 1);
+      if (pPath[0] == '/')
+         pPathEnd = strchr(pPath + 1, '/');
+      else
+         pPathEnd = strchr(pPath, '/');
+
+      while (pPathEnd != NULL)
+      {
+         strncpy(pTmp, pPath, pPathEnd - pPath);
+         pTmp[pPathEnd - pPath] = 0;
+
+         if (access(pTmp, F_OK) != 0)
+         {
+            if (mkdir(pTmp, 0777) != 0)
+            {
+               fprintf(stderr, "nxtvepg: failed to set-up directory %s: %s\n",
+                       pTmp, strerror(errno));
+               break;
+            }
+            dprintf1("CmdLine-CreateTree: created dir %s\n", pTmp);
+         }
+
+         if (*pPathEnd != 0)
+         {
+            pPathEnd = strchr(pPathEnd + 1, '/');
+            if ((pPathEnd == NULL) && isDir)
+            {
+               pPathEnd = pPath + strlen(pPath);
+               isDir = FALSE;
+            }
+         }
+         else
+            pPathEnd = NULL;
+      }
+      xfree(pTmp);
+   }
+}
+#endif // WIN32
+
+static void CmdLine_CreateConfigDir( void )
+{
+#ifndef WIN32
+   const char * pRcFile = ((mainOpts.rcfile != NULL) ? mainOpts.rcfile : mainOpts.defaultRcFile);
+   const char * pDbDir = ((mainOpts.dbdir != NULL) ? mainOpts.dbdir : mainOpts.defaultDbDir);
+
+   CmdLine_CreateTree(pRcFile, FALSE);
+   CmdLine_CreateTree(pDbDir, TRUE);
+#endif
+}
+
 // ---------------------------------------------------------------------------
 // Initialize config struct with default values
 //
 static void CmdLine_SetDefaults( bool daemonOnly )
 {
-#ifndef WIN32
-   char * pEnvPath;
-   char * pTmp;
-#endif
-
    memset(&mainOpts, 0, sizeof(mainOpts));
 
    mainOpts.daemonOnly = daemonOnly;
-
-#ifndef WIN32
-   pEnvPath = getenv("HOME");
-   if (pEnvPath != NULL)
-   {
-      pTmp = xmalloc(strlen(pEnvPath) + 1 + strlen(".nxtvepgrc") + 1);
-      strcpy(pTmp, pEnvPath);
-      strcat(pTmp, "/.nxtvepgrc");
-      mainOpts.rcfile = pTmp;
-   }
-   else
-      mainOpts.rcfile = xstrdup(".nxtvepgrc");
-   mainOpts.defaultDbDir  = NULL;
-#else
-   mainOpts.defaultDbDir  = ".";
-   mainOpts.rcfile = xstrdup("nxtvepg.ini");
-#endif
-   mainOpts.dbdir  = NULL;
+   mainOpts.dbdir = NULL;
+   mainOpts.rcfile = NULL;
    mainOpts.videoCardIndex = -1;
    mainOpts.disableAcq = FALSE;
    mainOpts.optDaemonMode = FALSE;
@@ -805,20 +866,37 @@ static void CmdLine_SetDefaults( bool daemonOnly )
    mainOpts.optGuiPipe = -1;
 
 #ifndef WIN32
-#ifdef EPG_DB_ENV
-   pEnvPath = getenv(EPG_DB_ENV);
-   if (pEnvPath != NULL)
+   char * pEnvHome = getenv("HOME");
+
+   char * pEnvConfig = getenv("XDG_CONFIG_HOME");
+   if (pEnvConfig == NULL)
    {
-      mainOpts.defaultDbDir = xmalloc(strlen(pEnvPath) + strlen(EPG_DB_DIR) + 1+1);
-      strcpy(mainOpts.defaultDbDir, pEnvPath);
-      strcat(mainOpts.defaultDbDir, "/" EPG_DB_DIR);
+      if (pEnvHome != NULL)
+         pEnvConfig = CmdLine_ConcatPaths(pEnvHome, ".config", "nxtvepg/nxtvepgrc");
+      else
+         pEnvConfig = xstrdup("nxtvepgrc");
    }
    else
-#endif
+      pEnvConfig = CmdLine_ConcatPaths(pEnvConfig, "nxtvepg/nxtvepgrc", NULL);
+
+   char * pEnvCache = getenv("XDG_CACHE_HOME");
+   if (pEnvCache == NULL)
    {
-      mainOpts.defaultDbDir = xstrdup(EPG_DB_DIR);
+      if (pEnvHome != NULL)
+         pEnvCache = CmdLine_ConcatPaths(pEnvHome, ".cache", "nxtvepg");
+      else
+         pEnvCache = xstrdup(".");
    }
-#endif  // not WIN32
+   else
+      pEnvCache = CmdLine_ConcatPaths(pEnvCache, "nxtvepg", NULL);
+
+   mainOpts.defaultRcFile = pEnvConfig;
+   mainOpts.defaultDbDir = pEnvCache;
+
+#else  // WIN32
+   mainOpts.defaultRcFile = xstrdup("nxtvepg.ini");
+   mainOpts.defaultDbDir = ".";
+#endif
 }
 
 // ---------------------------------------------------------------------------
@@ -835,9 +913,12 @@ uint CmdLine_GetXmlFileNames( const char * const ** pppList )
 //
 void CmdLine_Destroy( void )
 {
-   #ifndef WIN32
-   xfree((void *) mainOpts.defaultDbDir);
-   #endif
+#ifndef WIN32
+   if (mainOpts.defaultRcFile != NULL)
+      xfree((void *) mainOpts.defaultRcFile);
+   if (mainOpts.defaultDbDir != NULL)
+      xfree((void *) mainOpts.defaultDbDir);
+#endif
    if (mainOpts.rcfile != NULL)
       xfree((void *) mainOpts.rcfile);
 }
@@ -856,6 +937,8 @@ void CmdLine_Process( int argc, char * argv[], bool daemonOnly )
    CmdLine_SetDefaults(daemonOnly);
 
    CmdLine_Parse(argc, argv);
+
+   CmdLine_CreateConfigDir();
 
    if (daemonOnly && (mainOpts.optDaemonMode == EPG_GUI_START)
                   && (mainOpts.optDumpMode == EPG_DUMP_NONE) )

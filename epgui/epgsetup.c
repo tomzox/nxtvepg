@@ -940,55 +940,42 @@ bool IsRemoteAcqDefault( void )
 void EpgSetup_TtxGrabber( void )
 {
    const RCFILE * pRc = RcFile_Query();
+   const char * pDbDir = ((mainOpts.dbdir != NULL) ? mainOpts.dbdir : mainOpts.defaultDbDir);
 
-   TtxGrab_SetConfig( pRc->db.piexpire_cutoff, pRc->ttx.keep_ttx_data );
+   TtxGrab_SetConfig(pDbDir, pRc->db.piexpire_cutoff, pRc->ttx.keep_ttx_data);
 }
 
 // ---------------------------------------------------------------------------
 // Query if the given XMLTV file is target for acquisition
-// - regardless if working on the file currently
+// - the given path must be absolute & already normalized,
+//   as returned by XmltvCni_LookupProviderPath()
+// - result does not indicate if working on the file currently
 //
 bool EpgSetup_QueryTtxPath( const char * pXmlPath )
 {
-   char cwd[1024 + 1];
-   uint idx;
    EPGACQ_TUNER_PAR * pTtxFreqs;
    char * pTtxNames;
    uint ttxFreqCount;
+   uint idx;
    bool result = FALSE;
 
    if (EpgSetup_GetTtxConfig(&ttxFreqCount, &pTtxNames, &pTtxFreqs))
    {
-      // TODO make target directory configurable
-      if ((getcwd(cwd, sizeof(cwd)) != NULL) && (cwd[0] == '/'))
+      if (pTtxNames != NULL)
       {
-         // FIXME use realpath(); port to Windows; move to different file
-         const char * pDir = strrchr(pXmlPath, '/');
-         if (pDir != NULL)
+         const char * pNames = pTtxNames;
+         for (idx = 0; (idx < ttxFreqCount) && !result; idx++)
          {
-            if (pXmlPath[0] != '/')
-               return FALSE;
-            if (strncmp(pXmlPath, cwd, pDir - 1 - pXmlPath) != 0)
-               return FALSE;
-            pXmlPath = pDir + 1;
-         }
+            // note the path returned here is already normalized
+            char * pTtxPath = TtxGrab_GetPath(pNames);
+            if (pTtxPath != NULL)
+               result = (strcmp(pTtxPath, pXmlPath) == 0);  // no "break": need xfree()
 
-         if (pTtxNames != NULL)
-         {
-            const char * pNames = pTtxNames;
-            for (idx = 0; (idx < ttxFreqCount) && !result; idx++)
-            {
-               char * pTtxPath = TtxGrab_GetPath(pNames);
-               result = (strcmp(pTtxPath, pXmlPath) == 0);
-
-               while(*(pNames++) != 0)
-                  ;
-               xfree(pTtxPath);
-            }
+            while(*(pNames++) != 0)
+               ;
+            xfree(pTtxPath);
          }
       }
-      else
-         debug1("EpgSetup-QueryTtxPath: getcwd failed: %s\n", strerror(errno));
    }
 
    if (pTtxNames != NULL)
@@ -999,4 +986,3 @@ bool EpgSetup_QueryTtxPath( const char * pXmlPath )
    return result;
 }
 #endif // USE_TTX_GRABBER
-

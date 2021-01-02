@@ -95,8 +95,7 @@ DEFS   += -DXMLTV_OUTPUT_UTF8
 #TODO remove USE_XMLTV_IMPORT
 DEFS   += -DUSE_XMLTV_IMPORT -DXMLTV_CNI_MAP_PATH=\"$(cfgdir)\"
 
-# enable support for teletext EPG grabber (EXPERIMENTAL)
-# external grabber script is searched for in $PATH (unless you define an absolute path)
+# enable support for teletext EPG grabber
 DEFS    += -DUSE_TTX_GRABBER
 
 # enable use of daemon and client/server connection
@@ -104,18 +103,6 @@ DEFS   += -DUSE_DAEMON
 
 # enable if you have both 32-bit and 64-bit systems
 #DEFS   += -DUSE_32BIT_COMPAT
-
-# The database directory can be either in the user's $HOME (or relative to any
-# other env variable) or at a global place like /var/spool (world-writable)
-# -> uncomment 2 lines below to put the databases in the user's home
-#USER_DBDIR  = .nxtvdb
-#DEFS       += -DEPG_DB_ENV=\"HOME\" -DEPG_DB_DIR=\"$(USER_DBDIR)\"
-ifndef USER_DBDIR
-SYS_DBDIR    = /var/tmp/nxtvdb
-DEFS        += -DEPG_DB_DIR=\"$(SYS_DBDIR)\"
-INST_DB_DIR  = $(ROOT)$(SYS_DBDIR)
-INST_DB_PERM = 0777
-endif
 
 WARN    = -Wall -Wnested-externs -Wstrict-prototypes -Wmissing-prototypes
 WARN   += -Wextra -Wno-sign-compare -Wno-unused-parameter
@@ -237,10 +224,6 @@ install: daemon Nxtvepg.ad nxtvepgd.1
 	test -d $(mandir) || install -d $(mandir)
 	test -d $(resdir)/app-defaults || install -d $(resdir)/app-defaults
 	test -d $(cfgdir) || install -d $(cfgdir)
-ifndef USER_DBDIR
-	test -d $(INST_DB_DIR) || install -d $(INST_DB_DIR)
-	chmod $(INST_DB_PERM) $(INST_DB_DIR)
-endif
 	install -c -m 0755 $(BUILD_DIR)/nxtvepg $(bindir)
 	install -c -m 0755 $(BUILD_DIR)/nxtvepgd $(bindir)
 	install -c -m 0644 nxtvepg.1   $(mandir)

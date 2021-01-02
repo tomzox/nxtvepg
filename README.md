@@ -1,4 +1,4 @@
-# nxtvepg - XMLTV EPG browser & Teletext EPG scraper
+# nxtvepg - XMLTV EPG browser & Teletext EPG grabber
 
 *Today*, nxtvepg is a browser for TV programme schedules (EPG) stored in XMLTV
 files. Additionally, nxtvepg comes with an integrated Teletext EPG grabber,
@@ -28,7 +28,7 @@ grabber, a DVB or analog TV tuner card is required and you need to be able
 to receive a network that transmits Teletext service with programme tables.
 
 The MS Windows version supports only analog TV cards that are supported via
-the provided WDM driver interface DLL (i.e. the included `VbiAcqWdmDrv.dll`).
+the separately provided WDM driver interface DLL `VbiAcqWdmDrv.dll`.
 Pre-requisite for that is a vendor-provided WDM driver module that supports
 "VBI" decoding (e.g. teletext). Digital TV cards (DVB) ard currently not
 supported for Windows.

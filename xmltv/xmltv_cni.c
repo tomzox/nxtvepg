@@ -77,9 +77,15 @@ static const char * XmltvCni_GetFullPath( const char * pPath )
    if ((pPath != NULL) && (*pPath != 0))
    {
 #ifndef WIN32
-      // on UNIX a path is relative exactly if it doesn't start with a slash
-      if (*pPath != '/')
+      pBuf = realpath(pPath, NULL);
+      if (pBuf != NULL)
       {
+         pPath = xstrdup(pBuf);
+         free(pBuf);
+      }
+      else if (*pPath != '/')
+      {
+         // on UNIX a path is relative exactly if it doesn't start with a slash
          pBuf = xmalloc(strlen(pXmlCniCwd) + 1 + strlen(pPath) + 1);
          if (strncmp(pPath, "./", 2) == 0)
             sprintf(pBuf, "%s/%s", pXmlCniCwd, pPath + 2);
@@ -333,7 +339,7 @@ uint XmltvCni_MapNetCni( XMLTV_CNI_CTX * pCniCtx, const char * pChannelId )
 }
 
 // ----------------------------------------------------------------------------
-// Creates a table for mapping CNIs to XMLTV channel IDs during Nextview EPG export
+// Creates a table for mapping CNIs to XMLTV channel IDs during XMLTV export
 // - uses the GLOBAL section of the XMLTV->CNI mapping table;
 //   in case of duplicate CNIs the last definition is used
 // - the caller must call the "free" function when done

@@ -72,13 +72,14 @@ typedef struct
 {
 #ifdef WIN32
    const char * defaultDbDir;
+   const char * defaultRcFile;
 #else
+   char       * defaultRcFile;
    char       * defaultDbDir;
    char       * pTvX11Display;
 #endif
-   bool         isUserRcFile;
-   const char * rcfile;
-   const char * dbdir;
+   char       * rcfile;
+   char       * dbdir;
    int          videoCardIndex;
    bool         disableAcq;
    EPG_DAEMON_MODE optDaemonMode;

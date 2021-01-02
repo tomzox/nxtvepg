@@ -53,7 +53,7 @@ char * TtxGrab_GetPath( const char * pName );
 
 void TtxGrab_Init( void );
 void TtxGrab_Exit( void );
-void TtxGrab_SetConfig( uint expireMin, bool keepTtxInp );
+void TtxGrab_SetConfig( const char * pDbDir, uint expireMin, bool keepTtxInp );
 #endif // USE_TTX_GRABBER
 
 #endif // __TTXGRAB_H

@@ -5,6 +5,8 @@ boost any item's priority, find more points that need to be fixed or if
 you have ideas for additional features.
 
 Post-Nextview EPG:
+- copyright 2021
+- xmltv-etsi.map: use .config/nxtvepg instead of "." in xmltv_cni.c
 - New DB type: "Load Teletext EPG...": automatically follow TTX acq, even if DB not exist yet
 - move USE_TTX_GRABBER to exclude all acqusition if not set
 - apply expire only when merging new data into db by acq
@@ -18,34 +20,25 @@ Post-Nextview EPG:
 - DVB: automatic detection of teletext PID (in channel scan or otherwise)
 - DVB-S support
 - mplayer & VDR plugin for EPG display
-- store TTX DBs in the dbdir
 - show DB status in "Load XMLTV" dialog window: number of PI, expired %%
 - remove use of PDC theme table: create table from themes found in XMLTV
 - teletext: forced-passive mode not working due to reset
 - teletext: use mtime to determine start of acq
 - teletext: use TV channel name as XMLTV display name
 - teletext acq stats: percentage cycle loaded (i.e. cycles done vs. max. sub-page count)
-- teletext configuration dialog
+- teletext configuration dialog channel-specific
 - teletext emit XML encoding UTF-8
 
 release ceveats:
-- now/next acq mode recommended (follow-ui not adapted for TTX yet)
-  note: speed of NOW for TTX will be improved later
-- doc: wait one cycle, then merge ttx XML file with Nextview
 - ttx starts at first chan again after stop
-- config params not used (with exception if chan count, perl path)
-- option -clock: provide channel name
+- config params not used (with exception if chan count)
 
 Missing documentation:
 - TV Tune config in context menu dialog
-- acq auto-start option in acq mode config dialog
 - WDM and source "none" in Win32 TV card config dialog
 
 Teletext grabber:
 - improve TTX parser (-> failing parsertest pages)
-- ttx doesn't cope well false channel change detection due to dec. errors
-  - same effect on DSF: toggling between different text headers
-  - endlessly restarting acq. from scratch
 - stats output:
   - describe errors (i.e. keep grabber's STDERR)  ? send to daemon ?
   - daemon send CNI or last processed DB to client (for stats popup only)
@@ -60,22 +53,15 @@ Teletext grabber:
       percentag of multi-pages in overview and descriptions
 - merge db open for acq:
   after merge db open failure: do not attempt to open same db again
-- write help/documentation
 - acq start: if last acq was aborted, continue seamless
   - determine age of XML files
   - determine delta between oldest and newest
     ? post-processing must "touch" files from channels with no reception ?
   - if age of newest is <2h and delta >2h (or acq cycle time?)
     -> mark newer ones done (or move them to the end?)
-- acq mode "external", i.e. from non-tuner inputs
-  ? where to write output - ttx-CNI.xml or search matching ttx-NAME.xml ?
-  ? -> config dialog: enable separately to TV channel based grabbing ?
 - passive acq mode for ttx grabber
   - start grabber after 30 sec (if in NOW phase), next after 2min (reuse data)
   ? stop grabbing after 2nd grabber start (don't waste CPU) ?
-  - detect channel by frequency
-  ? detect channel by VPS/PDC? also by XMLTV channel ID?
-- optimize "full" load stage by using channel switching (i.e. as for NOW)
 - ttxdecode: handle page range <800->800, i.e. split 700-799,000-099
 - merge with old XMLTV file
   ? merge problem: how detect conflicts if programmes have no STOP time?
@@ -215,8 +201,6 @@ xawtv TV app interaction:
 - VPS empty/pause codes display
 
 WIN32 port fixes:
-- support for Secam/PAL multi-norm TV tuners
-  SECAM support for wintvcfg.c channel table parsers
 - use TV app directory in shared memory for auto-configuration
 - dump stream feature: must use window or file instead of stdout
   note: output to stdout works when started inside a GNU/Cygwin bash
@@ -267,22 +251,11 @@ other required fixes:
 - during very bad reception acq restarts every 2-4 secs
   due to ttx page header decoding error (falsely detected channel change)
 - AdvanceCyclePhase: limit number of tries to update provider (first "if")
-- improve streams decoder hamming error handling: assemble AI block
-  from multiple instances if neccessary
-- fix: external mode & tuner input source -> nonsense as status output
-- fix: obsolete series codes can not be deleted, because only series which
-  have an instance in the db are listed in the series menu
-- fix: series filter uses netwop index; in a merged db when the netwop
-  selection is changed the indices change -> shortcuts with series useless
-  must use CNI instead of netwop index in shortcuts
 - startup: if nxtvepg version is incompatible don't recommend prov selection
-- provider-specific shortcuts: are listed only for one provider
-  mandatory when shortcut includes series or sortcrit filter
-- navigation: disable leafs with zero PI / display number of matches
 
 possible new features: (in order of decreasing priority)
-- use GTK library instead of Tk to make GUI more pretty
-  main problem: much filter shortcut and configuration is implemented in Tcl
+- use Qt or GTK library instead of Tk to make GUI more pretty
+  main problem: filter shortcut and configuration is implemented in Tcl
 - allow acquisition from multiple TV cards and remote daemons
 - export database content to mysql server (with updates during acquisition)
 - dialogs, menus and help texts in German and French
@@ -295,4 +268,4 @@ possible new features: (in order of decreasing priority)
 - provider selection: display db age & fill percentage
   save stats and start time of 1st PI in db header
 - wizard for initial configuration (esp. in Windows; suggested by "zoomin")
-
+- highlight matching description text when using sub-string search filter

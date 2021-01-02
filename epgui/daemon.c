@@ -891,6 +891,7 @@ static void Daemon_TriggerGui( void )
 //
 void Daemon_UpdateRcFile( bool immediate )
 {
+   const char * pRcFile = ((mainOpts.rcfile != NULL) ? mainOpts.rcfile : mainOpts.defaultRcFile);
    static bool reportErr = TRUE;
    char * pErrMsg = NULL;
    char * pGuiBuf;
@@ -900,9 +901,9 @@ void Daemon_UpdateRcFile( bool immediate )
    bool   writeOk;
 
    pGuiBuf = NULL;
-   if ( RcFile_CopyForeignSections(mainOpts.rcfile, &pGuiBuf, &bufLen) )
+   if ( RcFile_CopyForeignSections(pRcFile, &pGuiBuf, &bufLen) )
    {
-      fp = RcFile_WriteCreateFile(mainOpts.rcfile, &pErrMsg);
+      fp = RcFile_WriteCreateFile(pRcFile, &pErrMsg);
       if (fp != NULL)
       {
          // write C level sections
@@ -927,7 +928,7 @@ void Daemon_UpdateRcFile( bool immediate )
             SystemErrorMessage_Set(&pErrMsg, errno, "Write error in new config file: ", NULL);
          }
 
-         RcFile_WriteCloseFile(fp, writeOk, mainOpts.rcfile, &pErrMsg);
+         RcFile_WriteCloseFile(fp, writeOk, pRcFile, &pErrMsg);
       }
    }
 
@@ -1086,11 +1087,12 @@ void Daemon_Destroy( void )
 //
 void Daemon_Init( void )
 {
+   const char * pRcFile = ((mainOpts.rcfile != NULL) ? mainOpts.rcfile : mainOpts.defaultRcFile);
    char * pErrMsg = NULL;
    /*bool loadOk;*/
 
    RcFile_Init();
-   /*loadOk =*/ RcFile_Load(mainOpts.rcfile, !mainOpts.isUserRcFile, &pErrMsg);
+   /*loadOk =*/ RcFile_Load(pRcFile, mainOpts.rcfile == NULL, &pErrMsg);
 
    if (pErrMsg != NULL)
    {

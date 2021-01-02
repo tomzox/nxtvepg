@@ -87,6 +87,9 @@ static struct
    TTX_GRAB_STATS stats;
 } ttxGrabState[MAX_VBI_DVB_STREAMS];
 
+// normalized path to XMLTV database output directory
+static char * ttxGrabDbDir;
+
 // ---------------------------------------------------------------------------
 // Debug only: remove unprintable characters from TTX header
 //
@@ -544,14 +547,15 @@ bool TtxGrab_CheckPostProcess( uint bufIdx )
 }
 
 // ---------------------------------------------------------------------------
-// Stop acquisition and start post-processing
+// Returns the XMLTV output file path for the given channel
+// - note the returned path is normalized
 //
 char * TtxGrab_GetPath( const char * pName )
 {
    char * pXmlTmpFile;
 
-   pXmlTmpFile = xmalloc(strlen(pName) + 20);
-   sprintf(pXmlTmpFile, XML_OUT_FILE_PAT, pName);
+   pXmlTmpFile = xmalloc(strlen(ttxGrabDbDir) + 1 + strlen(pName) + 20);
+   sprintf(pXmlTmpFile, "%s/" XML_OUT_FILE_PAT, ttxGrabDbDir, pName);
 
    return pXmlTmpFile;
 }
@@ -567,15 +571,15 @@ void TtxGrab_PostProcess( uint bufIdx, const char * pName, bool reset )
 
    if (ttxGrabState[bufIdx].keepTtxInp)
    {
-      char * pKeptInpFile = xmalloc(strlen(pName) + 20);
-      sprintf(pKeptInpFile, TTX_CAP_FILE_PAT, pName);
+      char * pKeptInpFile = xmalloc(strlen(ttxGrabDbDir) + 1 + strlen(pName) + 20);
+      sprintf(pKeptInpFile, "%s/" TTX_CAP_FILE_PAT, ttxGrabDbDir, pName);
       ttx_db_dump(ttxGrabState[bufIdx].ttx_db, pKeptInpFile, 100, 899);
       xfree(pKeptInpFile);
    }
 
    // build output file name (note: includes ".tmp" suffix which is removed later)
-   pXmlTmpFile = xmalloc(strlen(pName) + 20);
-   sprintf(pXmlTmpFile, XML_OUT_FILE_PAT XML_OUT_FILE_TMP, pName);
+   pXmlTmpFile = xmalloc(strlen(ttxGrabDbDir) + 1 + strlen(pName) + 20);
+   sprintf(pXmlTmpFile, "%s/" XML_OUT_FILE_PAT XML_OUT_FILE_TMP, ttxGrabDbDir, pName);
 
    pXmlMergeFile = xstrdup(pXmlTmpFile);
    pXmlMergeFile[strlen(pXmlMergeFile) - 4] = 0;
@@ -671,14 +675,35 @@ void TtxGrab_Stop( void )
 // ---------------------------------------------------------------------------
 // Configuration parameters
 // - called during start-up and configuration changes
+// - string is kept by reference: caller needs to keep the string content valid
 //
-void TtxGrab_SetConfig( uint expireMin, bool keepTtxInp )
+void TtxGrab_SetConfig( const char * pDbDir, uint expireMin, bool keepTtxInp )
 {
    for (uint bufIdx = 0; bufIdx < MAX_VBI_DVB_STREAMS; ++bufIdx)
    {
       // passed through to TTX grabber (discard programmes older than X hours)
       ttxGrabState[bufIdx].expireMin = expireMin;
       ttxGrabState[bufIdx].keepTtxInp = keepTtxInp;
+   }
+
+   if (ttxGrabDbDir != NULL)
+      xfree(ttxGrabDbDir);
+#ifndef WIN32
+   char * pRealPath = realpath(pDbDir, NULL);
+   if (pRealPath != NULL)
+   {
+      ttxGrabDbDir = xstrdup(pRealPath);
+      free(pRealPath); // not xfree(): memory allocated by glibc
+   }
+   else
+#endif
+   {
+      ttxGrabDbDir = xstrdup(pDbDir);
+      // remove trailing slash
+      size_t len = strlen(ttxGrabDbDir);
+      char * p = ttxGrabDbDir + len - 1;
+      while ((len-- > 1) && (*p == '/'))
+         *(p--) = 0;
    }
 }
 
@@ -688,6 +713,9 @@ void TtxGrab_SetConfig( uint expireMin, bool keepTtxInp )
 void TtxGrab_Exit( void )
 {
    TtxGrab_Stop();
+
+   if (ttxGrabDbDir != NULL)
+      xfree(ttxGrabDbDir);
 }
 
 // ---------------------------------------------------------------------------

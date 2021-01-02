@@ -1103,12 +1103,12 @@ bool EpgMain_StartDaemon( void )
       daemonArgc = 0;
       daemonArgv[daemonArgc++] = "nxtvepg";
       daemonArgv[daemonArgc++] = "-daemon";
-      if (mainOpts.isUserRcFile)
+      if (mainOpts.rcfile != NULL)
       {
          daemonArgv[daemonArgc++] = "-rcfile";
          daemonArgv[daemonArgc++] = (char *) mainOpts.rcfile;
       }
-      if (strcmp(mainOpts.defaultDbDir, mainOpts.dbdir) != 0)
+      if (mainOpts.dbdir != NULL)
       {
          daemonArgv[daemonArgc++] = "-dbdir";
          daemonArgv[daemonArgc++] = (char *) mainOpts.dbdir;
@@ -1275,16 +1275,17 @@ bool EpgMain_StartDaemon( void )
    char  * pCmdLineStr;
    bool    result = FALSE;
 
-   pCmdLineStr = xmalloc(100 + strlen(mainOpts.rcfile) + strlen(mainOpts.dbdir));
+   pCmdLineStr = xmalloc(100 + ((mainOpts.rcfile != NULL) ? strlen(mainOpts.rcfile) : 0) +
+                               ((mainOpts.dbdir != NULL) ? strlen(mainOpts.dbdir) : 0));
    sprintf(pCmdLineStr, "nxtvepg.exe -daemon -guipipe %ld", GetCurrentProcessId());
    pErrMsg = NULL;
    errCode = 0;
 
-   if (mainOpts.isUserRcFile)
+   if (mainOpts.rcfile != NULL)
    {
       sprintf(pCmdLineStr + strlen(pCmdLineStr), " -rcfile \"%s\"", (char *) mainOpts.rcfile);
    }
-   if (strcmp(mainOpts.defaultDbDir, mainOpts.dbdir) != 0)
+   if (mainOpts.dbdir != NULL)
    {
       sprintf(pCmdLineStr + strlen(pCmdLineStr), " -dbdir \"%s\"", (char *) mainOpts.dbdir);
    }
@@ -2201,13 +2202,6 @@ int main( int argc, char *argv[] )
    }
    #endif
 
-#if 0 //TODO TTX
-   // set up the directory for the databases
-   if (EpgDbSavSetupDir(mainOpts.dbdir) == FALSE)
-   {  // failed to create dir: message was already issued, so just exit
-      exit(-1);
-   }
-#endif
    EpgContextCtl_Init();
 
    if ( !IS_DUMP_MODE(mainOpts) && !IS_REMCTL_MODE(mainOpts) )

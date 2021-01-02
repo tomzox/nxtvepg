@@ -2,7 +2,6 @@
 *.o
 core
 core.*
-ttx-*.xml
 tags
 debug.out
 build-x86_64

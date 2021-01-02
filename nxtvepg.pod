@@ -29,11 +29,11 @@
 
 =head1 NAME
 
-nxtvepg - Browsing EPG data in XMLTV format and scraping from teletext
+nxtvepg - Browsing EPG data in XMLTV format and grabbing EPG from teletext
 
 =head1 SYNOPSIS
 
-B<nxtvepg> S<[ options ]> S<[ databases ... ]>
+B<nxtvepg> S<[ options ]> S<[ XMLTV_files ... ]>
 
 B<nxtvepgd> S<[ daemon options ]>
 
@@ -41,8 +41,8 @@ B<nxtvepgd> S<[ daemon options ]>
 
 B<nxtvepg>
 is a X11 and Win32 application for browsing EPG data in files in XMLTV
-format. Using a TV capture card EPG data can additionally be scraped from
-TV schedule tables in teletext.
+format. Using a TV capture card, EPG data can additionally be grabbed from
+TV schedule tables on teletext pages.
 
 B<nxtvepgd>
 is a stripped-down version of nxtvepg which only performs EPG data
@@ -53,7 +53,7 @@ by the nxtvepg GUI.
 
 =head1 OPTIONS
 
-The I<database ...> parameters on the command line can be one or more
+The I<XMLTV_files ...> parameters on the command line can be one or more
 files in XMLTV format. If more than one file is given, the contents are
 merged in the way described for L<"MERGED DATABASES">. The EPG data in
 the respective files will then be loaded and shown in the GUI.
@@ -94,18 +94,20 @@ only with an icon in the system tray of the task bar
 =item B<-rcfile> I<path>
 
 Specify an alternate configuration file.
-Default: on UNIX $HOME/.nxtvepgrc,
+Default: on UNIX F<$HOME/.config/nxtvepg/nxtvepgrc>,
 on Windows nxtvepg.ini in the current directory.
 
 =item B<-dbdir> I<directory>
 
-Specify an alternate directory for the databases.
-Default: On UNIX F</var/tmp/nxtvdb>, on Windows the current directory.
-Note that the database management is not equipped for concurrent writing,
-so if you have more than one TV tuner card in your system or network,
-relocate the directory into the users' homes.
+Specify an alternate directory for XMLTV files written by the Teletext EPG
+grabber. Default: On UNIX F<$HOME/.cache/nxtvepg>, on Windows the current
+directory.
 
-If you're using an acquisition daemon, the browser must be configured
+Note that the database management is not equipped for concurrent writing.
+Therefore, when running multiple instances of nxtvepg concurrently, use
+this option for selecting different storage directories.
+
+If you are using an acquisition daemon, the browser must be configured
 to use the same directory as the daemon.  If the daemon is running on
 a different host, you need to mount the remote directory, e.g. via NFS.
 
@@ -144,17 +146,18 @@ connected, the browser is notified whenever the teletext EPG grabber updates
 an XMLTV file; if left unconnected, the browser listing might remain incomplete
 or outdated.
 
-It's important to note that the browser B<must use> the same I<-dbdir>
-directory, because the daemon forwards only deltas to the database files
-stored in that directory. For more details see
+It's important to note that the browser B<must use> the same database
+directory (see option I<-dbdir>), because the daemon forwards only deltas to
+the database files stored in that directory. For more details see
 L<"CONFIGURATION">, section "Client/Server".
 
 UNIX
 warning: for security reasons it's depreciated to run the daemon with root
 privileges, because nxtvepg has not been reviewed yet for possible exploits.
 If you want to start the daemon already during system startup, you should
-use su(1). Also note that you'll probably need to specify -rcfile because
-the $HOME environment variable  might not be (correctly) defined.  Example:
+use su(1). Also note that you'll probably need to specify I<-rcfile> and
+I<-dbdir> because the F<$HOME> environment variable might not be (correctly)
+defined.  Example:
 
    su nobody -c "/usr/local/bin/nxtvepg -daemon \
                  -rcfile /usr/local/etc/nxtvepgrc"
@@ -535,47 +538,19 @@ However it's recommended to skim at least through L<"BASIC BROWSING">,
 L<"DATA ACQUISITION"> and L<"FILTERING">.
 
 
-=head2 TV card Setup on M$ Windows
+=head2 Configuring TV card input
 
-Windows users first have to configure the driver for their TV card
-in the "TV card input" dialog via the Configure menu (for additional
+Before nxtvepg starts acquiring EPG data, it should be told which device
+and which one of its possible inputs to use. This can be configured in the
+I<TV card input> dialog in the Configure menu (for more in-depth
 information see also L<"CONFIGURATION">, section "TV card input").
-Since version 3.0, nxtvepg only supports vendor-provided WDM drivers.
 
-Note if WDM drivers fail to work with nxtvepg, a third option may be to
-run nxtvepg in parallel to TV-application "K!TV".  In this case the
-capturing is done inside of the TV application and teletext data is
-simply forwarded via shared memory to nxtvepg.
-
-
-=head2 Video input configuration
-
-Before nxtvepg can start acquiring EPG data, it must be told if the
-video feed is provided by your TV card's internal TV tuner (if you're
-connected to your city's TV cable network or a terrestrial antenna)
-or an external source (usually satellite receivers connected via
-Composite or S-Video cable).  This can be configured in the
-I<TV card input> dialog in the Configure menu
-(for more in-depth information see also L<"CONFIGURATION">, section "TV card input").
-
-By default nxtvepg assumes input via TV tuner. This is the preferred
-mode of operation, since nxtvepg can change channels as required for
-grabbing EPG.  With an external source nxtvepg can only capture EPG
-from those channels you tune manually (see also L<"DATA ACQUISITION">).
-
-If you cannot use the TV tuner but have instead connected a satellite
-receiver through the Composite or S-Video input, select the respective
-setting in the I<video input> drop-down menu.  Then close the dialog with
-Ok and open the aquisition mode configuration dialog from the same menu.
-There you should change to the I<external> mode: in this mode nxtvepg
-will switch to the configured video input channel during startup of
-acquisition, but afterwards expect you to tune in TV channels with
-teletext at the external video source.
-
-Note that you can also connect your satellite receiver via antenna cable.
-However this  variant is highly depreciated, because the signal is often
-degraded so much that nxtvepg is not able to decode the EPG data stream
-any more.
+Default device for UNIX is DVB device index 0, or analog device index 0
+if there are no DVB cards. Default for MS Windows is the first device
+detected by the WDM driver (to which TV-card that one refers is is not
+under control of nxtvepg). Default input is the first source reported
+by the driver; often this is the TV-tuner (however it might also be
+a rather useless external input).
 
 
 =head2 Configuring a TV application
@@ -644,6 +619,15 @@ network names between nxtvepg and the TV app.  Even if interaction is not
 possible, it may still be a good idea to have the same network names in
 both applications.  See L<"CONFIGURATION">, section "Network names" for details.
 
+
+=head2 Configuring the Teletext EPG Grabber
+
+After the TV application and TV card were configured properly, the
+Teletext EPG grabber can finally be enabled by checking the first
+option in the respective configuration dialog. If you keen the
+option for automatic start of acquisition enabled, EPG acquisition
+starts immediately after leaving the dialog via the Ok button.
+See L<"CONFIGURATION"> section "Teletext grabber" for more details.
 
 
 =head1 BASIC BROWSING
@@ -3091,24 +3075,23 @@ of the list (unless column header buttons are hidden.)
 
 =over 4
 
-=item B<$HOME/.nxtvepgrc>
+=item B<$HOME/.config/nxtvepg/nxtvepgrc>
 
-Configuration file where all personal settings are stored. Per default
-this is created in your home directory, but a different path and file
-name can be specified with the B<-rcfile> option (see L<"OPTIONS">).
+Default for the configuration file where all personal settings are stored.
+Note a different path and file name can be specified with the
+B<-rcfile> option (see L<"OPTIONS">).
 
 
-=item B</var/tmp/nxtvdb/nxtvdb-####>
+=item B<$HOME/.cache/nxtvepg/>
 
-Directory containing one file for each provider's database.  The path
-can be changed with the B<-dbdir> command line option (see L<"OPTIONS">).
-Note that the path can also be configured during compilation of the
-software, so if you downloaded a binary version of this package
-the path may be different.  The current default setting can be queried
-with the B<-help> command line switch.
+Directory path containing one file for each network from which Teletext
+EPG is grabbed.  The directory can be changed with the B<-dbdir> command
+line option (see L<"OPTIONS">).
 
-The last 4 digits of the file names are the hexadecimal CNI (Country
-and Network Identifier) of the provider.
+Files written by the Teletext EPG grabber have names in format
+F<ttx-CHANNEL.xml>, where "CHANNEL" is the channel name from which the
+data is grabbed. The file content is in XML format, using XMLTV schema.
+A separate file is created for each channel from which data is grabbed.
 
 
 =item B</usr/share/nxtvepg/xmltv-etsi.map>
@@ -3226,13 +3209,17 @@ uncatchable signal like the infamous signal 9 aka KILL).
 See also L<"CONTROL: Connect to acq. daemon">.
 
 
-=item B<$HOME/.xawtv>
+=item B<.../channels.conf>
 
-This file belongs to the TV viewer F<xawtv>. It's not required or
-created by nxtvepg. But if it exists, it will be used in the
-EPG scan (for a fast scan mode where only the channels defined in
-this file will be checked) and in the network name configuration
-dialog.  See also L<"CONFIGURATION">, section "TV application interaction".
+DVB only:
+The Teletext EPG grabber requires a channel table which contains a
+TV channel table, indicating names, frequencies and the PID of the
+teletext data stream. nxtvepg does not create such files; you need to
+use an external DVB channel scan application for that and point nxtvepg
+to use its output. Currently, only the VDR format is supported, as it
+is the only one that includes the PID of Teletext (e.g. unlike the one
+used by mplayer).
+See also L<"CONFIGURATION">, section "TV application interaction".
 
 
 =item B<$HOME/.Xdefaults>
@@ -3295,13 +3282,12 @@ Allows to change the application's appearance, i.e. colors and text fonts.
 The format and content of the file is identical to the F<.Xdefaults> file
 described in the UNIX section.
 
-=item B<nxtv____.epg>
+=item B<ttx-CHANNEL.xml>
 
-One file for each provider's database is created in the working directory
-or the one given with the B<-dbdir> command line option (see L<"OPTIONS">).
-The last 4 digits of the file base names are the hexadecimal CNI (Country
-and Network Identifier) of the provider.  You must not change the name
-of this file, or nxtvepg will refuse to load the database.
+Files written by the Teletext EPG grabber have names in format
+F<ttx-CHANNEL.xml>, where "NAME" is the channel name from which the data is
+grabbed. The file content is in XMLTV schema. A separate file is created
+for each channel from which data is grabbed.
 
 =item B<vbi_map.dat>
 

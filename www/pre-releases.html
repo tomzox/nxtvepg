@@ -98,16 +98,22 @@ You can download the latest sources from the
 Use the instructions provided in README for building the executable.
 </P>
 
-<!--
 <P>
+Note on UNIX the location of the ".nxtvepgrc" configuration file and the
+database directory will change to be compliant with current "freedesktop"
+standards. The configuration file is moved and renamed to
+<CODE>$HOME/.config/nxtvepg/nxtvepgrc</CODE>
+and the database directory containing XMLTV files written by the
+Teletext EPG grabber is moved to <CODE>$HOME/.cache/nxtvepg/</CODE>.
+<!--
 Note the format of the "nxtvepg.rc/ini" configuration storage file will change
 with this release. The file will be automatically upgraded upon
 the first start when using an rc/ini file written by an older version.
 Remember to make a backup copy, so that you can still return to older versions.
 Also note that the protocol between the nxtvepg client and daemon does change,
 hence use the same version of nxtvepg both on client and server side.
-</P>
 -->
+</P>
 
 <!-- ------------------------------------------------------------------------ -->
 <BR><HR WIDTH="75%">
