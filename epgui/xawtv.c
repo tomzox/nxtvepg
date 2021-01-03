@@ -31,7 +31,7 @@
  *     Those parts have been adapted for xawtv-remote.c by Gerd Knorr
  *     (kraxel@bytesex.org)  Some functions have been derived from xawtv.
  *
- *  $Id: xawtv.c,v 1.57 2020/06/17 19:34:45 tom Exp tom $
+ *  $Id: xawtv.c,v 1.58 2021/01/03 12:20:42 tom Exp tom $
  */
 
 #ifdef WIN32
@@ -868,7 +868,7 @@ static bool Xawtv_QueryRemoteStation( Window wid, char * pBuffer, int bufLen, in
                   if (pBuffer != NULL)
                   {
                      dprintf2("Xawtv-Query: window 0x%lX: station name: '%s'\n", (ulong)wid, args + off);
-                     strncpy(pBuffer, args + off, bufLen);
+                     strncpy(pBuffer, args + off, bufLen - 1);
                      pBuffer[bufLen - 1] = 0;
                   }
                   result = TRUE;

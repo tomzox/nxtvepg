@@ -45,7 +45,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: winshmclnt.c,v 1.12 2020/06/17 19:39:40 tom Exp tom $
+ *  $Id: winshmclnt.c,v 1.13 2021/01/03 12:20:42 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_TVSIM
@@ -674,8 +674,10 @@ static bool WinSharedMemClient_AttachShm( void )
                      pTvShm->tvCardIdx    = epgShmCache.tvCardIdx;
                      pTvShm->tvFeatures   = pTvAppInfo->tvFeatures;
                      pTvShm->tvAppType    = pTvAppInfo->tvAppType;
-                     strncpy((char *) pTvShm->tvAppName, pTvAppInfo->pAppName, TVAPP_NAME_MAX_LEN);
-                     strncpy((char *) pTvShm->tvAppPath, pTvAppInfo->tvAppPath, TVAPP_PATH_MAX_LEN);
+                     strncpy((char *) pTvShm->tvAppName, pTvAppInfo->pAppName, TVAPP_NAME_MAX_LEN - 1);
+                     pTvShm->tvAppName[TVAPP_NAME_MAX_LEN - 1] = 0;
+                     strncpy((char *) pTvShm->tvAppPath, pTvAppInfo->tvAppPath, TVAPP_PATH_MAX_LEN - 1);
+                     pTvShm->tvAppPath[TVAPP_PATH_MAX_LEN - 1] = 0;
                      pTvShm->tvGrantTuner = epgShmCache.tvGrantTuner;
                      pTvShm->tvCurIsTuner = epgShmCache.tvCurIsTuner;
                      pTvShm->tvCurFreq    = epgShmCache.tvCurFreq;

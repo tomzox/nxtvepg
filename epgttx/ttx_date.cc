@@ -161,7 +161,7 @@ const T_DATE_NAME WDayNames[] =
    {"mercredi", (1<<4),3, DATE_NAME_FULL},
    {"jeudi", (1<<4),4, DATE_NAME_FULL},
    {"vendredi", (1<<4),5, DATE_NAME_FULL},
-   {NULL}
+   {NULL, 0, 0, DATE_NAME_NONE}
 };
 
 // map today, tomorrow etc. to day offsets 0,1,...
@@ -176,7 +176,7 @@ const T_DATE_NAME RelDateNames[] =
    {"aujourd'hui", (1<<4),0, DATE_NAME_FULL},
    {"demain", (1<<4),1, DATE_NAME_FULL},
    {"aprés-demain", (1<<4),2, DATE_NAME_FULL},
-   {NULL}
+   {NULL, 0, 0, DATE_NAME_NONE}
 };
 
 // return a reg.exp. pattern which matches all names of a given language

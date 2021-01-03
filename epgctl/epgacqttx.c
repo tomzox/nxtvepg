@@ -21,7 +21,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgacqttx.c,v 1.4 2011/01/09 18:02:36 tom Exp tom $
+ *  $Id: epgacqttx.c,v 1.5 2021/01/03 12:20:42 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGCTL
@@ -195,7 +195,7 @@ bool EpgAcqTtx_GetAcqStats( EPG_TTX_GRAB_STATS * pTtxGrabStats )
       pTtxGrabStats->acqStartTime = acqCtl.acqStartTime;
       pTtxGrabStats->srcIdx = acqCtl.ttxSrcIdx;
 
-      strncpy(pTtxGrabStats->srcName, EpgAcqTtx_GetChannelName(acqCtl.ttxSrcIdx), EPG_TTX_STATS_NAMLEN);
+      strncpy(pTtxGrabStats->srcName, EpgAcqTtx_GetChannelName(acqCtl.ttxSrcIdx), EPG_TTX_STATS_NAMLEN - 1);
       pTtxGrabStats->srcName[EPG_TTX_STATS_NAMLEN - 1] = 0;
 
       result = TRUE;

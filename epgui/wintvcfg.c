@@ -29,7 +29,7 @@
  *    so their respective copyright applies too. Please see the notes in
  *    functions headers below.
  *
- *  $Id: wintvcfg.c,v 1.31 2020/06/21 07:37:23 tom Exp tom $
+ *  $Id: wintvcfg.c,v 1.32 2021/01/03 12:20:42 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -1258,7 +1258,7 @@ static void WintvCfg_ParseTvtimeStations( FILE * fp, TV_CHNTAB_BUF * pChanTab, c
             subTreeLevel = 2;
          }
          else
-            debug1("WintvCfg-ParseTvtimeStations: XML parse error line '%s'", line);
+            debug1("WintvCfg-ParseTvtimeStations: XML parse error line '%.100s'", line);
       }
       else if ( (subTreeLevel == 2) &&
                 (isActiveList) &&

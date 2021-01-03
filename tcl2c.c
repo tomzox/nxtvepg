@@ -44,7 +44,7 @@
  *
  *    Completely rewritten and functionality added by Tom Zoerner
  *
- *  $Id: tcl2c.c,v 1.16 2020/06/17 08:18:43 tom Exp tom $
+ *  $Id: tcl2c.c,v 1.17 2021/01/03 12:20:42 tom Exp tom $
  */
 
 #include <stdlib.h>
@@ -55,6 +55,7 @@
 #include <ctype.h>
 #include <signal.h>
 #include <unistd.h>
+#include <assert.h>
 
 // command line options
 static int optStubsForDynamic = 0;
@@ -552,12 +553,14 @@ int main(int argc, char **argv)
             if ( optStubsForDynamic &&
                  (sscanf(line, "#=LOAD=%127[^\n]", proc_name) == 1) )
             {
-                char buf[256];
-                sprintf(buf, "proc %s args {\n"
+                char buf[1024];
+                int slen = snprintf(buf, sizeof(buf),
+                       "proc %s args {\n"
                        "   C_LoadTclScript %s\n"
                        "   uplevel 1 %s $args\n"
                        "}\n",
                        proc_name, scriptName, proc_name);
+               assert(slen < sizeof(buf));
                PrintText(fpC, buf);
             }
             else if ( optStubsForDynamic &&

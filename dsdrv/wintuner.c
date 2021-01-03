@@ -40,7 +40,7 @@
  *  DScaler #Id: TDA8275.cpp,v 1.10 2005/10/04 19:59:48 to_see Exp #
  *  DScaler #Id: TDA8275.h,v 1.6 2005/10/04 19:59:09 to_see Exp #
  *
- *  $Id: wintuner.c,v 1.32 2020/06/24 07:24:57 tom Exp tom $
+ *  $Id: wintuner.c,v 1.33 2021/01/03 12:20:42 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_VBI
@@ -2187,8 +2187,8 @@ static int MT2050_SpurCheck(int flos1, int flos2, int fifbw, int fout)
 
 static bool MT2050_SetIFFreq(int rfin)
 {
-    static const uint if1=1218*1000*1000;
-    static const uint if2=38900 * 1000;
+    static const int if1=1218*1000*1000;
+    static const int if2=38900 * 1000;
     unsigned char   buf[5];
 
     long flo1, flo2;
@@ -2228,7 +2228,7 @@ static bool MT2050_SetIFFreq(int rfin)
             flos2 = flos2 + 1000000 * n;
         }
         //check we are still in bandwidth
-        ftest = abs(flos1 - rfin - if1 + (fifbw >> 1));
+        ftest = labs(flos1 - rfin - if1 + (fifbw >> 1));
         if (ftest > (fif1_bw >> 1))
         {
             flos1 = flo1;
