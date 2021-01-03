@@ -24,7 +24,7 @@
 #
 #  Author: Tom Zoerner
 #
-# $Id: nxtvepg.pod,v 1.137 2020/06/15 17:35:09 tom Exp tom $
+# $Id: nxtvepg.pod,v 1.138 2021/01/03 12:25:00 tom Exp tom $
 # ---------------------------------------------------------------------------
 
 =head1 NAME
@@ -3913,7 +3913,7 @@ would never have been ported to M$ Windows.
 
 =head1 COPYRIGHT
 
-Copyright (C) 1999 - 2011, 2020 by T. Zoerner.
+Copyright (C) 1999 - 2011, 2020 - 2021 by T. Zoerner.
 All rights reserved.
 
 Additional copyrights apply to portions of the code herein.

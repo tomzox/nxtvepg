@@ -20,7 +20,7 @@
 #  Author: Tom Zoerner (Original)
 #          German translation by Kurt Lettmaier & Olaf Nöhring
 #
-# $Id: nxtvepg-de.pod,v 1.21 2020/06/15 17:35:09 tom Exp tom $
+# $Id: nxtvepg-de.pod,v 1.22 2021/01/03 12:25:00 tom Exp tom $
 # ---------------------------------------------------------------------------
 
 =head1 NAME
@@ -1586,7 +1586,7 @@ und nicht zuletzt an die Autoren von bttv und v4l für ihre exzellente Arbeit, un
 
 =head1 COPYRIGHT
 
-Copyright (C) 1999 - 2009, 2020 by Th. Zörner. Alle Rechte vorbehalten.
+Copyright (C) 1999 - 2009, 2020 - 2021 by Th. Zörner. Alle Rechte vorbehalten.
 
 Zusätzliche Copyrights gelten für Teile des verwendeten Quelltexts. Bitte in der Datei COPYRIGHT und den Kommentaren im Quelltext nach Details sehen.
 

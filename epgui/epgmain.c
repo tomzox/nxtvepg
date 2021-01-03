@@ -20,7 +20,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgmain.c,v 1.168 2020/06/17 19:34:03 tom Exp tom $
+ *  $Id: epgmain.c,v 1.169 2021/01/03 12:25:00 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -351,7 +351,7 @@ static void EventHandler_SigHup( ClientData clientData )
 {
    if (EpgScan_IsActive() == FALSE)
    {
-      if ( EpgAcqCtl_IsActive() )
+      if ( EpgAcqCtl_IsActive() == FALSE )
       {  // acq currently not running -> start
          AutoStartAcq();
       }

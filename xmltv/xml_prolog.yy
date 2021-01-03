@@ -18,14 +18,14 @@
  *    W3C XML spec 1.0 (3rd edition)  Most of the elements are just
  *    skipped over though, simply because they are not needed to process
  *    a pre-defined DTD (although some are used during validation.)
- *    
+ *
  *    The content (i.e. all elements and character data) are reduced to
  *    a single token however because the scanner directly passes tags,
  *    attributes and character data to xmltv_tags.c
  *
  *  Author: Tom Zoerner
  *
- *  $Id: xml_prolog.yy,v 1.7 2005/07/07 14:04:30 tom Exp tom $
+ *  $Id: xml_prolog.yy,v 1.8 2021/01/03 12:25:00 tom Exp tom $
  */
 
 %{
@@ -36,6 +36,8 @@
 #include "epgctl/mytypes.h"
 #include "epgctl/debug.h"
 
+#define YYDEBUG DEBUG_SWITCH_XMLTV
+
 #include "xmltv/xml_prolog.tab.h"
 #include "xmltv/xml_cdata.h"
 #include "xmltv/xmltv_db.h"
@@ -43,8 +45,6 @@
 
 extern int yylex( void );
 void yyerror( const char * p_msg );
-
-#define YYDEBUG DEBUG_SWITCH_XMLTV
 %}
 
 %union { char * str; }

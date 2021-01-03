@@ -76,7 +76,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: xmltv_db.c,v 1.19 2020/06/21 08:48:00 tom Exp tom $
+ *  $Id: xmltv_db.c,v 1.20 2021/01/03 12:25:00 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_XMLTV
@@ -1732,7 +1732,10 @@ void XmltvDb_Destroy( void )
       EpgDbDestroy(xds.pDbContext, FALSE);
       xds.pDbContext = NULL;
    }
-   XmltvCni_MapDestroy(&xds.cniCtx);
+   if (xds.cniCtxInitDone)
+   {
+      XmltvCni_MapDestroy(&xds.cniCtx);
+   }
 }
 
 // ----------------------------------------------------------------------------

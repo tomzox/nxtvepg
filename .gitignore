@@ -1,0 +1,19 @@
+*.swp
+*.o
+core
+core.*
+ttx-*.xml
+tags
+debug.out
+build-x86_64
+build-win32
+# --- generated files ---
+epgtcl/helptexts.tcl
+epgtcl/helptexts_de.tcl
+manual-de.html
+manual.html
+nxtvepg.1
+nxtvepgd.1
+tvsim/tvsim.html
+tvsim/vbiplay.html
+tvsim/vbirec.html

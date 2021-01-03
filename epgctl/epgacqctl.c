@@ -24,7 +24,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgacqctl.c,v 1.95 2009/05/02 19:24:12 tom Exp tom $
+ *  $Id: epgacqctl.c,v 1.96 2021/01/03 12:25:00 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGCTL
@@ -544,7 +544,14 @@ bool EpgAcqCtl_Start( void )
 
          if (BtDriver_StartAcq())
          {
-            result = EpgAcqCtl_UpdateProvider(TRUE);
+            if (EpgAcqCtl_UpdateProvider(TRUE))
+            {
+               result = TRUE;
+            }
+            else
+            {
+               BtDriver_StopAcq();
+            }
          }
       }
 
