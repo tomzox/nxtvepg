@@ -67,8 +67,8 @@ string GetXmlVpsTimestamp(const TV_SLOT& slot)
 {
    int lto = DetermineLto(slot.get_start_t());
    int m, d, y;
-   char date_str[20];
-   char tz_str[20];
+   char date_str[50];
+   char tz_str[50];
 
    if (slot.get_vps_date().length() > 0) {
       // VPS data was specified -> reformat only
@@ -225,7 +225,7 @@ time_t ParseXmltvTimestamp(const char * ts)
    if (sscanf(ts, "%4d%2d%2d%2d%2d%2d +0000",
               &year, &mon, &mday, &hour, &min, &sec) == 6)
    {
-      struct tm tm_obj = {0};
+      struct tm tm_obj = {};  // zero-initialized
 
       tm_obj.tm_min = min;
       tm_obj.tm_hour = hour;

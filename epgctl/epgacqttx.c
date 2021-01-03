@@ -198,7 +198,7 @@ bool EpgAcqTtx_GetAcqStats( EPG_TTX_GRAB_STATS * pTtxGrabStats )
       pTtxGrabStats->acqStartTime = acqCtl.acqStartTime;
       pTtxGrabStats->srcIdx = acqCtl.ttxSrcIdx[0];
 
-      strncpy(pTtxGrabStats->srcName, EpgAcqTtx_GetChannelName(acqCtl.ttxSrcIdx[0]), EPG_TTX_STATS_NAMLEN);
+      strncpy(pTtxGrabStats->srcName, EpgAcqTtx_GetChannelName(acqCtl.ttxSrcIdx[0]), EPG_TTX_STATS_NAMLEN - 1);
       pTtxGrabStats->srcName[EPG_TTX_STATS_NAMLEN - 1] = 0;
 
       result = TRUE;

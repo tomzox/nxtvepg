@@ -68,7 +68,7 @@ void ttx_db_add_cni(void * db, unsigned cni)
  * This function adds the given teletext packet to the database. The function
  * should be called for each captured packet, filtering is done internally.
  */
-bool ttx_db_add_pkg( void * db, int page, int ctrl, int pkgno, const uint8_t * p_data, time_t ts )
+void ttx_db_add_pkg( void * db, int page, int ctrl, int pkgno, const uint8_t * p_data, time_t ts )
 {
    TTX_DB * const ttx_db = (TTX_DB*) db;
    static int cur_page = -1;

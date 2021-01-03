@@ -527,7 +527,7 @@ static bool EpgDbMerge_PiMatch( const PI_BLOCK * pRefPi, const PI_BLOCK * pNewPi
       if ( ( (ovl > rtmax / 2) &&
              (rtmin + rtmin/2 >= rtmax) ) ||
            ( (rtmin == 1) &&
-             (abs(pNewPi->start_time - pRefPi->start_time) < 20*60)) )
+             (labs(pNewPi->start_time - pRefPi->start_time) < 20*60)) )
       {
          // compare the titles
          p1 = PI_GET_TITLE(pRefPi);
@@ -563,8 +563,8 @@ static bool EpgDbMerge_PiMatch( const PI_BLOCK * pRefPi, const PI_BLOCK * pNewPi
             result = TRUE;
          }
          else if (((*p1 == 0) || (*p2 == 0)) &&
-                  (abs(pNewPi->start_time - pRefPi->start_time) < 5*60) &&
-                  (abs(pNewPi->stop_time - pRefPi->stop_time) < 5*60))
+                  (labs(pNewPi->start_time - pRefPi->start_time) < 5*60) &&
+                  (labs(pNewPi->stop_time - pRefPi->stop_time) < 5*60))
          {
             result = TRUE;
          }

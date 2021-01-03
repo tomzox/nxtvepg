@@ -555,7 +555,7 @@ bool Xiccc_ParseMsgSetstation( Display * dpy, XICCC_EV_QUEUE * pReq, Atom target
       {
          pMsg = &pReq->msg.setstation;
 
-         strncpy(pMsg->stationName, pArgv[SETSTATION_PARM_CHNAME], sizeof(pMsg->stationName));
+         strncpy(pMsg->stationName, pArgv[SETSTATION_PARM_CHNAME], sizeof(pMsg->stationName) - 1);
          pMsg->stationName[sizeof(pMsg->stationName) - 1] = 0;
 
          if ( (sscanf(pArgv[SETSTATION_PARM_FREQ], "%i%n", &value, &valEndOff) >= 1) &&
@@ -564,7 +564,7 @@ bool Xiccc_ParseMsgSetstation( Display * dpy, XICCC_EV_QUEUE * pReq, Atom target
          else
             pMsg->freq = 0;
 
-         strncpy(pMsg->channelName, pArgv[SETSTATION_PARM_CHN], sizeof(pMsg->channelName));
+         strncpy(pMsg->channelName, pArgv[SETSTATION_PARM_CHN], sizeof(pMsg->channelName) - 1);
          pMsg->channelName[sizeof(pMsg->channelName) - 1] = 0;
 
          if ( (sscanf(pArgv[SETSTATION_PARM_VPS_PDC_CNI], "%i%n", &value, &valEndOff) >= 1) &&

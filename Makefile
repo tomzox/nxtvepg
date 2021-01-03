@@ -104,16 +104,17 @@ DEFS   += -DUSE_DAEMON
 # enable if you have both 32-bit and 64-bit systems
 #DEFS   += -DUSE_32BIT_COMPAT
 
-WARN    = -Wall -Wnested-externs -Wstrict-prototypes -Wmissing-prototypes
+WARN    = -Wall -Werror
 WARN   += -Wextra -Wno-sign-compare -Wno-unused-parameter
-WARN   += -Wcast-align -Wpointer-arith -Werror
+WARN   += -Wcast-align -Wpointer-arith
 #WARN  += -Wcast-qual -Wwrite-strings -Wshadow
+CWARN   = -Wnested-externs -Wstrict-prototypes -Wmissing-prototypes
 CC      = gcc
 CPP     = g++
 # the following flags can be overridden by an environment variable with the same name
 CFLAGS ?= -pipe -g -O2
-CFLAGS += $(WARN) $(INCS) $(DEFS)
-CPPFLAGS = -pipe -g -O2 $(INCS) $(DEFS)
+CFLAGS += $(WARN) $(CWARN) $(INCS) $(DEFS)
+CPPFLAGS = -pipe -g -O2 $(WARN) $(INCS) $(DEFS)
 LDFLAGS += -lm
 
 #CFLAGS += -ftest-coverage -fprofile-arcs

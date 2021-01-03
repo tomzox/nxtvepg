@@ -72,7 +72,6 @@ EPGDB_CONTEXT * EpgDbCreate( void )
 void EpgDbDestroy( PDBC dbc, bool keepAiOi )
 {
    EPGDB_BLOCK *pNext, *pWalk;
-   EPGDB_BLOCK *pOiBlock;
 
    if ( dbc->lockLevel == 0 )
    {
@@ -116,10 +115,6 @@ void EpgDbDestroy( PDBC dbc, bool keepAiOi )
       }
       else
       {
-         if (pOiBlock != NULL)
-         {
-            pOiBlock->pNextBlock = NULL;
-         }
          // reset remaining block pointers
          memset(dbc->pFirstNetwopPi, 0, sizeof(dbc->pFirstNetwopPi));
          assert(EpgDbMgmtCheckChains(dbc));

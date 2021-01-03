@@ -1440,7 +1440,7 @@ static void WintvCfg_ParseTvtimeStations( FILE * fp, TV_CHNTAB_BUF * pChanTab, c
             subTreeLevel = 2;
          }
          else
-            debug1("WintvCfg-ParseTvtimeStations: XML parse error line '%s'", line);
+            debug1("WintvCfg-ParseTvtimeStations: XML parse error line '%.100s'", line);
       }
       else if ( (subTreeLevel == 2) &&
                 (isActiveList) &&

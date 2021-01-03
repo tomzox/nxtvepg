@@ -868,7 +868,7 @@ static bool Xawtv_QueryRemoteStation( Window wid, char * pBuffer, int bufLen, in
                   if (pBuffer != NULL)
                   {
                      dprintf2("Xawtv-Query: window 0x%lX: station name: '%s'\n", (ulong)wid, args + off);
-                     strncpy(pBuffer, args + off, bufLen);
+                     strncpy(pBuffer, args + off, bufLen - 1);
                      pBuffer[bufLen - 1] = 0;
                   }
                   result = TRUE;
