@@ -644,8 +644,10 @@ line_address			(struct frame *		f,
 	if (0 != frame_line) {
 		if (frame_line <= f->last_frame_line) {
 			if (f->n_data_units_extracted_from_packet > 0) {
+#if DEBUG_SWITCH_STREAM == ON
 				debug2("Illegal line order: %u <= %u",
 					frame_line, f->last_frame_line);
+#endif
 
 				return VBI_ERR_DU_LINE_NUMBER;
 			}
@@ -1242,7 +1244,9 @@ extract_data_units		(struct frame *		f,
 			break;
 
 		default:
+#if DEBUG_SWITCH_STREAM == ON
 			debug1("Unknown data_unit_id=%u", data_unit_id);
+#endif
 			break;
 		}
 

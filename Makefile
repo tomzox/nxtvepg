@@ -96,9 +96,10 @@ DEFS   += -DXMLTV_OUTPUT_UTF8
 DEFS   += -DUSE_XMLTV_IMPORT -DXMLTV_CNI_MAP_PATH=\"$(cfgdir)\"
 
 # enable support for teletext EPG grabber
-DEFS    += -DUSE_TTX_GRABBER
+DEFS   += -DUSE_TTX_GRABBER
 
 # enable use of daemon and client/server connection
+# this option may only be enabled when teletext EPG grabber is enabled
 DEFS   += -DUSE_DAEMON
 
 # enable if you have both 32-bit and 64-bit systems

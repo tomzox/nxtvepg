@@ -173,7 +173,8 @@ void EpgAcqCtl_Stop( void );
 const char * EpgAcqCtl_GetLastError( void );
 bool EpgAcqCtl_SelectMode( EPGACQ_MODE newAcqMode, EPGACQ_PHASE maxPhase,
                            uint ttxSrcCount, const char * pTtxNames,
-                           const EPGACQ_TUNER_PAR * pTtxFreqs );
+                           const EPGACQ_TUNER_PAR * pTtxFreqs,
+                           uint ttxStartPg, uint ttxEndPg, uint ttxDuration );
 bool EpgAcqCtl_SetInputSource( uint inputIdx, uint slicerType );
 bool EpgAcqCtl_CheckDeviceAccess( void );
 void EpgAcqCtl_DescribeAcqState( EPGACQ_DESCR * pAcqState );

@@ -1643,7 +1643,7 @@ static void BtDriver_OpenVbiBuf( uint bufIdx )
 }
 
 // ---------------------------------------------------------------------------
-//
+// Decode all VBI lines of the last seen frame
 //
 static bool BtDriver_DecodeFrameBuf( uint bufIdx )
 {
@@ -1750,7 +1750,7 @@ static bool BtDriver_DecodeFrameBuf( uint bufIdx )
 }
 
 // ---------------------------------------------------------------------------
-// Decode all VBI lines of the last seen frame
+// Block until new VBI data is received & process it
 //
 static void BtDriver_DecodeFrame( void )
 {

@@ -744,7 +744,8 @@ void EpgSetup_AcquisitionMode( NETACQ_SET_MODE netAcqSetMode )
    if (EpgSetup_GetTtxConfig(&ttxFreqCount, &pTtxNames, &pTtxFreqs))
    {
       // pass the params to the acquisition control module
-      EpgAcqCtl_SelectMode(mode, ACQMODE_COUNT, ttxFreqCount, pTtxNames, pTtxFreqs);
+      EpgAcqCtl_SelectMode(mode, ACQMODE_COUNT, ttxFreqCount, pTtxNames, pTtxFreqs,
+                           pRc->ttx.ttx_start_pg, pRc->ttx.ttx_end_pg, pRc->ttx.ttx_duration);
    }
 
    if (pTtxNames != NULL)
@@ -789,7 +790,11 @@ bool EpgSetup_DaemonAcquisitionMode( bool forcePassive, int maxPhase )
       if (EpgSetup_GetTtxConfig(&ttxFreqCount, &pTtxNames, &pTtxFreqs))
       {
          // pass the params to the acquisition control module
-         result = EpgAcqCtl_SelectMode(mode, maxPhase, ttxFreqCount, pTtxNames, pTtxFreqs);
+         result = EpgAcqCtl_SelectMode(mode, maxPhase,
+                                       ttxFreqCount, pTtxNames, pTtxFreqs,
+                                       pRc->ttx.ttx_start_pg,
+                                       pRc->ttx.ttx_end_pg,
+                                       pRc->ttx.ttx_duration);
       }
 
       if (pTtxNames != NULL)

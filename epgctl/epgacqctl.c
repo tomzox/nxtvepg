@@ -630,7 +630,8 @@ static void EpgAcqCtl_AdvanceCyclePhase( void )
 //
 bool EpgAcqCtl_SelectMode( EPGACQ_MODE newAcqMode, EPGACQ_PHASE maxPhase,
                            uint ttxSrcCount, const char * pTtxNames,
-                           const EPGACQ_TUNER_PAR * pTtxFreqs )
+                           const EPGACQ_TUNER_PAR * pTtxFreqs,
+                           uint ttxStartPg, uint ttxEndPg, uint ttxDuration )
 {
    bool restart;
    bool result = FALSE;
@@ -656,7 +657,8 @@ bool EpgAcqCtl_SelectMode( EPGACQ_MODE newAcqMode, EPGACQ_PHASE maxPhase,
          // note: compare actual mode instead of user mode, to reset if acq is stalled
          if ( (newAcqMode != acqCtl.mode) ||
               (maxPhase   != acqCtl.stopPhase) ||
-              (EpgAcqTtx_CompareParams(ttxSrcCount, pTtxNames, pTtxFreqs) == FALSE) )
+              (EpgAcqTtx_CompareParams(ttxSrcCount, pTtxNames, pTtxFreqs,
+                                       ttxStartPg, ttxEndPg, ttxDuration) == FALSE) )
          {
             // if network mode was toggled, acq must be completely restarted because different "drivers" are used
             restart = ( ((newAcqMode == ACQMODE_NETWORK) ^ (acqCtl.mode == ACQMODE_NETWORK)) &&
@@ -669,8 +671,9 @@ bool EpgAcqCtl_SelectMode( EPGACQ_MODE newAcqMode, EPGACQ_PHASE maxPhase,
             acqCtl.mode             = newAcqMode;
             acqCtl.stopPhase        = maxPhase;
 
-            // pass through teletext params
-            EpgAcqTtx_SetParams(ttxSrcCount, pTtxNames, pTtxFreqs);
+            // forward teletext params
+            EpgAcqTtx_SetParams(ttxSrcCount, pTtxNames, pTtxFreqs,
+                                ttxStartPg, ttxEndPg, ttxDuration);
 
             // reset acquisition and start with the new parameters
             if (acqCtl.acqEnabled)

@@ -350,9 +350,9 @@ proc PopupTtxGrab {} {
       grid  .ttxgrab.all.chcnt_ent -row $gridrow -column 1 -sticky we
       incr gridrow
       label .ttxgrab.all.ovpg_lab -text "Overview start page:"
-      grid  .ttxgrab.all.ovpg_lab -row $gridrow -column 0 -sticky w -padx 5
+      #grid  .ttxgrab.all.ovpg_lab -row $gridrow -column 0 -sticky w -padx 5
       entry .ttxgrab.all.ovpg_ent -textvariable ttxgrab_tmpcf(ovpg) -width 4
-      grid  .ttxgrab.all.ovpg_ent -row $gridrow -column 1 -sticky we
+      #grid  .ttxgrab.all.ovpg_ent -row $gridrow -column 1 -sticky we
       incr gridrow
       label .ttxgrab.all.pgrange_lab -text "Capture page range:"
       grid  .ttxgrab.all.pgrange_lab -row $gridrow -column 0 -sticky w -padx 5
@@ -517,8 +517,8 @@ proc QuitTtxGrabPopup {} {
 
          if {$ttxgrab_tmpcf(pg_start) <= $ttxgrab_tmpcf(pg_end)} {
             # check ov page is inside capture range
-            if {($ttxgrab_tmpcf(ovpg) >= $ttxgrab_tmpcf(pg_start)) && \
-                ($ttxgrab_tmpcf(ovpg) <= $ttxgrab_tmpcf(pg_end))} {
+            #if {($ttxgrab_tmpcf(ovpg) >= $ttxgrab_tmpcf(pg_start)) && \
+            #    ($ttxgrab_tmpcf(ovpg) <= $ttxgrab_tmpcf(pg_end))} {
 
                # convert page numbers back to hexadecimal
                set ttxgrab_tmpcf(ovpg) [TtxGrab_Dec2Hex $ttxgrab_tmpcf(ovpg)]
@@ -526,10 +526,10 @@ proc QuitTtxGrabPopup {} {
                set ttxgrab_tmpcf(pg_end) [TtxGrab_Dec2Hex $ttxgrab_tmpcf(pg_end)]
                set ok 1
 
-            } else {
-               tk_messageBox -type ok -default ok -icon error -parent .ttxgrab \
-                             -message "Overview page number must lie inside capture page range"
-            }
+            #} else {
+            #   tk_messageBox -type ok -default ok -icon error -parent .ttxgrab \
+            #                 -message "Overview page number must lie inside capture page range"
+            #}
          } else {
             tk_messageBox -type ok -default ok -icon error -parent .ttxgrab \
                           -message "Invalid capture range: end must be larger than start page"

@@ -5,6 +5,7 @@ boost any item's priority, find more points that need to be fixed or if
 you have ideas for additional features.
 
 Post-Nextview EPG:
+- network names dialog broken: use only GUI database (instead of prov scan)
 - xmltv-etsi.map: use .config/nxtvepg instead of "." in xmltv_cni.c
 - New DB type: "Load Teletext EPG...": automatically follow TTX acq, even if DB not exist yet
 - move USE_TTX_GRABBER to exclude all acqusition if not set
@@ -16,21 +17,17 @@ Post-Nextview EPG:
 - merge: warn upon dialog open if input XMLTV file in old merge config no longer exists
 - merge dialog, "configure" sub-menu: simplify to single list with
   "extended" selection (i.e. allow multiple selections)
+- DVB TTX stream decoding issues: "Illegal line order", "Unknown data_unit_id"
 - DVB: automatic detection of teletext PID (in channel scan or otherwise)
 - DVB-S support
 - mplayer & VDR plugin for EPG display
 - show DB status in "Load XMLTV" dialog window: number of PI, expired %%
 - remove use of PDC theme table: create table from themes found in XMLTV
-- teletext: forced-passive mode not working due to reset
 - teletext: use mtime to determine start of acq
 - teletext: use TV channel name as XMLTV display name
 - teletext acq stats: percentage cycle loaded (i.e. cycles done vs. max. sub-page count)
 - teletext configuration dialog channel-specific
 - teletext emit XML encoding UTF-8
-
-release ceveats:
-- ttx starts at first chan again after stop
-- config params not used (with exception if chan count)
 
 Missing documentation:
 - TV Tune config in context menu dialog
@@ -70,8 +67,7 @@ Teletext grabber:
   ? i.e. merge sources automatically ?
 - check if all sub-pages are captured (on relevant pages only!)
   ? implement in nxtvepg or external post-processor ?
-- pass TTX params to acq ctl: CNI list pg range, ov pg, duration
-  ? use callback for params ?
+- make overview page range configurable?
 - configure list of networks for ttx acq
 - config dialog:
   - check if TV app is configured and channel table can be parsed
@@ -80,8 +76,6 @@ Teletext grabber:
     OR: use the same as for nextview EPG data
   ? separate channel list or at least channel count for Now/Next ?
 - display EPG into in connected TV app, even if captured "late" from TTX
-- improve netname dialog
-  - add short explanations about button functions
 
 XMLTV import:
 - get language from XMLTV input for SetUserLanguage(), "auto" mode
