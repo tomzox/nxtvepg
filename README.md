@@ -10,7 +10,7 @@ format for use in another browser.
 Nextview is an ETSI standard for transmission of Electronic TV Program Guides
 within (analog) TV broadcasts. However, as the world has switched to digital
 TV broadcast since, it is no longer in use today. Since version 3.0.0, nxtvepg
-no longer support the format, despite keeping the name of the SW package.
+no longer supports the standard, despite keeping the name of the SW package.
 
 For a comprehensive description of features of this software, please refer
 to the manual page: In the source package, see [nxtvepg.pod](./nxtvepg.pod);

@@ -91,6 +91,7 @@
 #include "images/ptr_down_right.xbm"
 #include "images/ptr_up_left.xbm"
 #include "images/pan_updown.xbm"
+#include "images/dropdown.xbm"
 #include "images/qmark.xbm"
 #include "images/zoom_in.xbm"
 #include "images/zoom_out.xbm"
@@ -2097,6 +2098,7 @@ static int ui_init( int argc, char **argv, bool withTk )
       Tk_DefineBitmap(interp, Tk_GetUid("bitmap_ptr_down_right"), (char*)ptr_down_right_bits, ptr_down_right_width, ptr_down_right_height);
       Tk_DefineBitmap(interp, Tk_GetUid("bitmap_ptr_up_left"), (char*)ptr_up_left_bits, ptr_up_left_width, ptr_up_left_height);
       Tk_DefineBitmap(interp, Tk_GetUid("bitmap_pan_updown"), (char*)pan_updown_bits, pan_updown_width, pan_updown_height);
+      Tk_DefineBitmap(interp, Tk_GetUid("bitmap_dropdown"), (char*)dropdown_bits, dropdown_width, dropdown_height);
       Tk_DefineBitmap(interp, Tk_GetUid("bitmap_qmark"), (char*)qmark_bits, qmark_width, qmark_height);
       Tk_DefineBitmap(interp, Tk_GetUid("bitmap_zoom_in"), (char*)zoom_in_bits, zoom_in_width, zoom_in_height);
       Tk_DefineBitmap(interp, Tk_GetUid("bitmap_zoom_out"), (char*)zoom_out_bits, zoom_out_width, zoom_out_height);

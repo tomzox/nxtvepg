@@ -77,9 +77,19 @@ proc ProvWin_Create {} {
       frame  .provwin.dir
       label  .provwin.dir.prompt -text "Select directory:"
       pack   .provwin.dir.prompt -side left
-      entry  .provwin.dir.filename -textvariable provwin_dir -font $::font_fixed -width 30
-      pack   .provwin.dir.filename -side left -padx 5 -fill x -expand 1
-      bind   .provwin.dir.filename <Return> ProvWin_UpdateList
+      frame  .provwin.dir.cfrm -relief sunken -borderwidth 1
+      entry  .provwin.dir.cfrm.ent -relief flat -borderwidth 0 -width 30 \
+                                   -textvariable provwin_dir -font $::font_fixed
+      button .provwin.dir.cfrm.ddb -bitmap bitmap_dropdown -takefocus 0 \
+                                   -borderwidth 1 -relief raised -highlightthickness 1 \
+                                   -command {ProvWin_ShowDirDropDown .provwin.dir.cfrm.ent ProvWin_SelectTeletextDir}
+      bind   .provwin.dir.cfrm.ent <Key-Up> {ProvWin_ShowDirDropDown .provwin.dir.cfrm.ent ProvWin_SelectTeletextDir}
+      bind   .provwin.dir.cfrm.ent <Key-Down> {ProvWin_ShowDirDropDown .provwin.dir.cfrm.ent ProvWin_SelectTeletextDir}
+      bind   .provwin.dir.cfrm.ent <Return> ProvWin_UpdateList
+      pack   .provwin.dir.cfrm.ent -side left -fill x -expand 1
+      pack   .provwin.dir.cfrm.ddb -side left -fill y
+      pack   .provwin.dir.cfrm -side left -fill x -expand 1
+
       button .provwin.dir.dlgbut -image $::fileImage -command {
          set dir [tk_chooseDirectory -initialdir $provwin_dir -mustexist 1 -parent .provwin \
                                      -title "Select directory for loading XMLTV files"]
@@ -198,6 +208,32 @@ proc ProvWin_UpdateList {} {
    }
 }
 
+# callback for quick-link for selecting grabber directory
+proc ProvWin_SelectTeletextDir {} {
+   global provwin_dir
+   set provwin_dir [C_GetTtxDbDir]
+   ProvWin_UpdateList
+}
+
+proc ProvWin_ShowDirDropDown {wid cmd} {
+   global provwin_dir
+
+   if {![winfo exists .men_popup]} {
+      menu .men_popup -tearoff 0
+   } else {
+      .men_popup delete 0 end
+   }
+
+   C_GetTtxConfig ttxgrab_tmpcf
+   if {$ttxgrab_tmpcf(enable)} {
+      .men_popup add command -label "Teletext grabber XMLTV directory" -command $cmd
+   }
+
+   set rootx [winfo rootx $wid]
+   set rooty [expr {[winfo rooty $wid] + [winfo height $wid]}]
+   tk_popup .men_popup $rootx $rooty {}
+}
+
 # callback for provider selection in listbox: display infos on the right
 proc ProvWin_Select {} {
    global provwin_ailist provwin_servicename
@@ -255,10 +291,16 @@ proc PopupProviderMerge {} {
       }
       set provmerge_ailist {}
       set provmerge_selist {}
+      set dropped {}
       foreach cni [C_GetMergeProviderList] {
-         # TODO warn if file no longer exists
-         lappend provmerge_selist $cni
-         set provwin_names($cni) [C_GetProvServiceName $cni]
+         set name [C_GetProvServiceName $cni]
+         if {$name ne ""} {
+            lappend provmerge_selist $cni
+            set provwin_names($cni) [C_GetProvServiceName $cni]
+         } else {
+            # file no longer exists
+            lappend dropped $cni
+         }
       }
       catch {array set provmerge_cf [C_GetMergeOptions]}
 
@@ -273,9 +315,19 @@ proc PopupProviderMerge {} {
       frame  .provmerge.dir
       label  .provmerge.dir.prompt -text "Select directory:"
       pack   .provmerge.dir.prompt -side left
-      entry  .provmerge.dir.filename -textvariable provwin_dir -font $::font_fixed -width 30
-      pack   .provmerge.dir.filename -side left -padx 5 -fill x -expand 1
-      bind   .provmerge.dir.filename <Return> ProvMerge_UpdateList
+      frame  .provmerge.dir.cfrm -relief sunken -borderwidth 1
+      entry  .provmerge.dir.cfrm.ent -relief flat -borderwidth 0 -width 30 \
+                                   -textvariable provwin_dir -font $::font_fixed
+      button .provmerge.dir.cfrm.ddb -bitmap bitmap_dropdown -takefocus 0 \
+                                   -borderwidth 1 -relief raised -highlightthickness 1 \
+                                   -command {ProvWin_ShowDirDropDown .provmerge.dir.cfrm.ent ProvMerge_SelectTeletextDir}
+      bind   .provmerge.dir.cfrm.ent <Key-Up> {ProvWin_ShowDirDropDown .provmerge.dir.cfrm.ent ProvMerge_SelectTeletextDir}
+      bind   .provmerge.dir.cfrm.ent <Key-Down> {ProvWin_ShowDirDropDown .provmerge.dir.cfrm.ent ProvMerge_SelectTeletextDir}
+      bind   .provmerge.dir.cfrm.ent <Return> ProvMerge_UpdateList
+      pack   .provmerge.dir.cfrm.ent -side left -fill x -expand 1
+      pack   .provmerge.dir.cfrm.ddb -side left -fill y
+      pack   .provmerge.dir.cfrm -side left -fill x -expand 1
+
       button .provmerge.dir.dlgbut -image $::fileImage -command {
          set dir [tk_chooseDirectory -initialdir $provwin_dir -mustexist 1 -parent .provmerge \
                                      -title "Select directory for loading XMLTV files"]
@@ -346,6 +398,10 @@ proc PopupProviderMerge {} {
       wm resizable .provmerge 1 1
       update
       wm minsize .provmerge [winfo reqwidth .provmerge] [winfo reqheight .provmerge]
+
+      if {[llength $dropped] > 0} {
+         tk_messageBox -type ok -icon warning -parent .provmerge -message "Formerly used XMLTV files were dropped from the selection as the file no longer exists."
+      }
    } else {
       raise .provmerge
    }
@@ -367,6 +423,12 @@ proc ProvMerge_UpdateList {} {
    SelBoxUpdateList .provmerge.lb provmerge_ailist provmerge_selist provwin_names
 }
 
+# callback for quick-link for selecting grabber directory
+proc ProvMerge_SelectTeletextDir {} {
+   global provwin_dir
+   set provwin_dir [C_GetTtxDbDir]
+   ProvMerge_UpdateList
+}
 
 # create menu for option selection
 set provmergeopt_popup {}

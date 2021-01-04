@@ -5,24 +5,25 @@ boost any item's priority, find more points that need to be fixed or if
 you have ideas for additional features.
 
 Post-Nextview EPG:
-- network names dialog broken: use only GUI database (instead of prov scan)
-- xmltv-etsi.map: use .config/nxtvepg instead of "." in xmltv_cni.c
 - New DB type: "Load Teletext EPG...": automatically follow TTX acq, even if DB not exist yet
+- statistics display for concurrent grabbing
+- extend XMLTV database statistics
 - move USE_TTX_GRABBER to exclude all acqusition if not set
 - apply expire only when merging new data into db by acq
   always load all data & allow unmasking expired PI via filter dialog
 - XMLTV load: don't drop overlapping blocks; load as "defective"?
-- network name dialog: C_GetProvCnisAndNames "." makes no sense;
-  use current provider or merged list only?
-- merge: warn upon dialog open if input XMLTV file in old merge config no longer exists
+- merge & load dialog: directory drop-down: add history
 - merge dialog, "configure" sub-menu: simplify to single list with
   "extended" selection (i.e. allow multiple selections)
+- show DB status in "Load XMLTV" dialog window: number of PI, expired %%
+- remove use of PDC theme table: create table from themes found in XMLTV
+- xmltv-etsi.map: use .config/nxtvepg instead of "." in xmltv_cni.c
 - DVB TTX stream decoding issues: "Illegal line order", "Unknown data_unit_id"
 - DVB: automatic detection of teletext PID (in channel scan or otherwise)
 - DVB-S support
-- mplayer & VDR plugin for EPG display
-- show DB status in "Load XMLTV" dialog window: number of PI, expired %%
-- remove use of PDC theme table: create table from themes found in XMLTV
+- support more TV apps channel.conf
+- XMLTV CNI mapping fundamentally broken
+- mplayer, VLC & VDR plugin for EPG display
 - teletext: use mtime to determine start of acq
 - teletext: use TV channel name as XMLTV display name
 - teletext acq stats: percentage cycle loaded (i.e. cycles done vs. max. sub-page count)

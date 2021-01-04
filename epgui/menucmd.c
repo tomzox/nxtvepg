@@ -2608,6 +2608,29 @@ static int MenuCmd_UpdateTtxConfig( ClientData ttp, Tcl_Interp *interp, int objc
    }
    return result;
 }
+
+// ----------------------------------------------------------------------------
+// Query teletext grabber database directory
+//
+static int MenuCmd_GetTtxDbDir( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
+{
+   const char * const pUsage = "Usage: C_GetTtxDbDir";
+   int  result;
+
+   if (objc != 1)
+   {  // parameter count is invalid
+      Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
+      result = TCL_ERROR;
+   }
+   else
+   {
+      const char * pDbDir = ((mainOpts.dbdir != NULL) ? mainOpts.dbdir : mainOpts.defaultDbDir);
+      Tcl_SetObjResult(interp, TranscodeToUtf8(EPG_ENC_SYSTEM, NULL, pDbDir, NULL));
+      result = TCL_OK;
+   }
+   return result;
+}
+
 #endif // USE_TTX_GRABBER
 
 // ----------------------------------------------------------------------------
@@ -2738,6 +2761,7 @@ void MenuCmd_Init( void )
 #ifdef USE_TTX_GRABBER
       Tcl_CreateObjCommand(interp, "C_GetTtxConfig", MenuCmd_GetTtxConfig, (ClientData) NULL, NULL);
       Tcl_CreateObjCommand(interp, "C_UpdateTtxConfig", MenuCmd_UpdateTtxConfig, (ClientData) NULL, NULL);
+      Tcl_CreateObjCommand(interp, "C_GetTtxDbDir", MenuCmd_GetTtxDbDir, (ClientData) NULL, NULL);
 #endif
 
       Tcl_CreateObjCommand(interp, "C_ClockSeconds", MenuCmd_ClockSeconds, (ClientData) NULL, NULL);

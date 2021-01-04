@@ -68,19 +68,22 @@ proc NetworkNamingPopup {} {
          return
       }
 
-      # build list of available providers
-      set netname_prov_cnis {}
-      foreach {cni name} [C_GetProvCnisAndNames "."] {
-         # build list of CNIs
-         lappend netname_prov_cnis $cni
-         # build array of provider network names
-         set netname_prov_names($cni) $name
+      # build list of currently used providers
+      if {$cur_prov_cni == 0x00FF} {
+         set netname_prov_cnis [C_GetMergeProviderList]
+      } else {
+         set netname_prov_cnis [list $cur_prov_cni]
       }
-      # sort provider list according to user preferences
-      set netname_prov_cnis [lsort -command NetworkName_SortCmp $netname_prov_cnis]
 
-      # retrieve all network names from all providers
+      # build array of providers' network names
       foreach prov $netname_prov_cnis {
+         set name [C_GetProvServiceName $prov]
+         if {$name eq ""} {
+            # should never happen as file is open
+            set name "Missing: $prov"
+         }
+         set netname_prov_names($prov) $name
+
          array unset tmparr
          set cnilist [C_GetAiNetwopList $prov tmparr ai_names]
          foreach cni $cnilist {
@@ -295,12 +298,6 @@ proc NetworkNamingPopup {} {
    } else {
       raise .netname
    }
-}
-
-# Helper function for sorting the CNI list by provider name
-proc NetworkName_SortCmp {a b} {
-   global netname_prov_names
-   return [string compare -nocase $netname_prov_names($a) $netname_prov_names($b)]
 }
 
 # Save changed name for the currently selected network

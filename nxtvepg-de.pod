@@ -39,6 +39,9 @@ B<nxtvepg> ist eine X11- und Windows-Anwendung zur Anzeige von Programminformati
 
 B<nxtvepgd> ist eine reduzierte Variante von nxtvepg, die nur den Teletext EPG Grabber beinhaltet. Das Programm hat keine graphische Oberfläche, sondern arbeitet im Hinterdrund als sogenannter "daemon" Prozess. Der Prozess akquiriert kontinuierlich EPG aus Teletext und aktualisiert XMLTV Dateien, die dann im nxtveog GUI geladen werden können.
 
+Neue Anwender sollten mit dem Lesen bei Kapitel L<"GETTING STARTED"> beginnen, das die Konfiguration des Teletext EPG Grabbers beschreibt. Falls Sie dieses Feature nicht verwenden wollen, können Sie mit Kapitel L<"BASIC BROWSING"> beginnen.
+
+
 =head1 OPTIONS
 
 Als I<XMLTV_files ...> Parameter auf der Kommandozeile können eine oder mehrere Dateien im XMLTV Format angegeben werden. Falls mehr als eine Datei angegeben ist, werden sie zusammengeführt wie im Kapitel L<"MERGED DATABASES"> beschrieben.  Die Daten aus den XMLTV Dateien werden dann im GUI angezeigt.
@@ -743,7 +746,7 @@ Die optionale, vierte Sektion ist standardmäßig leer, kann aber dazu verwendet w
 
 =head2 Load XMLTV file
 
-Öffnet den Dialog Laden von EPG Daten aus einer Datei im XMLTV format. Dieser Dialog zeigt alle XMLTV Dateien im Verzeichnis an das im Eingabefeld an der Oberseite des Dialogfensters ausgewählt ist. Ein anderes Verzeichnis kann mit Click auf den Knopf neben dem Eingabefeld gewählt werden. Der Verzeichnisname kann auch manuell editiert werden; Nach Drücken der Return-Taste wird die Liste der Dateien aktualisiert. (Zu beachten ist dass nur Dateien mit Endung ".xml" und gültigem XMLTV Format in der Liste angezeigt werden.)
+Öffnet den Dialog Laden von EPG Daten aus einer Datei im XMLTV format. Dieser Dialog zeigt alle XMLTV Dateien im Verzeichnis an das im Eingabefeld an der Oberseite des Dialogfensters ausgewählt ist. Ein anderes Verzeichnis kann mit Click auf den Knopf ganz rechts neben dem Eingabefeld gewählt werden. Der Verzeichnisname kann auch manuell editiert werden; Nach Drücken der Return-Taste wird die Liste der Dateien aktualisiert. (Zu beachten ist dass nur Dateien mit Endung ".xml" und gültigem XMLTV Schema in der Liste angezeigt werden.)
 
 Wurde eine Datei in der Liste durch Anclicken selektiert, werden in dieser XML Datei enthaltenen Informationen über die Quelle der Daten die Liste der abgedeckten Sender rechts im Dialogfenster angezeigt. Durch Doppelclick auf einen Dateinamen, oder den OK Knopf, wird die ausgewählte XMLTV Datei in den Browser geladen.
 
@@ -1090,7 +1093,7 @@ Zuerst sollten Sie auswählen, mit welcher TV-Anwendung Sie synchronisieren wolle
 
 Ein weiterer Zweck dieses Dialoges ist es, die Namen der Sender über alle XMLTV Quellen hinweg einheitlich zu machen. Die hier angegebenen Namen, werden unabhängig vom Provider, in der Programmübersicht und allen Filter-Menüs verwendet.
 
-Auf der linken Seite des Dialogs finden Sie eine Liste aller Sender jeder zuvor geladenen XMLTV Datei (soweit die Datei noch existiert). Die hier benutzten Namen sind jene, welche Sie zuvor konfiguriert haben, oder falls Sie dies noch nicht getan haben, welche am besten auf die Stationsnamen Ihrer TV-Anwendung zutreffen. Nicht zutreffende Namen sind rot markiert. Ist keine TV-Anwendung konfiguriert, werden die von der aktuell geladenen XMLTV Datei gewählten Namen übernommen.
+Auf der linken Seite des Dialogs finden Sie eine Liste aller Sender der aktuell geladenen bzw. zusammengeführten XMLTV Dateien. Die hier benutzten Namen sind jene, welche Sie zuvor konfiguriert haben, oder falls Sie dies noch nicht getan haben, welche am besten auf die Stationsnamen Ihrer TV-Anwendung zutreffen. Nicht zutreffende Namen sind rot markiert. Ist keine TV-Anwendung konfiguriert, werden die von der aktuell geladenen XMLTV Datei gewählten Namen übernommen.
 
 Auf der rechten Seite werden Ihnen vier Möglichkeiten angeboten, den Namen zu ändern: zuoberst liegt ein Eingabefeld, in das Sie einen beliebigen Namen eintippen können. Darunter befindet sich ein Popupmenü, welches alle in der Kanaltabelle Ihrer TV-Anwendung definierten Sendernamen enthält. Darunter liegt ein Button, der einen ähnlichen Namen aus der Kanaltabelle Ihrer TV-Anwendung enthält, oder I<none>. Er ist rot markiert, solange er sich durch Leerzeichen, Bindestriche oder ähnliches vom Eingabefeld unterscheidet. Durch einen Klick auf den Button können Sie den Namen in das Eingabefeld kopieren. Darunter liegt ein Listenfeld mit den Originalnamen, die in den verschiedenen Provider-Datenbanken benutzt werden. Wenn Sie einen Namen aus dem Menü oder dem Listenfeld wählen, wird er in das Eingabefeld und in die Liste der Sendernamen links daneben kopiert.
 
