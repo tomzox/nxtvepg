@@ -831,7 +831,7 @@ static char * EpgDbMergeAiServiceNames( EPGDB_MERGE_CONTEXT * dbmc )
    for (dbIdx=0; dbIdx < dbmc->dbCount; dbIdx++)
    {
       pAi = (AI_BLOCK *) &dbmc->prov[dbIdx].pDbContext->pAiBlock->blk.ai;
-      name = AI_GET_NETWOP_NAME(pAi, pAi->thisNetwop);
+      name = AI_GET_SERVICENAME(pAi);
       // limit name length
       size_t tlen = strlen(name);
       if ((len + tlen >= MAX_SERVICE_NAME_LEN) && (dbIdx != 0))
@@ -848,7 +848,7 @@ static char * EpgDbMergeAiServiceNames( EPGDB_MERGE_CONTEXT * dbmc )
    for (dbIdx=0; dbIdx < concatCnt; dbIdx++)
    {
       pAi = (AI_BLOCK *) &dbmc->prov[dbIdx].pDbContext->pAiBlock->blk.ai;
-      name = AI_GET_NETWOP_NAME(pAi, pAi->thisNetwop);
+      name = AI_GET_SERVICENAME(pAi);
       strcat(mergeName, name);
       if (dbIdx + 1 < concatCnt)
          strcat(mergeName, ", ");
@@ -950,7 +950,7 @@ void EpgDbMergeAiBlocks( PDBC dbc, uint netwopCount, uint * pNetwopList )
 
             pTargetNetwops[netwop].netCni   = AI_GET_NET_CNI(pNetwops) &  XMLTV_NET_CNI_MASK;
             pTargetNetwops[netwop].netCniMSB = AI_GET_NET_CNI(pNetwops) >> XMLTV_NET_CNI_MSBS;
-            pTargetNetwops[netwop].alphabet = pNetwops->alphabet;
+            pTargetNetwops[netwop].language = pNetwops->language;
             pTargetNetwops[netwop].dayCount = dayCount[netwop];
             pTargetNetwops[netwop].off_name = blockLen;
             strcpy((char *) AI_GET_STR_BY_OFF(pTargetAi, blockLen), AI_GET_STR_BY_OFF(pAi, pNetwops->off_name));

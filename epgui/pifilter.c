@@ -1028,7 +1028,7 @@ static int GetNetwopSeriesList( ClientData ttp, Tcl_Interp *interp, int objc, Tc
 
          if (netwop < pAiBlock->netwopCount)
          {
-            lang = AI_GET_NETWOP_N(pAiBlock, netwop)->alphabet;
+            lang = AI_GET_NETWOP_N(pAiBlock, netwop)->language;
 
             // create an empty list object to hold the result
             pResultList = Tcl_NewListObj(0, NULL);
@@ -1126,7 +1126,7 @@ static int GetSeriesByLetter( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_
          while (pPiBlock != NULL)
          {
             // FIXME use second half of comm buffer here, and first half below
-            lang = AI_GET_NETWOP_N(pAiBlock, pPiBlock->netwop_no)->alphabet;
+            lang = AI_GET_NETWOP_N(pAiBlock, pPiBlock->netwop_no)->language;
             pTitleDict = PiDescription_DictifyTitle(PI_GET_TITLE(pPiBlock), lang, comm + TCL_COMM_BUF_SIZE/2, TCL_COMM_BUF_SIZE/2);
             // check if the starting letter matches
             c = tolower(pTitleDict[0]);

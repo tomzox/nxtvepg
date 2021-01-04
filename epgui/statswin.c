@@ -151,8 +151,8 @@ static void StatsWin_PrintDbStats( EPGDB_CONTEXT * dbc, EPGDB_BLOCK_COUNT * coun
    uint  total, allVersionsCount, curVersionCount, obsolete;
    Tcl_DString cmd_dstr;
 
-   if ( (EpgDbContextIsMerged(dbc) == FALSE) &&
-        (EpgDbContextIsXmltv(dbc) == FALSE) )
+   // TODO "if 0": below is still Nextview version
+   if (0 && EpgDbContextIsMerged(dbc) == FALSE)
    {
       // default values if database is empty
       strcpy(netname, "none yet");
@@ -624,8 +624,9 @@ static void StatsWin_UpdateDbStatusLine( ClientData clientData )
 
    comm[0] = 0;
 
-   if ((EpgDbContextIsMerged(pUiDbContext) == FALSE) &&
-       (EpgDbContextIsXmltv(pUiDbContext) == FALSE) &&
+   // TODO "if 0": below is still Nextview version
+   if ((0) &&
+       (EpgDbContextIsMerged(pUiDbContext) == FALSE) &&
        (EpgDbContextGetCni(pUiDbContext) != 0))
    {
       // compute statistics
@@ -635,7 +636,7 @@ static void StatsWin_UpdateDbStatusLine( ClientData clientData )
       EpgDbLockDatabase(pUiDbContext, TRUE);
       pAi = EpgDbGetAi(pUiDbContext);
       if (pAi != NULL)
-         sprintf(comm + strlen(comm), "%s database", AI_GET_NETWOP_NAME(pAi, pAi->thisNetwop));
+         sprintf(comm + strlen(comm), "%s database", AI_GET_SERVICENAME(pAi));
       else
          strcat(comm, "Browser database");
       EpgDbLockDatabase(pUiDbContext, FALSE);
@@ -701,7 +702,7 @@ static void StatsWin_UpdateDbStatusLine( ClientData clientData )
          pAi = EpgDbGetAi(pAcqDbContext);
          if (pAi != NULL)
          {
-            strncpy(provName, AI_GET_NETWOP_NAME(pAi, pAi->thisNetwop), sizeof(provName) - 1);
+            strncpy(provName, AI_GET_SERVICENAME(pAi), sizeof(provName) - 1);
             provName[sizeof(provName) - 1] = 0;
             pProvName = provName;
          }

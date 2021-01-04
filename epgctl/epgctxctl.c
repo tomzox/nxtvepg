@@ -202,8 +202,6 @@ static bool EpgContextCtl_CheckConsistancy( void )
       fatal5("Context-Check: illegal prov CNI 0x%04X or DB CNI 0x%04X in dummy context 0x%lx, state %d (%s)", pContextDummy->provCni, pContextDummy->pDbContext->provCni, (long)pContextDummy, pContextDummy->state, CtxCacheStateStr(pContextDummy->state));
    if (pContextDummy->pNext != NULL)
       fatal4("Context-Check: dummy context 0x%lx next ptr != 0: 0x%lx state %d (%s)", (long)pContextDummy, (long) pContextDummy->pNext, pContextDummy->state, CtxCacheStateStr(pContextDummy->state));
-   if (pContextDummy->pDbContext->modified)
-      fatal1("Context-Check: dummy context (0x%lx) was modified", (long)pContextDummy);
    if (pContextDummy->pDbContext->pAiBlock != NULL)
       fatal1("Context-Check: dummy context (0x%lx) has AI block", (long)pContextDummy);
 
@@ -476,8 +474,7 @@ static CTX_CACHE * EpgContextCtl_OpenInt( CTX_CACHE * pContext, bool isNew,
 
    if (pContext != NULL)
    {
-      if ( (pContext->state == CTX_CACHE_OPEN) &&
-           ((forceOpen == FALSE) || (pContext->pDbContext->modified)) )
+      if ( (pContext->state == CTX_CACHE_OPEN) && (forceOpen == FALSE) )
       {  // database already open
          dprintf4("EpgContextCtl-Open: prov %04X found in cache, state %s, peek/open refCount %d/%d\n", pContext->provCni, CtxCacheStateStr(pContext->state), pContext->peekRefCount, pContext->openRefCount);
 
@@ -594,7 +591,6 @@ EPGDB_CONTEXT * EpgContextCtl_OpenDummy( void )
 
 // ---------------------------------------------------------------------------
 // Close a database
-// - if the db was modified, it's automatically saved before the close
 // - the db may be kept open by another party (ui or acq repectively)
 //   so actually only the context pointer may be invalidated for the
 //   calling party
@@ -621,7 +617,7 @@ static void EpgContextCtl_CloseInt( EPGDB_CONTEXT * pDbContext, bool isPeek )
 
       if (pContext != NULL)
       {
-         dprintf6("EpgContextCtl-Close: close context 0x%04X (%lx): state %s, peek/open refCount %d/%d, modified: %d\n", EpgDbContextGetCni(pContext->pDbContext), (long)pContext, CtxCacheStateStr(pContext->state), pContext->peekRefCount, pContext->openRefCount, pContext->pDbContext->modified);
+         dprintf5("EpgContextCtl-Close: close context 0x%04X (%lx): state %s, peek/open refCount %d/%d: %d\n", EpgDbContextGetCni(pContext->pDbContext), (long)pContext, CtxCacheStateStr(pContext->state), pContext->peekRefCount, pContext->openRefCount);
          if (isPeek)
          {
             assert(pContext->peekRefCount > 0);
@@ -715,7 +711,7 @@ void EpgContextCtl_IsLoaded( uint cni )
       {
          if (pContext->provCni == cni)
          {
-            dprintf5("EpgContextCtl-IsPeek: result: context 0x%04X (%lx): state %s, peek/open refCount %d/%d, modified: %d\n", EpgDbContextGetCni(pContext->pDbContext), (long)pContext, CtxCacheStateStr(pContext->state), pContext->peekRefCount, pContext->openRefCount, pContext->pDbContext->modified);
+            dprintf5("EpgContextCtl-IsPeek: result: context 0x%04X (%lx): state %s, peek/open refCount %d/%d\n", EpgDbContextGetCni(pContext->pDbContext), (long)pContext, CtxCacheStateStr(pContext->state), pContext->peekRefCount, pContext->openRefCount);
             result = (pContext->state == CTX_CACHE_OPEN);
             break;
          }

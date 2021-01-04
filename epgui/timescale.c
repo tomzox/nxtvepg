@@ -126,10 +126,9 @@ static void TimeScale_UpdateStatusLine( ClientData dummy )
          sprintf(comm, "destroy %s", tsc_wid);
          eval_check(interp, comm);
       }
-      else if ( (EpgDbContextIsMerged(pUiDbContext) == FALSE) &&
-                (EpgDbContextIsXmltv(pUiDbContext) == FALSE) )
+      // TODO below is still Nextview version
+      else if (0) //(EpgDbContextIsMerged(pUiDbContext) == FALSE)
       {
-         // TODO remove obsolete OR port to XMLTV/merged database?
          EpgDbLockDatabase(pUiDbContext, TRUE);
          pAi = EpgDbGetAi(pUiDbContext);
          if (pAi != NULL)
@@ -149,13 +148,13 @@ static void TimeScale_UpdateStatusLine( ClientData dummy )
                   nearPerc = 100;
 
                sprintf(comm, "%s database %d%% complete, near data %d%%.",
-                             AI_GET_NETWOP_NAME(pAi, pAi->thisNetwop),
+                             AI_GET_SERVICENAME(pAi),
                              (int)((double)curVersionCount * 100.0 / total), nearPerc);
             }
             else
             {
                sprintf(comm, "%s database 100%% complete.",
-                             AI_GET_NETWOP_NAME(pAi, pAi->thisNetwop));
+                             AI_GET_SERVICENAME(pAi));
             }
 
             if (Tcl_ExternalToUtfDString(NULL, comm, -1, &msg_dstr) != NULL)
@@ -174,14 +173,9 @@ static void TimeScale_UpdateStatusLine( ClientData dummy )
          }
          EpgDbLockDatabase(pUiDbContext, FALSE);
       }
-      else if (EpgDbContextIsMerged(pUiDbContext))
+      else  // merged database
       {
          sprintf(comm, "%s.top.title configure -text {Merged database.}\n", tsc_wid);
-         eval_check(interp, comm);
-      }
-      else
-      {
-         sprintf(comm, "%s.top.title configure -text {Imported database.}\n", tsc_wid);
          eval_check(interp, comm);
       }
    }
@@ -501,44 +495,23 @@ static void TimeScale_AddPi( EPGDB_PI_TSC * ptsc )
 //
 static uint TimeScale_GetScaleWidth( EPGDB_CONTEXT * dbc )
 {
-   const AI_BLOCK * pAi;
    const PI_BLOCK * pFirstPi;
    const PI_BLOCK * pLastPi;
-   uint  days, maxDays;
-   uint  idx;
    uint  result;
 
-   maxDays = TSC_SCALE_MIN_DAY_COUNT;
-
    EpgDbLockDatabase(dbc, TRUE);
-   if ( !EpgDbContextIsMerged(dbc) && !EpgDbContextIsXmltv(dbc) )
+
+   // Determine width by covered time
+   pFirstPi = EpgDbSearchFirstPi(dbc, NULL);
+   pLastPi = EpgDbSearchLastPi(dbc, NULL);
+   // note we get either first and last or none, so we need to handle just these 2 cases
+   if ((pFirstPi != NULL) && (pLastPi != NULL))
    {
-      // regular database: use "day count" from AI so missing blocks can be indicated
-      pAi = EpgDbGetAi(dbc);
-      if (pAi != NULL)
-      {
-         for (idx = 0; idx < pAi->netwopCount; idx++)
-         {
-            days = AI_GET_NETWOP_N(pAi, idx)->dayCount;
-            if (days > maxDays)
-               maxDays = days;
-         }
-      }
-      result = (maxDays + 1) * 24*60*60 + dbc->expireDelayPi;
+      result = pLastPi->stop_time - pFirstPi->start_time + 24*60*60;
    }
    else
-   {  // merged or imported db: determine width by covered time
-      pFirstPi = EpgDbSearchFirstPi(dbc, NULL);
-      pLastPi = EpgDbSearchLastPi(dbc, NULL);
-      // note we get either first and last or none, so we need to handle just these 2 cases
-      if ((pFirstPi != NULL) && (pLastPi != NULL))
-      {
-         result = pLastPi->stop_time - pFirstPi->start_time + 24*60*60;
-      }
-      else
-      {
-         result = 24*60*60;
-      }
+   {
+      result = 24*60*60;
    }
    EpgDbLockDatabase(dbc, FALSE);
 

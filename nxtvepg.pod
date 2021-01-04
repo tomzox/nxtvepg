@@ -29,7 +29,7 @@
 
 =head1 NAME
 
-nxtvepg - Browsing EPG data in XMLTV format and grabbing EPG from teletext
+nxtvepg - Browsing EPG data in XMLTV files and grabbing EPG from teletext
 
 =head1 SYNOPSIS
 

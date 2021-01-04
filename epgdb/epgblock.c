@@ -226,10 +226,6 @@ static bool EpgBlockCheckAi( EPGDB_BLOCK * pBlock )
    {
       debug1("EpgBlock-CheckAi: illegal netwop count %d", pAi->netwopCount);
    }
-   else if (pAi->thisNetwop >= pAi->netwopCount)
-   {
-      debug2("EpgBlock-CheckAi: this netwop %d >= count %d", pAi->thisNetwop, pAi->netwopCount);
-   }
    else if (pAi->off_netwops != sizeof(AI_BLOCK))
    {
       debug1("EpgBlock-CheckAi: off_netwops=%d illegal", pAi->off_netwops);

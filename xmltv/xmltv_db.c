@@ -449,7 +449,6 @@ static EPGDB_BLOCK * XmltvDb_BuildAi( const char * pProvName )
    pAi = (AI_BLOCK *) &pBlk->blk.ai;  // remove const from pointer
    memset(pAi, 0, sizeof(AI_BLOCK));
    pAi->netwopCount = xds.chn_count;
-   pAi->thisNetwop = 0;               // unused for XMLTV sources
    blockLen = sizeof(AI_BLOCK);
 
    pAi->off_netwops = blockLen;
@@ -469,7 +468,7 @@ static EPGDB_BLOCK * XmltvDb_BuildAi( const char * pProvName )
       pNetwops->lto = 120; // TODO
       pNetwops->dayCount = (xds.p_chn_table[idx].pi_max_time -
                             xds.p_chn_table[idx].pi_min_time + 23*60*60) / (24*60*60);
-      pNetwops->alphabet = 1; // TODO
+      pNetwops->language = 7; // TODO
 
       pNetwops->off_name = blockLen;
       strcpy((char *) pAi + blockLen, xds.p_chn_table[idx].p_disp_name);
@@ -1623,7 +1622,6 @@ void XmltvDb_Init( uint provCni, bool isPeek )
 
    // create empty database
    xds.pDbContext = EpgDbCreate();
-   xds.pDbContext->xmltv = TRUE;
    xds.pDbContext->provCni = provCni;
 }
 

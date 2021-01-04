@@ -674,8 +674,10 @@ static bool WinSharedMemClient_AttachShm( void )
                      pTvShm->tvCardIdx    = epgShmCache.tvCardIdx;
                      pTvShm->tvFeatures   = pTvAppInfo->tvFeatures;
                      pTvShm->tvAppType    = pTvAppInfo->tvAppType;
-                     strncpy((char *) pTvShm->tvAppName, pTvAppInfo->pAppName, TVAPP_NAME_MAX_LEN);
-                     strncpy((char *) pTvShm->tvAppPath, pTvAppInfo->tvAppPath, TVAPP_PATH_MAX_LEN);
+                     strncpy((char *) pTvShm->tvAppName, pTvAppInfo->pAppName, TVAPP_NAME_MAX_LEN - 1);
+                     pTvShm->tvAppName[TVAPP_NAME_MAX_LEN - 1] = 0;
+                     strncpy((char *) pTvShm->tvAppPath, pTvAppInfo->tvAppPath, TVAPP_PATH_MAX_LEN - 1);
+                     pTvShm->tvAppPath[TVAPP_PATH_MAX_LEN - 1] = 0;
                      pTvShm->tvGrantTuner = epgShmCache.tvGrantTuner;
                      pTvShm->tvCurIsTuner = epgShmCache.tvCurIsTuner;
                      pTvShm->tvCurFreq    = epgShmCache.tvCurFreq;

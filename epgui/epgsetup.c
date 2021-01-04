@@ -97,6 +97,7 @@ const char * EpgSetup_GetNetName( const AI_BLOCK * pAiBlock, uint netIdx, bool *
 
 // ---------------------------------------------------------------------------
 // Query or guess the language of texts in the database
+// - ATTN: differing language between networks is not considered here
 //
 uint EpgSetup_GetDefaultLang( EPGDB_CONTEXT * pDbContext )
 {
@@ -105,25 +106,14 @@ uint EpgSetup_GetDefaultLang( EPGDB_CONTEXT * pDbContext )
 
    if (pDbContext != NULL)
    {
-#ifdef USE_XMLTV_IMPORT
-      if (pDbContext->xmltv)
+      EpgDbLockDatabase(pDbContext, TRUE);
+      pAiBlock = EpgDbGetAi(pDbContext);
+      if (pAiBlock != NULL)
       {
-         // TODO: guess from XMLTV:lang attribute
+         // use language of first network
+         lang = AI_GET_NETWOP_N(pAiBlock, 0)->language;
       }
-      else
-#endif
-      {
-         EpgDbLockDatabase(pDbContext, TRUE);
-         pAiBlock = EpgDbGetAi(pDbContext);
-         if (pAiBlock != NULL)
-         {
-            if (pAiBlock->thisNetwop < pAiBlock->netwopCount)
-            {
-               lang = AI_GET_NETWOP_N(pAiBlock, pAiBlock->thisNetwop)->alphabet;
-            }
-         }
-         EpgDbLockDatabase(pDbContext, FALSE);
-      }
+      EpgDbLockDatabase(pDbContext, FALSE);
    }
    return lang;
 }

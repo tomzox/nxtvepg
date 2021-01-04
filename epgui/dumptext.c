@@ -202,7 +202,7 @@ static void DumpText_Ai( PI_DESCR_BUF * pb, const AI_BLOCK * pAi )
                      AI_GET_NET_CNI(pNetwop),
                      pNetwop->lto * 15,
                      pNetwop->dayCount,
-                     pNetwop->alphabet,
+                     pNetwop->language,
                      0 /*pNetwop->addInfo*/);
          PiDescription_BufAppend(pb, str_buf, len);
 

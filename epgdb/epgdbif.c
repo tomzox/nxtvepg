@@ -112,19 +112,6 @@ bool EpgDbContextIsMerged( CPDBC dbc )
 }
 
 // ---------------------------------------------------------------------------
-// Query if the db is imported from an XMLTV file
-//
-bool EpgDbContextIsXmltv( CPDBC dbc )
-{
-#ifdef USE_XMLTV_IMPORT
-   if (dbc != NULL)
-      return (dbc->xmltv);
-   else
-#endif
-      return FALSE;
-}
-
-// ---------------------------------------------------------------------------
 // Query time of last AI update (by acquisition)
 // - in network acq mode, this reflects the time the block was captured by the
 //   daemon (the time is arrived at the client is irrelevant)

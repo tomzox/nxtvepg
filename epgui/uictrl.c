@@ -395,6 +395,7 @@ void UiControl_AiStateChange( ClientData clientData )
 {
    uint target = PVOID2UINT(clientData);
    const AI_BLOCK *pAiBlock;
+   const char * name;
    Tcl_DString cmd_dstr;
 
 #if 0
@@ -422,32 +423,18 @@ void UiControl_AiStateChange( ClientData clientData )
       if (pAiBlock != NULL)
       {
          // set the window title according to the new AI
-         const char * prefix, * name;
-#ifdef USE_XMLTV_IMPORT
-         if ( EpgDbContextIsXmltv(pUiDbContext) )
-         {
-            prefix = "XMLTV";
-            name = XmltvCni_LookupProviderPath(EpgDbContextGetCni(pUiDbContext));
-         }
-         else
-#endif
          if ( EpgDbContextIsMerged(pUiDbContext) )
-         {
-            prefix = "nxtvepg";
             name = AI_GET_SERVICENAME(pAiBlock);
-         }
          else
-         {
-            prefix = "Nextview EPG";
-            name = AI_GET_SERVICENAME(pAiBlock);
-         }
+            name = XmltvCni_LookupProviderPath(EpgDbContextGetCni(pUiDbContext));
+
          // limit length of title to apx. 100 characters
          // - because else the assignment may silently fail, e.g. with fvwm)
          // - also we could overflow the "comm" buffer
          if (strlen(name) > 104)
-            sprintf(comm, "%s: %.104s ...", prefix, name);
+            sprintf(comm, "nxtvepg: %.104s ...", name);
          else
-            sprintf(comm, "%s: %s", prefix, name);
+            sprintf(comm, "nxtvepg: %s", name);
 
          Tcl_DStringInit(&cmd_dstr);
          Tcl_DStringAppend(&cmd_dstr, "wm title .", -1);
@@ -507,7 +494,6 @@ void UiControl_AiStateChange( ClientData clientData )
    }
 }
 
-#ifdef USE_XMLTV_IMPORT
 // ----------------------------------------------------------------------------
 // Process notification about XMLTV update by external process
 // - triggered by the TTX grabber after updating an XML file
@@ -566,7 +552,7 @@ static void UiControl_LoadAcqDb( ClientData clientData )
             }
          }
       }
-      else if ( EpgDbContextIsXmltv(pUiDbContext) )
+      else  // not merged - plain XMLTV import
       {
          cni = EpgDbContextGetCni(pUiDbContext);
 
@@ -588,11 +574,8 @@ static void UiControl_LoadAcqDb( ClientData clientData )
                debug1("UiControl-LoadAcqDb: failed to load db 0x%04X\n", cni);
          }
       }
-      else
-         dprintf0("UiControl-LoadAcqDb: ignoring trigger\n");
    }
 }
-#endif // USE_XMLTV_IMPORT
 
 // ----------------------------------------------------------------------------
 // Display error message in a popup message box
@@ -650,22 +633,17 @@ void UiControl_ReloadError( ClientData clientData )
    MSG_RELOAD_ERR * pMsg = (MSG_RELOAD_ERR *) clientData;
    const char *pReason, *pHint;
    char * comm2 = xmalloc(2048);
-#ifdef USE_XMLTV_IMPORT
    const char *pXmlPath;
-#endif
 
    pReason = NULL;
    pHint = "";
 
-#ifdef USE_XMLTV_IMPORT
    if (pMsg->dberr & EPGDB_RELOAD_XML_MASK)
    {
       pReason = Xmltv_TranslateErrorCode(pMsg->dberr & ~EPGDB_RELOAD_XML_MASK);
       pHint = "";
    }
-   else
-#endif // USE_XMLTV_IMPORT
-   // translate the error result code from the reload or peek function to human readable form
+   else  // translate the error result code from the reload or peek function to human readable form
    switch (pMsg->dberr)
    {
       case EPGDB_RELOAD_ACCESS:
@@ -709,21 +687,16 @@ void UiControl_ReloadError( ClientData clientData )
             break;
 
          case CTX_RELOAD_ERR_ACQ:
-#ifdef USE_XMLTV_IMPORT
             if ( IS_XMLTV_CNI(pMsg->cni) &&
                  ((pXmlPath = XmltvCni_LookupProviderPath(pMsg->cni)) != NULL) )
                sprintf(comm2, "tk_messageBox -type ok -icon warning -message {"
-                                "Failed to load XML file \"%s\" (CNI %X) because %s. "
-                                "%s}\n",
-                                pXmlPath, pMsg->cni, pReason, pHint);
+                                "Failed to update merged database with "
+                                "XMLTV file \"%s\" because %s. "
+                                "%s}\n", pXmlPath, pReason, pHint);
             else
-#endif
                sprintf(comm2, "tk_messageBox -type ok -icon warning -message {"
-                                "Failed to load the database of provider %X because %s. "
-                                "Cannot switch the TV channel to start acquisition for this provider. "
-                                "%s%s}\n",
-                                pMsg->cni, pReason, pHint,
-                                ((pMsg->dberr == EPGDB_RELOAD_EXIST) ? "Or choose a different acquisition mode. " : ""));
+                                "Failed to update merged database with provider %X because %s. "
+                                "%s}\n", pMsg->cni, pReason, pHint);
             eval_check(interp, comm2);
             break;
 
@@ -732,15 +705,12 @@ void UiControl_ReloadError( ClientData clientData )
                sprintf(comm2, "tk_messageBox -type ok -icon error -message {"
                                 "Failed to create a merged database. %s"
                                 "}\n", pHint);
-#ifdef USE_XMLTV_IMPORT
-            else if ( IS_XMLTV_CNI(pMsg->cni) &&
-                      ((pXmlPath = XmltvCni_LookupProviderPath(pMsg->cni)) != NULL) )
+            else if ((pXmlPath = XmltvCni_LookupProviderPath(pMsg->cni)) != NULL)
                sprintf(comm2, "tk_messageBox -type ok -icon error -message {"
                                 "Failed to load XML file \"%s\" (CNI %X) because %s. "
                                 "%s"
                                 "}\n", pXmlPath, pMsg->cni, pReason, pHint);
-#endif
-            else
+            else  // should never be reached
                sprintf(comm2, "tk_messageBox -type ok -icon error -message {"
                                 "Failed to load the database of provider %X because %s. "
                                 "%s"

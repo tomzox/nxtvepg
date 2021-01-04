@@ -339,7 +339,6 @@ static bool EpgQuery_PopThemeStr( const char * pArg, uint * pArgOff, uint * p_in
                                   EPGDB_CONTEXT * pDbContext )
 {
    bool result = FALSE;
-#ifdef USE_XMLTV_IMPORT
    HASHED_THEMES match = {0, 0};
    char * pLower;
    char * p;
@@ -369,7 +368,6 @@ static bool EpgQuery_PopThemeStr( const char * pArg, uint * pArgOff, uint * p_in
       *pArgOff += strlen(pArg + *pArgOff);
       result = TRUE;
    }
-#endif
    return result;
 }
 

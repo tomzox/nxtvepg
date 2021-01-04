@@ -37,7 +37,7 @@ typedef struct
    uint16_t  netCni;
    uint16_t  netCniMSB;
    int8_t    lto;          // TODO: always 120 for XMLTV
-   uint8_t   alphabet;     // TODO: always 1 for XMLTV
+   uint8_t   language;     // TODO: always 1 for XMLTV
    uint8_t   dayCount;
 
    uint16_t  off_name;
@@ -47,7 +47,6 @@ typedef struct
 {
    uint8_t   version;      // TODO always 0 for XMLTV
    uint8_t   netwopCount;
-   uint8_t   thisNetwop;   // TODO always 0 for XMLTV
 
    uint16_t  off_serviceNameStr;
    uint16_t  off_netwops;
@@ -60,10 +59,6 @@ typedef struct
 #define AI_GET_NETWOP_NAME(X,N) ((const char *)(X)+AI_GET_NETWOPS(X)[N].off_name)
 #define AI_GET_NET_CNI(N)       ((uint)((N)->netCni) | ((uint)((N)->netCniMSB)<<16))
 #define AI_GET_NET_CNI_N(X,N)   AI_GET_NET_CNI(AI_GET_NETWOP_N((X),(N)))
-// note: "thisNetwop" is only meaningful for Nextview EPG databases
-// use element "provCni" in the DB context instead (i.e. outside of Nextview acq. control)
-// TODO remove
-#define AI_GET_THIS_NET_CNI(X)  AI_GET_NET_CNI(AI_GET_NETWOP_N((X),(X)->thisNetwop))
 
 
 // ---------------------------------------------------------------------------
@@ -96,13 +91,12 @@ typedef struct
   time32_t  start_time;
   time32_t  stop_time;
   uint32_t  pil;
-  uint32_t  series_code;
   uint16_t  feature_flags;
   uint8_t   parental_rating;
   uint8_t   editorial_rating;
 
   uint8_t   no_themes;
-  uint8_t   no_descriptors;
+  uint8_t   no_descriptors;              // used by merged db
   uint8_t   themes[PI_MAX_THEME_COUNT];
 
   uint16_t  off_title;
@@ -220,19 +214,10 @@ typedef struct EPGDB_CONTEXT_STRUCT
 {
    uint   provCni;                  // provider CNI
    uint   lockLevel;                // number of database locks on this context
-   bool   modified;                 // if TRUE, db was modified by acquisition
    time_t expireDelayPi;            // how long to keep PI after they expired
 
    bool   merged;                   // Flag for merged db
-#ifdef USE_XMLTV_IMPORT
-   bool   xmltv;                    // Flag for import via XMLTV
-#endif
    void   *pMergeContext;           // Pointer to merge parameters
-
-   uint   pageNo;                   // Teletext page for acq
-   uint   tunerFreq;                // Frequency for acq
-   uint   appId;                    // BI block ID
-   uint   fileNameFormat;           // DOS or UNIX file name format
 
    EPGDB_BLOCK *pAiBlock;
    EPGDB_BLOCK *pOiBlock;

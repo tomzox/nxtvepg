@@ -345,40 +345,6 @@ bool EpgContextMergeUpdateDb( CPDBC pAcqContext )
 }
 
 // ---------------------------------------------------------------------------
-// Update AI block when an AI in one of the dbs has changed
-// - Only called after change of version number in one of the blocks.
-//   More frequent updates are not required because changes of blockno range
-//   are not of any interest to the merged database.
-// - when this func is called the new AI is already part of the context
-//
-void EpgContextMergeAiUpdate( CPDBC pAcqContext )
-{
-   EPGDB_MERGE_CONTEXT * dbmc;
-   const AI_NETWOP *pNetwops;
-   uint  netwopCount, netwopCniTab[MAX_NETWOP_COUNT];
-   uint  idx;
-
-   if ( EpgDbMergeOpenAcqContext( EpgDbContextGetCni(pAcqContext)) )
-   {
-      // copy the network list from the previously merged AI block as it will not be changed
-      pNetwops    = AI_GET_NETWOPS(&pUiDbContext->pAiBlock->blk.ai);
-      netwopCount = pUiDbContext->pAiBlock->blk.ai.netwopCount;
-      for (idx=0; idx < netwopCount; idx++, pNetwops++)
-         netwopCniTab[idx] = AI_GET_NET_CNI(pNetwops);
-
-      // free the old AI block in the merged context
-      xfree(pUiDbContext->pAiBlock);
-      pUiDbContext->pAiBlock = NULL;
-
-      EpgDbMergeAiBlocks(pUiDbContext, netwopCount, netwopCniTab);
-
-      // reset version bit for all PI merged from this db
-      dbmc = pUiDbContext->pMergeContext;
-      EpgDbMerge_ResetPiVersion(pUiDbContext, dbmc->acqIdx);
-   }
-}
-
-// ---------------------------------------------------------------------------
 // Start complete merge
 //
 EPGDB_CONTEXT * EpgContextMerge( uint dbCount, const uint * pCni, MERGE_ATTRIB_VECTOR_PTR pMax,

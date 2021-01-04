@@ -17,6 +17,7 @@ Post-Nextview EPG:
   "extended" selection (i.e. allow multiple selections)
 - show DB status in "Load XMLTV" dialog window: number of PI, expired %%
 - remove use of PDC theme table: create table from themes found in XMLTV
+- change AI/OI/PI to hold original XMLTV info elements (i.e. reduce conversion)
 - xmltv-etsi.map: use .config/nxtvepg instead of "." in xmltv_cni.c
 - DVB TTX stream decoding issues: "Illegal line order", "Unknown data_unit_id"
 - DVB: automatic detection of teletext PID (in channel scan or otherwise)
@@ -24,6 +25,7 @@ Post-Nextview EPG:
 - support more TV apps channel.conf
 - XMLTV CNI mapping fundamentally broken
 - mplayer, VLC & VDR plugin for EPG display
+- teletext: use separate thread for post-processing (takes long time for 10 DBs)
 - teletext: use mtime to determine start of acq
 - teletext: use TV channel name as XMLTV display name
 - teletext acq stats: percentage cycle loaded (i.e. cycles done vs. max. sub-page count)
@@ -80,9 +82,9 @@ Teletext grabber:
 
 XMLTV import:
 - get language from XMLTV input for SetUserLanguage(), "auto" mode
-  for non-auto mode: pass language selection to XML parser
-- increase max. netwop count from 80 to 254
-  (or make it dynamic, high effort though in epgfilter.h and epgdbmerge.c)
+  for non-auto mode: pass language selection to XML parser;
+  used by EpgSetup_GetDefaultLang(): pAiBlock->lang
+- change max netwop count from 254 to dynamic? (high effort in epgfilter.h and epgdbmerge.c)
 - programmes with start time only should not be discarded
   automatically set stop time to start of subsequent programme
 - extend PI struct to hold all XMLTV info fields?
@@ -143,9 +145,6 @@ Recently suggested fixes & changes:
   order of the merged providers; when adding a new provider to an merge
   config, append new networks to the merged db's network list
 - add note to acq config dlg: does not affect display db
-- M6 Nextview: derive theme codes from description
-- timescale bug: when acq running in daemon for non-UI database, display is
-  cleared but not refilled after zoom +/-
 - weekday scale for grid layout: additional column (Thierry)
 - split network prefilter into 2 parts: excluded and unlisted: latter ones are
   still part of filter menus and used for reminder shortcut matches
@@ -156,8 +155,6 @@ Recently suggested fixes & changes:
 - option to ask before quitting nxtvepg with "X" window title bar button
   or to send to systray instead (forum 2004-01-16)
 - bayesian filter to highlight programmes (forum 2004-03-20)
-- allow user to override provider's network CNIs (e.g. to allow to merge
-  different providers' data for MTV, RBB and SW3; suggested by Jörk)
 - free configuration of key and mouse bindings
 - save system encoding setting at the time of rc writing into rc file
   so that correct conversion is used during reload

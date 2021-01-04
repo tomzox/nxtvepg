@@ -63,7 +63,6 @@ uint  EpgDbGetProgIdx( const EPGDB_CONTEXT * dbc, const PI_BLOCK * pPiBlock );
 uchar EpgDbGetVersion( const void * pBlock );
 uint  EpgDbContextGetCni( const EPGDB_CONTEXT * dbc );
 bool  EpgDbContextIsMerged( const EPGDB_CONTEXT * dbc );
-bool  EpgDbContextIsXmltv( const EPGDB_CONTEXT * dbc );
 time_t EpgDbGetAiUpdateTime( const EPGDB_CONTEXT * dbc );
 time_t EpgDbGetPiUpdateTime( const PI_BLOCK * pPiBlock );
 void EpgDbSetAiUpdateTime( const EPGDB_CONTEXT * dbc, time_t acqTimestamp );

@@ -1,5 +1,5 @@
 #
-#  UNIX Makefile for Nextview EPG decoder
+#  UNIX Makefile for nxtvepg - A XMLTV browser and Teletext EPG grabber
 #
 #  This program is free software; you can redistribute it and/or modify
 #  it under the terms of the GNU General Public License Version 2 as
@@ -91,9 +91,8 @@ ACQLIBS += -lpthread
 # XMLTV parser needs to emit UTF-8 to match internal encoding
 DEFS   += -DXMLTV_OUTPUT_UTF8
 
-# enable support for importing XMLTV files
-#TODO remove USE_XMLTV_IMPORT
-DEFS   += -DUSE_XMLTV_IMPORT -DXMLTV_CNI_MAP_PATH=\"$(cfgdir)\"
+# path to default version of xmltv-etsi.map
+DEFS   += -DXMLTV_CNI_MAP_PATH=\"$(cfgdir)\"
 
 # enable support for teletext EPG grabber
 DEFS   += -DUSE_TTX_GRABBER
@@ -186,15 +185,11 @@ VBIREC_CSRC2  = epgvbi/btdrv4linux epgvbi/vbidecode epgvbi/zvbidecoder \
                 epgui/dumptext epgui/pidescr epgui/pdc_themes epgvbi/dvb_demux
 VBIREC_TCLSRC = tvsim/vbirec_gui epgtcl/combobox
 
-NXTV_OBJS     = $(addprefix $(BUILD_DIR)/, $(addsuffix .o, $(EPGSRC) $(GUISRC) $(TCLSRC)))
-DAEMON_OBJS   = $(addprefix $(BUILD_DIR)/, $(addsuffix .o, $(EPGSRC) $(CLDSRC)))
+NXTV_OBJS     = $(addprefix $(BUILD_DIR)/, $(addsuffix .o, $(EPGSRC) $(GUISRC) $(TCLSRC) $(XMLSRC)))
+DAEMON_OBJS   = $(addprefix $(BUILD_DIR)/, $(addsuffix .o, $(EPGSRC) $(CLDSRC) $(XMLSRC)))
 TVSIM_OBJS    = $(addprefix $(BUILD_DIR)/, $(addsuffix .o, $(TVSIM_CSRC) $(TVSIM_CSRC2) $(TVSIM_TCLSRC)))
 VBIREC_OBJS   = $(addprefix $(BUILD_DIR)/, $(addsuffix .o, $(VBIREC_CSRC) $(VBIREC_CSRC2) $(VBIREC_TCLSRC)))
 
-ifneq (,$(findstring USE_XMLTV_IMPORT,$(DEFS)))
-NXTV_OBJS    += $(addprefix $(BUILD_DIR)/, $(addsuffix .o, $(XMLSRC)))
-DAEMON_OBJS  += $(addprefix $(BUILD_DIR)/, $(addsuffix .o, $(XMLSRC)))
-endif
 ifneq (,$(findstring USE_TTX_GRABBER,$(DEFS)))
 NXTV_OBJS    += $(addprefix $(BUILD_DIR)/, $(addsuffix .o, $(TTXSRC)))
 DAEMON_OBJS  += $(addprefix $(BUILD_DIR)/, $(addsuffix .o, $(TTXSRC)))
@@ -362,7 +357,7 @@ epgtcl/helptexts_de.tcl: nxtvepg-de.pod pod2help.pl
 
 nxtvepg.1: nxtvepg.pod epgctl/epgversion.h
 	EPG_VERSION_STR=`egrep '[ \t]*#[ \t]*define[ \t]*EPG_VERSION_STR' epgctl/epgversion.h | head -1 | sed -e 's#.*"\(.*\)".*#\1#'`; \
-	pod2man -date " " -center "Nextview EPG Decoder" -section "1" \
+	pod2man -date " " -center "nxtvepg XMLTV browser" -section "1" \
 	        -release "nxtvepg "$$EPG_VERSION_STR" (C) 2021 T. Zoerner" \
 	   nxtvepg.pod > nxtvepg.1
 

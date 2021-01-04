@@ -1,5 +1,5 @@
 #
-#  Windows Makefile for Nextview EPG decoder
+#  Windows Makefile for nxtvepg - A XMLTV browser and Teletext EPG grabber
 #
 #  This program is free software; you can redistribute it and/or modify
 #  it under the terms of the GNU General Public License Version 2 as
@@ -73,17 +73,13 @@ ACQLIBS += -lws2_32
 DEFS   += -DUSE_PRECOMPILED_TCL_LIBS
 # define this if you have patched nxtvepg.ico into the tk DLL
 DEFS   += -DICON_PATCHED_INTO_DLL
-# enable use of daemon and client/server connection (UNIX only)
+# enable use of daemon and client/server connection (supported only with USE_TTX_GRABBER)
 DEFS   += -DUSE_DAEMON
 # enable if you have both 32-bit and 64-bit systems
 #DEFS   += -DUSE_32BIT_COMPAT
-# testing TV app interaction on a host without a TV card
-#DEFS   += -DWITHOUT_TVCARD
-# use UTF-8 internally instead of Latin-1 (EXPERIMENTAL)
-#DEFS   += -DUSE_UTF8 -DXMLTV_OUTPUT_UTF8
-# enable support for importing XMLTV files
-DEFS   += -DUSE_XMLTV_IMPORT
-# enable support for teletext EPG grabber (EXPERIMENTAL)
+# XMLTV parser needs to emit UTF-8 to match internal encoding
+DEFS   += -DXMLTV_OUTPUT_UTF8
+# enable support for teletext EPG grabber
 DEFS    += -DUSE_TTX_GRABBER
 
 DEFS   += -DWIN32
@@ -156,9 +152,9 @@ VBIPLAY_CSRC2 = tvsim/winshmclnt epgctl/debug
 TCL_TK_LIBS   = $(BUILD_DIR)/libtcl$(TCL_L).a $(BUILD_DIR)/libtk$(TCL_L).a
 TCL_SLIBS     = $(addprefix $(BUILD_DIR)/, $(addsuffix .o, $(TCLLSRC)))
 
-NXTV_OBJS     = $(addprefix $(BUILD_DIR)/, $(addsuffix .o, $(EPGSRC) $(GUISRC) $(TCLSRC))) \
+NXTV_OBJS     = $(addprefix $(BUILD_DIR)/, $(addsuffix .o, $(EPGSRC) $(GUISRC) $(TCLSRC) $(XMLSRC))) \
                 $(TCL_SLIBS) $(BUILD_DIR)/epgui/tkwinico.res.o
-DAEMON_OBJS   = $(addprefix $(BUILD_DIR)/, $(addsuffix .o, $(EPGSRC) $(CLDSRC))) \
+DAEMON_OBJS   = $(addprefix $(BUILD_DIR)/, $(addsuffix .o, $(EPGSRC) $(CLDSRC) $(XMLSRC))) \
                 $(BUILD_DIR)/epgui/tkwinico.res.o
 DSDRV_OBJS    = $(addprefix $(BUILD_DIR)/, $(addsuffix .o, $(DSDRV_CSRC)))
 TVCARD_OBJS   = $(addprefix $(BUILD_DIR)/, $(addsuffix .o, $(TVCARD_CSRC)))
@@ -166,10 +162,6 @@ TVSIM_OBJS    = $(addprefix $(BUILD_DIR)/, $(addsuffix .o, $(TVSIM_CSRC) $(TVSIM
 VBIREC_OBJS   = $(addprefix $(BUILD_DIR)/, $(addsuffix .o, $(VBIREC_CSRC) $(VBIREC_CSRC2) $(VBIREC_TCLSRC))) $(TCL_SLIBS)
 VBIPLAY_OBJS  = $(addprefix $(BUILD_DIR)/, $(addsuffix .o, $(VBIPLAY_CSRC) $(VBIPLAY_CSRC2)))
 
-ifneq (,$(findstring USE_XMLTV_IMPORT,$(DEFS)))
-NXTV_OBJS    += $(addprefix $(BUILD_DIR)/, $(addsuffix .o, $(XMLSRC)))
-DAEMON_OBJS  += $(addprefix $(BUILD_DIR)/, $(addsuffix .o, $(XMLSRC)))
-endif
 ifneq (,$(findstring USE_TTX_GRABBER,$(DEFS)))
 NXTV_OBJS    += $(addprefix $(BUILD_DIR)/, $(addsuffix .o, $(TTXSRC)))
 DAEMON_OBJS  += $(addprefix $(BUILD_DIR)/, $(addsuffix .o, $(TTXSRC)))
