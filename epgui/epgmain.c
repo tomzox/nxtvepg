@@ -2237,7 +2237,6 @@ int main( int argc, char *argv[] )
 
    if ( IS_DUMP_MODE(mainOpts) )
    {
-      EpgSetup_DbExpireDelay();
       MainStartDump();
    }
    else if ( IS_REMCTL_MODE(mainOpts) )
@@ -2281,9 +2280,6 @@ int main( int argc, char *argv[] )
                          "ApplyRcSettingsToMenu\n");
 
       UiControl_Init();
-
-      // setup cut-off time for expired PI blocks during database reload
-      EpgSetup_DbExpireDelay();
 
       // open the database given by -prov or the last one used
       EpgSetup_OpenUiDb();

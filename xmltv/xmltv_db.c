@@ -882,7 +882,10 @@ void Xmltv_TsClose( void )
    pBlk = XmltvDb_BuildPi();
    if (XmltvDb_AddPiBlock(xds.pDbContext, pBlk) == FALSE)
    {
-      xfree(pBlk);
+      if (EpgDbAddDefectPi(xds.pDbContext, pBlk) == FALSE)
+      {
+         xfree(pBlk);
+      }
    }
 }
 

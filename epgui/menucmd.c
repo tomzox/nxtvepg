@@ -1654,7 +1654,6 @@ static int MenuCmd_UpdatePiExpireDelay( ClientData ttp, Tcl_Interp *interp, int 
       RcFile_SetDbExpireDelay(value);
       UpdateRcFile(TRUE);
 
-      EpgSetup_DbExpireDelay();
 #ifdef USE_TTX_GRABBER
       EpgSetup_TtxGrabber();
 #endif

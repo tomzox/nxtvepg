@@ -55,8 +55,6 @@ bool EpgContextCtl_HaveProviders( void );
 const uint * EpgContextCtl_GetProvList( const char * pPath, uint * pCount );
 time_t EpgContextCtl_GetAiUpdateTime( uint cni, bool reload );
 
-void EpgContextCtl_SetPiExpireDelay( time_t expireDelay );
-
 void EpgContextCtl_Init( void );
 void EpgContextCtl_Destroy( void );
 

@@ -41,7 +41,6 @@ uint EpgSetup_GetDefaultLang( EPGDB_CONTEXT * pDbContext );
 void EpgSetup_UpdateProvCniTable( void );
 void EpgSetup_SetNetwopPrefilter( EPGDB_CONTEXT * pDbContext, FILTER_CONTEXT * fc );
 void EpgSetup_OpenUiDb( void );
-void EpgSetup_DbExpireDelay( void );
 void EpgSetup_AcquisitionMode( NETACQ_SET_MODE netAcqSetMode );
 bool EpgSetup_DaemonAcquisitionMode( bool forcePassive, int maxPhase );
 bool EpgSetup_CardDriver( int cardIndex );

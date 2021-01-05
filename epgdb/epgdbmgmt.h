@@ -37,6 +37,7 @@ bool EpgDbCheckChains( const EPGDB_CONTEXT * dbc );
 void EpgDbPiRemove( EPGDB_CONTEXT * dbc, EPGDB_BLOCK * pObsolete );
 void EpgDbLinkPi( EPGDB_CONTEXT * dbc, EPGDB_BLOCK * pBlock, EPGDB_BLOCK * pPrev, EPGDB_BLOCK * pNext );
 void EpgDbReplacePi( EPGDB_CONTEXT * dbc, EPGDB_BLOCK * pObsolete, EPGDB_BLOCK * pBlock );
+bool EpgDbAddDefectPi( EPGDB_CONTEXT * dbc, EPGDB_BLOCK *pBlock );
 
 // ----------------------------------------------------------------------------
 // Declaration of database management functions
@@ -45,7 +46,6 @@ void EpgDbReplacePi( EPGDB_CONTEXT * dbc, EPGDB_BLOCK * pObsolete, EPGDB_BLOCK *
 //
 EPGDB_CONTEXT * EpgDbCreate( void );
 void EpgDbDestroy( EPGDB_CONTEXT * dbc, bool keepAiOi );
-void EpgDbExpire( EPGDB_CONTEXT * dbc );
 
 #ifdef __EPGTSCQUEUE_H
 void EpgDbProcessQueue( EPGDB_CONTEXT * const * pdbc, EPGDB_QUEUE * pQueue,

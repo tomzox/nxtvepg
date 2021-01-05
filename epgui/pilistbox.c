@@ -1786,8 +1786,6 @@ static bool PiListBox_HandleAcqEvent( const EPGDB_CONTEXT * usedDbc, EPGDB_PI_AC
 
       switch (event)
       {
-         case EPGDB_PI_PROC_START:
-            break;
          case EPGDB_PI_INSERTED:
             PiListBox_DbInserted(pPiBlock);
             break;
@@ -1799,12 +1797,6 @@ static bool PiListBox_HandleAcqEvent( const EPGDB_CONTEXT * usedDbc, EPGDB_PI_AC
             break;
          case EPGDB_PI_REMOVED:
             PiListBox_DbRemoved(pPiBlock);
-            break;
-         case EPGDB_PI_PROC_DONE:
-            if (pibox_resync)
-            {
-               AddMainIdleEvent(PiListBox_RefreshEvent, NULL, TRUE);
-            }
             break;
          case EPGDB_PI_RESYNC:
             if (pibox_resync == FALSE)

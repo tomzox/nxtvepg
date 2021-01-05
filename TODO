@@ -5,6 +5,7 @@ boost any item's priority, find more points that need to be fixed or if
 you have ideas for additional features.
 
 Post-Nextview EPG:
+- ttx-*.dat files do not contain configured page range 300-699
 - New DB type: "Load Teletext EPG...": automatically follow TTX acq, even if DB not exist yet
 - statistics display for concurrent grabbing
 - extend XMLTV database statistics
@@ -12,9 +13,7 @@ Post-Nextview EPG:
   - histogram, merged db: show percentage of DBs updated during last 12-24 hours
   - timescale: different color for DBs older than 12-24 hours
 - move USE_TTX_GRABBER to exclude all acqusition if not set
-- apply expire only when merging new data into db by acq
-  always load all data & allow unmasking expired PI via filter dialog
-- XMLTV load: don't drop overlapping blocks; load as "defective"?
+- move PI expire config from dlg_filter into TTX grabber
 - merge & load dialog: directory drop-down: add history
 - merge dialog, "configure" sub-menu: simplify to single list with
   "extended" selection (i.e. allow multiple selections)

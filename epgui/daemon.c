@@ -217,8 +217,6 @@ void Daemon_StartDump( void )
    const char * const * pXmlFiles;
    uint provCnt;
 
-   EpgSetup_DbExpireDelay();
-
    provCnt = CmdLine_GetXmlFileNames(&pXmlFiles);
    if (provCnt > 1)
    {
@@ -1039,9 +1037,6 @@ void Daemon_Start( void )
       #ifndef WIN32
       Daemon_SignalSetup();
       #endif
-
-      // setup cut-off time for expired PI blocks during database reload
-      EpgContextCtl_SetPiExpireDelay(RcFile_Query()->db.piexpire_cutoff * 60);
 
       if (EpgAcqCtl_Start())
       {

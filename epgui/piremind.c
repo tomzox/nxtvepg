@@ -50,6 +50,7 @@
 #include "epgui/pibox.h"
 #include "epgui/pifilter.h"
 #include "epgui/piremind.h"
+#include "epgui/rcfile.h"
 #include "epgtcl/dlg_remind.h"
 
 
@@ -1431,7 +1432,8 @@ void PiRemind_CheckDb( void )
       if ( (pRemListObj != NULL) &&
            (Tcl_ListObjGetElements(interp, pRemListObj, &remCount, &pRemArgv) == TCL_OK) )
       {
-         expireThreshold = time(NULL) - dbc->expireDelayPi;
+         // setup cut-off time for expired PI blocks during database reload
+         expireThreshold = time(NULL) - (RcFile_Query()->db.piexpire_cutoff * 60);
 
          // loop across reminder list: note list length may shrink inside
          remIdx = 0;

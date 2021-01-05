@@ -211,7 +211,6 @@ bool EpgDbCheckChains( CPDBC dbc )
    while (pWalk != NULL)
    {
       assert(pWalk->type == BLOCK_TYPE_PI);
-      assert(pWalk->version == dbc->pAiBlock->blk.ai.version);
       pWalk = pWalk->pNextBlock;
    }
 
@@ -233,103 +232,6 @@ bool EpgDbCheckChains( CPDBC dbc )
    return TRUE;
 }
 #endif // DEBUG_GLOBAL_SWITCH == ON
-
-// ---------------------------------------------------------------------------
-// Removes obsolete PI or complete networks from the database
-// - if a specific network is to be deleted (usually after a change of the AI
-//   CNI table) the according entry in the filter array must be set to TRUE
-// - netwop count is a parameter and not taken from the AI so that the function
-//   can be used before the new AI is inserted into the DB (e.g. from inside
-//   an AI callback function)
-//
-static void EpgDbRemoveObsoleteNetwops( PDBC dbc, uchar netwopCount, uchar filter[MAX_NETWOP_COUNT] )
-{
-   EPGDB_BLOCK *pPrev, *pWalk, *pNext;
-   uchar netwop;
-   bool  do_remove;
-
-   //time_t expireTime = time(NULL) - dbc->expireDelayPi;
-
-   pWalk = dbc->pFirstPi;
-   while (pWalk != NULL)
-   {
-      netwop = pWalk->blk.pi.netwop_no;
-
-      if ( (netwop >= netwopCount) || filter[netwop] )
-      {  // the whole network has become obsolete -> remove all PI belonging to it
-         do_remove = TRUE;
-      }
-      else
-      {  // check if PI's block number is still registered in the current AI block
-         do_remove = FALSE;
-      }
-
-      if (do_remove)
-      {
-         dprintf3("free obsolete PI ptr=%lx, netwop=%d >= %d or filtered\n", (ulong)pWalk, pWalk->blk.pi.netwop_no, netwopCount);
-         // notify the GUI
-         if (dbc->pPiAcqCb != NULL)
-            dbc->pPiAcqCb(dbc, EPGDB_PI_REMOVED, &pWalk->blk.pi, NULL);
-
-         pPrev = pWalk->pPrevBlock;
-         pNext = pWalk->pNextBlock;
-
-         // remove from start time pointer chain
-         if (pPrev != NULL)
-            pPrev->pNextBlock = pNext;
-         else
-            dbc->pFirstPi = pNext;
-
-         if (pNext != NULL)
-            pNext->pPrevBlock = pPrev;
-         else
-            dbc->pLastPi = pPrev;
-
-         // remove from network pointer chain
-         if (pWalk->pPrevNetwopBlock != NULL)
-            pWalk->pPrevNetwopBlock->pNextNetwopBlock = pWalk->pNextNetwopBlock;
-         else
-            dbc->pFirstNetwopPi[netwop] = pWalk->pNextNetwopBlock;
-
-         if (pWalk->pNextNetwopBlock != NULL)
-            pWalk->pNextNetwopBlock->pPrevNetwopBlock = pWalk->pPrevNetwopBlock;
-
-         xfree(pWalk);
-         pWalk = pNext;
-      }
-      else
-      {
-         pWalk = pWalk->pNextBlock;
-      }
-   }
-
-   assert(EpgDbMgmtCheckChains(dbc));
-}
-
-// ---------------------------------------------------------------------------
-// Remove expired PI blocks from the database
-//
-void EpgDbExpire( EPGDB_CONTEXT * dbc )
-{
-   uchar filter[MAX_NETWOP_COUNT];
-
-   if (dbc->lockLevel == 0)
-   {
-      if (dbc->pAiBlock != NULL)
-      {
-         if (dbc->pPiAcqCb != NULL)
-            dbc->pPiAcqCb(dbc, EPGDB_PI_PROC_START, NULL, NULL);
-
-         memset(filter, FALSE, sizeof(filter));
-         EpgDbRemoveObsoleteNetwops(dbc, dbc->pAiBlock->blk.ai.netwopCount, filter);
-
-         if (dbc->pPiAcqCb != NULL)
-            dbc->pPiAcqCb(dbc, EPGDB_PI_PROC_DONE, NULL, NULL);
-      }
-   }
-   else
-      fatal0("EpgDb-Expire: database is locked");
-}
 
 // ---------------------------------------------------------------------------
 // Link a new PI block into the database
@@ -399,4 +301,27 @@ void EpgDbLinkPi( PDBC dbc, EPGDB_BLOCK * pBlock, EPGDB_BLOCK * pPrev, EPGDB_BLO
    // notify the GUI
    if (dbc->pPiAcqCb != NULL)
       dbc->pPiAcqCb(dbc, EPGDB_PI_INSERTED, &pBlock->blk.pi, NULL);
+}
+
+// ---------------------------------------------------------------------------
+// Add a defective (e.g. overlapping) PI block to a separate list
+// - called by XMLTV load when insertion of PI fails;
+//   this list is kept only for DB statistics
+// - the blocks are single-chained and NOT sorted;
+//   there is no check for duplicate blocks either
+// - returns FALSE if block was not added and has to be free()'d by caller
+//
+bool EpgDbAddDefectPi( PDBC dbc, EPGDB_BLOCK *pBlock )
+{
+   dprintf4("ADD OBSOLETE PI ptr=%lx: netwop=%d, start=%ld, stop=%ld\n", (ulong)pBlock, pBlock->blk.pi.netwop_no, pBlock->blk.pi.start_time, pBlock->blk.pi.stop_time);
+
+   // reset unused pointers
+   pBlock->pPrevBlock = NULL;
+   pBlock->pNextNetwopBlock = NULL;
+   pBlock->pPrevNetwopBlock = NULL;
+
+   pBlock->pNextBlock = dbc->pObsoletePi;
+   dbc->pObsoletePi = pBlock;
+
+   return TRUE;
 }

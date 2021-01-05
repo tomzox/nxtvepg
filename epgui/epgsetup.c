@@ -468,7 +468,6 @@ EPGDB_CONTEXT * EpgSetup_MergeDatabases( void )
 {
    EPGDB_CONTEXT * pDbContext;
    MERGE_ATTRIB_MATRIX max;
-   uint  expireTime;
    uint  pProvCniTab[MAX_MERGED_DB_COUNT];
    uint  provCount;
    uint  netwopCniTab[MAX_NETWOP_COUNT];
@@ -480,10 +479,7 @@ EPGDB_CONTEXT * EpgSetup_MergeDatabases( void )
         (EpgSetup_GetMergeDbNetwops(&netwopCount, netwopCniTab) ||
          EpgSetup_InitMergeDbNetwops(provCount, pProvCniTab, &netwopCount, netwopCniTab)) )
    {
-      expireTime = RcFile_Query()->db.piexpire_cutoff * 60;
-
-      pDbContext = EpgContextMerge(provCount, pProvCniTab, max, expireTime,
-                                   netwopCount, netwopCniTab);
+      pDbContext = EpgContextMerge(provCount, pProvCniTab, max, netwopCount, netwopCniTab);
 
       if (pDbContext != NULL)
       {
@@ -584,19 +580,6 @@ void EpgSetup_OpenUiDb( void )
 
    // note: the usual provider change events are not triggered here because
    // at the time this function is called the other modules are not yet initialized.
-}
-
-// ----------------------------------------------------------------------------
-// Pass expire time delta configuration setting to database layer
-// - executed during startup and when the user changes the setting
-//
-void EpgSetup_DbExpireDelay( void )
-{
-   uint  expireTime;
-
-   expireTime = RcFile_Query()->db.piexpire_cutoff * 60;
-
-   EpgContextCtl_SetPiExpireDelay(expireTime);
 }
 
 #ifdef USE_TTX_GRABBER

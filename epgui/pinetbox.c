@@ -4631,10 +4631,6 @@ static bool PiNetBox_HandleAcqEvent( const EPGDB_CONTEXT * usedDbc, EPGDB_PI_ACQ
                fatal1("PiNetBox-HandleAcqEvent: illegal NULL PI block for event %d", event);
             break;
 
-         case EPGDB_PI_PROC_START:
-         case EPGDB_PI_PROC_DONE:
-            break;
-
          case EPGDB_PI_RESYNC:
             if (netbox.pi_resync == FALSE)
             {

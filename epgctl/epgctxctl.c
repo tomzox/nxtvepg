@@ -116,7 +116,6 @@ typedef struct
 static CTX_CACHE * pContextCache;       // anchor of the list of all db contexts
 static CTX_CACHE * pContextDummy;       // empty context, used when no provider is available
 static bool contextScanDone;            // at least one dbdir scan done
-static time_t expireDelayPi;            // PI expire time threshold for new databases
 
 
 static time_t EpgContextCtl_GetMtime( const char * pFilename );
@@ -778,30 +777,6 @@ time_t EpgContextCtl_GetAiUpdateTime( uint cni, bool reload )
    }
 
    return lastAiUpdate;
-}
-
-// ---------------------------------------------------------------------------
-// Set PI "cut-off" time, i.e. time offset after which expired PI are removed from db
-// - assigned to all open databases (already removed PI are not recoverable though)
-// - also stored internally for future loads
-//
-void EpgContextCtl_SetPiExpireDelay( time_t expireDelay )
-{
-   CTX_CACHE  * pWalk;
-
-   expireDelayPi = expireDelay;
-
-   pWalk = pContextCache;
-   while (pWalk != NULL)
-   {
-      if (pWalk->pDbContext != NULL)
-      {
-         pWalk->pDbContext->expireDelayPi = expireDelayPi;
-
-         EpgDbExpire(pWalk->pDbContext);
-      }
-      pWalk = pWalk->pNext;
-   }
 }
 
 // ---------------------------------------------------------------------------

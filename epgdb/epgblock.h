@@ -189,13 +189,10 @@ typedef struct EPGDB_BLOCK_STRUCT
 //
 typedef enum
 {
-   // TODO should be obsolete
-   EPGDB_PI_PROC_START,    // START/DONE only used by obsolete dynamic expire
    EPGDB_PI_INSERTED,
    EPGDB_PI_PRE_UPDATE,    // no longer sent
    EPGDB_PI_POST_UPDATE,   // no longer sent
    EPGDB_PI_REMOVED,
-   EPGDB_PI_PROC_DONE,     // START/DONE only used by obsolete dynamic expire
    EPGDB_PI_RESYNC
 } EPGDB_PI_ACQ_EVENT;
 
@@ -212,7 +209,6 @@ typedef struct EPGDB_CONTEXT_STRUCT
 {
    uint   provCni;                  // provider CNI
    uint   lockLevel;                // number of database locks on this context
-   time_t expireDelayPi;            // how long to keep PI after they expired
 
    bool   merged;                   // Flag for merged db
    void   *pMergeContext;           // Pointer to merge parameters

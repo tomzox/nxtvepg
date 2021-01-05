@@ -582,8 +582,7 @@ static bool EpgDbMerge_PiMatch( const PI_BLOCK * pRefPi, const PI_BLOCK * pNewPi
 // ---------------------------------------------------------------------------
 // Merge all PI blocks of a single network
 //
-static void EpgDbMergeNetworkPi( PDBC dbc, time_t expireTime, uint netwop,
-                                 EPGDB_BLOCK **ppFirstNetwopBlock )
+static void EpgDbMergeNetworkPi( PDBC dbc, uint netwop, EPGDB_BLOCK **ppFirstNetwopBlock )
 {
    EPGDB_MERGE_CONTEXT * dbmc;
    EPGDB_BLOCK *pNextBlock[MAX_MERGED_DB_COUNT];
@@ -598,20 +597,12 @@ static void EpgDbMergeNetworkPi( PDBC dbc, time_t expireTime, uint netwop,
    dbCount = dbmc->dbCount;
    memset(pFoundBlocks, 0, sizeof(pFoundBlocks));
 
-   // get first non-expired block of this network from each DB
+   // get first block of this network from each DB
    for (dbIdx=0; dbIdx < dbCount; dbIdx++)
    {
       uint dbNet = dbmc->prov[dbIdx].revNetwopMap[netwop];
       if (dbNet != 0xff)
-      {
-         pBlock = dbmc->prov[dbIdx].pDbContext->pFirstNetwopPi[dbNet];
-         while ( (pBlock != NULL) &&
-                 (pBlock->blk.pi.stop_time < expireTime) )
-         {
-            pBlock = pBlock->pNextNetwopBlock;
-         }
-         pNextBlock[dbIdx] = pBlock;
-      }
+         pNextBlock[dbIdx] = dbmc->prov[dbIdx].pDbContext->pFirstNetwopPi[dbNet];
       else
          pNextBlock[dbIdx] = NULL;
    }
@@ -718,17 +709,15 @@ static void EpgDbMergeNetworkPi( PDBC dbc, time_t expireTime, uint netwop,
 void EpgDbMergeAllPiBlocks( PDBC dbc )
 {
    EPGDB_BLOCK *pFirstNetwopBlock[MAX_NETWOP_COUNT];
-   time_t expireTime;
    uint netwop, netCount;
 
    netCount = dbc->pAiBlock->blk.ai.netwopCount;
-   expireTime = time(NULL) - dbc->expireDelayPi;
    memset(pFirstNetwopBlock, 0, sizeof(pFirstNetwopBlock));
 
    // loop across target networks: merge networks separately
    for (netwop = 0; netwop < netCount; netwop++)
    {
-      EpgDbMergeNetworkPi(dbc, expireTime, netwop, &pFirstNetwopBlock[netwop]);
+      EpgDbMergeNetworkPi(dbc, netwop, &pFirstNetwopBlock[netwop]);
    }
 
    // combine networks into a single database
@@ -744,24 +733,19 @@ void EpgDbMergeUpdateNetwork( EPGDB_CONTEXT * pDbContext, uint srcNetwop, EPGDB_
 {
    EPGDB_MERGE_CONTEXT * dbmc;
    EPGDB_BLOCK *pFirstNetwopBlock[MAX_NETWOP_COUNT];
-   EPGDB_CONTEXT * pAcqDbContext;
    EPGDB_BLOCK *pMergedPi;
    EPGDB_BLOCK *pBlock, *pNext;
-   time_t expireTime;
    uint netwop;
 
    assert(pDbContext->merged);
 
    dbmc = pDbContext->pMergeContext;
-   pAcqDbContext = dbmc->prov[dbmc->acqIdx].pDbContext;
-
    netwop = dbmc->prov[dbmc->acqIdx].netwopMap[pNewBlock->blk.pi.netwop_no];
    if (netwop != 0xff)
    {
-      expireTime = time(NULL) - pAcqDbContext->expireDelayPi;
       pMergedPi = NULL;
 
-      EpgDbMergeNetworkPi(pDbContext, expireTime, netwop, &pMergedPi);
+      EpgDbMergeNetworkPi(pDbContext, netwop, &pMergedPi);
 
       // free old blocks of the newly merged network
       pBlock = pDbContext->pFirstNetwopPi[netwop];

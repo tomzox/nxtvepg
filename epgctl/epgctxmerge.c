@@ -355,7 +355,7 @@ bool EpgContextMergeUpdateDb( CPDBC pAcqContext )
 // Start complete merge
 //
 EPGDB_CONTEXT * EpgContextMerge( uint dbCount, const uint * pCni, MERGE_ATTRIB_VECTOR_PTR pMax,
-                                 uint expireTime, uint netwopCount, uint * pNetwopList )
+                                 uint netwopCount, uint * pNetwopList )
 {
    EPGDB_CONTEXT * pDbContext;
    EPGDB_MERGE_CONTEXT * pMergeContext;
@@ -391,7 +391,6 @@ EPGDB_CONTEXT * EpgContextMerge( uint dbCount, const uint * pCni, MERGE_ATTRIB_V
       pDbContext->provCni = MERGED_PROV_CNI;
       pDbContext->merged = TRUE;
       pDbContext->pMergeContext = pMergeContext;
-      pDbContext->expireDelayPi = expireTime;
 
       EpgContextMergeNormalizeCnis(pMergeContext, &netwopCount, pNetwopList);
 
