@@ -51,7 +51,7 @@ static time_t unixTimeBase1982;         // 1.1.1982 in UNIX time format
 // ----------------------------------------------------------------------------
 // Allocate a new block and initialize the common elements
 //
-EPGDB_BLOCK * EpgBlockCreate( uchar type, uint size )
+EPGDB_BLOCK * EpgBlockCreate( uchar type, uint size, time_t mtime )
 {
    EPGDB_BLOCK *pBlock;
 
@@ -65,7 +65,7 @@ EPGDB_BLOCK * EpgBlockCreate( uchar type, uint size )
 
    pBlock->version = 0xff;
 
-   pBlock->acqTimestamp = time(NULL);
+   pBlock->acqTimestamp = mtime;
 
    dprintf2("EpgBlock-Create: created block type=%d, (0x%lx)\n", type, (long)pBlock);
    return pBlock;

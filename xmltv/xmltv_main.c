@@ -94,12 +94,12 @@ bool Xmltv_IsXmlDocument( uint detection )
 // Entry point
 // - TODO: pass preferred language?
 //
-EPGDB_CONTEXT * Xmltv_Load( FILE * fp, uint provCni, const char * pProvName, bool isPeek )
+EPGDB_CONTEXT * Xmltv_Load( FILE * fp, uint provCni, const char * pProvName, time_t mtime, bool isPeek )
 {
    EPGDB_CONTEXT * pDbContext;
 
    // initialize internal state
-   XmltvDb_Init(provCni, isPeek);
+   XmltvDb_Init(provCni, mtime, isPeek);
 
    // parse the XMLTV file
    XmltvTags_StartScan(fp, TRUE);
@@ -178,17 +178,13 @@ EPGDB_CONTEXT * Xmltv_CheckAndLoad( const char * pFilename, uint provCni,
       else
          pBaseName = pFilename;
 
-      pDbContext = Xmltv_Load(fp, provCni, pBaseName, isPeek);
+      pDbContext = Xmltv_Load(fp, provCni, pBaseName, *pMtime, isPeek);
 
       if (pDbContext != NULL)
-      {
-         EpgDbSetAiUpdateTime(pDbContext, *pMtime);
          result = EPGDB_RELOAD_OK;
-      }
       else
-      {
          result = EPGDB_RELOAD_XML_MASK | XmltvTags_QueryDetection();
-      }
+
       fclose(fp);
    }
    else
@@ -244,7 +240,7 @@ int main( int argc, char ** argv )
          {
             fseek(fp, 0, SEEK_SET);
 
-            pDbContext = Xmltv_Load(fp, 0xfe, "XMLTV", FALSE);
+            pDbContext = Xmltv_Load(fp, 0xfe, "XMLTV", 0, FALSE);
 
             EpgDbSavSetupDir("tmp0", NULL);
             pDbContext->modified = TRUE;

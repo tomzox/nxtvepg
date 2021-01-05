@@ -109,7 +109,7 @@ void Xmltv_PiCreditsAddGuest( XML_STR_BUF * pBuf );
 // Interface to main control module
 //
 #ifdef __EPGBLOCK_H
-void XmltvDb_Init( uint provCni, bool isPeek );
+void XmltvDb_Init( uint provCni, time_t mtime, bool isPeek );
 void XmltvDb_Destroy( void );
 EPGDB_CONTEXT * XmltvDb_GetDatabase( const char * pProvName );
 #endif

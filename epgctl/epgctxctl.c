@@ -86,8 +86,8 @@ typedef struct CTX_CACHE_struct
    uint                 peekRefCount;  // reference counter for peek requests
    uint                 provCni;       // provider CNI (same as this_netwop in AI)
    EPGDB_RELOAD_RESULT  reloadErr;     // reload error code (used in error state only)
-   time_t               mtime;         // db file modification time (used in state STAT only)
-
+   time_t               mtime;         // DB file modification time - for use in states
+                                       // STAT & ERROR only - else use AI acqTimestamp!
    EPGDB_CONTEXT      * pDbContext;    // the actual EPG database
 
 } CTX_CACHE;
@@ -483,7 +483,7 @@ static CTX_CACHE * EpgContextCtl_OpenInt( CTX_CACHE * pContext, bool isNew,
          {
             const char * pXmlPath = XmltvCni_LookupProviderPath(pContext->provCni);
             if ( (pXmlPath != NULL) &&
-                 (pContext->mtime < EpgContextCtl_GetMtime(pXmlPath)) )
+                 (EpgDbGetAiUpdateTime(pContext->pDbContext) != EpgContextCtl_GetMtime(pXmlPath)) )
             {
                dprintf1("EpgContextCtl-Open: reloading prov %04X due to mtime change\n", pContext->provCni);
                // reload the database, ignoring error
@@ -760,7 +760,7 @@ time_t EpgContextCtl_GetAiUpdateTime( uint cni, bool reload )
         ( (pContext->state == CTX_CACHE_OPEN) ||
           (pContext->state == CTX_CACHE_PEEK) ))
    {
-      lastAiUpdate = pContext->mtime;
+      lastAiUpdate = EpgDbGetAiUpdateTime(pContext->pDbContext);
       dprintf3("EpgContextCtl-GetAiUpdateTime: CNI 0x%04X: use context timestamp %ld = %s", cni, lastAiUpdate, ctime(&lastAiUpdate));
    }
    else

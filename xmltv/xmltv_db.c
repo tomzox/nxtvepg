@@ -174,6 +174,7 @@ typedef struct
    XML_STR_BUF  pi_code_vp;
 
    EPGDB_CONTEXT * pDbContext;
+   time_t       mtime;
    bool         isPeek;
    bool         cniCtxInitDone;
    XMLTV_CNI_CTX cniCtx;
@@ -401,7 +402,7 @@ static EPGDB_BLOCK * XmltvDb_BuildOi( void )
               XML_STR_BUF_GET_STR_LEN(oiMessage) + 1;
 
    // 2nd step: copy elements one after each other, then free single elements
-   pBlk = EpgBlockCreate(BLOCK_TYPE_OI, blockLen);
+   pBlk = EpgBlockCreate(BLOCK_TYPE_OI, blockLen, xds.mtime);
    pOi = (OI_BLOCK *) &pBlk->blk.oi;
    memset(pOi, 0, sizeof(OI_BLOCK));
    blockLen = sizeof(OI_BLOCK);
@@ -445,7 +446,7 @@ static EPGDB_BLOCK * XmltvDb_BuildAi( const char * pProvName )
               (xds.chn_count * sizeof(AI_NETWOP)) +
               (XML_STR_BUF_GET_STR_LEN(aiServiceName) + 1) +
               netNameLenSum;
-   pBlk = EpgBlockCreate(BLOCK_TYPE_AI, blockLen);
+   pBlk = EpgBlockCreate(BLOCK_TYPE_AI, blockLen, xds.mtime);
    pAi = (AI_BLOCK *) &pBlk->blk.ai;  // remove const from pointer
    memset(pAi, 0, sizeof(AI_BLOCK));
    pAi->netwopCount = xds.chn_count;
@@ -580,7 +581,7 @@ static EPGDB_BLOCK * XmltvDb_BuildPi( void )
       xds.pi.off_short_info = 0;
 
    // 2nd step: copy elements one after each other, then free single elements
-   pBlk = EpgBlockCreate(BLOCK_TYPE_PI, piLen);
+   pBlk = EpgBlockCreate(BLOCK_TYPE_PI, piLen, xds.mtime);
    pPi = (PI_BLOCK *) &pBlk->blk.pi;  // remove const from pointer
    memcpy(pPi, &xds.pi, sizeof(PI_BLOCK));
 
@@ -1605,7 +1606,7 @@ void XmltvDb_Destroy( void )
 // ----------------------------------------------------------------------------
 // Initialize the local module state
 //
-void XmltvDb_Init( uint provCni, bool isPeek )
+void XmltvDb_Init( uint provCni, time_t mtime, bool isPeek )
 {
    memset(&xds, 0, sizeof(xds));
    xds.pChannelHash = XmlHash_Init();
@@ -1618,6 +1619,7 @@ void XmltvDb_Init( uint provCni, bool isPeek )
    XmlCdata_Init(&xds.pi_code_vp, 256);
    XmlCdata_Init(&xds.pi_desc, 4096);
 
+   xds.mtime = mtime;
    xds.isPeek = isPeek;
 
    // create empty database

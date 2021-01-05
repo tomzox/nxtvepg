@@ -268,7 +268,7 @@ typedef struct
 // ----------------------------------------------------------------------------
 // Declaration of service interface functions
 //
-EPGDB_BLOCK * EpgBlockCreate( uchar type, uint size );
+EPGDB_BLOCK * EpgBlockCreate( uchar type, uint size, time_t mtime );
 
 bool EpgBlockCheckConsistancy( EPGDB_BLOCK * pBlock );
 

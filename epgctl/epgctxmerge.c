@@ -339,6 +339,13 @@ bool EpgContextMergeUpdateDb( CPDBC pAcqContext )
          }
       }
 
+      // update modification time of merged AI
+      time_t acqTime = EpgDbGetAiUpdateTime(pAcqContext);
+      if (EpgDbGetAiUpdateTime(pUiDbContext) < acqTime)
+      {
+         EpgDbSetAiUpdateTime(pUiDbContext, acqTime);
+      }
+
       result = TRUE;
    }
    return result;

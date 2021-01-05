@@ -186,6 +186,7 @@ static EPGDB_BLOCK * EpgDbMergePiBlocks( PDBC dbc, EPGDB_BLOCK **pFoundBlocks )
    uint firstIdx, piCount;
    uint idx, idx2;
    uchar version;
+   time_t mtime;
 
    dbmc = dbc->pMergeContext;
    dbCount = dbmc->dbCount;
@@ -193,6 +194,7 @@ static EPGDB_BLOCK * EpgDbMergePiBlocks( PDBC dbc, EPGDB_BLOCK **pFoundBlocks )
    version = 1;
    firstIdx = 0xff;
    piCount = 0;
+   mtime = 0;
    for (dbIdx=0; dbIdx < dbCount; dbIdx++)
    {
       if (pFoundBlocks[dbIdx] != NULL)
@@ -203,6 +205,8 @@ static EPGDB_BLOCK * EpgDbMergePiBlocks( PDBC dbc, EPGDB_BLOCK **pFoundBlocks )
          piCount += 1;
          if (pFoundBlocks[dbIdx]->version != dbmc->prov[dbIdx].pDbContext->pAiBlock->blk.ai.version)
             version = 0;
+         if (mtime < pFoundBlocks[dbIdx]->acqTimestamp)
+            mtime = pFoundBlocks[dbIdx]->acqTimestamp;
       }
    }
    // abort if no PI are in the list
@@ -252,7 +256,7 @@ static EPGDB_BLOCK * EpgDbMergePiBlocks( PDBC dbc, EPGDB_BLOCK **pFoundBlocks )
    }
 
    blockSize = sizeof(PI_BLOCK) + strlen(pTitle) + 1 + slInfoLen + (piCount * sizeof(EPGDB_MERGE_SRC));
-   pMergedBlock = EpgBlockCreate(BLOCK_TYPE_PI, blockSize);
+   pMergedBlock = EpgBlockCreate(BLOCK_TYPE_PI, blockSize, mtime);
    pMergedBlock->version    = version;
    pPi = (PI_BLOCK *) &pMergedBlock->blk.pi;  // cast to remove const from pointer
    off = sizeof(PI_BLOCK);
@@ -871,6 +875,7 @@ void EpgDbMergeAiBlocks( PDBC dbc, uint netwopCount, uint * pNetwopList )
    const AI_NETWOP * pNetwops;
    AI_BLOCK  * pTargetAi;
    AI_NETWOP * pTargetNetwops;
+   time_t mtimeProv, mtimeMerge;
    uint netwop, dbIdx, idx;
    uchar netOrigIdx[MAX_NETWOP_COUNT];
    uchar dayCount[MAX_NETWOP_COUNT];
@@ -908,6 +913,14 @@ void EpgDbMergeAiBlocks( PDBC dbc, uint netwopCount, uint * pNetwopList )
       }
    }
 
+   mtimeMerge = 0;
+   for (dbIdx=0; dbIdx < dbCount; dbIdx++)
+   {
+      mtimeProv = dbmc->prov[dbIdx].pDbContext->pAiBlock->acqTimestamp;
+      if (mtimeMerge < mtimeProv)
+         mtimeMerge = mtimeProv;
+   }
+
    // merge service names
    pServiceName = EpgDbMergeAiServiceNames(dbmc);
 
@@ -916,7 +929,7 @@ void EpgDbMergeAiBlocks( PDBC dbc, uint netwopCount, uint * pNetwopList )
               netwopCount * sizeof(AI_NETWOP) +
               strlen(pServiceName) + 1 +
               nameLen;
-   dbc->pAiBlock = EpgBlockCreate(BLOCK_TYPE_AI, blockLen);
+   dbc->pAiBlock = EpgBlockCreate(BLOCK_TYPE_AI, blockLen, mtimeMerge);
    pTargetAi = (AI_BLOCK *) &dbc->pAiBlock->blk.ai;
 
    // init base struct
