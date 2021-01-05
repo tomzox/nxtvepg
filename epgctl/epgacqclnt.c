@@ -194,16 +194,11 @@ static void EpgAcqClient_SwapEpgdbBlockCount( EPGDB_BLOCK_COUNT * pCounts )
 
    for (idx=0; idx < 2; idx++, pCounts++)
    {
-      swap32(&pCounts->ai);
       swap32(&pCounts->curVersion);
       swap32(&pCounts->allVersions);
       swap32(&pCounts->expired);
       swap32(&pCounts->defective);
-      swap32(&pCounts->extra);
       swap32(&pCounts->sinceAcq);
-
-      swap64(&pCounts->variance);
-      swap64(&pCounts->avgAcqRepCount);
    }
 }
 
@@ -287,7 +282,6 @@ static bool EpgAcqClient_CheckMsg( uint len, EPGNETIO_MSG_HEADER * pHead, EPGDBS
                      if (clientState.endianSwap)
                      {
                         EpgAcqClient_SwapEpgdbBlockCount(pBody->stats_ind.u.minimal.count);
-                        swap32(&pBody->stats_ind.u.minimal.nowMaxAcqNetCount);
                         swap32(&pBody->stats_ind.u.minimal.vpsPdc.cni);
                         swap32(&pBody->stats_ind.u.minimal.vpsPdc.pil);
                         swap32(&pBody->stats_ind.u.minimal.lastAiTime);
@@ -302,17 +296,17 @@ static bool EpgAcqClient_CheckMsg( uint len, EPGNETIO_MSG_HEADER * pHead, EPGDBS
                   {
                      if (clientState.endianSwap)
                      {
-                        swap32(&pBody->stats_ind.u.initial.stats.lastStatsUpdate);
-                        swap32(&pBody->stats_ind.u.initial.stats.ttx_duration);
                         for (idx=0; idx < sizeof(pBody->stats_ind.u.initial.stats.ttx_dec) / sizeof(uint32_t); idx++)
                            swap32(((uint32_t *)&pBody->stats_ind.u.initial.stats.ttx_dec) + idx);
                         swap32(&pBody->stats_ind.u.initial.vpsPdc.cni);
                         swap32(&pBody->stats_ind.u.initial.vpsPdc.pil);
                         // teletext grabber
-                        swap32(&pBody->stats_ind.u.initial.stats.ttx_grab.acqStartTime);
-                        swap32(&pBody->stats_ind.u.initial.stats.ttx_grab.srcIdx);
-                        for (idx=0; idx < sizeof(pBody->stats_ind.u.initial.stats.ttx_grab.pkgStats) / sizeof(uint32_t); idx++)
-                           swap32(((uint32_t *)&pBody->stats_ind.u.initial.stats.ttx_grab.pkgStats) + idx);
+                        swap32(&pBody->stats_ind.u.initial.stats.acqStartTime);
+                        swap32(&pBody->stats_ind.u.initial.stats.lastStatsUpdate);
+                        swap32(&pBody->stats_ind.u.initial.stats.acqDuration);
+                        swap32(&pBody->stats_ind.u.initial.stats.srcIdx);
+                        for (idx=0; idx < sizeof(pBody->stats_ind.u.initial.stats.pkgStats) / sizeof(uint32_t); idx++)
+                           swap32(((uint32_t *)&pBody->stats_ind.u.initial.stats.pkgStats) + idx);
                      }
                      result = TRUE;
                   }
@@ -327,9 +321,7 @@ static bool EpgAcqClient_CheckMsg( uint len, EPGNETIO_MSG_HEADER * pHead, EPGDBS
                         swap32(&pBody->stats_ind.u.update.vpsPdc.cni);
                         swap32(&pBody->stats_ind.u.update.vpsPdc.pil);
                         swap16(&pBody->stats_ind.u.update.histIdx);
-                        swap32(&pBody->stats_ind.u.update.nowMaxAcqRepCount);
-                        swap32(&pBody->stats_ind.u.update.nowMaxAcqNetCount);
-                        swap32(&pBody->stats_ind.u.update.ttx_duration);
+                        swap32(&pBody->stats_ind.u.update.acqDuration);
                         swap32(&pBody->stats_ind.u.update.lastStatsUpdate);
                         for (idx=0; idx < sizeof(pBody->stats_ind.u.update.ttx_dec) / sizeof(uint32_t); idx++)
                            swap32(((uint32_t *)&pBody->stats_ind.u.update.ttx_dec) + idx);
@@ -1187,26 +1179,24 @@ static bool EpgAcqClient_ProcessStats( void )
             memcpy(pAcqDescr, &pUpd->descr, sizeof(*pAcqDescr));
 
             pAcqStats->ttx_dec = pUpd->u.update.ttx_dec;
-            pAcqStats->ttx_duration = pUpd->u.update.ttx_duration;
-            pAcqStats->nxtv.nowMaxAcqRepCount = pUpd->u.update.nowMaxAcqRepCount;
-            pAcqStats->nxtv.nowMaxAcqNetCount = pUpd->u.update.nowMaxAcqNetCount;
             pAcqStats->lastStatsUpdate = pUpd->u.update.lastStatsUpdate;
-            pAcqStats->ttx_grab.pkgStats = pUpd->u.update.grabTtxStats;
+            pAcqStats->acqDuration = pUpd->u.update.acqDuration;
+            pAcqStats->pkgStats = pUpd->u.update.grabTtxStats;
 
-            histIdx = pAcqStats->nxtv.histIdx;
+            histIdx = pAcqStats->histogram.histIdx;
             do
             {
                histIdx = (histIdx + 1) % STATS_HIST_WIDTH;
-               pAcqStats->nxtv.hist[histIdx] = pUpd->u.update.hist;
+               pAcqStats->histogram.hist[histIdx] = pUpd->u.update.hist;
             } while (histIdx != pUpd->u.update.histIdx);
-            pAcqStats->nxtv.histIdx = pUpd->u.update.histIdx;
+            pAcqStats->histogram.histIdx = pUpd->u.update.histIdx;
 
             if (pUpd->u.update.vpsPdc.cniType != STATS_IND_INVALID_VPS_PDC)
                clientState.acqVpsPdcInd += 1;
 
             break;
       }
-      dprintf4("ProcessStats-ProcessStats: type %d, AI follows=%d, acqstate=%d, histIdx=%d\n", pUpd->type, pUpd->aiFollows, pUpd->descr.ttxGrabState, pAcqStats->nxtv.histIdx);
+      dprintf4("ProcessStats-ProcessStats: type %d, AI follows=%d, acqstate=%d, histIdx=%d\n", pUpd->type, pUpd->aiFollows, pUpd->descr.ttxGrabState, pAcqStats->histogram.histIdx);
 
       // free the message
       pNext = clientState.pStatsMsg->stats_ind.p.pNext;

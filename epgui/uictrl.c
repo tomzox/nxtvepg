@@ -545,6 +545,11 @@ static void UiControl_LoadAcqDb( ClientData clientData )
                      {
                         AddMainIdleEvent(UiControl_LoadAcqDb, NULL, TRUE);
                      }
+                     else  // all DBs updated -> final notifications
+                     {
+                        TimeScale_VersionChange();
+                        StatsWin_StatsUpdate(DB_TARGET_ACQ);
+                     }
                   }
                }
                else
@@ -569,6 +574,9 @@ static void UiControl_LoadAcqDb( ClientData clientData )
 
                PiBox_Refresh();
                UiControl_AiStateChange(DB_TARGET_UI);
+
+               TimeScale_VersionChange();
+               StatsWin_StatsUpdate(DB_TARGET_ACQ);
             }
             else
                debug1("UiControl-LoadAcqDb: failed to load db 0x%04X\n", cni);
@@ -893,17 +901,12 @@ void UiControlMsg_AcqEvent( ACQ_EVENT acqEvent )
          case ACQ_EVENT_PI_EXPIRED:
             TimeScale_ProvChange();
             StatsWin_StatsUpdate(DB_TARGET_UI);
-            StatsWin_StatsUpdate(DB_TARGET_ACQ);
             break;
 
          // also sent when updating an existing DB
          case ACQ_EVENT_NEW_DB:
+            // further events are triggered after DB is reloaded
             AddMainIdleEvent(UiControl_LoadAcqDb, NULL, TRUE);
-            // following copied from former "AI_VERSION_CHANGE"
-            TimeScale_VersionChange();
-            StatsWin_StatsUpdate(DB_TARGET_ACQ);
-            // following is raised also from within UiControl_LoadAcqDb
-            //AddMainIdleEvent(UiControl_AiStateChange, (ClientData) DB_TARGET_ACQ, FALSE);
             break;
 
          case ACQ_EVENT_VPS_PDC:

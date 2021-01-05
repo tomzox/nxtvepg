@@ -65,9 +65,7 @@ EPGDB_BLOCK * EpgBlockCreate( uchar type, uint size )
 
    pBlock->version = 0xff;
 
-   pBlock->acqTimestamp =
-   pBlock->updTimestamp = time(NULL);
-   pBlock->acqRepCount  = 1;
+   pBlock->acqTimestamp = time(NULL);
 
    dprintf2("EpgBlock-Create: created block type=%d, (0x%lx)\n", type, (long)pBlock);
    return pBlock;
@@ -203,7 +201,7 @@ static bool EpgBlockCheckPi( EPGDB_BLOCK * pBlock )
    else
       result = TRUE;
 
-   ifdebug5(result == FALSE, "EpgBlock-CheckPi: inconsistancy detected: network=%d start=%d size=%d acq-time=%d acq-rep=%d", pPi->netwop_no, (int)pPi->start_time, pBlock->size, (int)pBlock->acqTimestamp, pBlock->acqRepCount);
+   ifdebug4(result == FALSE, "EpgBlock-CheckPi: inconsistancy detected: network=%d start=%d size=%d acq-time=%d", pPi->netwop_no, (int)pPi->start_time, pBlock->size, (int)pBlock->acqTimestamp);
 
    return result;
 }

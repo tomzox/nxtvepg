@@ -92,11 +92,9 @@ typedef struct MSG_STRUCT_STATS_IND_STRUCT
          TTX_DEC_STATS        ttx_dec;
          TTX_GRAB_STATS       grabTtxStats;
          EPG_ACQ_VPS_PDC      vpsPdc;
-         EPGDB_HIST           hist;
+         EPG_ACQ_HIST_ELEM    hist;
          uint16_t             histIdx;
-         uint32_t             nowMaxAcqRepCount;
-         uint32_t             nowMaxAcqNetCount;
-         uint32_t             ttx_duration;
+         uint32_t             acqDuration;
          uint32_t             resv_align4;
          time32_t             lastStatsUpdate;
       } update;

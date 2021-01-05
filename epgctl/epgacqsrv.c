@@ -137,9 +137,6 @@ static void EpgAcqServer_BuildStatsMsg( EPGDBSRV_STATE * req )
          req->msgBuf.stats_ind.type = EPGDB_STATS_UPD_TYPE_MINIMAL;
          msgLen = sizeof(req->msgBuf.stats_ind) - sizeof(req->msgBuf.stats_ind.u) + sizeof(req->msgBuf.stats_ind.u.minimal);
 
-         // include database statistics (block counts)
-         memcpy(&req->msgBuf.stats_ind.u.minimal.count, &acqStats.nxtv.count, sizeof(acqStats.nxtv.count));
-         req->msgBuf.stats_ind.u.minimal.nowMaxAcqNetCount = acqStats.nxtv.nowMaxAcqNetCount;
          if (newVpsPdc)
             req->msgBuf.stats_ind.u.minimal.vpsPdc = vpsPdc;
          else
@@ -164,17 +161,12 @@ static void EpgAcqServer_BuildStatsMsg( EPGDBSRV_STATE * req )
             req->msgBuf.stats_ind.type = EPGDB_STATS_UPD_TYPE_UPDATE;
             msgLen = sizeof(req->msgBuf.stats_ind) - sizeof(req->msgBuf.stats_ind.u) + sizeof(req->msgBuf.stats_ind.u.update);
 
-            // include database statistics (block counts)
-            memcpy(&req->msgBuf.stats_ind.u.update.count, &acqStats.nxtv.count, sizeof(acqStats.nxtv.count));
-
-            req->msgBuf.stats_ind.u.update.hist    = acqStats.nxtv.hist[acqStats.nxtv.histIdx];
-            req->msgBuf.stats_ind.u.update.histIdx = acqStats.nxtv.histIdx;
+            req->msgBuf.stats_ind.u.update.hist    = acqStats.histogram.hist[acqStats.histogram.histIdx];
+            req->msgBuf.stats_ind.u.update.histIdx = acqStats.histogram.histIdx;
             req->msgBuf.stats_ind.u.update.ttx_dec = acqStats.ttx_dec;
-            req->msgBuf.stats_ind.u.update.ttx_duration = acqStats.ttx_duration;
-            req->msgBuf.stats_ind.u.update.nowMaxAcqRepCount = acqStats.nxtv.nowMaxAcqRepCount;
-            req->msgBuf.stats_ind.u.update.nowMaxAcqNetCount = acqStats.nxtv.nowMaxAcqNetCount;
+            req->msgBuf.stats_ind.u.update.acqDuration = acqStats.acqDuration;
             req->msgBuf.stats_ind.u.update.lastStatsUpdate = acqStats.lastStatsUpdate;
-            req->msgBuf.stats_ind.u.update.grabTtxStats = acqStats.ttx_grab.pkgStats;
+            req->msgBuf.stats_ind.u.update.grabTtxStats = acqStats.pkgStats;
 
             if (newVpsPdc)
                req->msgBuf.stats_ind.u.update.vpsPdc = vpsPdc;
@@ -245,8 +237,8 @@ static char * EpgAcqServer_BuildAcqDescrStr( void )
    if (pAcqPasvStr != NULL)
       off += snprintf(pMsg + off, 10000 - off, "Passive reason:         %s\n", pAcqPasvStr);
 
-   if ((sv.nxtv.acqStartTime > 0) && (sv.nxtv.acqStartTime <= sv.lastStatsUpdate))
-      acq_duration = sv.lastStatsUpdate - sv.nxtv.acqStartTime;
+   if ((sv.acqStartTime > 0) && (sv.acqStartTime <= sv.lastStatsUpdate))
+      acq_duration = sv.lastStatsUpdate - sv.acqStartTime;
    else
       acq_duration = 0;
 
@@ -256,23 +248,16 @@ static char * EpgAcqServer_BuildAcqDescrStr( void )
                                      (vpsPdc.pil >> 15) & 0x1F, (vpsPdc.pil >> 11) & 0x0F,
                                      (vpsPdc.pil >>  6) & 0x1F, (vpsPdc.pil) & 0x3F);
 
-   off += snprintf(pMsg + off, 10000 - off, "Nextview acq duration:  %d\n"
-                                            "Block total in DB:      %d\n",
-                               acq_duration,
-                               sv.nxtv.count.allVersions + sv.nxtv.count.expired + sv.nxtv.count.defective
-                  );
-   off += snprintf(pMsg + off, 10000 - off, "Network variance:       %1.2f\n",
-                                sv.nxtv.count.variance);
+   off += snprintf(pMsg + off, 10000 - off, "Nextview acq duration:  %d\n",
+                               acq_duration);
 
    off += snprintf(pMsg + off, 10000 - off,
                  "TTX pkg/frame:          %.1f\n"
                  "Captured TTX pages:     %d\n"
-                 "PI repetition now/next: %d/%.2f\n"
                  "TTX acq. duration:      %d\n",
                  (double)sv.ttx_dec.ttxPkgRate / (1 << TTX_PKG_RATE_FIXP),
-                 sv.ttx_grab.pkgStats.ttxPagCount,
-                 sv.nxtv.nowMaxAcqRepCount, sv.nxtv.count.avgAcqRepCount,
-                 sv.ttx_duration
+                 sv.pkgStats.ttxPagCount,
+                 sv.acqDuration
           );
 
    if (acqState.ttxSrcCount > 0)
@@ -281,8 +266,8 @@ static char * EpgAcqServer_BuildAcqDescrStr( void )
                                                "Teletext source name:   %s\n"
                                                "Teletext acq duration:  %d\n",
                                   acqState.ttxGrabDone, acqState.ttxSrcCount,
-                                  (*sv.ttx_grab.srcName ? (const char*)sv.ttx_grab.srcName : "-"),
-                                  (int)(sv.lastStatsUpdate - sv.ttx_grab.acqStartTime)
+                                  (*sv.srcName ? (const char*)sv.srcName : "-"),
+                                  (int)(sv.lastStatsUpdate - sv.acqStartTime)
                      );
    }
 

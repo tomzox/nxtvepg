@@ -132,11 +132,18 @@ void EpgAcqCtl_DescribeAcqState( EPGACQ_DESCR * pAcqState )
 
 // ----------------------------------------------------------------------------
 // Return text strings line which describes the current acq mode
+// - pAcqState must have been previously filled by EpgAcqCtl-DescribeAcqState()
 //
 void EpgAcqCtl_GetAcqModeStr( const EPGACQ_DESCR * pAcqState,
                               const char ** ppModeStr, const char ** ppPasvStr )
 {
-   if (pAcqState->passiveReason == ACQPASSIVE_NONE)
+   if ((pAcqState->ttxGrabState == ACQDESCR_DISABLED) ||
+       (pAcqState->ttxGrabState == ACQDESCR_SCAN))
+   {
+      // pAcqState->mode is not valid in this case
+      *ppModeStr = "disabled";
+   }
+   else if (pAcqState->passiveReason == ACQPASSIVE_NONE)
    {
       switch (pAcqState->mode)
       {
@@ -164,26 +171,19 @@ void EpgAcqCtl_GetAcqModeStr( const EPGACQ_DESCR * pAcqState,
    }
    else
    {
-      if (pAcqState->ttxGrabState == ACQDESCR_DISABLED)
-      {
-         *ppModeStr = "disabled";
-      }
-      else
-      {
-         *ppModeStr = "forced passive";
+      *ppModeStr = "forced passive";
 
-         switch (pAcqState->passiveReason)
-         {
-            case ACQPASSIVE_NO_TUNER:
-               *ppPasvStr = "input source is not a tuner";
-               break;
-            case ACQPASSIVE_ACCESS_DEVICE:
-               *ppPasvStr = "video device busy";
-               break;
-            default:
-               *ppPasvStr = "unknown";
-               break;
-         }
+      switch (pAcqState->passiveReason)
+      {
+         case ACQPASSIVE_NO_TUNER:
+            *ppPasvStr = "input source is not a tuner";
+            break;
+         case ACQPASSIVE_ACCESS_DEVICE:
+            *ppPasvStr = "video device busy";
+            break;
+         default:
+            *ppPasvStr = "unknown";
+            break;
       }
    }
 }
@@ -197,7 +197,6 @@ void EpgAcqCtl_GetAcqModeStr( const EPGACQ_DESCR * pAcqState,
 //
 bool EpgAcqCtl_GetAcqStats( EPG_ACQ_STATS * pAcqStats )
 {
-   time_t ttx_start_t;
    bool result = FALSE;
 
    if (acqCtl.acqEnabled)
@@ -206,14 +205,7 @@ bool EpgAcqCtl_GetAcqStats( EPG_ACQ_STATS * pAcqStats )
 
       if (acqCtl.mode != ACQMODE_NETWORK)
       {
-         EpgAcqTtx_GetAcqStats(&pAcqStats->ttx_grab);
-         pAcqStats->lastStatsUpdate = time(NULL);
-
-         // retrieve additional data from TTX packet decoder
-         TtxDecode_GetStatistics(0, &pAcqStats->ttx_dec, &ttx_start_t);
-         pAcqStats->ttx_duration = pAcqStats->lastStatsUpdate - ttx_start_t;
-
-         result = TRUE;
+         result = EpgAcqTtx_GetAcqStats(pAcqStats);
       }
       else
       {

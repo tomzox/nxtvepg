@@ -753,7 +753,7 @@ time_t EpgDbGetPiUpdateTime( const PI_BLOCK * pPiBlock )
    {
       pBlock = (const EPGDB_BLOCK *)((ulong)pPiBlock - BLK_UNION_OFF);
 
-      return pBlock->updTimestamp;
+      return pBlock->acqTimestamp;
    }
    else
       fatal0("EpgDb-GetPiUpdateTime: illegal NULL ptr param");
@@ -762,41 +762,19 @@ time_t EpgDbGetPiUpdateTime( const PI_BLOCK * pPiBlock )
 }
 
 // ---------------------------------------------------------------------------
-// Returns the version number of a PI block
-//
-uchar EpgDbGetVersion( const void * pUnion )
-{
-   const EPGDB_BLOCK *pBlock;
-   uchar version;
-
-   pBlock = (const EPGDB_BLOCK *)((ulong)pUnion - BLK_UNION_OFF);
-   version = pBlock->version;
-
-   return version;
-}
-
-// ---------------------------------------------------------------------------
 // Count the number of PI blocks in the database
 // - db needs not be locked since this is an atomic operation
 //   and no pointers into the db are returned
 //
-bool EpgDbGetStat( CPDBC dbc, EPGDB_BLOCK_COUNT * pCount, time_t acqMinTime, uint maxNowRepCount )
+bool EpgDbGetStat( CPDBC dbc, EPGDB_BLOCK_COUNT * pCount, time_t acqMinTime )
 {
    const EPGDB_BLOCK * pBlock;
-   uint blockCount[MAX_NETWOP_COUNT];
    uchar  ai_version;
-   double avgPercentage1, variance1;
-   uint   acqRepSum;
    time_t now;
-   uchar  netwop;
    bool   result;
 
    memset(pCount, 0, sizeof(EPGDB_BLOCK_COUNT));
-   memset(blockCount, 0, sizeof(blockCount));
-   acqRepSum = 0;
    now = time(NULL);
-
-   maxNowRepCount = ((maxNowRepCount > 3) ? (maxNowRepCount - 3) : 1);
 
    if (dbc->pAiBlock != NULL)
    {
@@ -808,10 +786,7 @@ bool EpgDbGetStat( CPDBC dbc, EPGDB_BLOCK_COUNT * pCount, time_t acqMinTime, uin
          if (pBlock->blk.pi.stop_time > now)
          {
             pCount->allVersions += 1;
-            // note about the stream comparison:
-            // the borderline between stream 1 and 2 may change without a version change.
-            // since with a move from stream 2 to 1 more information may have been added
-            // we then consider the block out of date.
+
             if (pBlock->version == ai_version)
             {
                pCount->curVersion += 1;
@@ -820,18 +795,11 @@ bool EpgDbGetStat( CPDBC dbc, EPGDB_BLOCK_COUNT * pCount, time_t acqMinTime, uin
          else
             pCount->expired += 1;
 
-         // note about "<=" in stream comparison: there's a bug in the TARA Nextview encoder,
-         // where blocks are assigned to stream 2 in AI, but transmitted in stream 1 anyways
-         // (e.g. when stream 1 is empty because there are no programmes in the time range
-         // that's usually covered by stream 1)
          if ( (pBlock->acqTimestamp >= acqMinTime) &&
               (pBlock->version == ai_version) )
          {
             pCount->sinceAcq += 1;
-            blockCount[pBlock->blk.pi.netwop_no] += 1;
          }
-
-         acqRepSum += pBlock->acqRepCount;
 
          pBlock = pBlock->pNextBlock;
       }
@@ -845,31 +813,10 @@ bool EpgDbGetStat( CPDBC dbc, EPGDB_BLOCK_COUNT * pCount, time_t acqMinTime, uin
          if (pBlock->acqTimestamp >= acqMinTime)
          {
             pCount->sinceAcq += 1;
-            blockCount[pBlock->blk.pi.netwop_no] += 1;
          }
-
-         acqRepSum += pBlock->acqRepCount;
 
          pBlock = pBlock->pNextBlock;
       }
-
-      // determine total block sum from AI block start- and stop numbers per netwop
-      // TODO obsolete - cannot be calculated for XMLTV
-      avgPercentage1 = 0.0;
-
-      // determine variance of coverages per netwop
-      variance1 = 0.0;
-      for (netwop=0; netwop < dbc->pAiBlock->blk.ai.netwopCount; netwop++)
-      {
-         variance1 += pow(fabs(blockCount[netwop] - avgPercentage1) / 1000L, 2.0);
-      }
-      pCount->variance = sqrt(variance1);
-
-      // calculate average acquisition repetition count
-      if (pCount->ai > 0)
-         pCount->avgAcqRepCount = (double)acqRepSum / (double)pCount->ai;
-      else
-         pCount->avgAcqRepCount = 0.0;
 
       result = TRUE;
    }
@@ -880,85 +827,4 @@ bool EpgDbGetStat( CPDBC dbc, EPGDB_BLOCK_COUNT * pCount, time_t acqMinTime, uin
    }
 
    return result;
-}
-
-// ----------------------------------------------------------------------------
-// Reset acquisition repetition counters on all PI blocks
-// - used by the epgacqctl module, in the cycle state machine
-//
-void EpgDbResetAcqRepCounters( PDBC dbc )
-{
-   EPGDB_BLOCK * pBlock;
-
-   if (dbc != NULL)
-   {
-      pBlock = dbc->pFirstPi;
-      while (pBlock != NULL)
-      {
-         pBlock->acqRepCount = 0;
-
-         pBlock = pBlock->pNextBlock;
-      }
-   }
-   else
-      fatal0("EpgDb-ResetAcqRepCounters: illegal NULL ptr param");
-}
-
-// ----------------------------------------------------------------------------
-// Determine the maximum repetition count for the first PI block of each netwop
-// - repetition counters are incremented during reception when a block is
-//   received and the version number hasn't changed
-//
-void EpgDbGetNowCycleMaxRepCounter( CPDBC dbc, uint * pMaxVal, uint * pMaxCount )
-{
-   const EPGDB_BLOCK * pBlock;
-   uint maxRepVal;
-   uint maxNetCount;
-   uint netwop;
-   time_t now;
-
-   now = time(NULL);
-   maxRepVal = 0;
-   maxNetCount = 0;
-
-   if (dbc != NULL)
-   {
-      if (dbc->pAiBlock != NULL)
-      {
-         for (netwop=0; netwop < dbc->pAiBlock->blk.ai.netwopCount; netwop++)
-         {
-            // skip expired blocks of this network
-            pBlock = dbc->pFirstNetwopPi[netwop];
-            while ( (pBlock != NULL) &&
-                    (pBlock->blk.pi.stop_time < now) )
-            {
-               pBlock = pBlock->pNextNetwopBlock;
-            }
-
-            if ( (pBlock != NULL) &&
-                 ( (pBlock->blk.pi.start_time <= now) ||
-                   (pBlock == dbc->pFirstNetwopPi[netwop]) ))
-            {  // PI is currently running, i.e. it's a "NOW" block
-
-               if (pBlock->acqRepCount > maxRepVal)
-               {  // found new maximum
-                  maxRepVal = pBlock->acqRepCount;
-                  maxNetCount = 1;
-               }
-               else if ( (pBlock->acqRepCount == maxRepVal) && (maxRepVal > 0) )
-               {
-                  maxNetCount += 1;
-               }
-            }
-         }
-         dprintf2("EpgDb-GetNowCycleMaxRepCounter: max.rep=%d, net.count=%d\n", maxRepVal, maxNetCount);
-      }
-
-      if (pMaxVal != NULL)
-         *pMaxVal = maxRepVal;
-      if (pMaxCount != NULL)
-         *pMaxCount = maxNetCount;
-   }
-   else
-      fatal0("EpgDb-GetNowCycleMaxRepCounter: illegal NULL ptr param");
 }

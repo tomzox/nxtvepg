@@ -60,7 +60,6 @@ uint EpgDbCountPrevPi( const EPGDB_CONTEXT * dbc, const FILTER_CONTEXT *fc, cons
 
 bool  EpgDbGetVpsTimestamp( struct tm * pVpsTime, uint pil, time_t startTime );
 uint  EpgDbGetProgIdx( const EPGDB_CONTEXT * dbc, const PI_BLOCK * pPiBlock );
-uchar EpgDbGetVersion( const void * pBlock );
 uint  EpgDbContextGetCni( const EPGDB_CONTEXT * dbc );
 bool  EpgDbContextIsMerged( const EPGDB_CONTEXT * dbc );
 time_t EpgDbGetAiUpdateTime( const EPGDB_CONTEXT * dbc );
@@ -68,9 +67,7 @@ time_t EpgDbGetPiUpdateTime( const PI_BLOCK * pPiBlock );
 void EpgDbSetAiUpdateTime( const EPGDB_CONTEXT * dbc, time_t acqTimestamp );
 void EpgDbSetPiAcqCallback( EPGDB_CONTEXT * dbc, EPGDB_PI_ACQ_CB * pCb );
 
-bool  EpgDbGetStat( const EPGDB_CONTEXT * dbc, EPGDB_BLOCK_COUNT * pCount, time_t acqMinTime, uint maxNowRepCount );
-void  EpgDbResetAcqRepCounters( EPGDB_CONTEXT * dbc );
-void  EpgDbGetNowCycleMaxRepCounter( const EPGDB_CONTEXT * dbc, uint * pMaxVal, uint * pMaxCount );
+bool  EpgDbGetStat( const EPGDB_CONTEXT * dbc, EPGDB_BLOCK_COUNT * pCount, time_t acqMinTime );
 
 
 #endif  // __EPGDBIF_H

@@ -174,7 +174,10 @@ void EpgAcqTtx_DescribeAcqState( EPGACQ_DESCR * pAcqState )
    if (acqCtl.state != TTXACQ_STATE_OFF)
    {
       pAcqState->ttxSrcCount = acqCtl.ttxSrcCount;
-      pAcqState->ttxGrabIdx = acqCtl.ttxSrcIdx[0];
+      pAcqState->ttxGrabCount = acqCtl.ttxActiveCount;
+
+      for (idx = 0; idx < acqCtl.ttxActiveCount; idx++)
+         pAcqState->ttxGrabIdx[idx] = acqCtl.ttxSrcIdx[idx];
 
       pAcqState->ttxGrabDone = 0;
       for (idx = 0; idx < acqCtl.ttxSrcCount; idx++)
@@ -187,20 +190,28 @@ void EpgAcqTtx_DescribeAcqState( EPGACQ_DESCR * pAcqState )
 // Return complete set of acq state and statistic values
 // - used by "View acq statistics" popup window
 //
-bool EpgAcqTtx_GetAcqStats( EPG_TTX_GRAB_STATS * pTtxGrabStats )
+bool EpgAcqTtx_GetAcqStats( EPG_ACQ_STATS * pAcqStats )
 {
    bool result = FALSE;
 
 #ifdef USE_TTX_GRABBER
    if (acqCtl.state != TTXACQ_STATE_OFF)
    {
-      TtxGrab_GetStatistics(0, &pTtxGrabStats->pkgStats);
+      time_t decStartTime;
 
-      pTtxGrabStats->acqStartTime = acqCtl.acqStartTime;
-      pTtxGrabStats->srcIdx = acqCtl.ttxSrcIdx[0];
+      pAcqStats->lastStatsUpdate = time(NULL);
+      pAcqStats->acqStartTime    = acqCtl.acqStartTime;
+      pAcqStats->acqDuration     = pAcqStats->lastStatsUpdate - decStartTime;
 
-      strncpy(pTtxGrabStats->srcName, EpgAcqTtx_GetChannelName(acqCtl.ttxSrcIdx[0]), EPG_TTX_STATS_NAMLEN - 1);
-      pTtxGrabStats->srcName[EPG_TTX_STATS_NAMLEN - 1] = 0;
+      TtxGrab_GetStatistics(0, &pAcqStats->pkgStats);
+
+      // retrieve additional data from TTX packet decoder
+      TtxDecode_GetStatistics(0, &pAcqStats->ttx_dec, &decStartTime);
+
+      pAcqStats->srcIdx = acqCtl.ttxSrcIdx[0];
+
+      strncpy(pAcqStats->srcName, EpgAcqTtx_GetChannelName(acqCtl.ttxSrcIdx[0]), EPG_TTX_STATS_NAMLEN - 1);
+      pAcqStats->srcName[EPG_TTX_STATS_NAMLEN - 1] = 0;
 
       result = TRUE;
    }

@@ -683,8 +683,8 @@ set menuStatusDaemon 0
 set menuStatusDumpStream 0
 set menuStatusThemeClass 1
 set menuStatusTscaleOpen 0
-set menuStatusStatsOpen(ui) 0
-set menuStatusStatsOpen(acq) 0
+set menuStatusDbStatsOpen 0
+set menuStatusAcqStatsOpen 0
 
 array set pi_attr_labels [list \
    features Features \
@@ -727,10 +727,9 @@ proc CreateMenubar {} {
    .menubar.ctrl add checkbutton -label "Connect to acq. daemon" -variable menuStatusDaemon -command {C_ToggleAcq $menuStatusStartAcq $menuStatusDaemon}
    .menubar.ctrl add separator
    .menubar.ctrl add checkbutton -label "View coverage timescales..." -command {C_TimeScale_Toggle} -variable menuStatusTscaleOpen
-   .menubar.ctrl add checkbutton -label "View database statistics..." -command {C_StatsWin_ToggleDbStats ui} -variable menuStatusStatsOpen(ui)
-   #.menubar.ctrl add checkbutton -label "Acquisition statistics..." -command {C_StatsWin_ToggleDbStats acq} -variable menuStatusStatsOpen(acq) # obsolete - TODO port to TTX?
+   .menubar.ctrl add checkbutton -label "View database statistics..." -command {C_StatsWin_ToggleDbStats} -variable menuStatusDbStatsOpen
 #=IF=defined(USE_TTX_GRABBER)
-   .menubar.ctrl add checkbutton -label "Teletext grabber statistics..." -command {C_StatsWin_ToggleTtxStats} -variable menuStatusStatsOpen(ttx_acq)
+   .menubar.ctrl add checkbutton -label "Teletext grabber statistics..." -command {C_StatsWin_ToggleTtxStats} -variable menuStatusAcqStatsOpen
 #=ENDIF=
    .menubar.ctrl add separator
    .menubar.ctrl add command -label "Export as text..." -command PopupDumpDbTabs

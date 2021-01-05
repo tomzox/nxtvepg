@@ -37,7 +37,7 @@ bool EpgAcqTtx_MonitorSources( void );
 void EpgAcqTtx_ChannelChange( void );
 void EpgAcqTtx_InitCycle( EPGACQ_PHASE phase );
 
-bool EpgAcqTtx_GetAcqStats( EPG_TTX_GRAB_STATS * pTtxGrabStats );
+bool EpgAcqTtx_GetAcqStats( EPG_ACQ_STATS * pAcqStats );
 void EpgAcqTtx_DescribeAcqState( EPGACQ_DESCR * pAcqState );
 
 #endif  // __EPGACQTTX_H

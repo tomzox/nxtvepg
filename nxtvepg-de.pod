@@ -376,13 +376,13 @@ Sendungen für die momentan Beschreibungstexte verfügbar sind werden zusätzlich d
 
 =head2 Database statistics
 
-Es stehen zwei Fenster vom Control-Menü aus zur Verfügung, welche statistische Informationen über die Browserdatenbank und die Akquisitionsdatenbank und deren Fortschritt enthalten. Das Fenster ist horizontal in zwei Teile aufgeteilt: der obere Teil listet statistische Informationen auf; der untere Teil listet dynamische Informationen auf und ist nur während einer aktiven Akquisition verfügbar.
+Über das Control-Menü kann ein Fenster geöffnet werden welches statistische Informationen über die Browserdatenbank darstellt. Falls die Datenbank vom Teletext EPG Grabber aktualisiert wird, wird ein zusätzlicher Bereich unterhalb den Statistiken eingeblendet, in dem ein Histogramm und Statusinformationen zur Akquisition dargestellt sind.
 
 =over 4
 
-=item I<Last AI update:>
+=item I<Last update:>
 
-Die (lokale) Uhrzeit zu welcher der letzte Bestandslistenblock empfangen wurde. Da dieser Block auf regulärer Basis zu übermitteln ist, gibt er zugleich an, wann die Akquisition für diese Datenbank zuletzt fehlerfrei aktiv gewesen ist.
+Die Uhrzeit zu welcher die Datenbank zuletzt aktualisiert wurde (basierend auf dem Modifikationszeitstempel der zugehörigen XMLTV Datei). Für zusammenfeührte Datenbanken ist dies der letzte Zeitpunkt zu dem eine der enthaltenen XMLTV Dateien aktualisiert wurde.
 
 =item I<Block count db:>
 

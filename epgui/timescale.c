@@ -112,9 +112,6 @@ const char * const streamColors[STREAM_COLOR_COUNT] =
 static void TimeScale_UpdateStatusLine( ClientData dummy )
 {
    const AI_BLOCK * pAi;
-   EPGDB_BLOCK_COUNT count;
-   ulong total, curVersionCount;
-   uint nearPerc;
    Tcl_DString msg_dstr;
    Tcl_DString cmd_dstr;
 
@@ -126,36 +123,13 @@ static void TimeScale_UpdateStatusLine( ClientData dummy )
          sprintf(comm, "destroy %s", tsc_wid);
          eval_check(interp, comm);
       }
-      // TODO below is still Nextview version
-      else if (0) //(EpgDbContextIsMerged(pUiDbContext) == FALSE)
+      else if (EpgDbContextIsMerged(pUiDbContext) == FALSE)
       {
          EpgDbLockDatabase(pUiDbContext, TRUE);
          pAi = EpgDbGetAi(pUiDbContext);
          if (pAi != NULL)
          {
-            EpgDbGetStat(pUiDbContext, &count, 0, 0);
-
-            total            = count.ai;
-            curVersionCount  = count.curVersion + count.expired + count.defective;
-
-            if (curVersionCount < total)
-            {  // db not complete -> print percentage for far & near
-
-               if (count.ai > 0)
-                  nearPerc = (int)((double)(count.expired + count.defective +
-                                            count.curVersion) * 100.0 / count.ai);
-               else
-                  nearPerc = 100;
-
-               sprintf(comm, "%s database %d%% complete, near data %d%%.",
-                             AI_GET_SERVICENAME(pAi),
-                             (int)((double)curVersionCount * 100.0 / total), nearPerc);
-            }
-            else
-            {
-               sprintf(comm, "%s database 100%% complete.",
-                             AI_GET_SERVICENAME(pAi));
-            }
+            sprintf(comm, "%s", AI_GET_SERVICENAME(pAi));
 
             if (Tcl_ExternalToUtfDString(NULL, comm, -1, &msg_dstr) != NULL)
             {

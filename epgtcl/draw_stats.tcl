@@ -65,7 +65,7 @@ proc TimeScale_Open {w cni scaleWidth} {
 
    if {[string length [info commands $w]] == 0} {
       toplevel $w
-      wm title $w "Nextview database time scales"
+      wm title $w "XMLTV coverage timescales"
       wm resizable $w 1 1
       wm group $w .
 
@@ -419,7 +419,7 @@ proc DbStatsWin_Create {wname} {
    global font_fixed
 
    toplevel $wname
-   wm title $wname {Nextview database statistics}
+   wm title $wname {XMLTV database statistics}
    wm resizable $wname 0 0
    wm group $wname .
 
@@ -448,7 +448,7 @@ proc DbStatsWin_Create {wname} {
    bind   $wname <Key-F1> {PopupHelp $helpIndex(Statistics) "Database statistics"}
 
    # inform the control code when the window is destroyed
-   bind $wname.browser <Destroy> [list + C_StatsWin_ToggleDbStats $wname 0]
+   bind $wname.browser <Destroy> [list + C_StatsWin_ToggleDbStats 0]
 }
 
 ## ---------------------------------------------------------------------------
@@ -476,23 +476,23 @@ proc DbStatsWin_PaintPie {wname val1exp val1cur val1all val1total} {
       }
    }
 
-   if {$val1total < 359.9} {
-      # paint the slice of stream 2 in blue
-      $wname.browser.pie create arc 1 1 127 127 -start $val1total -extent [expr 359.999 - $val1total] -fill blue
-
-      if {$val2exp > 0} {
-         # mark expired and defective percentage in yellow
-         $wname.browser.pie create arc 1 1 127 127 -start $val1total -extent [expr $val2exp - $val1total] -fill yellow -outline {} -stipple gray75
-      }
-      if {$val2cur < $val2all} {
-         # mark percentage of old version in shaded blue
-         $wname.browser.pie create arc 1 1 127 127 -start $val2cur -extent [expr $val2all - $val2cur] -fill #483D8B -outline {} -stipple gray50
-      }
-      if {$val2all < 359.9} {
-         # mark percentage of missing stream 1 data in slight blue
-         $wname.browser.pie create arc 1 1 127 127 -start $val2all -extent [expr 359.9 - $val2all] -fill #DDDDFF -outline {} -stipple gray75
-      }
-   }
+#   if {$val1total < 359.9} {
+#      # paint the slice of stream 2 in blue
+#      $wname.browser.pie create arc 1 1 127 127 -start $val1total -extent [expr 359.999 - $val1total] -fill blue
+#
+#      if {$val2exp > 0} {
+#         # mark expired and defective percentage in yellow
+#         $wname.browser.pie create arc 1 1 127 127 -start $val1total -extent [expr $val2exp - $val1total] -fill yellow -outline {} -stipple gray75
+#      }
+#      if {$val2cur < $val2all} {
+#         # mark percentage of old version in shaded blue
+#         $wname.browser.pie create arc 1 1 127 127 -start $val2cur -extent [expr $val2all - $val2cur] -fill #483D8B -outline {} -stipple gray50
+#      }
+#      if {$val2all < 359.9} {
+#         # mark percentage of missing stream 1 data in slight blue
+#         $wname.browser.pie create arc 1 1 127 127 -start $val2all -extent [expr 359.9 - $val2all] -fill #DDDDFF -outline {} -stipple gray75
+#      }
+#   }
 }
 
 ## ---------------------------------------------------------------------------

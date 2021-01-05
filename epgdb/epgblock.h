@@ -165,9 +165,7 @@ typedef struct EPGDB_BLOCK_STRUCT
    uint32_t     size;               // actual size of the union; may be greater than it's sizeof()
    uint8_t      version;            // AI version at the time of acquisition of this block
    uint16_t     parityErrCnt;       // parity error count for string segment
-   time32_t     updTimestamp;       // time when the block content changed last
    time32_t     acqTimestamp;       // time when the block was received last
-   uint16_t     acqRepCount;        // reception count with same version and size
    BLOCK_TYPE   type;
 
    const EPGDB_BLOCK_UNION   blk;   // the actual data
@@ -234,15 +232,11 @@ typedef struct EPGDB_CONTEXT_STRUCT
 
 typedef struct
 {
-   uint32_t  ai;
    uint32_t  curVersion;
    uint32_t  allVersions;
    uint32_t  expired;
    uint32_t  defective;
-   uint32_t  extra;
    uint32_t  sinceAcq;
-   double    variance;
-   double    avgAcqRepCount;
 } EPGDB_BLOCK_COUNT;
 
 // max number of databases that can be merged into one

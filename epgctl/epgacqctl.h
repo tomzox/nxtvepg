@@ -80,36 +80,15 @@ typedef struct
    EPGACQ_PHASE   cyclePhase;
    EPGACQ_PASSIVE passiveReason;
    uint16_t       ttxSrcCount;
-   int16_t        ttxGrabIdx;    // TODO add ttxGrabCount
    uint16_t       ttxGrabDone;
+   uint16_t       ttxGrabCount;
+   int16_t        ttxGrabIdx[MAX_VBI_DVB_STREAMS];
    bool           isNetAcq;
    bool           isLocalServer;
 } EPGACQ_DESCR;
 
 // ---------------------------------------------------------------------------
-// Structure to keep statistics about the current acq db
-// - updated after every received AI block
-// - can be retrieved by the GUI for the acq stats window
-
-#define STATS_HIST_WIDTH     128
-#define VARIANCE_HIST_COUNT    5
-
-typedef struct
-{
-   uint8_t   expir;
-   uint8_t   s1cur;
-   uint8_t   s1old;
-   uint8_t   s2cur;
-   uint8_t   s2old;
-} EPGDB_HIST;
-
-typedef struct
-{
-   double    buf[VARIANCE_HIST_COUNT];   // ring buffer for variance
-   uint16_t  count;                      // number of valid entries in the buffer
-   uint16_t  lastIdx;                    // last written index
-   uint32_t  resv_align;                 // for 64-bit alignment (Sun-Sparc)
-} EPGDB_VAR_HIST;
+// Structure returning last received VPS/PDC label
 
 typedef struct
 {
@@ -118,40 +97,41 @@ typedef struct
    uint32_t  pil;
 } EPG_ACQ_VPS_PDC;
 
+// ---------------------------------------------------------------------------
+// Structure to keep statistics about the current acq db
+// - updated after every received AI block
+// - can be retrieved by the GUI for the acq stats window
+
+#define STATS_HIST_WIDTH     128
+
 typedef struct
 {
-   time32_t            acqStartTime;
+   uint8_t   expir;
+   uint8_t   s1cur;
+   uint8_t   s1old;
+   uint8_t   s2cur;
+   uint8_t   s2old;
+} EPG_ACQ_HIST_ELEM;
 
-   EPGDB_HIST          hist[STATS_HIST_WIDTH];
+typedef struct
+{
+   EPG_ACQ_HIST_ELEM   hist[STATS_HIST_WIDTH];
    uint16_t            histIdx;
-   uint8_t             resvd_0[6];      // for 64-bit alignment
-
-   EPGDB_BLOCK_COUNT   count;
-   EPGDB_VAR_HIST      varianceHist;
-   uint32_t            nowMaxAcqRepCount;
-   uint32_t            nowMaxAcqNetCount;
-} EPG_NXTV_ACQ_STATS;
+} EPG_ACQ_HIST;
 
 #define EPG_TTX_STATS_NAMLEN 32
 
-// TODO (1) add srcCount
-// TODO (2) add TTX_GRAB_STATS holding merge/average of all sources
+// TODO add TTX_GRAB_STATS & TTX_DEC_STATS holding merge/average of all sources?
 typedef struct
 {
    time32_t            acqStartTime;
+   time32_t            lastStatsUpdate;
+   uint32_t            acqDuration;
    char                srcName[EPG_TTX_STATS_NAMLEN];
    int32_t             srcIdx;
    TTX_GRAB_STATS      pkgStats;
-} EPG_TTX_GRAB_STATS;
-
-// TODO (3) add TTX_DEC_STATS holding merge/average of all sources
-typedef struct
-{
-   time32_t            lastStatsUpdate;
    TTX_DEC_STATS       ttx_dec;           // specific to srcIdx
-   EPG_TTX_GRAB_STATS  ttx_grab;
-   uint32_t            ttx_duration;
-   EPG_NXTV_ACQ_STATS  nxtv;  // TODO port to teletext
+   EPG_ACQ_HIST        histogram;
 } EPG_ACQ_STATS;
 
 typedef enum

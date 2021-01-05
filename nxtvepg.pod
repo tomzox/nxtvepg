@@ -724,7 +724,7 @@ chapter.
 The basic mode of operation of the Teletext EPG grabber is to cyclically
 tune all TV channels in the configured channel table; For each one it
 tunes to the respective TV frequency and buffers teletext until the
-required page range was received completely. When done, it scrapes EPG
+required page range was received completely. When done, it extracts EPG
 data from these pages and writes them to a file in XMLTV format.
 
 Programme listings are updated immediately whenever the Teletext grabber
@@ -777,7 +777,7 @@ of this, passive mode is depreciated.
 This default mode works straight-forward as described at the start of chapter
 L<"DATA ACQUISITION">. This means, each channel in the channel table is
 tune for as long as it takes to load all required sub-pages and then the
-full EPG is scraped and written. Acquisition is complete after a single
+full EPG is extracted and written. Acquisition is complete after a single
 cylce across all channels.
 
 Technical details: Since transmission errors have to be considered, it's
@@ -834,9 +834,9 @@ EPG grabbing process.
 =head2 Status line
 
 The status line separately summarizes the state of the browser database
-(unless it's a merged database) and the acquisition process. Since there's
-not much room only the most relevant information is included there, i.e.
-the kind of information presented depends on the current state.
+and the acquisition process. Since there is not much room, only the most
+relevant information is included there, i.e. the kind of information
+presented depends on the current state.
 
 For the browser database you'll normally just see the name of the XMLTV
 file. If acquisition is working, you'll see a percentage that describes
@@ -878,7 +878,7 @@ running in parallel. See L<"DATA ACQUISITION"> for details.
 You can get a quick overview of EPG coverage for the different networks
 using the timescale window which can be opened from the Control menu.
 The timescales are updated when the Teletext EPG grabber is running and
-done with scraping EPG data for a network.
+done with grabbing EPG data for a network.
 
 The timescale window has one scale for each network covered by the XMLTV
 input file (or merged files). The left end of each scale refers to the
@@ -943,20 +943,22 @@ time range.
 
 =head2 Database statistics
 
-There are two popup windows available from the Control menu which contain
-statistical information about the browser database and the acquisition
-database and progress. The window is horizontally divided in two parts:
-the upper part lists static information; the lower part lists dynamic info
-and is available only while acquisition is active.
+The database statistics popup window is opened via the Control menu. It
+displays statistical information about the EPG database loaded in the main
+window.
+
+While the Teletext Grabber enabled and working on the same database, and
+it is a merged database, a second pane is added to the window that shows a
+histogram of acquisition progress.
 
 
 =over 4
 
-=item I<Last AI update:>
+=item I<Last update:>
 
-The (local) time when the last inventory block was received. Since
-this block has to be transmitted on a regular basis it tells you when
-acquisition was active for this database.
+The time when the database was updated (according to its file modification
+timestamp). For a merged database this is the latest time when any of the
+merged files was updated.
 
 =item I<Block count db:>
 
@@ -1037,7 +1039,7 @@ in baud, i.e. bits per second.  Each teletext line counts as 45 bytes.
 
 =item I<Captured range:>
 
-The first and last teletext page number which are captured for scraping
+The first and last teletext page number which are captured for grabbing
 EPG for the current channel.
 
 =item I<Captured pages:>

@@ -8,6 +8,9 @@ Post-Nextview EPG:
 - New DB type: "Load Teletext EPG...": automatically follow TTX acq, even if DB not exist yet
 - statistics display for concurrent grabbing
 - extend XMLTV database statistics
+  - pie chart: different color for current day
+  - histogram, merged db: show percentage of DBs updated during last 12-24 hours
+  - timescale: different color for DBs older than 12-24 hours
 - move USE_TTX_GRABBER to exclude all acqusition if not set
 - apply expire only when merging new data into db by acq
   always load all data & allow unmasking expired PI via filter dialog
@@ -15,7 +18,6 @@ Post-Nextview EPG:
 - merge & load dialog: directory drop-down: add history
 - merge dialog, "configure" sub-menu: simplify to single list with
   "extended" selection (i.e. allow multiple selections)
-- show DB status in "Load XMLTV" dialog window: number of PI, expired %%
 - remove use of PDC theme table: create table from themes found in XMLTV
 - change AI/OI/PI to hold original XMLTV info elements (i.e. reduce conversion)
 - xmltv-etsi.map: use .config/nxtvepg instead of "." in xmltv_cni.c
