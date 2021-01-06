@@ -883,11 +883,10 @@ done with grabbing EPG data for a network.
 The timescale window has one scale for each network covered by the XMLTV
 input file (or merged files). The left end of each scale refers to the
 start time of the oldest TV programme in the database.  Depending on how
-long ago the database was updated and the current expiry removal delay
-(see L<"FILTERING: Expired Programmes Display">), some or all TV
-programmes may lie in the past.  The exact dates are printed in the date
-scale at the top of the window, the current time is additionally marked
-with a small arrow labeled "now".
+long ago the database was updated, and on how long expired programmes are
+kept by your EPG provider, some or all TV programmes may lie in the past.
+The exact dates are printed in the date scale at the top of the window, the
+current time is additionally marked with a small arrow labeled "now".
 
 Ranges that are covered by the database are marked in shades of red or
 blue; uncovered ranges in-between are marked gray. The range beyond the
@@ -1365,21 +1364,21 @@ Unlike all other filter options this one is used to I<enlarge> the
 set of matching programmes.  It allows to include expired programmes
 (i.e. those with a stop time in the past) into the list; they
 will be marked with a yellow background (you can change that color,
-see C<.Xdefaults> and C<nxtvepg.ad> in L<"FILES">.)  With the sliders
-you can set how many days plus hours to shift the expire time threshold.
+see C<.Xdefaults> and C<nxtvepg.ad> in L<"FILES">.)  With the slider
+you can select how for to shift the expire time threshold into the past.
+The entry fields below the slider show the threshold in units of days
+and hours. You can also edit these fields directly: Press the Return
+key to apply the change.
+
 By default the threshold is zero so that expired programmes immediately
 disappear from the list.
 
-Note you cannot add more programmes than are stored in the database;
-usually programmes are removed after 4 hours.  There's a second tab
-called I<Configure> in the dialog which allows to change the delay
-after which expired programmes are automatically removed.  Press the
-I<Update> button to set the new value.  If it's lower than before,
-programmes will immediately be removed from the database; this
-operation cannot be undone (unless the progammes are still registered
-in the provider inventory, which may be the case if you haven't updated
-the database in a long time.  In this case you may get a confusing
-warning that programmes are about to be removed although they won't.)
+Note you cannot add more programmes this way than are stored in the
+database. nxtvepg will not remove expired programmes from the database,
+however they usually get removed whenever you update the respective XMLTV
+source file. If and how long expired programmes are kept, depends on your
+provider. For the Teletext EPG grabber, you can configure this threshold
+(see L<"CONFIGURATION"> section "Teletext grabber").
 
 
 =item B<VPS/PDC>

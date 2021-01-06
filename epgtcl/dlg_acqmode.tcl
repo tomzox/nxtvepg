@@ -370,6 +370,13 @@ proc PopupTtxGrab {} {
       label .ttxgrab.all.dur_lab2 -text {[seconds]} -font $font_normal
       grid  .ttxgrab.all.dur_lab2 -row $gridrow -column 2 -columnspan 2 -sticky w -padx 5
       incr gridrow
+      label .ttxgrab.all.exp_lab -text "Keep expired programmes:"
+      grid  .ttxgrab.all.exp_lab -row $gridrow -column 0 -sticky w -padx 5
+      entry .ttxgrab.all.exp_ent -textvariable ttxgrab_tmpcf(pi_expire) -width 4
+      grid  .ttxgrab.all.exp_ent -row $gridrow -column 1 -sticky we
+      label .ttxgrab.all.exp_lab2 -text {[hours]} -font $font_normal
+      grid  .ttxgrab.all.exp_lab2 -row $gridrow -column 2 -columnspan 2 -sticky w -padx 5
+      incr gridrow
       pack  .ttxgrab.all -side top -pady 5 -padx 10 -fill x -expand 1
 
       # checkbuttons for acquisition modes
@@ -509,11 +516,12 @@ proc QuitTtxGrabPopup {} {
 
    if $ttxgrab_tmpcf(enable) {
       set ok 0
-      if { [TtxGrab_PgNoCheck $ttxgrab_tmpcf(ovpg) "overview page"] && \
-           [TtxGrab_PgNoCheck $ttxgrab_tmpcf(pg_start) "page range start"] && \
+      if { [TtxGrab_PgNoCheck $ttxgrab_tmpcf(ovpg) "overview page"] &&
+           [TtxGrab_PgNoCheck $ttxgrab_tmpcf(pg_start) "page range start"] &&
            [TtxGrab_PgNoCheck $ttxgrab_tmpcf(pg_end) "page range end"] &&
            [TtxGrab_IntCheck $ttxgrab_tmpcf(net_count) 1 "channel count"] &&
-           [TtxGrab_IntCheck $ttxgrab_tmpcf(duration) 1 "duration"]} {
+           [TtxGrab_IntCheck $ttxgrab_tmpcf(duration) 1 "duration"] &&
+           [TtxGrab_IntCheck $ttxgrab_tmpcf(duration) 1 "pi_expire"]} {
 
          if {$ttxgrab_tmpcf(pg_start) <= $ttxgrab_tmpcf(pg_end)} {
             # check ov page is inside capture range

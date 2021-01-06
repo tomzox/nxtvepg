@@ -51,13 +51,14 @@ proc TimeFilterExternalChange {} {
 }
 
 proc PiExpTime_ExternalChange {} {
-   global piexpire_days piexpire_mins
+   global piexpire_slider piexpire_days piexpire_mins
    global piexpire_display
    global piexpire_popup
 
-   if $piexpire_popup {
-      set piexpire_days [expr int($piexpire_display / (60*60))]
-      set piexpire_mins [expr $piexpire_display % (60*60)]
+   if {$piexpire_popup} {
+      set piexpire_slider $piexpire_display
+      set piexpire_days [expr {int($piexpire_display / (24*60))}]
+      set piexpire_mins [expr {$piexpire_display % (24*60)}]
       UpdateExpiryFilter 0
    }
 }
@@ -578,93 +579,60 @@ proc UpdateDurationFilter { round {val 0} } {
 ##
 proc PopupExpireDelaySelection {} {
    global piexpire_display piexpire_days piexpire_mins
-   global piexpire_daystr piexpire_minstr piexpire_lastinput
+   global piexpire_slider piexpire_daystr piexpire_minstr piexpire_lastinput
    global piexpire_cut_daystr piexpire_cut_hourstr
    global piexpire_popup
 
    if {$piexpire_popup == 0} {
       CreateTransientPopup .piexpire "Expired programmes display selection"
-      wm geometry  .piexpire "=400x200"
-      wm minsize   .piexpire 400 200
-      wm resizable .piexpire 1 1
       set piexpire_popup 1
 
-      # load special widget libraries
-      rnotebook_load
-
-      Rnotebook:create .piexpire.nb -tabs {"Filter" "Configuration"} -borderwidth 2
-      pack .piexpire.nb -side left -pady 10 -padx 5 -fill both -expand 1
-      set frm1 [Rnotebook:frame .piexpire.nb 1]
-      set frm2 [Rnotebook:frame .piexpire.nb 2]
-
-      ##
-      ##  Tab 1: Expire time filter
-      ##
-      set piexpire_daystr [expr $piexpire_display / (24*60)]
-      set piexpire_minstr [Motd2HHMM [expr $piexpire_display % (24*60)]]
+      set piexpire_slider $piexpire_display
+      set piexpire_days [expr {int($piexpire_display / (24*60))}]
+      set piexpire_mins [expr {$piexpire_display % (24*60)}]
+      set piexpire_daystr $piexpire_days
+      set piexpire_minstr [Motd2HHMM $piexpire_mins]
       set piexpire_lastinput 0
 
-      frame  ${frm1}.time_frm
-      label  ${frm1}.time_frm.lab -text "Filter programmes ending before:"
-      pack   ${frm1}.time_frm.lab -side left
-      label  ${frm1}.time_frm.str -text "" -font $::font_normal
-      pack   ${frm1}.time_frm.str -side left -padx 5
-      grid   ${frm1}.time_frm -row 0 -column 0 -columnspan 3 -pady 10 -sticky w
+      label  .piexpire.descr -text "This dialog allows enabling display of programmes ending the given\nnumber of days and hours in the past:" \
+                             -justify left
+      pack   .piexpire.descr -side top -pady 5 -padx 5 -anchor w
 
-      label  ${frm1}.days_lab -text "Days:"
-      grid   ${frm1}.days_lab -row 1 -column 0 -sticky w
-      entry  ${frm1}.days_str -text "00:00" -width 7 -textvariable piexpire_daystr
+      set max_slider [expr 14 * 24*60]
+      scale  .piexpire.slider -orient hor -length 300 \
+                              -command {UpdateExpiryFromSlider; UpdateExpiryFilter 0} \
+                              -variable piexpire_slider -from 0 -to $max_slider -showvalue 0
+      pack   .piexpire.slider -side top -pady 5 -padx 5 -fill x -expand 1
+
+      frame  .piexpire.nb
+      label  .piexpire.nb.days_lab -text "Relative cut-off time: Days:"
+      pack   .piexpire.nb.days_lab -side left
+      entry  .piexpire.nb.days_str -text "00:00" -width 7 -textvariable piexpire_daystr
       trace  variable piexpire_daystr w PiExpTime_TraceDaysStr
-      bind   ${frm1}.days_str <Enter> {SelectTextOnFocus %W}
-      bind   ${frm1}.days_str <Return> {UpdateExpiryFromText bytext; UpdateExpiryFilter 0}
-      bind   ${frm1}.days_str <Escape> {tkButtonInvoke .piexpire.cmd.dismiss}
-      grid   ${frm1}.days_str -row 1 -column 1 -sticky we
-      scale  ${frm1}.days_val -orient hor -length 300 -command {UpdateExpiryFromText days; UpdateExpiryFilter 1} \
-                                   -variable piexpire_days -from 0 -to 7 -showvalue 0
-      grid   ${frm1}.days_val -row 1 -column 2 -sticky we
+      bind   .piexpire.nb.days_str <Enter> {SelectTextOnFocus %W}
+      bind   .piexpire.nb.days_str <Return> {UpdateExpiryFromText bytext; UpdateExpiryFilter 0}
+      bind   .piexpire.nb.days_str <Escape> {tkButtonInvoke .piexpire.cmd.dismiss}
+      pack   .piexpire.nb.days_str -side left
 
-      label  ${frm1}.hour_lab -text "Hours:"
-      grid   ${frm1}.hour_lab -row 2 -column 0 -sticky w
-      entry  ${frm1}.hour_str -text "00:00" -width 7 -textvariable piexpire_minstr
+      label  .piexpire.nb.hour_lab -text "Hours:"
+      pack   .piexpire.nb.hour_lab -side left
+      entry  .piexpire.nb.hour_str -text "00:00" -width 7 -textvariable piexpire_minstr
       trace  variable piexpire_minstr w PiExpTime_TraceHourStr
-      bind   ${frm1}.hour_str <Enter> {SelectTextOnFocus %W}
-      bind   ${frm1}.hour_str <Return> {UpdateExpiryFromText bytext; UpdateExpiryFilter 0}
-      bind   ${frm1}.hour_str <Escape> {tkButtonInvoke .piexpire.cmd.dismiss}
-      grid   ${frm1}.hour_str -row 2 -column 1 -sticky we
-      scale  ${frm1}.max_val -orient hor -length 200 -command {UpdateExpiryFromText hours; UpdateExpiryFilter 2} \
-                                  -variable piexpire_mins -from 0 -to 1439 -showvalue 0
-      grid   ${frm1}.max_val -row 2 -column 2 -sticky we
-      grid   columnconfigure ${frm1} 1 -weight 1
-      grid   columnconfigure ${frm1} 2 -weight 2
+      bind   .piexpire.nb.hour_str <Enter> {SelectTextOnFocus %W}
+      bind   .piexpire.nb.hour_str <Return> {UpdateExpiryFromText bytext; UpdateExpiryFilter 0}
+      bind   .piexpire.nb.hour_str <Escape> {tkButtonInvoke .piexpire.cmd.dismiss}
+      pack   .piexpire.nb.hour_str -side left
+      pack   .piexpire.nb -side top -pady 5 -padx 5 -fill x -expand 1
 
-      ##
-      ##  Tab 2: Cut-off time configuration
-      ##
-      set piexpire_cutoff [C_GetPiExpireDelay]
-      set piexpire_cut_daystr [expr $piexpire_cutoff / (24*60)]
-      set piexpire_cut_hourstr [expr ($piexpire_cutoff % (24*60)) / 60]
+      frame  .piexpire.time_frm
+      label  .piexpire.time_frm.lab -text "Effective cut-off time:"
+      pack   .piexpire.time_frm.lab -side left
+      label  .piexpire.time_frm.str -text "" -font $::font_normal
+      pack   .piexpire.time_frm.str -side left -padx 5
+      pack   .piexpire.time_frm -side top -pady 5 -padx 5 -anchor w
 
-      label  ${frm2}.head_lab -text "Delay before removing programmes from database:"
-      grid   ${frm2}.head_lab -row 0 -column 0 -columnspan 3 -pady 10 -sticky w
-
-      label  ${frm2}.days_lab -text "Days:"
-      grid   ${frm2}.days_lab -row 1 -column 0 -sticky w
-      entry  ${frm2}.days_str -text "00:00" -width 7 -textvariable piexpire_cut_daystr
-      bind   ${frm2}.days_str <Enter> {SelectTextOnFocus %W}
-      bind   ${frm2}.days_str <Escape> {tkButtonInvoke .piexpire.cmd.dismiss}
-      grid   ${frm2}.days_str -row 1 -column 1 -sticky we
-
-      label  ${frm2}.hour_lab -text "Hours:"
-      grid   ${frm2}.hour_lab -row 2 -column 0 -sticky w
-      entry  ${frm2}.hour_str -text "00:00" -width 7 -textvariable piexpire_cut_hourstr
-      bind   ${frm2}.hour_str <Enter> {SelectTextOnFocus %W}
-      bind   ${frm2}.hour_str <Escape> {tkButtonInvoke .piexpire.cmd.dismiss}
-      grid   ${frm2}.hour_str -row 2 -column 1 -sticky we
-
-      button ${frm2}.upd_but -text "Update" -command PiExpTime_UpdateCutOff
-      grid   ${frm2}.upd_but -row 1 -rowspan 2 -column 2 -padx 20 -sticky w
-      grid   columnconfigure ${frm2} 2 -weight 1
-      pack   .piexpire.nb -side top
+      # initial value for cut-off time display
+      UpdateExpiryFilter 0
 
       ##
       ##  Command row
@@ -678,7 +646,11 @@ proc PopupExpireDelaySelection {} {
 
       bind   .piexpire <Key-F1> {PopupHelp $helpIndex(Filtering) "Expired Programmes Display"}
       bind   .piexpire.cmd <Destroy> {+ set piexpire_popup 0}
-      focus  ${frm1}.days_str
+      focus  .piexpire.nb.days_str
+
+      wm resizable .piexpire 1 0
+      update
+      wm minsize .piexpire [winfo reqwidth .piexpire] [winfo reqheight .piexpire]
 
    } else {
       raise .piexpire
@@ -722,7 +694,7 @@ proc ParseExpireDaysValue {var newval errstr} {
 
 proc UpdateExpiryFromText {which_first} {
    global piexpire_daystr piexpire_minstr piexpire_lastinput
-   global piexpire_days piexpire_mins
+   global piexpire_slider piexpire_days piexpire_mins
 
    if {[string compare $which_first "bytext"] == 0} {
       # Return was pressed while focus inside entry fields
@@ -737,6 +709,16 @@ proc UpdateExpiryFromText {which_first} {
          ParseDurationValue piexpire_mins $piexpire_minstr "hour delta" .piexpire
       }
    }
+   set piexpire_slider [expr {$piexpire_days * 24*60 + $piexpire_mins}]
+   set piexpire_lastinput 0
+}
+
+proc UpdateExpiryFromSlider {} {
+   global piexpire_daystr piexpire_minstr piexpire_lastinput
+   global piexpire_slider piexpire_days piexpire_mins
+
+   set piexpire_days [expr {int($piexpire_slider / (24*60))}]
+   set piexpire_mins [expr {$piexpire_slider % (24*60)}]
    set piexpire_lastinput 0
 }
 
@@ -755,46 +737,8 @@ proc UpdateExpiryFilter { round {val 0} } {
    set piexpire_minstr [Motd2HHMM [expr $piexpire_display % (24*60)]]
    set piexpire_lastinput 0
 
-   set frm1 [Rnotebook:frame .piexpire.nb 1]
    set threshold [expr [C_ClockSeconds] - ($piexpire_display * 60)]
-   ${frm1}.time_frm.str configure -text [C_ClockFormat $threshold {%A %d.%m. %H:%M}]
+   .piexpire.time_frm.str configure -text [C_ClockFormat $threshold {%A %d.%m. %H:%M}]
 
    SelectExpireDelayFilter
-}
-
-proc PiExpTime_UpdateCutOff {} {
-   global piexpire_cut_daystr piexpire_cut_hourstr
-
-   set ok [ParseExpireDaysValue days $piexpire_cut_daystr "days"]
-   if $ok {
-      set ok [ParseExpireDaysValue hours $piexpire_cut_hourstr "hours"]
-      if $ok {
-
-         set new_cutoff [expr ($days * 24*60) + ($hours * 60)]
-         set pi_count [C_CountExpiredPi $new_cutoff]
-
-         if {[C_IsNetAcqActive default]} {
-            # warn that params do not affect acquisition running remotely
-            set answer [tk_messageBox -type okcancel -icon info -parent .piexpire \
-                           -message "Please note this setting should be applied to the acquisition daemon too."]
-            if {[string compare $answer "ok"] != 0} {
-               return
-            }
-         } elseif {$pi_count > 0} {
-            # warn that PI will be removed
-            set answer [tk_messageBox -type okcancel -icon warning -parent .piexpire \
-                           -message "You're about to irrecoverably remove $pi_count programmes from the current database."]
-            if {[string compare $answer "ok"] != 0} {
-               return
-            }
-         }
-
-         C_UpdatePiExpireDelay $new_cutoff
-         UpdateRcFile
-
-         # update display (including format corrections)
-         set piexpire_cut_daystr [expr $new_cutoff / (24*60)]
-         set piexpire_cut_hourstr [expr ($new_cutoff % (24*60)) / 60]
-      }
-   }
 }

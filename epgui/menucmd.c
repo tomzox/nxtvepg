@@ -1632,106 +1632,6 @@ static int MenuCmd_ProvMerge_Start( ClientData ttp, Tcl_Interp *interp, int objc
 }
 
 // ----------------------------------------------------------------------------
-// Callback for expire cut-off delay configuration dialog
-// 
-static int MenuCmd_UpdatePiExpireDelay( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
-{
-   const char * const pUsage = "Usage: C_UpdatePiExpireDelay <value>";
-   int  value;
-   int  result;
-
-   if (objc != 1+1)
-   {  // parameter count is invalid
-      Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
-      result = TCL_ERROR;
-   }
-   else if (Tcl_GetIntFromObj(interp, objv[1], &value) != TCL_OK)
-   {
-      result = TCL_ERROR;
-   }
-   else
-   {
-      RcFile_SetDbExpireDelay(value);
-      UpdateRcFile(TRUE);
-
-#ifdef USE_TTX_GRABBER
-      EpgSetup_TtxGrabber();
-#endif
-
-      UiControlMsg_AcqEvent(ACQ_EVENT_PI_EXPIRED);
-      UiControl_AiStateChange(DB_TARGET_UI);
-
-      result = TCL_OK;
-   }
-   return result;
-}
-
-// ----------------------------------------------------------------------------
-// Retrieve current PI expire time parameter for config dialog
-// 
-static int MenuCmd_GetPiExpireDelay( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
-{
-   const char * const pUsage = "Usage: C_GetPiExpireDelay";
-   uint expireTime;
-   int  result;
-
-   if (objc != 1)
-   {  // parameter count is invalid
-      Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
-      result = TCL_ERROR;
-   }
-   else
-   {
-      expireTime = RcFile_Query()->db.piexpire_cutoff;
-
-      Tcl_SetObjResult(interp, Tcl_NewIntObj(expireTime));
-      result = TCL_OK;
-   }
-   return result;
-}
-
-// ----------------------------------------------------------------------------
-// Pre-check for cut-off time configuration
-// - returns the number of PI which would be deleted
-// 
-static int MenuCmd_CountExpiredPi( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
-{
-   const char * const pUsage = "Usage: C_CountExpiredPi <threshold>";
-   const PI_BLOCK  * pPiBlock;
-   int  cutOffTime;
-   int  piCount;
-   int  result;
-
-   if ( (objc != 1+1) ||
-        (Tcl_GetIntFromObj(interp, objv[1], &cutOffTime) != TCL_OK) )
-   {
-      Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
-      result = TCL_ERROR;
-   }
-   else
-   {
-      cutOffTime = EpgGetUiMinuteTime() - (cutOffTime * 60);
-
-      EpgDbLockDatabase(pUiDbContext, TRUE);
-      pPiBlock = EpgDbSearchFirstPi(pUiDbContext, NULL);
-      piCount = 0;
-      while ((pPiBlock != NULL) && (pPiBlock->start_time < cutOffTime))
-      {
-         if (pPiBlock->stop_time <= cutOffTime)
-            piCount += 1;
-
-         pPiBlock = EpgDbSearchNextPi(pUiDbContext, NULL, pPiBlock);
-      }
-      EpgDbLockDatabase(pUiDbContext, FALSE);
-
-      Tcl_SetObjResult(interp, Tcl_NewIntObj(piCount));
-      result = TCL_OK;
-   }
-   return result;
-}
-
-
-// ----------------------------------------------------------------------------
 // Query acquisition mode and acquisition provider list
 //
 static int MenuCmd_GetAcqConfig( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
@@ -2487,6 +2387,7 @@ static int MenuCmd_GetTtxConfig( ClientData ttp, Tcl_Interp *interp, int objc, T
          Tcl_SetVar2Ex(interp, pArrName, "ovpg", Tcl_NewIntObj(pRc->ttx.ttx_ov_pg), 0);
          Tcl_SetVar2Ex(interp, pArrName, "duration", Tcl_NewIntObj(pRc->ttx.ttx_duration), 0);
          Tcl_SetVar2Ex(interp, pArrName, "keep_ttx", Tcl_NewIntObj(pRc->ttx.keep_ttx_data), 0);
+         Tcl_SetVar2Ex(interp, pArrName, "pi_expire", Tcl_NewIntObj(pRc->db.piexpire_cutoff / 60), 0);
       }
       result = TCL_OK;
    }
@@ -2506,12 +2407,14 @@ static int MenuCmd_UpdateTtxConfig( ClientData ttp, Tcl_Interp *interp, int objc
    int  tmpInt;
    int  keyIndex;
    int  autoStart;
+   int  pi_expire;
    int  result;
 
    static CONST84 char * pKeywords[] = { "enable", "net_count", "pg_start",
-         "pg_end", "ovpg", "duration", "keep_ttx", (char *) NULL };
+         "pg_end", "ovpg", "duration", "keep_ttx", "pi_expire", (char *) NULL };
    enum ttxcf_keys { TTXGRAB_ENABLE, TTXGRAB_NET_COUNT, TTXGRAB_PG_START,
-      TTXGRAB_PG_END, TTXGRAB_OV_PG, TTXGRAB_DURATION, TTXGRAB_KEEP };
+      TTXGRAB_PG_END, TTXGRAB_OV_PG, TTXGRAB_DURATION, TTXGRAB_KEEP,
+      TTXGRAB_EXPIRE };
 
    if ( (objc != 1+3) ||
         (Tcl_GetBooleanFromObj(interp, objv[2], &autoStart) != TCL_OK) )
@@ -2523,6 +2426,8 @@ static int MenuCmd_UpdateTtxConfig( ClientData ttp, Tcl_Interp *interp, int objc
    {
       RcFile_SetAcqMode(Tcl_GetString(objv[1]));
       RcFile_SetAcqAutoStart(autoStart);
+
+      pi_expire = RcFile_Query()->db.piexpire_cutoff;
 
       result = Tcl_ListObjGetElements(interp, objv[3], &cfArgc, &cfArgv);
       if (result == TCL_OK)
@@ -2566,6 +2471,10 @@ static int MenuCmd_UpdateTtxConfig( ClientData ttp, Tcl_Interp *interp, int objc
                      result = Tcl_GetIntFromObj(interp, cfArgv[cf_idx + 1], &tmpInt);
                      rxTtxGrab.keep_ttx_data = tmpInt;
                      break;
+                  case TTXGRAB_EXPIRE:
+                     result = Tcl_GetIntFromObj(interp, cfArgv[cf_idx + 1], &tmpInt);
+                     pi_expire = tmpInt * 60;
+                     break;
                   default:
                      fatal2("MenuCmd-UpdateTtxConfig: unknown index %d for keyword: '%s'", keyIndex, Tcl_GetString(cfArgv[cf_idx]));
                      break;
@@ -2584,6 +2493,7 @@ static int MenuCmd_UpdateTtxConfig( ClientData ttp, Tcl_Interp *interp, int objc
       }
 
       // apply the new parameters
+      RcFile_SetDbExpireDelay(pi_expire);
       EpgSetup_TtxGrabber();
       EpgSetup_AcquisitionMode(NETACQ_KEEP);
 
@@ -2741,9 +2651,6 @@ void MenuCmd_Init( void )
       Tcl_CreateObjCommand(interp, "C_GetMergeProviderList", MenuCmd_GetMergeProviderList, (ClientData) NULL, NULL);
       Tcl_CreateObjCommand(interp, "C_GetMergeOptions", MenuCmd_GetMergeOptions, (ClientData) NULL, NULL);
       Tcl_CreateObjCommand(interp, "C_ProvMerge_Start", MenuCmd_ProvMerge_Start, (ClientData) NULL, NULL);
-      Tcl_CreateObjCommand(interp, "C_UpdatePiExpireDelay", MenuCmd_UpdatePiExpireDelay, (ClientData) NULL, NULL);
-      Tcl_CreateObjCommand(interp, "C_GetPiExpireDelay", MenuCmd_GetPiExpireDelay, (ClientData) NULL, NULL);
-      Tcl_CreateObjCommand(interp, "C_CountExpiredPi", MenuCmd_CountExpiredPi, (ClientData) NULL, NULL);
       Tcl_CreateObjCommand(interp, "C_GetAcqConfig", MenuCmd_GetAcqConfig, (ClientData) NULL, NULL);
 
       Tcl_CreateObjCommand(interp, "C_StartEpgScan", MenuCmd_StartEpgScan, (ClientData) NULL, NULL);

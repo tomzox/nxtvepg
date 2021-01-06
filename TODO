@@ -13,7 +13,6 @@ Post-Nextview EPG:
   - histogram, merged db: show percentage of DBs updated during last 12-24 hours
   - timescale: different color for DBs older than 12-24 hours
 - move USE_TTX_GRABBER to exclude all acqusition if not set
-- move PI expire config from dlg_filter into TTX grabber
 - merge & load dialog: directory drop-down: add history
 - merge dialog, "configure" sub-menu: simplify to single list with
   "extended" selection (i.e. allow multiple selections)
@@ -32,6 +31,8 @@ Post-Nextview EPG:
 - teletext acq stats: percentage cycle loaded (i.e. cycles done vs. max. sub-page count)
 - teletext configuration dialog channel-specific
 - teletext emit XML encoding UTF-8
+- manual: move general description of TTX grabber from CONFIGURATION chapter
+  to an initial chapter; add description of config parameters
 
 Missing documentation:
 - TV Tune config in context menu dialog
