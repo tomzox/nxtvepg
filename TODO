@@ -142,9 +142,6 @@ Recently suggested fixes & changes:
   without use of the keyboard (like in -selectmode multiple)
   (suggested via discussion forum by "Philippe")
 - optionally hide short-info window -> display with double-click
-- sort networks in merged provider database by default in the user-configured
-  order of the merged providers; when adding a new provider to an merge
-  config, append new networks to the merged db's network list
 - add note to acq config dlg: does not affect display db
 - weekday scale for grid layout: additional column (Thierry)
 - split network prefilter into 2 parts: excluded and unlisted: latter ones are
@@ -234,7 +231,6 @@ other required fixes:
 - advance ranges of expired PI in timescale popup every minute
 - TI & LI (subtitle and language information blocks): implement output methods
   and search filters
-- merge db: remove expired PI from db every minute
 - automatically show expired PI in the database when still running
   (according to VPS/PDC) when following TV channel changes
 - netwop name config: counts names to "automatic selection"

@@ -71,7 +71,7 @@ typedef enum
 
 #define RC_MAX_ACQ_CNI_PROV     (2 * MAX_MERGED_DB_COUNT)
 #define RC_MAX_ACQ_CNI_FREQS    (4 * MAX_MERGED_DB_COUNT)  // list contains pairs of CNI and freq
-#define RC_MAX_DB_NETWWOPS      MAX_NETWOP_COUNT
+#define RC_MAX_DB_NETWOPS       MAX_NETWOP_COUNT
 
 // limit for forwards compatibility
 #define RC_FILE_MIN_VERSION 0x0207C2
@@ -167,7 +167,7 @@ typedef struct
    uint         prov_cni;
    uint         add_sub;
    uint         net_count;
-   uint         net_cnis[RC_MAX_DB_NETWWOPS];  // note: constant also used in parser config!
+   uint         net_cnis[RC_MAX_DB_NETWOPS];  // note: constant also used in parser config!
 } RCFILE_NET_ORDER;
 
 typedef struct

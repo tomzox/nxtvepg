@@ -141,13 +141,15 @@ static void StatsWin_PrintDbStats( EPGDB_CONTEXT * dbc, EPGDB_BLOCK_COUNT * coun
 {
    const AI_BLOCK *pAi;
    time_t lastAiUpdate;
-   char  netname[60+1], datestr[25+1];
+   char  provname[60+1], datestr[25+1];
    uint  allVersionsCount, curVersionCount, obsolete;
+   uint  netwopCount;
    Tcl_DString cmd_dstr;
 
    // default values if database is empty
-   strcpy(netname, "none yet");
+   strcpy(provname, "none yet");
    strcpy(datestr, "none yet");
+   netwopCount = 0;
 
    if (dbc != NULL)
    {  // get provider name and db version from AI block
@@ -155,10 +157,11 @@ static void StatsWin_PrintDbStats( EPGDB_CONTEXT * dbc, EPGDB_BLOCK_COUNT * coun
       pAi = EpgDbGetAi(dbc);
       if (pAi != NULL)
       {
-         strncpy(netname, AI_GET_SERVICENAME(pAi), sizeof(netname) - 1);
-         netname[sizeof(netname) - 1] = 0;
+         strncpy(provname, AI_GET_SERVICENAME(pAi), sizeof(provname) - 1);
+         provname[sizeof(provname) - 1] = 0;
          lastAiUpdate = EpgDbGetAiUpdateTime(dbc);
          strftime(datestr, 25, "%H:%M:%S %a %d.%m.", localtime(&lastAiUpdate));
+         netwopCount = pAi->netwopCount;
       }
       EpgDbLockDatabase(dbc, FALSE);
    }
@@ -169,12 +172,14 @@ static void StatsWin_PrintDbStats( EPGDB_CONTEXT * dbc, EPGDB_BLOCK_COUNT * coun
 
    sprintf(comm, "EPG provider:     %s\n"
                  "Last update:      %s\n"
+                 "Networks in db:   %d\n"
                  "Blocks in db:     %d\n"
                  "Current version:  %d\n"
                  "Expired total:    %d (%d%%)\n"
                  "Defective blocks: %d (%d%%)",
-                 netname,
+                 provname,
                  datestr,
+                 netwopCount,
                  allVersionsCount,
                  curVersionCount,
                  count->expired, ACQ_COUNT_TO_PERCENT(count->expired, allVersionsCount),

@@ -72,7 +72,7 @@ typedef struct
 //
 void EpgDbMergeInsertPi( EPGDB_CONTEXT * pDbContext, EPGDB_BLOCK * pNewBlock );
 void EpgDbMergeUpdateNetwork( EPGDB_CONTEXT * pDbContext, uint srcNetwop, EPGDB_BLOCK * pNewBlock );
-void EpgDbMergeAiBlocks( EPGDB_CONTEXT * dbc, uint netwopCount, uint * pNetwopList );
+void EpgDbMergeAiBlocks( EPGDB_CONTEXT * dbc, uint netwopCount, const uint * pNetwopList );
 void EpgDbMergeAllPiBlocks( EPGDB_CONTEXT * dbc );
 void EpgDbMerge_ResetPiVersion( EPGDB_CONTEXT * dbc, uint dbIdx );
 

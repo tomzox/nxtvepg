@@ -23,7 +23,7 @@
 set netsel_popup 0
 
 ## ---------------------------------------------------------------------------
-## Update network selection configuration after AI update
+## Update network selection configuration after provider or AI change
 ## - note: all CNIs have to be in the format 0x%04X
 ## - generates mapping tables between AI order and user config order
 ##

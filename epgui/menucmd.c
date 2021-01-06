@@ -1066,8 +1066,8 @@ static int MenuCmd_UpdateProvCniConfig( ClientData ttp, Tcl_Interp *interp, int 
       result = Tcl_ListObjGetElements(interp, objv[2], (int*)&cniSelCount, &pSelCniObjv);
       if (result == TCL_OK)
       {
-         if (cniSelCount > RC_MAX_DB_NETWWOPS)
-            cniSelCount = RC_MAX_DB_NETWWOPS;
+         if (cniSelCount > RC_MAX_DB_NETWOPS)
+            cniSelCount = RC_MAX_DB_NETWOPS;
          pSelCni = xmalloc(sizeof(*pSelCni) * (cniSelCount + 1));  // +1 to avoid zero-len alloc
          for (idx = 0; (idx < cniSelCount) && (result == TCL_OK); idx++)
             result = Tcl_GetIntFromObj(interp, pSelCniObjv[idx], (int*)&pSelCni[idx]);
@@ -1077,8 +1077,8 @@ static int MenuCmd_UpdateProvCniConfig( ClientData ttp, Tcl_Interp *interp, int 
             result = Tcl_ListObjGetElements(interp, objv[3], (int*)&cniSupCount, &pSupCniObjv);
             if (result == TCL_OK)
             {
-               if (cniSupCount > RC_MAX_DB_NETWWOPS)
-                  cniSupCount = RC_MAX_DB_NETWWOPS;
+               if (cniSupCount > RC_MAX_DB_NETWOPS)
+                  cniSupCount = RC_MAX_DB_NETWOPS;
 
                pSupCni = xmalloc(sizeof(*pSupCni) * (cniSupCount + 1));
                for (idx = 0; (idx < cniSupCount) && (result == TCL_OK); idx++)

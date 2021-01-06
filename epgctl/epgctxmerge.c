@@ -367,6 +367,7 @@ EPGDB_CONTEXT * EpgContextMerge( uint dbCount, const uint * pCni, MERGE_ATTRIB_V
       dbCount = MAX_MERGED_DB_COUNT;
    }
    ifdebug2(netwopCount == 0, "EpgContext-Merge: netwop count is zero (%d DBs, first CNI 0x%04X)", dbCount, *pCni);
+   dprintf2("EpgContextMerge: Merging %d DBs with %d networks\n", dbCount, netwopCount);
 
    // initialize context
    pMergeContext = xmalloc(sizeof(EPGDB_MERGE_CONTEXT));

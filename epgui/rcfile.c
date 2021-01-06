@@ -247,7 +247,7 @@ static const RCPARSE_CFG rcParseCfg_NetOrder[] =
 {
    { RC_TYPE_HEX,  RC_TOFF(RCFILE_NET_ORDER, prov_cni), RC_NAME_NONE(), RC_OFF_NONE(), 0, NULL },
    { RC_TYPE_INT,  RC_TOFF(RCFILE_NET_ORDER, add_sub), RC_NAME_NONE(), RC_OFF_NONE(), 0, NULL },
-   { RC_TYPE_HEX,  RC_TOFF(RCFILE_NET_ORDER, net_cnis), RC_NAME_NONE(), RC_TOFF(RCFILE_NET_ORDER, net_count), RC_MAX_DB_NETWWOPS, NULL },
+   { RC_TYPE_HEX,  RC_TOFF(RCFILE_NET_ORDER, net_cnis), RC_NAME_NONE(), RC_TOFF(RCFILE_NET_ORDER, net_count), RC_MAX_DB_NETWOPS, NULL },
 };
 static const RCPARSE_CFG rcParseCfg_NetNames[] =
 {
@@ -1425,8 +1425,8 @@ void RcFile_UpdateNetworkSelection( uint provCni, uint selCount, const uint * pS
    bool foundSel;
    bool foundSup;
 
-   assert(selCount <= RC_MAX_DB_NETWWOPS);
-   assert(supCount <= RC_MAX_DB_NETWWOPS);
+   assert(selCount <= RC_MAX_DB_NETWOPS);
+   assert(supCount <= RC_MAX_DB_NETWOPS);
 
    RcFile_DynListInit(&dynList, sizeof(RCFILE_NET_ORDER),
                       (char**)&mainRc.net_order, &mainRc.net_order_count);

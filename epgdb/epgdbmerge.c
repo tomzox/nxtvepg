@@ -852,7 +852,7 @@ static char * EpgDbMergeAiServiceNames( EPGDB_MERGE_CONTEXT * dbmc )
 // ---------------------------------------------------------------------------
 // Merge AI blocks & netwops
 //
-void EpgDbMergeAiBlocks( PDBC dbc, uint netwopCount, uint * pNetwopList )
+void EpgDbMergeAiBlocks( PDBC dbc, uint netwopCount, const uint * pNetwopList )
 {
    EPGDB_MERGE_CONTEXT * dbmc;
    const AI_BLOCK  * pAi;
