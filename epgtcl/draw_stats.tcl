@@ -97,7 +97,7 @@ proc TimeScale_Open {w cni scaleWidth} {
                                        -yscrollcommand [list $w.middle.sbv set] \
                                        -xscrollcommand [list $w.middle_sbh set] \
                                        -cursor top_left_arrow
-      bind $w.middle.cv <Button-1>     [list TimeScale_GotoTime $w %x %y]
+      bind $w.middle.cv <Button-1>     [list TimeScale_GotoTimeStart $w %x %y]
       bind $w.middle.cv <Button-4>     {%W yview scroll -1 units}
       bind $w.middle.cv <Button-5>     {%W yview scroll 1 units}
       bind $w.middle.cv <MouseWheel>   {%W yview scroll [expr {- (%D / 40)}] units}
@@ -317,10 +317,28 @@ proc TimeScale_GotoTime {w xcoo ycoo} {
    if {$pi_time != 0} {
       # set filter: show the selected network only
       ResetFilterState
+      C_EnableExpirePreFilter 0
       SelectNetwopByIdx $netwop 1
       # set cursor onto the first PI starting after the selected time
       C_PiBox_GotoTime 0 $pi_time
    }
+}
+
+proc TimeScale_GotoTimeStart {w xcoo ycoo} {
+   # add events for following the mouse while the button is pressed
+   bind $w.middle.cv <Motion> [list TimeScale_GotoTimeMotion $w %x %y]
+   bind $w.middle.cv <ButtonRelease-1> [list TimeScale_GotoTimeStop $w]
+
+   TimeScale_GotoTime $w $xcoo $ycoo
+}
+
+proc TimeScale_GotoTimeMotion {w xcoo ycoo} {
+   TimeScale_GotoTime $w $xcoo $ycoo
+}
+
+proc TimeScale_GotoTimeStop {w} {
+   bind $w.middle.cv <Motion> {}
+   bind $w.middle.cv <ButtonRelease-1> {}
 }
 
 ## ---------------------------------------------------------------------------

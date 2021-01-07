@@ -478,6 +478,33 @@ static int SelectExpiredPiDisplay( ClientData ttp, Tcl_Interp *interp, int objc,
 // ----------------------------------------------------------------------------
 // Callback for VPS/PDC filter changes
 //
+static int EnableExpirePreFilter( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
+{
+   const char * const pUsage = "Usage: C_EnableExpirePreFilter <0/1>";
+   int enable;
+   int result;
+
+   if ((objc != 1+1)  || (Tcl_GetBooleanFromObj(interp, objv[1], &enable) != TCL_OK))
+   {
+      Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
+      result = TCL_ERROR;
+   }
+   else
+   {
+      if (enable)
+         EpgDbPreFilterEnable(pPiFilterContext, FILTER_EXPIRE_TIME);
+      else
+         EpgDbPreFilterDisable(pPiFilterContext, FILTER_EXPIRE_TIME);
+
+      result = TCL_OK;
+   }
+
+   return result;
+}
+
+// ----------------------------------------------------------------------------
+// Callback for VPS/PDC filter changes
+//
 static int SelectVpsPdcFilter( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
 {  
    const char * const pUsage = "Usage: SelectVpsPdcFilter <mode>";
@@ -1740,6 +1767,7 @@ void PiFilter_Expire( void )
    expireTime = EpgGetUiMinuteTime() - (cutOffTime * 60);
 
    EpgDbFilterSetExpireTime(pPiFilterContext, expireTime);
+   EpgDbPreFilterEnable(pPiFilterContext, FILTER_EXPIRE_TIME);
 }
 
 // ----------------------------------------------------------------------------
@@ -1778,6 +1806,7 @@ void PiFilter_Create( void )
 
       Tcl_CreateObjCommand(interp, "C_UpdateNetwopList", UpdateNetwopList, (ClientData) NULL, NULL);
       Tcl_CreateObjCommand(interp, "C_GetNetwopFilterList", GetNetwopFilterList, (ClientData) NULL, NULL);
+      Tcl_CreateObjCommand(interp, "C_EnableExpirePreFilter", EnableExpirePreFilter, (ClientData) NULL, NULL);
 
       Tcl_CreateObjCommand(interp, "C_PiFilter_ContextMenuUndoFilter", PiFilter_ContextMenuUndoFilter, (ClientData) NULL, NULL);
       Tcl_CreateObjCommand(interp, "C_PiFilter_ContextMenuAddFilter", PiFilter_ContextMenuAddFilter, (ClientData) NULL, NULL);
@@ -1793,7 +1822,6 @@ void PiFilter_Create( void )
    pPiFilterContext = pUiFilterContext;
    // initialize the expire time filter
    PiFilter_Expire();
-   EpgDbPreFilterEnable(pPiFilterContext, FILTER_EXPIRE_TIME);
 
    sprintf(comm, "ResetFilterState\n");
    eval_check(interp, comm);
