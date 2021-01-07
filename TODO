@@ -5,7 +5,6 @@ boost any item's priority, find more points that need to be fixed or if
 you have ideas for additional features.
 
 Post-Nextview EPG:
-- ttx-*.dat files do not contain configured page range 300-699
 - New DB type: "Load Teletext EPG...": automatically follow TTX acq, even if DB not exist yet
 - statistics display for concurrent grabbing
 - extend XMLTV database statistics

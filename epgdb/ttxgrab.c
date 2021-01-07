@@ -571,9 +571,10 @@ void TtxGrab_PostProcess( uint bufIdx, const char * pName, bool reset )
 
    if (ttxGrabState[bufIdx].keepTtxInp)
    {
+      dprintf1("TtxGrab-PostProcess: name:'%s' dump complete database\n", pName);
       char * pKeptInpFile = xmalloc(strlen(ttxGrabDbDir) + 1 + strlen(pName) + 20);
       sprintf(pKeptInpFile, "%s/" TTX_CAP_FILE_PAT, ttxGrabDbDir, pName);
-      ttx_db_dump(ttxGrabState[bufIdx].ttx_db, pKeptInpFile, 100, 899);
+      ttx_db_dump(ttxGrabState[bufIdx].ttx_db, pKeptInpFile, 0x100, 0x8FF);
       xfree(pKeptInpFile);
    }
 
