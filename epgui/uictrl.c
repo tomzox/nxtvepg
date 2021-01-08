@@ -261,9 +261,7 @@ static EPGDB_STATE UiControl_GetDbState( void )
            (acqState.ttxGrabState != ACQDESCR_DISABLED) &&
            (acqState.ttxGrabState != ACQDESCR_SCAN) )
       {
-         const char * pXmlPath = XmltvCni_LookupProviderPath(uiCni);
-         if (pXmlPath != NULL)
-            acqWorksOnUi = EpgSetup_QueryTtxPath(pXmlPath);
+         acqWorksOnUi = EpgSetup_IsAcqWorkingForUiDb();
       }
 #endif
 
@@ -547,7 +545,7 @@ static void UiControl_LoadAcqDb( ClientData clientData )
                      }
                      else  // all DBs updated -> final notifications
                      {
-                        TimeScale_VersionChange();
+                        TimeScale_VersionChange(cni);
                         StatsWin_StatsUpdate(DB_TARGET_ACQ);
                      }
                   }
@@ -575,7 +573,7 @@ static void UiControl_LoadAcqDb( ClientData clientData )
                PiBox_Refresh();
                UiControl_AiStateChange(DB_TARGET_UI);
 
-               TimeScale_VersionChange();
+               TimeScale_VersionChange(cni);
                StatsWin_StatsUpdate(DB_TARGET_ACQ);
             }
             else
@@ -619,18 +617,6 @@ void UiControl_DisplayErrorMessage( char * pMsg )
    }
    else
       debug0("UiControl-DisplayErrorMessage: illegal NULL ptr param");
-}
-
-// ----------------------------------------------------------------------------
-// Add or update an EPG provider channel frequency in the rc/ini file
-// - called by acq control when the first AI is received after a provider change
-//
-void UiControlMsg_NewProvFreq( uint cni, uint freq )
-{
-   if ( RcFile_UpdateProvFrequency(cni, freq) )
-   {
-      UpdateRcFile(TRUE);
-   }
 }
 
 // ----------------------------------------------------------------------------
@@ -841,35 +827,6 @@ void UiControlMsg_NetAcqError( void )
 }
 
 // ----------------------------------------------------------------------------
-// Warn the user about acquisition mode error
-//
-static void UiControl_AcqPassive( ClientData clientData )
-{
-   char * comm2 = xmalloc(2048);
-
-   sprintf(comm2, "tk_messageBox -type ok -icon warning -parent . "
-                  "-message {Since the selected input source is not a TV tuner, "
-                            "only the 'passive' acquisition mode is possible. "
-                            "Change either source or mode to avoid this message."
-                            "}\n");
-   eval_check(interp, comm2);
-   xfree(comm2);
-}
-
-// ----------------------------------------------------------------------------
-// Accept message from acq control about input source problem
-//
-void UiControlMsg_AcqPassive( void )
-{
-   dprintf0("UiControlMsg-AcqPassive\n");
-
-   if (uiControlInitialized)
-      AddMainIdleEvent(UiControl_AcqPassive, (ClientData) NULL, TRUE);
-   else
-      fprintf(stderr, "nxtvepg: warning: invalid acquisition mode for the selected input source\n");
-}
-
-// ----------------------------------------------------------------------------
 // Distribute acquisition events to GUI modules
 //
 void UiControlMsg_AcqEvent( ACQ_EVENT acqEvent )
@@ -896,11 +853,6 @@ void UiControlMsg_AcqEvent( ACQ_EVENT acqEvent )
 
          case ACQ_EVENT_CTL:
             StatsWin_StatsUpdate(DB_TARGET_ACQ);
-            break;
-
-         case ACQ_EVENT_PI_EXPIRED:
-            TimeScale_ProvChange();
-            StatsWin_StatsUpdate(DB_TARGET_UI);
             break;
 
          // also sent when updating an existing DB

@@ -207,10 +207,8 @@ EPGDB_CONTEXT * Xmltv_CheckAndLoad( const char * pFilename, uint provCni,
 #include "epgctl/epgctxctl.h"
 #include "epgui/uictrl.h"
 #include "epgui/dumpraw.h"
-void UiControlMsg_NewProvFreq( uint cni, uint freq ) { }
 void UiControlMsg_ReloadError( uint cni, EPGDB_RELOAD_RESULT dberr, CONTEXT_RELOAD_ERR_HAND errHand, bool isNewDb ) { }
 void UiControlMsg_NetAcqError( void ) { }
-void UiControlMsg_AcqPassive( void ) { }
 void UiControlMsg_AcqEvent( ACQ_EVENT acqEvent ) { }
 EPGDB_CONTEXT * pUiDbContext;
 

@@ -1667,14 +1667,6 @@ bool RcFile_UpdateMergedProvSelection( void )
 }
 
 // ----------------------------------------------------------------------------
-// Add or update the frequency for a given provider
-//
-bool RcFile_UpdateProvFrequency( uint cni, uint freq )
-{
-   return FALSE;  // TODO obsolete
-}
-
-// ----------------------------------------------------------------------------
 // Remove provider CNI from all lists
 //
 void RcFile_RemoveProvider( uint cni )

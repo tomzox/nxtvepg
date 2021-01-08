@@ -240,7 +240,6 @@ void RcFile_UpdateDbMergeCnis( const uint * pCniList, uint cniCount );
 bool RcFile_UpdateProvSelection( uint cni );
 bool RcFile_UpdateMergedProvSelection( void );
 void RcFile_UpdateDbMergeOptions( uint type, const uint * pCniList, uint cniCount );
-bool RcFile_UpdateProvFrequency( uint cni, uint freq );
 void RcFile_RemoveProvider( uint cni );
 
 const RCFILE * RcFile_Query( void );

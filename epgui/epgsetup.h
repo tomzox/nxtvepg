@@ -46,7 +46,7 @@ bool EpgSetup_DaemonAcquisitionMode( bool forcePassive, int maxPhase );
 bool EpgSetup_CardDriver( int cardIndex );
 void EpgSetup_NetAcq( bool isServer );
 void EpgSetup_TtxGrabber( void );
-bool EpgSetup_QueryTtxPath( const char * pXmlPath );
+bool EpgSetup_IsAcqWorkingForUiDb( void );
 EPGDB_CONTEXT * EpgSetup_MergeDatabases( void );
 bool IsRemoteAcqDefault( void );
 bool EpgSetup_HasLocalTvCard( void );

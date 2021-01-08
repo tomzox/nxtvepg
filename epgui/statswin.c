@@ -66,19 +66,33 @@
 #include "epgui/statswin.h"
 
 
-// state of DbStatsWin window
+// ----------------------------------------------------------------------------
+// State of the database statistics window
+
+typedef struct
+{
+   uint32_t  expir;
+   uint32_t  s1cur;
+   uint32_t  s1old;
+   uint32_t  s2cur;
+   uint32_t  s2old;
+} STATS_DB_HIST_ELEM;
+
+#define STATS_DB_HIST_WIDTH     128
+
 static struct
 {
-   bool   open;
-   bool   isForAcq;
-   int    lastHistPos;
-   time_t lastHistReset;
+   bool     open;
+   bool     histShown;
+   bool     histNeedsReset;
+   uint     histIdx;
+   uint     histScaleY;
+   STATS_DB_HIST_ELEM hist[STATS_DB_HIST_WIDTH];
    Tcl_TimerToken updateHandler;
 } dbStatsWinState;
 
-//#define STATS_WIN_DB_WNAM   ".dbstats_ui"
-#define STATS_WIN_TTX_WNAM  ".dbstats_ttx"
-#define STATS_WIN_TTX_ROWS  7
+// ----------------------------------------------------------------------------
+// State of the teletext grabber statistics window
 
 static struct
 {
@@ -87,6 +101,9 @@ static struct
    Tcl_TimerToken updateHandler;
 } statsWinTtx;
 
+//#define STATS_WIN_DB_WNAM   ".dbstats_ui"
+#define STATS_WIN_TTX_WNAM  ".dbstats_ttx"
+#define STATS_WIN_TTX_ROWS  7
 
 static void StatsWin_UpdateDbStatsWinTimeout( ClientData clientData );
 
@@ -111,49 +128,74 @@ static void StatsWin_ConfigureLabelText( const char * pWidName, const char * pMs
 }
 
 // ----------------------------------------------------------------------------
-// Update the history diagram in the db statistics window
+// Helper function for filling one line in ths histogram display
 //
-static void StatsWin_UpdateHist( void )
+static void StatsWin_UpdateHistLine( uint idx )
 {
-   EPG_ACQ_STATS sv;
-   uint idx;
-
-   if ( EpgAcqCtl_GetAcqStats(&sv) )
+   if (dbStatsWinState.histScaleY > 0)
    {
-      if (dbStatsWinState.lastHistReset != sv.acqStartTime)
-      {  // acquisition was reset -> clear history
-         dbStatsWinState.lastHistReset = sv.acqStartTime;
-         dbStatsWinState.lastHistPos   = STATS_HIST_WIDTH;
+      uint v0 =      (128.0 * dbStatsWinState.hist[idx].expir / dbStatsWinState.histScaleY);
+      uint v1 = v0 + (128.0 * dbStatsWinState.hist[idx].s1cur / dbStatsWinState.histScaleY);
+      uint v2 = v1 + (128.0 * dbStatsWinState.hist[idx].s1old / dbStatsWinState.histScaleY);
+      uint v3 = v2 + (128.0 * dbStatsWinState.hist[idx].s2cur / dbStatsWinState.histScaleY);
+      uint v4 = v3 + (128.0 * dbStatsWinState.hist[idx].s2old / dbStatsWinState.histScaleY);
 
-         if (dbStatsWinState.lastHistReset != 0)
-         {
-            eval_check(interp, "DbStatsWin_ClearHistory .dbstats_ui\n");
-         }
-      }
-
-      if ( (dbStatsWinState.lastHistPos != sv.histogram.histIdx) &&
-           (sv.histogram.histIdx > 1) &&
-           (sv.histogram.histIdx != STATS_HIST_WIDTH - 1) )
-      {
-         idx = (dbStatsWinState.lastHistPos + 1) % STATS_HIST_WIDTH;
-
-         for (idx=0; idx < sv.histogram.histIdx; idx++)
-         {
-            sprintf(comm, "DbStatsWin_AddHistory .dbstats_ui %d %d %d %d %d %d\n",
-                          idx+1,
-                          sv.histogram.hist[idx].expir,
-                          sv.histogram.hist[idx].s1cur, sv.histogram.hist[idx].s1old,
-                          sv.histogram.hist[idx].s2cur, sv.histogram.hist[idx].s2old);
-            eval_check(interp, comm);
-         }
-         dbStatsWinState.lastHistPos = sv.histogram.histIdx;
-      }
-   }
-   else
-   {  // acq not running -> clear history
-      sprintf(comm, "DbStatsWin_ClearHistory .dbstats_ui\n");
+      sprintf(comm, "DbStatsWin_AddHistory .dbstats_ui %d %d %d %d %d %d\n",
+                                           idx, v0, v1, v2, v3, v4);
       eval_check(interp, comm);
    }
+   else
+      fatal0("StatsWin-UpdateHistLine: invalid scale\n");
+}
+
+// ----------------------------------------------------------------------------
+// Update the history diagram in the db statistics window
+//
+static void StatsWin_UpdateHist( const EPGDB_BLOCK_COUNT * pCount )
+{
+   if (dbStatsWinState.histNeedsReset)
+   {  // acquisition was reset -> clear history
+      dbStatsWinState.histNeedsReset = FALSE;
+      dbStatsWinState.histScaleY = 1;
+      dbStatsWinState.histIdx = 0;
+
+      eval_check(interp, "DbStatsWin_ClearHistory .dbstats_ui\n");
+   }
+   else if (dbStatsWinState.histIdx >= STATS_DB_HIST_WIDTH)
+   {
+      dbStatsWinState.histIdx = 0;
+   }
+   const uint idx = dbStatsWinState.histIdx;
+   uint total = pCount->allVersions + pCount->expired + pCount->defective;
+
+   if (total > 0)
+   {
+      if (dbStatsWinState.histScaleY < total)
+      {
+         dprintf2("StatsWin-UpdateHist: rescaling from %d to %d\n", dbStatsWinState.histScaleY, total);
+         eval_check(interp, "DbStatsWin_ClearHistory .dbstats_ui\n");
+
+         dbStatsWinState.histScaleY = total * 3 / 2;  // 50% head-room for new max value
+
+         for (uint idx2 = 0; idx2 < dbStatsWinState.histIdx; ++idx2)
+         {
+            StatsWin_UpdateHistLine(idx2);
+         }
+      }
+      dbStatsWinState.hist[idx].expir = pCount->expired + pCount->defective;
+      dbStatsWinState.hist[idx].s1cur = pCount->allVersions - pCount->curVersion;
+      dbStatsWinState.hist[idx].s1old = pCount->allVersions;
+      dbStatsWinState.hist[idx].s2cur = 0;
+      dbStatsWinState.hist[idx].s2old = 0;
+   }
+   else
+   {
+      memset(&dbStatsWinState.hist[idx], 0, sizeof(dbStatsWinState.hist[0]));
+   }
+
+   StatsWin_UpdateHistLine(idx);
+
+   dbStatsWinState.histIdx = (dbStatsWinState.histIdx + 1) % STATS_DB_HIST_WIDTH;
 }
 
 // ----------------------------------------------------------------------------
@@ -208,7 +250,7 @@ static void StatsWin_PrintDbStats( EPGDB_CONTEXT * dbc, EPGDB_BLOCK_COUNT * coun
           );
 
    // finally configure the popup text to show the string
-   StatsWin_ConfigureLabelText(".dbstats_ui.browser.stat configure", comm);
+   StatsWin_ConfigureLabelText(".dbstats_ui.browser.stat", comm);
 
    if (allVersionsCount > 0)
    {
@@ -234,8 +276,16 @@ static void StatsWin_PrintAcqStats( EPGDB_CONTEXT * dbc, EPGACQ_DESCR * pAcqStat
    time32_t acq_duration;
    const char * pAcqModeStr;
    const char * pAcqPasvStr;
+   char * pTtxNames = NULL;
+   uint chanCount = 0;
+   char * commBuf;
+   int strOff;
 
-   comm[0] = 0;
+   // allocate long string buffer - needed for channel name list
+   const size_t commBufsize = TCL_COMM_BUF_SIZE + MAX_VBI_DVB_STREAMS * (18+50+2);
+   commBuf = xmalloc(commBufsize);
+   commBuf[0] = 0;
+   strOff = 0;
 
 #ifdef USE_DAEMON
    if (pAcqState->isNetAcq)
@@ -245,17 +295,18 @@ static void StatsWin_PrintAcqStats( EPGDB_CONTEXT * dbc, EPGACQ_DESCR * pAcqStat
       switch(netState.state)
       {
          case NETDESCR_ERROR:
-            sprintf(comm + strlen(comm), "Network state:    error\nError cause:      %s\n", ((netState.cause != NULL) ? netState.cause : "unknown"));
+            strOff += sprintf(commBuf + strOff, "Network state:    error\nError cause:      %s\n",
+                              ((netState.cause != NULL) ? netState.cause : "unknown"));
             break;
          case NETDESCR_CONNECT:
-            sprintf(comm + strlen(comm), "Network state:    server contacted\n");
+            strOff += sprintf(commBuf + strOff, "Network state:    server contacted\n");
             break;
          case NETDESCR_RUNNING:
-            sprintf(comm + strlen(comm), "Network state:    connected (rx %ld bytes)\n", netState.rxTotal);
+            strOff += sprintf(commBuf + strOff, "Network state:    connected\n");
             break;
          case NETDESCR_DISABLED:
          default:
-            sprintf(comm + strlen(comm), "Network state:    unconnected\n");
+            strOff += sprintf(commBuf + strOff, "Network state:    unconnected\n");
             break;
       }
    }
@@ -266,20 +317,48 @@ static void StatsWin_PrintAcqStats( EPGDB_CONTEXT * dbc, EPGACQ_DESCR * pAcqStat
    else
       acq_duration = 0;
 
-   sprintf(comm + strlen(comm), "Acq runtime:      %02d:%02d\n",
-                                (uint)(acq_duration / 60), (uint)(acq_duration % 60));
+   strOff += sprintf(commBuf + strOff,
+                     "Channels done:    %d of %d (%d%%)\n"
+                     "Acq runtime:      %02d:%02d\n",
+                     pAcqState->ttxGrabDone, pAcqState->ttxSrcCount,
+                     ACQ_COUNT_TO_PERCENT(pAcqState->ttxGrabDone, pAcqState->ttxSrcCount),
+                        (uint)(acq_duration / 60), (uint)(acq_duration % 60));
 
    EpgAcqCtl_GetAcqModeStr(pAcqState, /* forTtx := FALSE,*/ &pAcqModeStr, &pAcqPasvStr, NULL);
    if (EpgSetup_CheckTvCardConfig() == FALSE)
    {
       pAcqPasvStr = "TV card not configured";
    }
-   sprintf(comm + strlen(comm), "Acq mode:         %s\n", pAcqModeStr);
+   strOff += sprintf(commBuf + strOff, "Acq mode:         %s\n", pAcqModeStr);
    if (pAcqPasvStr != NULL)
-      sprintf(comm + strlen(comm), "Passive reason:   %s\n", pAcqPasvStr);
+      strOff += sprintf(commBuf + strOff, "Passive reason:   %s\n", pAcqPasvStr);
+
+   // append list of channel names currently received
+   if (pAcqState->ttxGrabCount > 0)
+   {
+      strOff += sprintf(commBuf + strOff, "Receiving from:   ");
+      WintvCfg_GetFreqTab(&pTtxNames, NULL, &chanCount, NULL);
+      for (uint srcIdx = 0; srcIdx < pAcqState->ttxGrabCount; ++srcIdx)
+      {
+         if (pAcqState->ttxGrabIdx[srcIdx] < chanCount)
+         {
+            // NOTE length of leading space and name length limit need to match xalloc above!
+            if (srcIdx != 0)
+               strOff += sprintf(commBuf + strOff, "\n                  ");
+            WintvCfg_ExtractName(pTtxNames, chanCount,
+                                 pAcqState->ttxGrabIdx[srcIdx], commBuf + strOff, 50);
+            strOff += strlen(commBuf + strOff);
+         }
+      }
+      if (pTtxNames != NULL)
+         xfree(pTtxNames);
+   }
 
    // finally configure the popup text to show the string
-   StatsWin_ConfigureLabelText(".dbstats_ui.acq.stat", comm);
+   StatsWin_ConfigureLabelText(".dbstats_ui.acq.stat", commBuf);
+
+   assert(strOff + 1 < commBufsize);
+   xfree(commBuf);
 }
 
 // ----------------------------------------------------------------------------
@@ -292,18 +371,16 @@ static void StatsWin_PrintAcqStats( EPGDB_CONTEXT * dbc, EPGACQ_DESCR * pAcqStat
 //
 static void StatsWin_UpdateDbStatsWin( ClientData clientData )
 {
-   EPGDB_BLOCK_COUNT count;
    EPGDB_CONTEXT * dbc;
+   EPGDB_BLOCK_COUNT count;
    EPGACQ_DESCR acqState;
    EPG_ACQ_STATS sv;
-   uint target;
 
-   target = PVOID2UINT(clientData);
    dbc = pUiDbContext;
 
-   if ((target < 2) && dbStatsWinState.open)
+   if (dbStatsWinState.open)
    {
-      dprintf1("StatsWin-UpdateDbStatsWin: for %s\n", ((target == DB_TARGET_UI) ? "ui" : "acq"));
+      dprintf0("StatsWin-UpdateDbStatsWin\n");
 
       // acq not running for this database -> display db stats only
       memset(&count, 0, sizeof(count));
@@ -315,24 +392,25 @@ static void StatsWin_UpdateDbStatsWin( ClientData clientData )
       // print database statistics and pie chart
       StatsWin_PrintDbStats(dbc, &count);
 
-      if (0) // TODO DB_TARGET_ACQ: check if acq works on GUI DB
+      EpgAcqCtl_DescribeAcqState(&acqState);
+
+      // append acq histogram if acq is working for browser DB
+      if ( (acqState.ttxGrabState != ACQDESCR_DISABLED) && EpgSetup_IsAcqWorkingForUiDb() )
       {
          if (EpgAcqCtl_GetAcqStats(&sv) == FALSE)
          {
             memset(&sv, 0, sizeof(sv));
          }
-         if (dbStatsWinState.isForAcq == FALSE)
+         if (dbStatsWinState.histShown == FALSE)
          {
             sprintf(comm, "pack .dbstats_ui.acq -side top -anchor nw -fill both "
                                                "-after .dbstats_ui.browser\n");
             eval_check(interp, comm);
-            dbStatsWinState.isForAcq = TRUE;
+            dbStatsWinState.histShown = TRUE;
          }
 
-         EpgAcqCtl_DescribeAcqState(&acqState);
-
          // display graphical database fill percentage histogramm
-         StatsWin_UpdateHist();
+         StatsWin_UpdateHist(&count);
 
          // text description
          StatsWin_PrintAcqStats(dbc, &acqState, &sv);
@@ -351,7 +429,7 @@ static void StatsWin_UpdateDbStatsWin( ClientData clientData )
       }
       else
       {  // acq not running (at least for the same db)
-         if (dbStatsWinState.isForAcq)
+         if (dbStatsWinState.histShown)
          {  // acq stats are still being displayed -> remove them
             sprintf(comm, ".dbstats_ui.acq.stat configure -text {}\n"
                           "pack forget .dbstats_ui.acq\n");
@@ -360,7 +438,7 @@ static void StatsWin_UpdateDbStatsWin( ClientData clientData )
             sprintf(comm, "DbStatsWin_ClearHistory .dbstats_ui\n");
             eval_check(interp, comm);
 
-            dbStatsWinState.isForAcq = FALSE;
+            dbStatsWinState.histShown = FALSE;
          }
       }
    }
@@ -482,7 +560,7 @@ static void StatsWin_UpdateTtxStats( ClientData clientData )
       for (uint srcIdx = 0; srcIdx < acqState.ttxGrabCount; ++srcIdx)
       {
          // channel name
-         if (srcIdx < chanCount)
+         if (acqState.ttxGrabIdx[srcIdx] < chanCount)
             WintvCfg_ExtractName(pTtxNames, chanCount, acqState.ttxGrabIdx[srcIdx], comm, 30);
          else
             sprintf(comm, "channel #%d", acqState.ttxGrabIdx[srcIdx]);
@@ -733,7 +811,10 @@ static void StatsWin_UpdateDbStatusLine( ClientData clientData )
       case ACQDESCR_RUNNING:
          if (provName[0] != 0)
          {
-            sprintf(comm + strlen(comm), "Acquisition working on %s", provName);
+            if (acqState.cyclePhase == ACQMODE_PHASE_MONITOR)
+               sprintf(comm + strlen(comm), "Acquisition complete, refreshing %s", provName);
+            else
+               sprintf(comm + strlen(comm), "Acquisition working on %s", provName);
          }
          else
          {  // internal inconsistancy
@@ -763,8 +844,12 @@ static void StatsWin_UpdateDbStatusLine( ClientData clientData )
       }
       else if (acqState.mode == ACQMODE_CYCLIC_2)
       {
-         sprintf(comm + strlen(comm), ", overall %d%% complete",
-                 ACQ_COUNT_TO_PERCENT(acqState.ttxGrabDone, acqState.ttxSrcCount));
+         // completeness for MONITOR state already stated above
+         if (acqState.cyclePhase != ACQMODE_PHASE_MONITOR)
+         {
+            sprintf(comm + strlen(comm), ", overall %d%% complete",
+                    ACQ_COUNT_TO_PERCENT(acqState.ttxGrabDone, acqState.ttxSrcCount));
+         }
       }
       else
       {
@@ -779,8 +864,7 @@ static void StatsWin_UpdateDbStatusLine( ClientData clientData )
                        ACQ_COUNT_TO_PERCENT(acqState.ttxGrabDone, acqState.ttxSrcCount));
                break;
             case ACQMODE_PHASE_MONITOR:
-               sprintf(comm + strlen(comm), " phase 'Complete', %d%% complete",
-                       ACQ_COUNT_TO_PERCENT(acqState.ttxGrabDone, acqState.ttxSrcCount));
+               sprintf(comm + strlen(comm), " phase 'Complete'");
                break;
             default:
                break;
@@ -844,15 +928,10 @@ static int StatsWin_ToggleDbStats( ClientData ttp, Tcl_Interp *interp, int argc,
             eval_check(interp, comm);
 
             dbStatsWinState.open = TRUE;
-            dbStatsWinState.isForAcq = FALSE;
-            dbStatsWinState.lastHistPos = 0;
-            dbStatsWinState.lastHistReset = 0;
+            dbStatsWinState.histShown = FALSE;
+            dbStatsWinState.histNeedsReset = TRUE;
             dbStatsWinState.updateHandler = NULL;
 
-            if (0) // TODO DB_TARGET_ACQ: check if acq works on GUI DB
-            {
-               StatsWin_UpdateHist();
-            }
             // enable extended statistics reports
             EpgAcqCtl_EnableAcqStats(TRUE);
 
@@ -963,7 +1042,9 @@ static int StatsWin_ToggleTtxStats( ClientData ttp, Tcl_Interp *interp, int argc
 void StatsWin_StatsUpdate( int target )
 {
    // update the db statistics window of the given db, if open
-   if ( (target == DB_TARGET_UI) && dbStatsWinState.open)
+   if ( dbStatsWinState.open &&
+        ( (target == DB_TARGET_UI) ||
+          ((target == DB_TARGET_ACQ) && dbStatsWinState.histShown) ))
    {
       AddMainIdleEvent(StatsWin_UpdateDbStatsWin, UINT2PVOID(target), FALSE);
    }

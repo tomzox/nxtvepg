@@ -188,20 +188,6 @@ static void EpgAcqClient_SwapEpgAcqDescr( EPGACQ_DESCR * pDescr )
    swap16(&pDescr->ttxGrabDone);
 }
 
-static void EpgAcqClient_SwapEpgdbBlockCount( EPGDB_BLOCK_COUNT * pCounts )
-{
-   uint  idx;
-
-   for (idx=0; idx < 2; idx++, pCounts++)
-   {
-      swap32(&pCounts->curVersion);
-      swap32(&pCounts->allVersions);
-      swap32(&pCounts->expired);
-      swap32(&pCounts->defective);
-      swap32(&pCounts->sinceAcq);
-   }
-}
-
 // ----------------------------------------------------------------------------
 // Checks the size of a message from server to client
 //
@@ -281,7 +267,6 @@ static bool EpgAcqClient_CheckMsg( uint len, EPGNETIO_MSG_HEADER * pHead, EPGDBS
                   {
                      if (clientState.endianSwap)
                      {
-                        EpgAcqClient_SwapEpgdbBlockCount(pBody->stats_ind.u.minimal.count);
                         swap32(&pBody->stats_ind.u.minimal.vpsPdc.cni);
                         swap32(&pBody->stats_ind.u.minimal.vpsPdc.pil);
                         swap32(&pBody->stats_ind.u.minimal.lastAiTime);
@@ -319,7 +304,6 @@ static bool EpgAcqClient_CheckMsg( uint len, EPGNETIO_MSG_HEADER * pHead, EPGDBS
                      {
                         swap32(&pBody->stats_ind.u.update.vpsPdc.cni);
                         swap32(&pBody->stats_ind.u.update.vpsPdc.pil);
-                        swap16(&pBody->stats_ind.u.update.histIdx);
                         swap32(&pBody->stats_ind.u.update.acqDuration);
                         swap32(&pBody->stats_ind.u.update.lastStatsUpdate);
                         for (idx=0; idx < sizeof(pBody->stats_ind.u.update.ttx_dec) / sizeof(uint32_t); idx++)
@@ -414,12 +398,12 @@ static bool EpgAcqClient_TakeMessage( EPGACQ_EVHAND * pAcqEv, EPGDBSRV_MSG_BODY 
          break;
 
       case MSG_TYPE_FORWARD_CNF:
-         // server confirms he restarts for a new provider request list
+         // server confirms restart for a new provider request list
          if (clientState.state == CLNT_STATE_WAIT_FWD_CNF)
          {
             dprintf0("EpgDbClient-TakeMessage: FORWARD_CNF\n");
-            // this message carries no information for the client, not is it replied to
-            // it's purpose is to synchronize server and client
+            // this message carries no information for the client, nor is it replied to.
+            // its purpose is synchronizing server and client
             clientState.state = CLNT_STATE_WAIT_BLOCKS;
 
             // update network state (only for initial connect)
@@ -440,7 +424,7 @@ static bool EpgAcqClient_TakeMessage( EPGACQ_EVHAND * pAcqEv, EPGDBSRV_MSG_BODY 
 
             EPGDBSRV_MSG_BODY  * pWalk, * pPrev;
 
-            dprintf2("EpgDbClient-TakeMessage: STATS_IND: type=%d, histIdx=%d\n", pMsg->stats_ind.type, pMsg->stats_ind.u.update.histIdx);
+            dprintf1("EpgDbClient-TakeMessage: STATS_IND: type=%d\n", pMsg->stats_ind.type);
             pMsg->stats_ind.p.pNext = NULL;
             // append the message to the queue of stats reports
             pPrev = NULL;
@@ -836,7 +820,7 @@ failure:
 }
 
 // ----------------------------------------------------------------------------
-// Connect and query daemon for it's acq status
+// Connect and query daemon for its acq status
 // - the caller must free the returned message buffer
 //
 char * EpgAcqClient_QueryAcqStatus( char ** ppErrorMsg )
@@ -865,7 +849,7 @@ char * EpgAcqClient_QueryAcqStatus( char ** ppErrorMsg )
 
 #ifndef WIN32
 // ----------------------------------------------------------------------------
-// Connect and query daemon for it's process ID, then kill the process
+// Connect and query daemon for its process ID, then kill the process
 //
 bool EpgAcqClient_TerminateDaemon( char ** ppErrorMsg )
 {
@@ -1131,7 +1115,6 @@ static bool EpgAcqClient_ProcessStats( void )
    EPGDBSRV_MSG_BODY          * pNext;
    EPG_ACQ_STATS * pAcqStats;
    EPGACQ_DESCR * pAcqDescr;
-   uint    histIdx;
    bool    received;
 
    pAcqStats = &clientState.acqStats;
@@ -1174,20 +1157,12 @@ static bool EpgAcqClient_ProcessStats( void )
             memcpy(&pAcqStats->ttx_dec, &pUpd->u.update.ttx_dec, sizeof(pAcqStats->ttx_dec));
             memcpy(&pAcqStats->pkgStats, &pUpd->u.update.grabTtxStats, sizeof(pAcqStats->pkgStats));
 
-            histIdx = pAcqStats->histogram.histIdx;
-            do
-            {
-               histIdx = (histIdx + 1) % STATS_HIST_WIDTH;
-               pAcqStats->histogram.hist[histIdx] = pUpd->u.update.hist;
-            } while (histIdx != pUpd->u.update.histIdx);
-            pAcqStats->histogram.histIdx = pUpd->u.update.histIdx;
-
             if (pUpd->u.update.vpsPdc.cniType != STATS_IND_INVALID_VPS_PDC)
                clientState.acqVpsPdcInd += 1;
 
             break;
       }
-      dprintf4("ProcessStats-ProcessStats: type %d, AI follows=%d, acqstate=%d, histIdx=%d\n", pUpd->type, pUpd->aiFollows, pUpd->descr.ttxGrabState, pAcqStats->histogram.histIdx);
+      dprintf3("ProcessStats-ProcessStats: type %d, AI follows=%d, acqstate=%d\n", pUpd->type, pUpd->aiFollows, pUpd->descr.ttxGrabState);
 
       // free the message
       pNext = clientState.pStatsMsg->stats_ind.p.pNext;

@@ -295,25 +295,16 @@ static int TimeScale_GetTime( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_
 //
 static void TimeScale_RequestAcq( void )
 {
-#if 0 // TODO
+#if 0  // TODO TTX
+   EPGACQ_DESCR acqState;
    bool isForAcq;
-   bool allProviders;
-
-   allProviders = FALSE;
 
    if (tscaleState.open)
    {
-      if ( (EpgDbContextIsMerged(pUiDbContext) == FALSE) &&
-           (EpgDbContextIsXmltv(pUiDbContext) == FALSE) )
-      {  // normal db -> forward incoming data if it's for the same db
-         isForAcq = (EpgAcqCtl_GetProvCni() == EpgDbContextGetCni(pUiDbContext));
-         // remember request state in the timscale state struct
-         tscaleState.isForAcq = isForAcq;
-      }
-      else
-      {
-         tscaleState.isForAcq = FALSE;
-      }
+      EpgAcqCtl_DescribeAcqState(&acqState);
+
+      tscaleState.isForAcq = (acqState.ttxGrabState != ACQDESCR_DISABLED) &&
+                             EpgSetup_IsAcqWorkingForUiDb();
    }
 #endif
 }
@@ -704,7 +695,7 @@ static int TimeScale_Zoom( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj
 
 // ----------------------------------------------------------------------------
 // Notify the windows of this module about a database provider change
-// - when provider changes, the according window is rebuilt
+// - when provider changes, the respective window is rebuilt
 // - when acq shifts from ui db to a separate acq db, the highlighted
 //   netwop in the ui window must be unmarked
 //
@@ -730,41 +721,19 @@ void TimeScale_ProvChange( void )
 // - the timescale queue (filled by background acquisition) processing is
 //   locked until the window is updated
 //
-void TimeScale_VersionChange( void )
+void TimeScale_VersionChange( uint acqCni )
 {
-#if 0  // TODO
-   bool update = FALSE;
-
-   dprintf0("TimeScale-VersionChange: called\n");
+   dprintf1("TimeScale-VersionChange: acqCni:0x%X\n", acqCni);
 
    if ( tscaleState.open )
    {
-      if ( EpgDbContextIsMerged(pUiDbContext) == FALSE )
+      if ( EpgDbContextIsMerged(pUiDbContext)
+              ? EpgContextMergeCheckForCni(pUiDbContext, acqCni)
+              : (acqCni == EpgDbContextGetCni(pUiDbContext)) )
       {
-         if (EpgAcqCtl_GetProvCni() == EpgDbContextGetCni(pUiDbContext))
-         {
-            tscaleState.locked = TRUE;
-            update = TRUE;
-         }
+         tscaleState.locked = TRUE;
+         AddMainIdleEvent(TimeScale_CreateOrRebuild, NULL, TRUE);
       }
-      else
-      {  // merged database: search for the acq CNI in the list of merged providers
-         if ((EpgContextMergeCheckForCni(pUiDbContext, EpgAcqCtl_GetProvCni())))
-         {
-            tscaleState.locked = TRUE;
-            update = TRUE;
-         }
-      }
-   }
-
-   // if ACQ or UI or both need to be redrawn, install an event in the main loop
-   // - note: which scales need to be updated is determined by the locked bits,
-   //   so we do not need to pass this information here; this makes handling
-   //   redundant calls easier too.
-   if (update)
-#endif
-   {
-      AddMainIdleEvent(TimeScale_CreateOrRebuild, NULL, TRUE);
    }
 }
 

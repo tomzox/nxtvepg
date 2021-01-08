@@ -72,7 +72,6 @@ typedef struct MSG_STRUCT_STATS_IND_STRUCT
    {
       struct
       {
-         EPGDB_BLOCK_COUNT    count[2];
          uint32_t             nowMaxAcqNetCount;
          EPG_ACQ_VPS_PDC      vpsPdc;
          time32_t             lastAiTime;
@@ -88,12 +87,9 @@ typedef struct MSG_STRUCT_STATS_IND_STRUCT
 
       struct
       {
-         EPGDB_BLOCK_COUNT    count;
          TTX_DEC_STATS        ttx_dec;
          TTX_GRAB_STATS       grabTtxStats;
          EPG_ACQ_VPS_PDC      vpsPdc;
-         EPG_ACQ_HIST_ELEM    hist;
-         uint16_t             histIdx;
          uint32_t             acqDuration;
          uint32_t             resv_align4;
          time32_t             lastStatsUpdate;

@@ -527,15 +527,6 @@ bool EpgAcqCtl_TuneProvider( const EPGACQ_TUNER_PAR * par, EPGACQ_PASSIVE * pMod
       {
          dprintf0("EpgAcqCtl-TuneProv: input is no tuner -> force to passive mode\n");
          acqCtl.passiveReason = ACQPASSIVE_NO_TUNER;
-
-         if (par->freq != 0)
-         {
-            if (acqCtl.haveWarnedInpSrc == FALSE)
-            {  // warn the user, but only once
-               UiControlMsg_AcqPassive();
-            }
-            acqCtl.haveWarnedInpSrc = TRUE;
-         }
       }
 
       if (acqCtl.autoSlicerType)

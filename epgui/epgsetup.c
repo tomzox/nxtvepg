@@ -891,34 +891,51 @@ void EpgSetup_TtxGrabber( void )
 }
 
 // ---------------------------------------------------------------------------
-// Query if the given XMLTV file is target for acquisition
-// - the given path must be absolute & already normalized,
-//   as returned by XmltvCni_LookupProviderPath()
-// - result does not indicate if working on the file currently
+// Query if the EPG grabber is configured to work for the GUI database
 //
-bool EpgSetup_QueryTtxPath( const char * pXmlPath )
+bool EpgSetup_IsAcqWorkingForUiDb( void )
 {
+   uint dbIdx;
+   uint provCniTab[MAX_MERGED_DB_COUNT];
+   uint provCount;
    EPGACQ_TUNER_PAR * pTtxFreqs;
    char * pTtxNames;
    uint ttxFreqCount;
    uint idx;
-   bool result = FALSE;
+   bool acqWorksOnUi = FALSE;
 
-   if (EpgSetup_GetTtxConfig(&ttxFreqCount, &pTtxNames, &pTtxFreqs))
+   if ( EpgDbContextIsMerged(pUiDbContext) )
    {
-      if (pTtxNames != NULL)
-      {
-         const char * pNames = pTtxNames;
-         for (idx = 0; (idx < ttxFreqCount) && !result; idx++)
-         {
-            // note the path returned here is already normalized
-            char * pTtxPath = TtxGrab_GetPath(pNames);
-            if (pTtxPath != NULL)
-               result = (strcmp(pTtxPath, pXmlPath) == 0);  // no "break": need xfree()
+      provCount = 0;
+      EpgContextMergeGetCnis(pUiDbContext, &provCount, provCniTab);
+   }
+   else
+   {
+      provCount = 1;
+      provCniTab[0] = EpgDbContextGetCni(pUiDbContext);
+   }
 
-            while(*(pNames++) != 0)
-               ;
-            xfree(pTtxPath);
+   if (EpgSetup_GetTtxConfig(&ttxFreqCount, &pTtxNames, &pTtxFreqs) && (pTtxNames != NULL))
+   {
+      for (dbIdx=0; (dbIdx < provCount) && !acqWorksOnUi; dbIdx++)
+      {
+         // note the path returned here is already normalized
+         const char * pXmlPath = XmltvCni_LookupProviderPath(provCniTab[dbIdx]);
+         if (pXmlPath != NULL)
+         {
+            const char * pNames = pTtxNames;
+            for (idx = 0; (idx < ttxFreqCount) && !acqWorksOnUi; idx++)
+            {
+               // note the path returned here is already normalized
+               char * pTtxPath = TtxGrab_GetPath(pNames);
+               if (pTtxPath != NULL)
+                  if ((strcmp(pTtxPath, pXmlPath) == 0))  // no "break": need xfree()
+                     acqWorksOnUi = TRUE;
+
+               while(*(pNames++) != 0)
+                  ;
+               xfree(pTtxPath);
+            }
          }
       }
    }
@@ -928,6 +945,6 @@ bool EpgSetup_QueryTtxPath( const char * pXmlPath )
    if (pTtxFreqs != NULL)
       xfree(pTtxFreqs);
 
-   return result;
+   return acqWorksOnUi;
 }
 #endif // USE_TTX_GRABBER

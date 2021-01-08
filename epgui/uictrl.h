@@ -45,7 +45,6 @@ typedef enum
    ACQ_EVENT_PROV_CHANGE,
    ACQ_EVENT_STATS_UPDATE,
    ACQ_EVENT_CTL,
-   ACQ_EVENT_PI_EXPIRED,
    ACQ_EVENT_NEW_DB,
    ACQ_EVENT_VPS_PDC,
 } ACQ_EVENT;
@@ -61,9 +60,7 @@ void UiControl_DisplayErrorMessage( char * pMsg );
 
 // Interface to acquisition control
 void UiControlMsg_AcqEvent( ACQ_EVENT acqEvent );
-void UiControlMsg_AcqPassive( void );
 void UiControlMsg_NetAcqError( void );
-void UiControlMsg_NewProvFreq( uint cni, uint freq );
 void UpdateRcFile( bool immediate );
 void LoadRcFile( void );
 

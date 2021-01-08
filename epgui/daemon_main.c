@@ -59,13 +59,6 @@ HINSTANCE  hMainInstance;  // copy of win32 instance handle
 #endif
 EPGDB_CONTEXT * pUiDbContext;
 
-void UiControlMsg_NewProvFreq( uint cni, uint freq )
-{
-   if ( RcFile_UpdateProvFrequency(cni, freq) )
-   {
-      UpdateRcFile(TRUE);
-   }
-}
 void UiControlMsg_ReloadError( uint cni, EPGDB_RELOAD_RESULT dberr, CONTEXT_RELOAD_ERR_HAND errHand, bool isNewDb )
 {
    char msgBuf[100];
@@ -90,10 +83,6 @@ void UiControlMsg_ReloadError( uint cni, EPGDB_RELOAD_RESULT dberr, CONTEXT_RELO
 void UiControlMsg_NetAcqError( void )
 {
    // cannot occur in daemon mode (client lost connection to daemon)
-}
-void UiControlMsg_AcqPassive( void )
-{
-   EpgNetIo_Logger(LOG_ERR, -1, 0, "invalid acquisition mode for the selected input source", NULL);
 }
 void UiControlMsg_AcqEvent( ACQ_EVENT acqEvent )
 {

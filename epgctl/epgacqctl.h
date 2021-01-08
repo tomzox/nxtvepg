@@ -102,23 +102,6 @@ typedef struct
 // - updated after every received AI block
 // - can be retrieved by the GUI for the acq stats window
 
-#define STATS_HIST_WIDTH     128
-
-typedef struct
-{
-   uint8_t   expir;
-   uint8_t   s1cur;
-   uint8_t   s1old;
-   uint8_t   s2cur;
-   uint8_t   s2old;
-} EPG_ACQ_HIST_ELEM;
-
-typedef struct
-{
-   EPG_ACQ_HIST_ELEM   hist[STATS_HIST_WIDTH];
-   uint16_t            histIdx;
-} EPG_ACQ_HIST;
-
 #define EPG_TTX_STATS_NAMLEN 32
 
 typedef struct
@@ -128,7 +111,6 @@ typedef struct
    uint32_t            acqDuration;
    TTX_GRAB_STATS      pkgStats[MAX_VBI_DVB_STREAMS];
    TTX_DEC_STATS       ttx_dec[MAX_VBI_DVB_STREAMS];
-   EPG_ACQ_HIST        histogram;
 } EPG_ACQ_STATS;
 
 typedef enum

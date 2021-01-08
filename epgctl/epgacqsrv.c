@@ -161,8 +161,6 @@ static void EpgAcqServer_BuildStatsMsg( EPGDBSRV_STATE * req )
             req->msgBuf.stats_ind.type = EPGDB_STATS_UPD_TYPE_UPDATE;
             msgLen = sizeof(req->msgBuf.stats_ind) - sizeof(req->msgBuf.stats_ind.u) + sizeof(req->msgBuf.stats_ind.u.update);
 
-            req->msgBuf.stats_ind.u.update.hist    = acqStats.histogram.hist[acqStats.histogram.histIdx];
-            req->msgBuf.stats_ind.u.update.histIdx = acqStats.histogram.histIdx;
             req->msgBuf.stats_ind.u.update.acqDuration = acqStats.acqDuration;
             req->msgBuf.stats_ind.u.update.lastStatsUpdate = acqStats.lastStatsUpdate;
             memcpy(&req->msgBuf.stats_ind.u.update.ttx_dec, &acqStats.ttx_dec, sizeof(acqStats.ttx_dec));
