@@ -1736,6 +1736,38 @@ bool WintvCfg_GetChanTab( uint appIdx, const char * pChanTabPath, char ** ppErrM
 }
 
 // ----------------------------------------------------------------------------
+// Extract a channel name from the table returned by WintvCfg-GetFreqTab()
+//
+void WintvCfg_ExtractName( const char * pNameTab, uint count, uint chanIdx, char * pBuf, uint bufSize )
+{
+   const char * pName = pNameTab;
+
+   if ((pBuf != NULL) && (bufSize > 0))
+   {
+      if (chanIdx < count)
+      {
+         for (uint idx = 0; idx < chanIdx; idx++)
+         {
+            while(*(pName++) != 0)
+               ;
+         }
+
+         strncpy(pBuf, pName, bufSize - 1);
+         if ((strlen(pName) >= bufSize) && (bufSize > 3))
+            strcpy(pBuf + bufSize - (3+1), "...");
+         pBuf[bufSize - 1] = 0;
+      }
+      else
+      {
+         fatal2("WintvCfg-ExtractName: illegal idx:%d >=%d", chanIdx, count);
+         pBuf[0] = 0;
+      }
+   }
+   else
+      fatal2("WintvCfg-ExtractName: illegal params %p, %d", pBuf, bufSize);
+}
+
+// ----------------------------------------------------------------------------
 // Get TV channel names and frequencies
 //
 bool WintvCfg_GetFreqTab( char ** ppNameTab, EPGACQ_TUNER_PAR ** ppFreqTab, uint * pCount, char ** ppErrMsg )

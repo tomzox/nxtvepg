@@ -6,11 +6,11 @@ you have ideas for additional features.
 
 Post-Nextview EPG:
 - New DB type: "Load Teletext EPG...": automatically follow TTX acq, even if DB not exist yet
-- statistics display for concurrent grabbing
 - extend XMLTV database statistics
   - pie chart: different color for current day
   - histogram, merged db: show percentage of DBs updated during last 12-24 hours
   - timescale: different color for DBs older than 12-24 hours
+  - timescale: "acq tail": highlight networks/time ranges acq is working for
 - move USE_TTX_GRABBER to exclude all acqusition if not set
 - merge & load dialog: directory drop-down: add history
 - merge dialog, "configure" sub-menu: simplify to single list with
@@ -18,6 +18,8 @@ Post-Nextview EPG:
 - remove use of PDC theme table: create table from themes found in XMLTV
 - change AI/OI/PI to hold original XMLTV info elements (i.e. reduce conversion)
 - xmltv-etsi.map: use .config/nxtvepg instead of "." in xmltv_cni.c
+- caching of WintvCfg_GetFreqTab() results
+- XMLTV service name: when merging teletext-only use "Merged teletext (%d networks)"
 - DVB TTX stream decoding issues: "Illegal line order", "Unknown data_unit_id"
 - DVB: automatic detection of teletext PID (in channel scan or otherwise)
 - DVB-S support
@@ -25,11 +27,15 @@ Post-Nextview EPG:
 - XMLTV CNI mapping fundamentally broken
 - mplayer, VLC & VDR plugin for EPG display
 - teletext: use separate thread for post-processing (takes long time for 10 DBs)
-- teletext: use mtime to determine start of acq
+- teletext: ? move TTX packet decoding into acq thread?
+- teletext: use mtime delta to determine start channel of acq
 - teletext: use TV channel name as XMLTV display name
 - teletext acq stats: percentage cycle loaded (i.e. cycles done vs. max. sub-page count)
-- teletext configuration dialog channel-specific
+- teletext configuration dialog: allow channel-specific config of page range, exclusion & duration
 - teletext emit XML encoding UTF-8
+- teletext: replace "Acquisitions statistics" chapter with one TTX grabber;
+            referred-to by dialog "?" button
+- teletext: in daemon mode: acq statistics display updates not working & "TODO" in epgacqsrv.c
 - manual: move general description of TTX grabber from CONFIGURATION chapter
   to an initial chapter; add description of config parameters
 

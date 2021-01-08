@@ -163,10 +163,10 @@ static void EpgAcqServer_BuildStatsMsg( EPGDBSRV_STATE * req )
 
             req->msgBuf.stats_ind.u.update.hist    = acqStats.histogram.hist[acqStats.histogram.histIdx];
             req->msgBuf.stats_ind.u.update.histIdx = acqStats.histogram.histIdx;
-            req->msgBuf.stats_ind.u.update.ttx_dec = acqStats.ttx_dec;
             req->msgBuf.stats_ind.u.update.acqDuration = acqStats.acqDuration;
             req->msgBuf.stats_ind.u.update.lastStatsUpdate = acqStats.lastStatsUpdate;
-            req->msgBuf.stats_ind.u.update.grabTtxStats = acqStats.pkgStats;
+            memcpy(&req->msgBuf.stats_ind.u.update.ttx_dec, &acqStats.ttx_dec, sizeof(acqStats.ttx_dec));
+            memcpy(&req->msgBuf.stats_ind.u.update.grabTtxStats, &acqStats.pkgStats, sizeof(acqStats.pkgStats));
 
             if (newVpsPdc)
                req->msgBuf.stats_ind.u.update.vpsPdc = vpsPdc;
@@ -232,7 +232,7 @@ static char * EpgAcqServer_BuildAcqDescrStr( void )
    EpgAcqCtl_GetAcqStats(&sv);
    /*newVpsPdc =*/ EpgAcqCtl_GetVpsPdc(&vpsPdc, VPSPDC_REQ_DAEMON, TRUE);
 
-   EpgAcqCtl_GetAcqModeStr(&acqState, &pAcqModeStr, &pAcqPasvStr);
+   EpgAcqCtl_GetAcqModeStr(&acqState, &pAcqModeStr, &pAcqPasvStr, NULL);
    off += snprintf(pMsg + off, 10000 - off, "Acq mode:               %s\n", pAcqModeStr);
    if (pAcqPasvStr != NULL)
       off += snprintf(pMsg + off, 10000 - off, "Passive reason:         %s\n", pAcqPasvStr);
@@ -251,6 +251,7 @@ static char * EpgAcqServer_BuildAcqDescrStr( void )
    off += snprintf(pMsg + off, 10000 - off, "Nextview acq duration:  %d\n",
                                acq_duration);
 
+#if 0 // TODO TTX concurrent acquisition
    off += snprintf(pMsg + off, 10000 - off,
                  "TTX pkg/frame:          %.1f\n"
                  "Captured TTX pages:     %d\n"
@@ -259,14 +260,15 @@ static char * EpgAcqServer_BuildAcqDescrStr( void )
                  sv.pkgStats.ttxPagCount,
                  sv.acqDuration
           );
+#endif
 
    if (acqState.ttxSrcCount > 0)
    {
-      off += snprintf(pMsg + off, 10000 - off, "Teletext sources done:  %d of %d\n"
-                                               "Teletext source name:   %s\n"
-                                               "Teletext acq duration:  %d\n",
+      off += snprintf(pMsg + off, 10000 - off, "Teletext sources done:    %d of %d\n"
+                                               "Teletext sources in work: %d\n"
+                                               "Teletext acq duration:    %d\n",
                                   acqState.ttxGrabDone, acqState.ttxSrcCount,
-                                  (*sv.srcName ? (const char*)sv.srcName : "-"),
+                                  acqState.ttxGrabCount,
                                   (int)(sv.lastStatsUpdate - sv.acqStartTime)
                      );
    }

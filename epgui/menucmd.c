@@ -252,7 +252,7 @@ void MenuCmd_AcqStatsUpdate( void )
    // check if acq is running & mode differs from default mode
    if ( (doNetAcq == FALSE) && (acqState.isNetAcq) &&
         EpgAcqClient_DescribeNetState(&netState) &&
-        (netState.state >= NETDESCR_LOADING) )
+        (netState.state == NETDESCR_RUNNING) )
    {
       // default is still local, but acq is running remote -> update
       dprintf0("MenuCmd-AcqStatsUpdate: setting default netacq mode to 1\n");

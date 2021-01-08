@@ -121,16 +121,13 @@ typedef struct
 
 #define EPG_TTX_STATS_NAMLEN 32
 
-// TODO add TTX_GRAB_STATS & TTX_DEC_STATS holding merge/average of all sources?
 typedef struct
 {
    time32_t            acqStartTime;
    time32_t            lastStatsUpdate;
    uint32_t            acqDuration;
-   char                srcName[EPG_TTX_STATS_NAMLEN];
-   int32_t             srcIdx;
-   TTX_GRAB_STATS      pkgStats;
-   TTX_DEC_STATS       ttx_dec;           // specific to srcIdx
+   TTX_GRAB_STATS      pkgStats[MAX_VBI_DVB_STREAMS];
+   TTX_DEC_STATS       ttx_dec[MAX_VBI_DVB_STREAMS];
    EPG_ACQ_HIST        histogram;
 } EPG_ACQ_STATS;
 
@@ -159,7 +156,7 @@ bool EpgAcqCtl_SetInputSource( uint inputIdx, uint slicerType );
 bool EpgAcqCtl_CheckDeviceAccess( void );
 void EpgAcqCtl_DescribeAcqState( EPGACQ_DESCR * pAcqState );
 void EpgAcqCtl_GetAcqModeStr( const EPGACQ_DESCR * pAcqState,
-                              const char ** ppModeStr, const char ** ppPasvStr );
+                              const char ** ppModeStr, const char ** ppPasvStr, const char ** pStateStr );
 void EpgAcqCtl_Suspend( bool suspend );
 bool EpgAcqCtl_IsActive( void );
 

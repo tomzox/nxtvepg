@@ -134,14 +134,15 @@ void EpgAcqCtl_DescribeAcqState( EPGACQ_DESCR * pAcqState )
 // Return text strings line which describes the current acq mode
 // - pAcqState must have been previously filled by EpgAcqCtl-DescribeAcqState()
 //
-void EpgAcqCtl_GetAcqModeStr( const EPGACQ_DESCR * pAcqState,
-                              const char ** ppModeStr, const char ** ppPasvStr )
+void EpgAcqCtl_GetAcqModeStr( const EPGACQ_DESCR * pAcqState, const char ** ppModeStr,
+                              const char ** ppPasvStr, const char ** pStateStr )
 {
    if ((pAcqState->ttxGrabState == ACQDESCR_DISABLED) ||
        (pAcqState->ttxGrabState == ACQDESCR_SCAN))
    {
       // pAcqState->mode is not valid in this case
       *ppModeStr = "disabled";
+      *ppPasvStr = NULL;
    }
    else if (pAcqState->passiveReason == ACQPASSIVE_NONE)
    {
@@ -150,21 +151,31 @@ void EpgAcqCtl_GetAcqModeStr( const EPGACQ_DESCR * pAcqState,
          case ACQMODE_PASSIVE:
             *ppModeStr = "passive";
             break;
-         default:
+         case ACQMODE_CYCLIC_2:
+            if (pAcqState->cyclePhase == ACQMODE_PHASE_MONITOR)
+               *ppModeStr = "Full, phase 'Complete'";
+            else
+               *ppModeStr = "Full";
+            break;
+         case ACQMODE_CYCLIC_02:
             switch (pAcqState->cyclePhase)
             {
                case ACQMODE_PHASE_NOWNEXT:
-                  *ppModeStr = "acq. phase 'Now'";
+                  *ppModeStr = "Now->Full, phase 'Now'";
                   break;
                case ACQMODE_PHASE_FULL:
-                  *ppModeStr = "acq. phase 'Full'";
+                  *ppModeStr = "Now->Full, phase 'Full'";
                   break;
                case ACQMODE_PHASE_MONITOR:
-                  *ppModeStr = "acq. phase 'Complete'";
+                  *ppModeStr = "Now->Full, phase 'Complete'";
                   break;
                default:
                   break;
             }
+            break;
+         case ACQMODE_NETWORK:  // should never be reached:
+         default:
+            *ppModeStr = "---";
             break;
       }
       *ppPasvStr = NULL;
@@ -184,6 +195,40 @@ void EpgAcqCtl_GetAcqModeStr( const EPGACQ_DESCR * pAcqState,
          default:
             *ppPasvStr = "unknown";
             break;
+      }
+   }
+
+   if (pStateStr != NULL)
+   {
+      switch (pAcqState->ttxGrabState)
+      {
+         case ACQDESCR_DISABLED:
+            *pStateStr = "disabled";
+            break;
+         case ACQDESCR_NET_CONNECT:
+         case ACQDESCR_SCAN:
+            break;
+         case ACQDESCR_STARTING:
+            if (pAcqState->passiveReason == ACQPASSIVE_NONE)
+               *pStateStr = "starting up";
+            else
+               *pStateStr = "waiting for reception";
+            break;
+         case ACQDESCR_TTX_PG_SEQ_SCAN:
+            *pStateStr = "scanning teletext";
+            break;
+         case ACQDESCR_NO_RECEPTION:
+            *pStateStr = "no reception";
+            break;
+         case ACQDESCR_IDLE:
+            *pStateStr = "idle";
+            break;
+         case ACQDESCR_RUNNING:
+            *pStateStr = "capturing teletext";
+            break;
+         default:
+            fatal1("EpgAcqCtl-GetAcqModeStr: unknown acq state %d", pAcqState->ttxGrabState);
+            *pStateStr = "unknown";
       }
    }
 }

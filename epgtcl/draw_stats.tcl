@@ -431,7 +431,10 @@ proc TimeScale_MarkNet {w netwop color} {
 }
 
 ## ---------------------------------------------------------------------------
-## Create the acq stats window with histogram and summary text
+## Create the database statistics window
+## - Window contents consist of two horizontally divided parts:
+##   (1) database content statistics
+##   (2) histogram showing acquisition progress over time
 ##
 proc DbStatsWin_Create {wname} {
    global font_fixed
@@ -557,7 +560,8 @@ proc DbStatsWin_ClearHistory {wname} {
 ## ---------------------------------------------------------------------------
 ## Create the acq stats window with histogram and summary text
 ##
-proc StatsWinTtx_Create {wname} {
+proc StatsWinTtx_Create {wname ttx_rows ttx_cols} {
+   global stats_ttx_tab
    global font_fixed
 
    toplevel $wname
@@ -567,17 +571,33 @@ proc StatsWinTtx_Create {wname} {
 
    frame $wname.acq -relief sunken -borderwidth 2
    label $wname.acq.stat -font $font_fixed -justify left -anchor nw
-   pack $wname.acq.stat -expand 1 -fill both -side left -padx 5
-   pack $wname.acq -side top -anchor nw -fill both
+   grid  $wname.acq.stat -row 0 -column 0 -columnspan [expr {$ttx_cols + 1}] -sticky w -padx 5
+
+   for {set row 0} {$row < $ttx_rows} {incr row} {
+      label $wname.acq.stat_$row -font $font_fixed -justify left -anchor w
+      grid  $wname.acq.stat_$row -row [expr {$row + 1}] -column 0 -sticky nw -padx 5
+
+      for {set col 0} {$col < $ttx_cols} {incr col} {
+         set idx [expr {($ttx_cols * $row) + $col}]
+         label $wname.acq.tab_${row}_${col} -textvariable stats_ttx_tab($idx) \
+                     -font $font_fixed -justify left
+         grid  $wname.acq.tab_${row}_${col} -row [expr {$row + 1}] -column [expr {$col + 1}] -sticky nw -padx 5
+      }
+   }
+   for {set col 1} {$col < $ttx_cols + 1} {incr col} {
+      grid columnconfigure $wname.acq $col -weight 2
+   }
 
    # TODO help refers to config dialog, which doesn't even mention the stats window
    button $wname.acq.qmark -bitmap bitmap_qmark -cursor top_left_arrow -takefocus 0
    relief_ridge_v84 $wname.acq.qmark
    bind   $wname.acq.qmark <ButtonRelease-1> {PopupHelp $helpIndex(Configuration) "Teletext grabber"}
-   pack   $wname.acq.qmark -side top
+   grid   $wname.acq.qmark -row 0 -column [expr {$ttx_cols + 1}] -sticky n
    bind   $wname <Key-F1> {PopupHelp $helpIndex(Configuration) "Teletext grabber"}
 
    # inform the control code when the window is destroyed
    bind $wname.acq <Destroy> [list + C_StatsWin_ToggleTtxStats 0]
+
+   pack $wname.acq -side top -anchor nw -fill both
 }
 

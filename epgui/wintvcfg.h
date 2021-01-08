@@ -23,6 +23,7 @@
 #define __WINTVCFG_H
 
 
+void WintvCfg_ExtractName( const char * pNameTab, uint count, uint chanIdx, char * pBuf, uint bufSize );
 bool WintvCfg_GetFreqTab( char ** ppNameTab, EPGACQ_TUNER_PAR ** ppFreqTab, uint * pCount, char ** ppErrMsg );
 bool WintvCfg_GetChanTab( uint appIdx, const char * pChanTabPath, char ** ppErrMsg,
                           char ** ppNameTab, EPGACQ_TUNER_PAR ** ppFreqTab, uint * pCount );

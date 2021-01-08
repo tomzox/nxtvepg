@@ -296,17 +296,16 @@ static bool EpgAcqClient_CheckMsg( uint len, EPGNETIO_MSG_HEADER * pHead, EPGDBS
                   {
                      if (clientState.endianSwap)
                      {
-                        for (idx=0; idx < sizeof(pBody->stats_ind.u.initial.stats.ttx_dec) / sizeof(uint32_t); idx++)
-                           swap32(((uint32_t *)&pBody->stats_ind.u.initial.stats.ttx_dec) + idx);
                         swap32(&pBody->stats_ind.u.initial.vpsPdc.cni);
                         swap32(&pBody->stats_ind.u.initial.vpsPdc.pil);
                         // teletext grabber
                         swap32(&pBody->stats_ind.u.initial.stats.acqStartTime);
                         swap32(&pBody->stats_ind.u.initial.stats.lastStatsUpdate);
                         swap32(&pBody->stats_ind.u.initial.stats.acqDuration);
-                        swap32(&pBody->stats_ind.u.initial.stats.srcIdx);
                         for (idx=0; idx < sizeof(pBody->stats_ind.u.initial.stats.pkgStats) / sizeof(uint32_t); idx++)
                            swap32(((uint32_t *)&pBody->stats_ind.u.initial.stats.pkgStats) + idx);
+                        for (idx=0; idx < sizeof(pBody->stats_ind.u.initial.stats.ttx_dec) / sizeof(uint32_t); idx++)
+                           swap32(((uint32_t *)&pBody->stats_ind.u.initial.stats.ttx_dec) + idx);
                      }
                      result = TRUE;
                   }
@@ -1167,21 +1166,13 @@ static bool EpgAcqClient_ProcessStats( void )
             break;
 
          case EPGDB_STATS_UPD_TYPE_UPDATE:
-#if 0 // TODO ttx
-            if (pAcqDescr->nxtvDbCni != pUpd->descr.nxtvDbCni)
-            {  // should not happen - after provider change an "initial" report is expected
-               debug2("EpgAcqClient-ProcessStats: unexpected provider change from 0x%04X to 0x%04X in UPDATE", pAcqDescr->nxtvDbCni, pUpd->descr.nxtvDbCni);
-               // clear all previous information
-               memset(pAcqStats, 0, sizeof(*pAcqStats));
-            }
-#endif
-
             memcpy(pAcqDescr, &pUpd->descr, sizeof(*pAcqDescr));
 
-            pAcqStats->ttx_dec = pUpd->u.update.ttx_dec;
             pAcqStats->lastStatsUpdate = pUpd->u.update.lastStatsUpdate;
             pAcqStats->acqDuration = pUpd->u.update.acqDuration;
-            pAcqStats->pkgStats = pUpd->u.update.grabTtxStats;
+
+            memcpy(&pAcqStats->ttx_dec, &pUpd->u.update.ttx_dec, sizeof(pAcqStats->ttx_dec));
+            memcpy(&pAcqStats->pkgStats, &pUpd->u.update.grabTtxStats, sizeof(pAcqStats->pkgStats));
 
             histIdx = pAcqStats->histogram.histIdx;
             do

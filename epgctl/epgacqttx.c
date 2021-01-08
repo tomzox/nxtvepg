@@ -198,20 +198,19 @@ bool EpgAcqTtx_GetAcqStats( EPG_ACQ_STATS * pAcqStats )
    if (acqCtl.state != TTXACQ_STATE_OFF)
    {
       time_t decStartTime;
+      uint idx;
 
       pAcqStats->lastStatsUpdate = time(NULL);
       pAcqStats->acqStartTime    = acqCtl.acqStartTime;
-      pAcqStats->acqDuration     = pAcqStats->lastStatsUpdate - decStartTime;
+      // FIXME? use decStartTime instead of acqCtl.acqStartTime
+      pAcqStats->acqDuration     = pAcqStats->lastStatsUpdate - acqCtl.acqStartTime;
 
-      TtxGrab_GetStatistics(0, &pAcqStats->pkgStats);
+      for (idx = 0; idx < acqCtl.ttxActiveCount; idx++)
+      {
+         TtxGrab_GetStatistics(idx, &pAcqStats->pkgStats[idx]);
 
-      // retrieve additional data from TTX packet decoder
-      TtxDecode_GetStatistics(0, &pAcqStats->ttx_dec, &decStartTime);
-
-      pAcqStats->srcIdx = acqCtl.ttxSrcIdx[0];
-
-      strncpy(pAcqStats->srcName, EpgAcqTtx_GetChannelName(acqCtl.ttxSrcIdx[0]), EPG_TTX_STATS_NAMLEN - 1);
-      pAcqStats->srcName[EPG_TTX_STATS_NAMLEN - 1] = 0;
+         TtxDecode_GetStatistics(idx, &pAcqStats->ttx_dec[idx], &decStartTime);
+      }
 
       result = TRUE;
    }
