@@ -347,7 +347,7 @@ static void TimeScale_HighlightNetwop( uchar netwop )
 // - converts start time into scale coordinates
 //
 static void TimeScale_DisplayPi( STREAM_COLOR streamCol, uchar netwop,
-                                 time_t start, time_t stop, uchar hasShortInfo, uchar hasLongInfo, bool isLast )
+                                 time_t start, time_t stop, uchar hasDesc, bool isLast )
 {
    time_t now;
    sint corrOff;
@@ -394,10 +394,9 @@ static void TimeScale_DisplayPi( STREAM_COLOR streamCol, uchar netwop,
          startOff = (start + tscaleState.secsPerPixel/2) / tscaleState.secsPerPixel;
          stopOff  = (stop + tscaleState.secsPerPixel/2)  / tscaleState.secsPerPixel;
 
-         sprintf(comm, "TimeScale_AddRange %s %d %d %d %s %d %d %d\n",
+         sprintf(comm, "TimeScale_AddRange %s %d %d %d %s %d %d\n",
                  tsc_wid, netwop, startOff, stopOff,
-                 streamColors[streamCol],
-                 hasShortInfo, hasLongInfo, isLast);
+                 streamColors[streamCol], hasDesc, isLast);
          eval_check(interp, comm);
 
          if (tscaleState.filled && tscaleState.isForAcq)
@@ -447,8 +446,7 @@ static void TimeScale_AddPi( EPGDB_PI_TSC * ptsc )
       }
 
       TimeScale_DisplayPi(col, pPt->netwop, startTime, stopTime,
-                          pPt->flags & PI_TSC_MASK_HAS_SHORT_I,
-                          pPt->flags & PI_TSC_MASK_HAS_LONG_I,
+                          pPt->flags & PI_TSC_MASK_HAS_DESC_TEXT,
                           pPt->flags & PI_TSC_MASK_IS_LAST);
    }
    sprintf(comm, "TimeScale_RaiseTail %s\n", tsc_wid);

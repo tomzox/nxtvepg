@@ -197,7 +197,7 @@ void PiListBox_ErrorMessage( const char * pMessage )
       sprintf(comm, "PiBox_DisplayErrorMessage {%s\n}\n", pMessage);
       eval_check(interp, comm);
 
-      // reset the listbox scrollbar and clear the short-info text field
+      // reset the listbox scrollbar and clear the description text field
       sprintf(comm, ".all.pi.list.sc set 0.0 1.0\n");
       eval_check(interp, comm);
 
@@ -215,9 +215,9 @@ void PiListBox_ErrorMessage( const char * pMessage )
 }
 
 // ----------------------------------------------------------------------------
-// Display short and long info for currently selected item
+// Display description text for currently selected item
 //
-static void PiListBox_UpdateInfoText( bool keepView )
+static void PiListBox_UpdateDescriptionText( bool keepView )
 {
    const PI_BLOCK * pPiBlock;
 
@@ -391,8 +391,8 @@ void PiListBox_Reset( void )
       pibox_off    = 0;
       PiListBox_ShowCursor();
 
-      // display short and long info
-      PiListBox_UpdateInfoText(FALSE);
+      // display description text
+      PiListBox_UpdateDescriptionText(FALSE);
    }
    else
       pibox_curpos = PIBOX_INVALID_CURPOS;
@@ -520,21 +520,21 @@ void PiListBox_Refresh( void )
          }
          PiListBox_ShowCursor();
 
-         // display short and long info
+         // display description text
          if ( (last_start_time == pibox_list[pibox_curpos].start_time) &&
               (last_netwop == pibox_list[pibox_curpos].netwop_no) )
-         {  // still the same PI under the cursor -> keep the short-info view unchanged
-            PiListBox_UpdateInfoText(TRUE);
+         {  // still the same PI under the cursor -> keep the description text view unchanged
+            PiListBox_UpdateDescriptionText(TRUE);
          }
          else
-            PiListBox_UpdateInfoText(FALSE);
+            PiListBox_UpdateDescriptionText(FALSE);
       }
       else
       {
          pibox_curpos = PIBOX_INVALID_CURPOS;
          pibox_count = 0;
          pibox_max = 0;
-         // clear the short-info window
+         // clear the description text window
          PiOutput_DescriptionTextClear();
       }
 
@@ -688,8 +688,8 @@ static void PiListBox_ScrollMoveto( int newpos )
             pibox_req_net  = pibox_list[pibox_curpos].netwop_no;
             PiListBox_ShowCursor();
 
-            // display short and long info
-            PiListBox_UpdateInfoText(FALSE);
+            // display description text
+            PiListBox_UpdateDescriptionText(FALSE);
          }
          else
          {
@@ -770,7 +770,7 @@ static void PiListBox_ScrollPageDown( int delta )
       }
       pibox_req_time = pibox_list[pibox_curpos].start_time;
       pibox_req_net  = pibox_list[pibox_curpos].netwop_no;
-      PiListBox_UpdateInfoText(FALSE);
+      PiListBox_UpdateDescriptionText(FALSE);
 
       // inform the vertical scrollbar about the start offset and viewable fraction
       PiListBox_AdjustScrollBar();
@@ -783,7 +783,7 @@ static void PiListBox_ScrollPageDown( int delta )
       pibox_req_time = pibox_list[pibox_curpos].start_time;
       pibox_req_net  = pibox_list[pibox_curpos].netwop_no;
       PiListBox_ShowCursor();
-      PiListBox_UpdateInfoText(FALSE);
+      PiListBox_UpdateDescriptionText(FALSE);
    }
 
    EpgDbLockDatabase(dbc, FALSE);
@@ -850,7 +850,7 @@ static void PiListBox_ScrollPageUp( int delta )
             }
             pibox_req_time = pibox_list[pibox_curpos].start_time;
             pibox_req_net  = pibox_list[pibox_curpos].netwop_no;
-            PiListBox_UpdateInfoText(FALSE);
+            PiListBox_UpdateDescriptionText(FALSE);
 
             // inform the vertical scrollbar about the start offset and viewable fraction
             PiListBox_AdjustScrollBar();
@@ -863,7 +863,7 @@ static void PiListBox_ScrollPageUp( int delta )
             pibox_req_time = pibox_list[pibox_curpos].start_time;
             pibox_req_net  = pibox_list[pibox_curpos].netwop_no;
             PiListBox_ShowCursor();
-            PiListBox_UpdateInfoText(FALSE);
+            PiListBox_UpdateDescriptionText(FALSE);
          }
       }
       else
@@ -911,7 +911,7 @@ static void PiListBox_ScrollLineDown( int delta )
                pibox_curpos -= 1;
             pibox_req_time = pibox_list[pibox_curpos].start_time;
             pibox_req_net  = pibox_list[pibox_curpos].netwop_no;
-            PiListBox_UpdateInfoText(FALSE);
+            PiListBox_UpdateDescriptionText(FALSE);
 
             // adjust the vertical scrollbar
             PiListBox_AdjustScrollBar();
@@ -928,7 +928,7 @@ static void PiListBox_ScrollLineDown( int delta )
          pibox_req_time = pibox_list[pibox_curpos].start_time;
          pibox_req_net  = pibox_list[pibox_curpos].netwop_no;
          PiListBox_ShowCursor();
-         PiListBox_UpdateInfoText(FALSE);
+         PiListBox_UpdateDescriptionText(FALSE);
       }
       EpgDbLockDatabase(dbc, FALSE);
       assert(PiListBox_ConsistancyCheck());
@@ -974,7 +974,7 @@ static void PiListBox_ScrollLineUp( int delta )
                pibox_curpos += 1;
             pibox_req_time = pibox_list[pibox_curpos].start_time;
             pibox_req_net  = pibox_list[pibox_curpos].netwop_no;
-            PiListBox_UpdateInfoText(FALSE);
+            PiListBox_UpdateDescriptionText(FALSE);
 
             // inform the vertical scrollbar about the start offset and viewable fraction
             PiListBox_AdjustScrollBar();
@@ -992,7 +992,7 @@ static void PiListBox_ScrollLineUp( int delta )
          pibox_req_time = pibox_list[pibox_curpos].start_time;
          pibox_req_net  = pibox_list[pibox_curpos].netwop_no;
          PiListBox_ShowCursor();
-         PiListBox_UpdateInfoText(FALSE);
+         PiListBox_UpdateDescriptionText(FALSE);
       }
       EpgDbLockDatabase(dbc, FALSE);
       assert(PiListBox_ConsistancyCheck());
@@ -1077,7 +1077,7 @@ static int PiListBox_CursorDown( ClientData ttp, Tcl_Interp *interp, int objc, T
             pibox_req_time = pibox_list[pibox_curpos].start_time;
             pibox_req_net  = pibox_list[pibox_curpos].netwop_no;
 	    PiListBox_ShowCursor();
-            PiListBox_UpdateInfoText(FALSE);
+            PiListBox_UpdateDescriptionText(FALSE);
 	 }
       }
       else if (pibox_curpos < pibox_count-1)
@@ -1088,7 +1088,7 @@ static int PiListBox_CursorDown( ClientData ttp, Tcl_Interp *interp, int objc, T
          pibox_req_time = pibox_list[pibox_curpos].start_time;
          pibox_req_net  = pibox_list[pibox_curpos].netwop_no;
 	 PiListBox_ShowCursor();
-	 PiListBox_UpdateInfoText(FALSE);
+	 PiListBox_UpdateDescriptionText(FALSE);
       }
       assert(PiListBox_ConsistancyCheck());
    }
@@ -1116,7 +1116,7 @@ static int PiListBox_CursorUp( ClientData ttp, Tcl_Interp *interp, int objc, Tcl
             pibox_req_time = pibox_list[pibox_curpos].start_time;
             pibox_req_net  = pibox_list[pibox_curpos].netwop_no;
 	    PiListBox_ShowCursor();
-            PiListBox_UpdateInfoText(FALSE);
+            PiListBox_UpdateDescriptionText(FALSE);
 	 }
       }
       else
@@ -1127,7 +1127,7 @@ static int PiListBox_CursorUp( ClientData ttp, Tcl_Interp *interp, int objc, Tcl
          pibox_req_time = pibox_list[pibox_curpos].start_time;
          pibox_req_net  = pibox_list[pibox_curpos].netwop_no;
 	 PiListBox_ShowCursor();
-	 PiListBox_UpdateInfoText(FALSE);
+	 PiListBox_UpdateDescriptionText(FALSE);
       }
       assert(PiListBox_ConsistancyCheck());
    }
@@ -1270,8 +1270,8 @@ static int PiListBox_GotoTime( ClientData ttp, Tcl_Interp *interp, int objc, Tcl
          pibox_req_net  = pibox_list[pibox_curpos].netwop_no;
          PiListBox_ShowCursor();
 
-         // display short and long info
-         PiListBox_UpdateInfoText(FALSE);
+         // display description text
+         PiListBox_UpdateDescriptionText(FALSE);
       }
       else
          pibox_curpos = PIBOX_INVALID_CURPOS;
@@ -1370,7 +1370,7 @@ void PiListBox_GotoPi( const PI_BLOCK * pPiBlock )
                if (doRefresh == FALSE)
                {
                   PiListBox_ShowCursor();
-                  PiListBox_UpdateInfoText(FALSE);
+                  PiListBox_UpdateDescriptionText(FALSE);
                }
             }
             else
@@ -1410,8 +1410,8 @@ static int PiListBox_SelectItem( ClientData ttp, Tcl_Interp *interp, int objc, T
          pibox_req_net  = pibox_list[pibox_curpos].netwop_no;
 	 PiListBox_ShowCursor();
 
-	 // display short and long info
-	 PiListBox_UpdateInfoText(FALSE);
+	 // display description text
+	 PiListBox_UpdateDescriptionText(FALSE);
       }
       result = TCL_OK; 
    }
@@ -1485,7 +1485,7 @@ static void PiListBox_DbInserted( const PI_BLOCK *pPiBlock )
 	       sprintf(comm, ".all.pi.list.text tag remove cur 2.0 3.0\n");
 	       eval_check(interp, comm);
 	       PiListBox_ShowCursor();
-	       PiListBox_UpdateInfoText(FALSE);
+	       PiListBox_UpdateDescriptionText(FALSE);
                PiListBox_DrawDateScale();
 	       PiListBox_AdjustScrollBar();
                assert(PiListBox_ConsistancyCheck());
@@ -1624,8 +1624,8 @@ static void PiListBox_DbPostUpdate( const PI_BLOCK *pObsolete, const PI_BLOCK *p
                if (pos == pibox_curpos)
                {
                   PiListBox_ShowCursor();
-                  // update the short-info (but keep the scrollbar position)
-                  PiListBox_UpdateInfoText(TRUE);
+                  // update the description text (but keep the scrollbar position)
+                  PiListBox_UpdateDescriptionText(TRUE);
                }
                assert(PiListBox_ConsistancyCheck());
             }
@@ -1740,7 +1740,7 @@ static void PiListBox_DbRemoved( const PI_BLOCK *pPiBlock )
 	    if (pos == pibox_curpos)
 	    {
 	       PiListBox_ShowCursor();
-	       PiListBox_UpdateInfoText(FALSE);
+	       PiListBox_UpdateDescriptionText(FALSE);
 	    }
 	    else if (pos < pibox_curpos)
 	    {

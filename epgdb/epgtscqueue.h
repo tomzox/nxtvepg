@@ -34,8 +34,7 @@
 #define PI_TSC_MASK_IS_DEFECTIVE     0x08
 #define PI_TSC_MASK_IS_CUR_VERSION   0x10
 //#define PI_TSC_MASK_IS_STREAM_1      0x20
-#define PI_TSC_MASK_HAS_SHORT_I      0x40
-#define PI_TSC_MASK_HAS_LONG_I       0x80
+#define PI_TSC_MASK_HAS_DESC_TEXT    0x40
 
 // this element describes a given range on a timescale
 // it covers one or more PI (of the same network), if they have equal flags

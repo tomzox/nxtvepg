@@ -51,7 +51,7 @@
 #include "epgui/dumphtml.h"
 
 // ----------------------------------------------------------------------------
-// Print Short- and Long-Info texts or separators
+// Print description texts or separators
 // - note: in HTML output there is no special separator between descriptions
 //   of different providers in a merged database, hence the "addSeparator"
 //   parameter is not used
@@ -158,7 +158,7 @@ static void EpgDumpHtml_WritePi( FILE *fp, const PI_BLOCK * pPiBlock, const AI_B
    fprintf(fp, "\n</td>\n</tr>\n\n");
 
    // start third row: description
-   PiDescription_AppendShortAndLongInfoText(pPiBlock, EpgDumpHtml_AppendInfoTextCb, fp, EpgDbContextIsMerged(pUiDbContext));
+   PiDescription_AppendDescriptionText(pPiBlock, EpgDumpHtml_AppendInfoTextCb, fp, EpgDbContextIsMerged(pUiDbContext));
 
    fprintf(fp, "</table>\n\n\n");
 }

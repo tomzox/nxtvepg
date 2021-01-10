@@ -80,7 +80,6 @@ typedef struct
    char           * chnNames;         // table of channel names (xawtv mode), or NULL
    EPGACQ_TUNER_PAR * provFreqTab;    // list of known frequencies (xawtv and refresh mode)
    uint           * provCniTab;       // list of known provider CNIs (refresh mode)
-   EPGDB_QUEUE      dbQueue;          // queue for incoming EPG blocks
    bool             foundBi;          // TRUE when BI found on current channel
    EPGSCAN_MSGCB  * MsgCallback;      // callback function to print messages
 } EPGSCANCTL_STATE;

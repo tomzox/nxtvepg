@@ -26,6 +26,9 @@
 // descriptor type for dbIdx info which is inserted into merged PI blocks
 #define MERGE_DESCR_TYPE     0x3c
 
+// separator character between description texts: ASCII "form feed"
+#define EPG_DB_MERGE_DESC_TEXT_SEP  12
+
 // list of PI attributes that can be configured separately
 typedef enum
 {

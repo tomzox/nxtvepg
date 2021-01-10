@@ -164,7 +164,7 @@ proc TimeScale_CreateCanvas {w netwop netwopName scaleWidth canvasWidth} {
 ## ---------------------------------------------------------------------------
 ## Display the timespan covered by a PI in its network timescale
 ##
-proc TimeScale_AddRange {w netwop pos1 pos2 color hasShort hasLong isLast} {
+proc TimeScale_AddRange {w netwop pos1 pos2 color hasDesc isLast} {
    global tsc_id pi_font
 
    set wc ${w}.middle.cv
@@ -173,8 +173,10 @@ proc TimeScale_AddRange {w netwop pos1 pos2 color hasShort hasLong isLast} {
    set y0 [expr $::tsc_cv_stream_y0 + $lh * $netwop]
    set y1 [expr $y0 + $::tsc_cv_stream_h]
 
-   if {$hasShort} {incr y0 -2}
-   if {$hasLong}  {incr y1  2}
+   if {$hasDesc} {
+      incr y0 -2
+      #incr y1  2
+   }
    $wc create rect [expr $::tsc_cv_stream_x0 + $pos1] $y0 [expr $::tsc_cv_stream_x0 + $pos2] $y1 \
                    -fill $color -outline ""
 

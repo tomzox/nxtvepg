@@ -100,16 +100,13 @@ typedef struct
   uint8_t   themes[PI_MAX_THEME_COUNT];
 
   uint16_t  off_title;
-  uint16_t  off_short_info;
-  uint16_t  off_long_info;
+  uint16_t  off_desc_text;
   uint16_t  off_descriptors;
 } PI_BLOCK;
 
 #define PI_GET_TITLE(X)        ((const char*)(X)+((X)->off_title))
-#define PI_HAS_SHORT_INFO(X)   ((bool)((X)->off_short_info != 0))
-#define PI_GET_SHORT_INFO(X)   ((const char*)(X)+((X)->off_short_info))
-#define PI_HAS_LONG_INFO(X)    ((bool)((X)->off_long_info != 0))
-#define PI_GET_LONG_INFO(X)    ((const char*)(X)+((X)->off_long_info))
+#define PI_HAS_DESC_TEXT(X)    ((bool)((X)->off_desc_text != 0))
+#define PI_GET_DESC_TEXT(X)    ((const char*)(X)+((X)->off_desc_text))
 #define PI_GET_STR_BY_OFF(X,O) ((const char*)(X)+(O))
 #define PI_GET_DESCRIPTORS(X)  ((const EPGDB_MERGE_SRC*)((uchar*)(X)+((X)->off_descriptors)))
 
@@ -252,23 +249,12 @@ typedef struct
 #define IS_PSEUDO_CNI(CNI)     ((CNI)==MERGED_PROV_CNI)
 
 // ----------------------------------------------------------------------------
-// Declaration of queue for acquisition
-//
-typedef struct
-{
-   uint            blockCount;
-   EPGDB_BLOCK   * pFirstBlock;
-   EPGDB_BLOCK   * pLastBlock;
-} EPGDB_QUEUE;
-
-// ----------------------------------------------------------------------------
 // Declaration of service interface functions
 //
 EPGDB_BLOCK * EpgBlockCreate( uchar type, uint size, time_t mtime );
 
 bool EpgBlockCheckConsistancy( EPGDB_BLOCK * pBlock );
 
-uint EpgBlockBcdToMoD( uint BCD );
 void EpgLtoInit( void );
 sint EpgLtoGet( time_t when );
 

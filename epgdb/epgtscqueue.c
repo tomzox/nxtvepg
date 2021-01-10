@@ -393,11 +393,8 @@ void EpgTscQueue_AddAll( EPGDB_PI_TSC * pQueue, EPGDB_CONTEXT * dbc )
                if (pPi->stop_time < now)
                   flags |= PI_TSC_MASK_IS_EXPIRED;
 
-               if (PI_HAS_SHORT_INFO(pPi))
-                  flags |= PI_TSC_MASK_HAS_SHORT_I;
-
-               if (PI_HAS_LONG_INFO(pPi))
-                  flags |= PI_TSC_MASK_HAS_LONG_I;
+               if (PI_HAS_DESC_TEXT(pPi))
+                  flags |= PI_TSC_MASK_HAS_DESC_TEXT;
 
                if ((pPi->start_time > lastStopTime) && (lastStopTime != 0))
                {  // block missing between the previous and the last -> insert missing range
@@ -421,11 +418,8 @@ void EpgTscQueue_AddAll( EPGDB_PI_TSC * pQueue, EPGDB_CONTEXT * dbc )
             if (pBlock->pNextNetwopBlock == NULL)
                flags |= PI_TSC_MASK_IS_LAST;
 
-            if (PI_HAS_SHORT_INFO(pPi))
-               flags |= PI_TSC_MASK_HAS_SHORT_I;
-
-            if (PI_HAS_LONG_INFO(pPi))
-               flags |= PI_TSC_MASK_HAS_LONG_I;
+            if (PI_HAS_DESC_TEXT(pPi))
+               flags |= PI_TSC_MASK_HAS_DESC_TEXT;
 
             EpgTscQueue_Append(pQueue, pPi->start_time, pPi->stop_time, pPi->netwop_no, flags);
 

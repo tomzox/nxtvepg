@@ -180,7 +180,7 @@ static EPGDB_BLOCK * EpgDbMergePiBlocks( PDBC dbc, EPGDB_BLOCK **pFoundBlocks )
    PI_BLOCK       * pPi;
    EPGDB_MERGE_SRC  piDesc[MAX_MERGED_DB_COUNT];
    const char *pTitle;
-   uint slInfoLen;
+   uint descTextLen;
    uint blockSize, off;
    uint dbCount, dbIdx, actIdx;
    uint firstIdx, piCount;
@@ -232,8 +232,8 @@ static EPGDB_BLOCK * EpgDbMergePiBlocks( PDBC dbc, EPGDB_BLOCK **pFoundBlocks )
    if (pTitle == NULL)
       pTitle = "";
 
-   // calculate length of concatenated short and long infos
-   slInfoLen = 0;
+   // calculate length of concatenated description texts
+   descTextLen = 0;
    for (dbIdx=0; dbIdx < dbCount; dbIdx++)
    {
       actIdx = dbmc->max[MERGE_TYPE_DESCR][dbIdx];
@@ -241,13 +241,9 @@ static EPGDB_BLOCK * EpgDbMergePiBlocks( PDBC dbc, EPGDB_BLOCK **pFoundBlocks )
       {
          if (pFoundBlocks[actIdx] != NULL)
          {
-            if (PI_HAS_SHORT_INFO(&pFoundBlocks[actIdx]->blk.pi))
+            if (PI_HAS_DESC_TEXT(&pFoundBlocks[actIdx]->blk.pi))
             {
-               slInfoLen += 3 + strlen(PI_GET_SHORT_INFO(&pFoundBlocks[actIdx]->blk.pi));
-            }
-            if (PI_HAS_LONG_INFO(&pFoundBlocks[actIdx]->blk.pi))
-            {
-               slInfoLen += 3 + strlen(PI_GET_LONG_INFO(&pFoundBlocks[actIdx]->blk.pi));
+               descTextLen += 3 + strlen(PI_GET_DESC_TEXT(&pFoundBlocks[actIdx]->blk.pi));
             }
          }
       }
@@ -255,7 +251,7 @@ static EPGDB_BLOCK * EpgDbMergePiBlocks( PDBC dbc, EPGDB_BLOCK **pFoundBlocks )
          break;
    }
 
-   blockSize = sizeof(PI_BLOCK) + strlen(pTitle) + 1 + slInfoLen + (piCount * sizeof(EPGDB_MERGE_SRC));
+   blockSize = sizeof(PI_BLOCK) + strlen(pTitle) + 1 + descTextLen + (piCount * sizeof(EPGDB_MERGE_SRC));
    pMergedBlock = EpgBlockCreate(BLOCK_TYPE_PI, blockSize, mtime);
    pMergedBlock->version    = version;
    pPi = (PI_BLOCK *) &pMergedBlock->blk.pi;  // cast to remove const from pointer
@@ -264,8 +260,6 @@ static EPGDB_BLOCK * EpgDbMergePiBlocks( PDBC dbc, EPGDB_BLOCK **pFoundBlocks )
    pPi->netwop_no         = dbmc->prov[firstIdx].netwopMap[pFoundBlocks[firstIdx]->blk.pi.netwop_no];
    pPi->start_time        = pFoundBlocks[firstIdx]->blk.pi.start_time;
    pPi->stop_time         = pFoundBlocks[firstIdx]->blk.pi.stop_time;
-
-   pPi->off_long_info     = 0;
 
    pPi->feature_flags = 0;
    // feature sound
@@ -441,10 +435,10 @@ static EPGDB_BLOCK * EpgDbMergePiBlocks( PDBC dbc, EPGDB_BLOCK **pFoundBlocks )
    strcpy((char*)PI_GET_TITLE(pPi), pTitle);   // cast to remove "const"
    off += strlen(pTitle) + 1;
 
-   // append concatenated short infos, separated by ASCII #12 = form-feed
-   if (slInfoLen > 0)
+   // append concatenated description texts, separated by ASCII #12 = form-feed
+   if (descTextLen > 0)
    {
-      pPi->off_short_info = off;
+      pPi->off_desc_text = off;
       for (dbIdx=0; dbIdx < dbCount; dbIdx++)
       {
          actIdx = dbmc->max[MERGE_TYPE_DESCR][dbIdx];
@@ -452,30 +446,13 @@ static EPGDB_BLOCK * EpgDbMergePiBlocks( PDBC dbc, EPGDB_BLOCK **pFoundBlocks )
          {
             if (pFoundBlocks[actIdx] != NULL)
             {
-               bool hasShort = PI_HAS_SHORT_INFO(&pFoundBlocks[actIdx]->blk.pi);
-               bool hasLong  = PI_HAS_LONG_INFO(&pFoundBlocks[actIdx]->blk.pi);
-
-               if (hasShort)
+               if (PI_HAS_DESC_TEXT(&pFoundBlocks[actIdx]->blk.pi))
                {
-                  strcpy((char*)PI_GET_STR_BY_OFF(pPi, off), PI_GET_SHORT_INFO(&pFoundBlocks[actIdx]->blk.pi));
+                  // cast here and below to remove const from macro results
+                  strcpy((char*)PI_GET_STR_BY_OFF(pPi, off), PI_GET_DESC_TEXT(&pFoundBlocks[actIdx]->blk.pi));
                   off += strlen(PI_GET_STR_BY_OFF(pPi, off));
 
-                  ((char *) PI_GET_STR_BY_OFF(pPi, off))[0] = (hasLong ? '\n' : 12);  // cast to remove const from macro result
-                  ((char *) PI_GET_STR_BY_OFF(pPi, off))[1] = 0;
-                  off += 1;
-               }
-               if (hasLong)
-               {
-                  if (hasShort == FALSE)
-                  {
-                     ((char *) PI_GET_STR_BY_OFF(pPi, off))[0] = '\n';
-                     off += 1;
-                  }
-
-                  strcpy((char*)PI_GET_STR_BY_OFF(pPi, off), PI_GET_LONG_INFO(&pFoundBlocks[actIdx]->blk.pi));
-                  off += strlen(PI_GET_STR_BY_OFF(pPi, off));
-
-                  ((char *) PI_GET_STR_BY_OFF(pPi, off))[0] = 12;
+                  ((char *) PI_GET_STR_BY_OFF(pPi, off))[0] = EPG_DB_MERGE_DESC_TEXT_SEP;
                   ((char *) PI_GET_STR_BY_OFF(pPi, off))[1] = 0;
                   off += 1;
                }
@@ -486,7 +463,7 @@ static EPGDB_BLOCK * EpgDbMergePiBlocks( PDBC dbc, EPGDB_BLOCK **pFoundBlocks )
       }
    }
    else
-      pPi->off_short_info = 0;
+      pPi->off_desc_text = 0;
 
    assert(off <= pMergedBlock->size);
 

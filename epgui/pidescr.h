@@ -50,9 +50,9 @@ typedef void (PiDescr_AppendInfoTextCb_Type) ( void *fp, const char * pDesc, boo
 void PiDescription_BufAppend( PI_DESCR_BUF * pBuf, const char * pStr, sint len );
 
 // Interface to PI listbox
-void PiDescription_AppendShortAndLongInfoText( const PI_BLOCK *pPiBlock,
-                                               PiDescr_AppendInfoTextCb_Type AppendInfoTextCb,
-                                               void *fp, bool isMerged );
+void PiDescription_AppendDescriptionText( const PI_BLOCK * pPiBlock,
+                                          PiDescr_AppendInfoTextCb_Type AppendInfoTextCb,
+                                          void *fp, bool isMerged );
 void PiDescription_AppendCompressedThemes( const PI_BLOCK *pPiBlock, char * outstr, uint maxlen );
 void PiDescription_AppendFeatureList( const PI_BLOCK *pPiBlock, char * outstr );
 

@@ -192,7 +192,7 @@ static void ShellCmd_AppendString( DYN_CHAR_BUF * pCmdBuf, const char * ps )
 }
 
 // ----------------------------------------------------------------------------
-// Callback function for PiOutput-AppendShortAndLongInfoText
+// Callback function for PiOutput-AppendDescriptionText
 //
 static void ShellCmd_AppendStringInfoTextCb( void *fp, const char * pDesc, bool addSeparator )
 {
@@ -336,8 +336,8 @@ static void PiOutput_ExtCmdVariable( const PI_BLOCK *pPiBlock, const AI_BLOCK * 
       ShellCmd_AppendString(pCmdBuf, PI_GET_TITLE(pPiBlock));
    }
    else if (strncmp(pKeyword, "description", keywordLen) == 0)
-   {  // programme description (short & long info)
-      PiDescription_AppendShortAndLongInfoText(pPiBlock, ShellCmd_AppendStringInfoTextCb, pCmdBuf, EpgDbContextIsMerged(pUiDbContext));
+   {  // programme description text
+      PiDescription_AppendDescriptionText(pPiBlock, ShellCmd_AppendStringInfoTextCb, pCmdBuf, EpgDbContextIsMerged(pUiDbContext));
    }
    else if (strncmp(pKeyword, "themes", keywordLen) == 0)
    {  // PDC themes

@@ -49,7 +49,7 @@
 #define NETNAME_LENGTH0 (NETNAME_LENGTH+1)
 
 // ----------------------------------------------------------------------------
-// Print Short- and Long-Info texts or separators
+// Print description texts or separators
 //
 static void DumpText_PiInfoTextCb( void * vp, const char * pDesc, bool addSeparator )
 {
@@ -82,8 +82,6 @@ static void DumpText_PiInfoTextCb( void * vp, const char * pDesc, bool addSepara
 //
 static void DumpText_Pi( PI_DESCR_BUF * pb, const PI_BLOCK * pPi, const EPGDB_CONTEXT * pDbContext )
 {
-   //const char * pShort;
-   //const char * pLong;
    uchar hour, minute, day, month;
    uint  year;
    char  str_buf[128];
@@ -161,19 +159,7 @@ static void DumpText_Pi( PI_DESCR_BUF * pb, const PI_BLOCK * pPi, const EPGDB_CO
       PiDescription_BufAppend(pb, PI_GET_TITLE(pPi), -1);
       PiDescription_BufAppend(pb, "\t", 1);
 
-#if 0
-      if (PI_HAS_SHORT_INFO(pPi))
-         pShort = PI_GET_SHORT_INFO(pPi);
-      else
-         pShort = "";
-
-      if (PI_HAS_LONG_INFO(pPi))
-         pLong = PI_GET_LONG_INFO(pPi);
-      else
-         pLong = "";
-#endif
-
-      PiDescription_AppendShortAndLongInfoText(pPi, DumpText_PiInfoTextCb, pb, EpgDbContextIsMerged(pDbContext));
+      PiDescription_AppendDescriptionText(pPi, DumpText_PiInfoTextCb, pb, EpgDbContextIsMerged(pDbContext));
       PiDescription_BufAppend(pb, "\n", 1);
 
       assert(str_buf[sizeof(str_buf) - 1] == 0);  // check for buffer overrun

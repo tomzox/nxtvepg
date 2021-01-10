@@ -824,7 +824,7 @@ void EpgDbFilterSetCustom( FILTER_CONTEXT *fc, CUSTOM_FILTER_MATCH * pMatchCb,
 }
 
 // ---------------------------------------------------------------------------
-// Set string for sub-string search in title, short- and long info
+// Set string for sub-string search in title and description text
 //
                                      //"ÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏÐÑÒÓÔÕÖ×ØÙÚÛÜÝÞß"
 const uchar latin1LowerCaseTable[32] = "àáâãäåæçèéêëìíîïðñòóôõö×øùúûüýþß";
@@ -939,16 +939,15 @@ static bool xstrcmp( const EPGDB_FILT_SUBSTR *ssc, const char * str,
 }
 
 // ---------------------------------------------------------------------------
-// Compare text with search string accorgind to search parameters
-// - note: either title or description search or both must be enabled
+// Compare text with search string according to search parameters
+// - note: either title, or description search, or both must be enabled
 // - parameter #1: ignore case
 // - parameter #2: exact => search string must match start and end of text
 //
-static bool EpgDbFilter_MatchSubstr( const EPGDB_FILT_SUBSTR *ssc, const char * pTitleStr,
-                                     const char * pShortStr,       const char * pLongStr )
+static bool EpgDbFilter_MatchSubstr( const EPGDB_FILT_SUBSTR *ssc,
+                                     const char * pTitleStr, const char * pDescStr )
 {
-   char long_info[2048+20];
-   char short_info[3*(256+2048+4)]; // XXX FIXME merged db description can be much longer
+   char desc_buf[3*(256+2048+4)]; // XXX FIXME merged db description can be much longer
    char title[255+4];
    bool title_lower;
    bool short_lower;
@@ -968,8 +967,7 @@ static bool EpgDbFilter_MatchSubstr( const EPGDB_FILT_SUBSTR *ssc, const char * 
       }
       if (ssc->scopeDesc)
       {
-         if ( ((pShortStr != NULL) && xstrcmp(ssc, pShortStr, short_info, sizeof(short_info), &short_lower)) ||
-              ((pLongStr != NULL) && xstrcmp(ssc, pLongStr, long_info, sizeof(long_info), &long_lower)) )
+         if ((pDescStr != NULL) && xstrcmp(ssc, pDescStr, desc_buf, sizeof(desc_buf), &short_lower))
          {
             break;
          }
@@ -1375,8 +1373,8 @@ static bool EpgDbFilterMatchAct( const EPGDB_CONTEXT *dbc, const FILTER_CONTEXT 
    {
       fail = ( EpgDbFilter_MatchSubstr(fc_act->pSubStrCtx,
                                        PI_GET_TITLE(pPi),
-                                       PI_HAS_SHORT_INFO(pPi) ? PI_GET_SHORT_INFO(pPi) : NULL,
-                                       PI_HAS_LONG_INFO(pPi) ? PI_GET_LONG_INFO(pPi) : NULL) == FALSE);
+                                       PI_HAS_DESC_TEXT(pPi) ? PI_GET_DESC_TEXT(pPi) : NULL
+                                      ) == FALSE );
 
       invert = ((fc_act->invertedFilters & FILTER_SUBSTR) != FALSE);
       if (fail ^ invert)

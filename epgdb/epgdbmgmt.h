@@ -23,12 +23,6 @@
 #define __EPGDBMGMT_H
 
 
-typedef struct 
-{
-   bool (* pAiCallback)( const AI_BLOCK *pNewAi );
-} EPGDB_ADD_CB;
-
-
 // ----------------------------------------------------------------------------
 // function declarations, to be shared only with other db-internal modules
 //
@@ -46,11 +40,5 @@ bool EpgDbAddDefectPi( EPGDB_CONTEXT * dbc, EPGDB_BLOCK *pBlock );
 //
 EPGDB_CONTEXT * EpgDbCreate( void );
 void EpgDbDestroy( EPGDB_CONTEXT * dbc, bool keepAiOi );
-
-#ifdef __EPGTSCQUEUE_H
-void EpgDbProcessQueue( EPGDB_CONTEXT * const * pdbc, EPGDB_QUEUE * pQueue,
-                        EPGDB_PI_TSC * tsc, const EPGDB_ADD_CB * pCb );
-#endif
-
 
 #endif  // __EPGDBMGMT_H

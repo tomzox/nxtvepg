@@ -458,7 +458,7 @@ void PiNetBox_ErrorMessage( const char * pMessage )
       sprintf(comm, "PiBox_DisplayErrorMessage {%s\n}\n", pMessage);
       eval_check(interp, comm);
 
-      // reset the scrollbars and clear the short-info text field
+      // reset the scrollbars and clear the description text field
       sprintf(comm, ".all.pi.list.hsc set 0.0 1.0\n"
                     ".all.pi.list.sc set 0.0 1.0\n");
       eval_check(interp, comm);
@@ -478,9 +478,9 @@ void PiNetBox_ErrorMessage( const char * pMessage )
 }
 
 // ----------------------------------------------------------------------------
-// Display short and long info for currently selected item
+// Display description text for currently selected item
 //
-static void PiNetBox_UpdateInfoText( bool keepView )
+static void PiNetBox_UpdateDescriptionText( bool keepView )
 {
    NETBOX_COL     * pCol;
    NETBOX_ELEM    * pElem;
@@ -2621,7 +2621,7 @@ void PiNetBox_Reset( void )
    PiNetBox_ShowCursor();
    PiNetBox_DrawDateScale();
    PiNetBox_AdjustVerticalScrollBar();
-   PiNetBox_UpdateInfoText(FALSE);
+   PiNetBox_UpdateDescriptionText(FALSE);
 
    assert(PiNetBox_ConsistancyCheck());
 
@@ -3584,7 +3584,7 @@ void PiNetBox_Refresh( void )
       PiNetBox_ShowCursor();
       PiNetBox_DrawDateScale();
       PiNetBox_AdjustVerticalScrollBar();
-      PiNetBox_UpdateInfoText(FALSE);
+      PiNetBox_UpdateDescriptionText(FALSE);
 
       assert(PiNetBox_ConsistancyCheck());
 
@@ -3633,7 +3633,7 @@ static int PiNetBox_CursorDown( ClientData ttp, Tcl_Interp *interp, int objc, Tc
          }
          PiNetBox_UpdateCursorReq(CUR_REQ_DOWN);
          PiNetBox_ShowCursor();
-         PiNetBox_UpdateInfoText(FALSE);
+         PiNetBox_UpdateDescriptionText(FALSE);
 
          assert(PiNetBox_ConsistancyCheck());
       }
@@ -3681,7 +3681,7 @@ static int PiNetBox_CursorUp( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_
          }
          PiNetBox_UpdateCursorReq(CUR_REQ_UP);
          PiNetBox_ShowCursor();
-         PiNetBox_UpdateInfoText(FALSE);
+         PiNetBox_UpdateDescriptionText(FALSE);
 
          assert(PiNetBox_ConsistancyCheck());
       }
@@ -3727,7 +3727,7 @@ static int PiNetBox_ScrollPageDown( void )
 
       PiNetBox_UpdateCursorReq(CUR_REQ_DOWN);
       PiNetBox_ShowCursor();
-      PiNetBox_UpdateInfoText(FALSE);
+      PiNetBox_UpdateDescriptionText(FALSE);
       PiNetBox_AdjustVerticalScrollBar();
 
       assert(PiNetBox_ConsistancyCheck());
@@ -3775,7 +3775,7 @@ static int PiNetBox_ScrollPageUp( void )
       PiNetBox_UpdateCursorReq(CUR_REQ_UP);
       PiNetBox_ShowCursor();
       PiNetBox_AdjustVerticalScrollBar();
-      PiNetBox_UpdateInfoText(FALSE);
+      PiNetBox_UpdateDescriptionText(FALSE);
 
       assert(PiNetBox_ConsistancyCheck());
    }
@@ -3842,7 +3842,7 @@ static void PiNetBox_ScrollMoveto( uint newPiOff )
       PiNetBox_UpdateCursorReq(CUR_REQ_GOTO);
       PiNetBox_ShowCursor();
       PiNetBox_AdjustVerticalScrollBar();
-      PiNetBox_UpdateInfoText(FALSE);
+      PiNetBox_UpdateDescriptionText(FALSE);
 
       assert(PiNetBox_ConsistancyCheck());
 
@@ -3904,7 +3904,7 @@ static int PiNetBox_ScrollVertical( ClientData ttp, Tcl_Interp *interp, int objc
                PiNetBox_UpdateCursorReq((delta > 0) ? CUR_REQ_DOWN : CUR_REQ_UP);
                PiNetBox_ShowCursor();
                PiNetBox_AdjustVerticalScrollBar();
-               PiNetBox_UpdateInfoText(FALSE);
+               PiNetBox_UpdateDescriptionText(FALSE);
 
                assert(PiNetBox_ConsistancyCheck());
             }
@@ -3963,7 +3963,7 @@ static int PiNetBox_CursorLeft( ClientData ttp, Tcl_Interp *interp, int objc, Tc
          PiNetBox_ShowCursor();
          PiNetBox_DrawDateScale();
          PiNetBox_AdjustVerticalScrollBar();
-         PiNetBox_UpdateInfoText(FALSE);
+         PiNetBox_UpdateDescriptionText(FALSE);
 
          assert(PiNetBox_ConsistancyCheck());
 
@@ -3979,7 +3979,7 @@ static int PiNetBox_CursorLeft( ClientData ttp, Tcl_Interp *interp, int objc, Tc
       PiNetBox_ScrollIfPartial();
 
       PiNetBox_ShowCursor();
-      PiNetBox_UpdateInfoText(FALSE);
+      PiNetBox_UpdateDescriptionText(FALSE);
 
       assert(PiNetBox_ConsistancyCheck());
    }
@@ -4025,7 +4025,7 @@ static int PiNetBox_CursorRight( ClientData ttp, Tcl_Interp *interp, int objc, T
          PiNetBox_ShowCursor();
          PiNetBox_DrawDateScale();
          PiNetBox_AdjustVerticalScrollBar();
-         PiNetBox_UpdateInfoText(FALSE);
+         PiNetBox_UpdateDescriptionText(FALSE);
 
          assert(PiNetBox_ConsistancyCheck());
 
@@ -4044,7 +4044,7 @@ static int PiNetBox_CursorRight( ClientData ttp, Tcl_Interp *interp, int objc, T
          PiNetBox_ScrollIfPartial();
 
          PiNetBox_ShowCursor();
-         PiNetBox_UpdateInfoText(FALSE);
+         PiNetBox_UpdateDescriptionText(FALSE);
 
          assert(PiNetBox_ConsistancyCheck());
       }
@@ -4106,7 +4106,7 @@ static int PiNetBox_ScrollRight( uint delta )
       PiNetBox_ShowCursor();
       PiNetBox_DrawDateScale();
       PiNetBox_AdjustVerticalScrollBar();
-      PiNetBox_UpdateInfoText(FALSE);
+      PiNetBox_UpdateDescriptionText(FALSE);
 
       assert(PiNetBox_ConsistancyCheck());
 
@@ -4171,7 +4171,7 @@ static int PiNetBox_ScrollLeft( uint delta )
       PiNetBox_ShowCursor();
       PiNetBox_DrawDateScale();
       PiNetBox_AdjustVerticalScrollBar();
-      PiNetBox_UpdateInfoText(FALSE);
+      PiNetBox_UpdateDescriptionText(FALSE);
 
       assert(PiNetBox_ConsistancyCheck());
 
@@ -4322,7 +4322,7 @@ static int PiNetBox_SelectItem( ClientData ttp, Tcl_Interp *interp, int objc, Tc
 
             PiNetBox_UpdateCursorReq(CUR_REQ_GOTO);
             PiNetBox_ShowCursor();
-            PiNetBox_UpdateInfoText(FALSE);
+            PiNetBox_UpdateDescriptionText(FALSE);
 
             assert(PiNetBox_ConsistancyCheck());
          }
@@ -4482,7 +4482,7 @@ static int PiNetBox_GotoTime( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_
 
       PiNetBox_ShowCursor();
       PiNetBox_AdjustVerticalScrollBar();
-      PiNetBox_UpdateInfoText(FALSE);
+      PiNetBox_UpdateDescriptionText(FALSE);
 
       assert(PiNetBox_ConsistancyCheck());
       EpgDbLockDatabase(dbc, FALSE);
@@ -4539,7 +4539,7 @@ void PiNetBox_GotoPi( const PI_BLOCK * pPiBlock )
             PiNetBox_ScrollIfPartial();
 
             PiNetBox_ShowCursor();
-            PiNetBox_UpdateInfoText(FALSE);
+            PiNetBox_UpdateDescriptionText(FALSE);
          }
          else
          {  // network visible, but PI not -> place the given PI at top and redraw listbox around it
@@ -4553,7 +4553,7 @@ void PiNetBox_GotoPi( const PI_BLOCK * pPiBlock )
 
             PiNetBox_ShowCursor();
             PiNetBox_AdjustVerticalScrollBar();
-            PiNetBox_UpdateInfoText(FALSE);
+            PiNetBox_UpdateDescriptionText(FALSE);
          }
          assert(PiNetBox_ConsistancyCheck());
       }
@@ -4583,7 +4583,7 @@ void PiNetBox_GotoPi( const PI_BLOCK * pPiBlock )
          PiNetBox_ShowCursor();
          PiNetBox_DrawDateScale();
          PiNetBox_AdjustVerticalScrollBar();
-         PiNetBox_UpdateInfoText(FALSE);
+         PiNetBox_UpdateDescriptionText(FALSE);
 
          assert(PiNetBox_ConsistancyCheck());
       }

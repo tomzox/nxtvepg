@@ -133,7 +133,7 @@ void EpgDumpXml_HtmlRemoveQuotes( const char * pStr, char * pBuf, uint maxOutLen
 }
 
 // ----------------------------------------------------------------------------
-// Print Short- and Long-Info texts for XMLTV
+// Print description texts for XMLTV
 //
 static void EpgDumpXml_AppendInfoTextCb( void *vp, const char * pDesc, bool addSeparator )
 {
@@ -304,13 +304,13 @@ static void EpgDumpXml_WriteProgramme( EPGDB_CONTEXT * pDbContext, const AI_BLOC
    fprintf(fp, "\t<title>");
    EpgDumpXml_HtmlWriteString(fp, PI_GET_TITLE(pPiBlock), -1);
    fprintf(fp, "</title>\n");
-   if ( PI_HAS_SHORT_INFO(pPiBlock) || PI_HAS_LONG_INFO(pPiBlock) )
+   if ( PI_HAS_DESC_TEXT(pPiBlock) )
    {
       cbInfo.fp = fp;
       cbInfo.xmlDtdVersion = xmlDtdVersion;
 
       fprintf(fp, "\t<desc>");
-      PiDescription_AppendShortAndLongInfoText(pPiBlock, EpgDumpXml_AppendInfoTextCb, &cbInfo, EpgDbContextIsMerged(pDbContext));
+      PiDescription_AppendDescriptionText(pPiBlock, EpgDumpXml_AppendInfoTextCb, &cbInfo, EpgDbContextIsMerged(pDbContext));
       fprintf(fp, "</desc>\n");
    }
 

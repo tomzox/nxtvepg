@@ -14,8 +14,8 @@
  *
  *  Description:
  *
- *    This modules contains functions to build description texts
- *    for output in the "short info window" below the PI programme list
+ *    This modules contains functions to build programme description texts
+ *    for output in the description text window below the PI programme list
  *    and for database export.
  *
  *  Author: Tom Zoerner
@@ -35,6 +35,7 @@
 #include "epgctl/mytypes.h"
 #include "epgctl/debug.h"
 #include "epgdb/epgblock.h"
+#include "epgdb/epgdbmerge.h"
 #include "epgdb/epgdbfil.h"
 #include "epgdb/epgdbif.h"
 #include "epgui/epgmain.h"
@@ -252,6 +253,7 @@ const char * PiDescription_DictifyTitle( const char * pTitle, uchar lang, char *
    return pTitle;
 }
 
+#if 0
 // ----------------------------------------------------------------------------
 // Search for short-info text in each paragraph of long info
 // - short-info paragraph is completely omitted if it's repeated completely at
@@ -423,6 +425,7 @@ static char * PiDescription_UnifyShortLong( const char * pShort, uint shortInfoL
 
    return pOut;
 }
+#endif
 
 // ----------------------------------------------------------------------------
 // Remove descriptions that are substrings of other info strings in the given list
@@ -507,58 +510,42 @@ static uint PiDescription_UnifyMergedInfo( char ** infoStrTab, uint infoCount )
 
 // ----------------------------------------------------------------------------
 // Build array of description strings for merged PI
-// - Merged database needs special handling, because short and long infos
-//   of all providers are concatenated into the short info string. Separator
-//   between short and long info is a newline char. After each provider's
-//   info there's a form-feed char.
+// - Merged database needs special handling, because description texts of all
+//   providers are concatenated into one string. Separator character is an
+//   ASCII form-feed.
 // - Returns the number of separate strings and puts their pointers into the array.
 //   The caller must free the separated strings.
 //
 static uint PiDescription_SeparateMergedInfo( const PI_BLOCK * pPiBlock, char ** infoStrTab )
 {
-   const char *p, *ps, *pl;
-   int   shortInfoLen, longInfoLen;
+   const char *p, *ps;
+   int   descTextLen;
    uint  count;
 
-   p = PI_GET_SHORT_INFO(pPiBlock);
+   p = PI_GET_DESC_TEXT(pPiBlock);
    count = 0;
    do
    {  // loop across all provider's descriptions
 
-      // obtain start and length of this provider's short and long info
-      shortInfoLen = longInfoLen = 0;
+      // obtain start and length of this provider's description text
+      descTextLen = 0;
       ps = p;
-      pl = NULL;
       while (*p)
       {
-         if (*p == '\n')
-         {  // start of long info found
-            shortInfoLen = p - ps;
-            pl = p + 1;
-         }
-         else if (*p == 12)
-         {  // end of short and/or long info found
-            if (pl == NULL)
-               shortInfoLen = p - ps;
-            else
-               longInfoLen = p - pl;
+         if (*p == EPG_DB_MERGE_DESC_TEXT_SEP)
+         {  // end of description text found
+            descTextLen = p - ps;
             p++;
             break;
          }
          p++;
       }
 
-      if (pl != NULL)
-      {
-         // there's both short and long info -> redundancy removal
-         infoStrTab[count] = PiDescription_UnifyShortLong(ps, shortInfoLen, pl, longInfoLen);
-      }
-      else
-      {  // only short info available; copy it into the array
-         infoStrTab[count] = xmalloc(shortInfoLen + 1);
-         strncpy(infoStrTab[count], ps, shortInfoLen);
-         infoStrTab[count][shortInfoLen] = 0;
-      }
+      // only description text available; copy it into the array
+      infoStrTab[count] = xmalloc(descTextLen + 1);
+      memcpy(infoStrTab[count], ps, descTextLen);
+      infoStrTab[count][descTextLen] = 0;
+
       count += 1;
 
    } while (*p);
@@ -567,33 +554,21 @@ static uint PiDescription_SeparateMergedInfo( const PI_BLOCK * pPiBlock, char **
 }
 
 // ----------------------------------------------------------------------------
-// Print Short-Info and Long-Info
+// Print description text
 //
-void PiDescription_AppendShortAndLongInfoText( const PI_BLOCK * pPiBlock,
-                                               PiDescr_AppendInfoTextCb_Type AppendInfoTextCb,
-                                               void * fp,
-                                               bool isMerged )
+void PiDescription_AppendDescriptionText( const PI_BLOCK * pPiBlock,
+                                          PiDescr_AppendInfoTextCb_Type AppendInfoTextCb,
+                                          void * fp, bool isMerged )
 {
-   if ( PI_HAS_SHORT_INFO(pPiBlock) && PI_HAS_LONG_INFO(pPiBlock) )
-   {
-      const char * pShortInfo = PI_GET_SHORT_INFO(pPiBlock);
-      const char * pLongInfo  = PI_GET_LONG_INFO(pPiBlock);
-      char * pConcat;
-
-      pConcat = PiDescription_UnifyShortLong(pShortInfo, strlen(pShortInfo), pLongInfo, strlen(pLongInfo));
-      AppendInfoTextCb(fp, pConcat, FALSE);
-      xfree((void *) pConcat);
-   }
-   else if (PI_HAS_SHORT_INFO(pPiBlock))
+   if (PI_HAS_DESC_TEXT(pPiBlock))
    {
       if (isMerged)
       {
          char *infoStrTab[MAX_MERGED_DB_COUNT];
          uint infoCount, idx, added;
 
-         // Merged database -> for presentation the usual short/long info
-         // combination is done, plus a separator image is added between
-         // different provider's descriptions.
+         // Merged database -> a separator image is added between description
+         // texts of different providers.
 
          infoCount = PiDescription_SeparateMergedInfo(pPiBlock, infoStrTab);
          infoCount = PiDescription_UnifyMergedInfo(infoStrTab, infoCount);
@@ -603,7 +578,7 @@ void PiDescription_AppendShortAndLongInfoText( const PI_BLOCK * pPiBlock,
          {
             if (infoStrTab[idx] != NULL)
             {
-               // add the short info to the text widget insert command
+               // add the description string to the text widget insert command
                // - if not the only or first info -> insert separator image (a horizontal line)
                AppendInfoTextCb(fp, infoStrTab[idx], (added > 0));
 
@@ -614,12 +589,8 @@ void PiDescription_AppendShortAndLongInfoText( const PI_BLOCK * pPiBlock,
       }
       else
       {
-         AppendInfoTextCb(fp, PI_GET_SHORT_INFO(pPiBlock), FALSE);
+         AppendInfoTextCb(fp, PI_GET_DESC_TEXT(pPiBlock), FALSE);
       }
-   }
-   else if (PI_HAS_LONG_INFO(pPiBlock))
-   {
-      AppendInfoTextCb(fp, PI_GET_LONG_INFO(pPiBlock), FALSE);
    }
 }
 

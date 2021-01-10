@@ -328,8 +328,7 @@ uint PiOutput_PrintColumnItem( const PI_BLOCK * pPiBlock, PIBOX_COL_TYPES type,
             break;
 
          case PIBOX_COL_DESCR:
-            pResult = (PI_HAS_LONG_INFO(pPiBlock) ? "l" : 
-                         (PI_HAS_SHORT_INFO(pPiBlock) ? "s" : "-"));
+            pResult = (PI_HAS_DESC_TEXT(pPiBlock) ? "s" : "-");
             break;
 
          case PIBOX_COL_PIL:
@@ -1296,7 +1295,7 @@ void PiOutput_DescriptionTextClear( void )
 }
 
 // ----------------------------------------------------------------------------
-// Callback function for PiOutput-AppendShortAndLongInfoText
+// Callback function for PiOutput-AppendDescriptionText
 //
 static void PiOutput_AppendInfoTextCb( void *fp, const char * pDesc, bool addSeparator )
 {
@@ -1313,13 +1312,13 @@ static void PiOutput_AppendInfoTextCb( void *fp, const char * pDesc, bool addSep
             debugTclErr(interp, "PiOutput-AppendInfoTextCb");
       }
 
-      //Tcl_VarEval(interp, ".all.pi.info.text insert end {", pShortInfo, "}", NULL);
+      //Tcl_VarEval(interp, ".all.pi.info.text insert end {", pDesc, "}", NULL);
       PiOutput_InsertText(TCLOBJ_WID_INFO, -1, EPG_ENC_XMLTV, pDesc, TCLOBJ_STR_PARAGRAPH);
    }
 }
 
 // ----------------------------------------------------------------------------
-// Display short and long info for the given PI block
+// Display description text for the given PI block
 //
 void PiOutput_DescriptionTextUpdate( const PI_BLOCK * pPiBlock, bool keepView )
 {
@@ -1380,7 +1379,7 @@ void PiOutput_DescriptionTextUpdate( const PI_BLOCK * pPiBlock, bool keepView )
          PiOutput_InsertText(TCLOBJ_WID_INFO, -1, EPG_ENC_SYSTEM, comm, TCLOBJ_STR_BOLD);
 
          // finally append description text
-         PiDescription_AppendShortAndLongInfoText(pPiBlock, PiOutput_AppendInfoTextCb, NULL, EpgDbContextIsMerged(pUiDbContext));
+         PiDescription_AppendDescriptionText(pPiBlock, PiOutput_AppendInfoTextCb, NULL, EpgDbContextIsMerged(pUiDbContext));
       }
       else
          debug1("PiOutput-UpdateDescr: no AI block or invalid netwop=%d", pPiBlock->netwop_no);

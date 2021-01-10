@@ -129,15 +129,6 @@ void EpgLtoInit( void )
 #endif
 }
 
-// ----------------------------------------------------------------------------
-// Convert a BCD coded time to "minutes since daybreak" (MoD)
-//
-uint EpgBlockBcdToMoD( uint BCD )
-{
-   return ((BCD >> 12)*10 + ((BCD & 0x0F00) >> 8)) * 60 +
-          ((BCD & 0x00F0) >> 4)*10 + (BCD & 0x000F);
-}   
-
 // ---------------------------------------------------------------------------
 // Check reloaded PI block for gross consistancy errors
 //
@@ -166,29 +157,19 @@ static bool EpgBlockCheckPi( EPGDB_BLOCK * pBlock )
       // but stop < start is never possible because the duration is transmitted in Nextview
       debug2("EpgBlock-CheckPi: illegal start/stop times: %ld, %ld", (long)pPi->start_time, (long)pPi->stop_time);
    }
-   else if ( PI_HAS_SHORT_INFO(pPi) &&
-             ( (pPi->off_short_info <= pPi->off_title) ||
-               (pPi->off_short_info >= pBlock->size) ||
+   else if ( PI_HAS_DESC_TEXT(pPi) &&
+             ( (pPi->off_desc_text <= pPi->off_title) ||
+               (pPi->off_desc_text >= pBlock->size) ||
                // check if the title string is terminated by a null byte
-               (*(PI_GET_SHORT_INFO(pPi) - 1) != 0) ))
+               (*(PI_GET_DESC_TEXT(pPi) - 1) != 0) ))
    {
-      debug2("EpgBlock-CheckPi: short info exceeds block size: off=%d, size=%d", pPi->off_short_info, pBlock->size + BLK_UNION_OFF);
-   }
-   else if ( PI_HAS_LONG_INFO(pPi) &&
-             ( (pPi->off_long_info <= pPi->off_short_info) ||
-               (pPi->off_long_info <= pPi->off_title) ||
-               (pPi->off_long_info >= pBlock->size) ||
-               // check if the title or short info string is terminated by a null byte
-               (*(PI_GET_LONG_INFO(pPi) - 1) != 0) ))
-   {
-      debug2("EpgBlock-CheckPi: short info exceeds block size: off=%d, size=%d", pPi->off_long_info, pBlock->size + BLK_UNION_OFF);
+      debug2("EpgBlock-CheckPi: desc text exceeds block size: off=%d, size=%d", pPi->off_desc_text, pBlock->size + BLK_UNION_OFF);
    }
    else if ( (pPi->no_descriptors > 0) &&
-             ( (pPi->off_descriptors <= pPi->off_long_info) ||
-               (pPi->off_descriptors <= pPi->off_short_info) ||
+             ( (pPi->off_descriptors <= pPi->off_desc_text) ||
                (pPi->off_descriptors <= pPi->off_title) ||
                (pPi->off_descriptors + (pPi->no_descriptors * sizeof(EPGDB_MERGE_SRC)) != pBlock->size) ||
-               // check if the title or short or long info string is terminated by a null byte
+               // check if the title or description string is terminated by a null byte
                (*(((uchar *)PI_GET_DESCRIPTORS(pPi)) - 1) != 0) ))
    {
       debug3("EpgBlock-CheckPi: descriptor count %d exceeds block length: off=%d, size=%d", pPi->no_descriptors, pPi->off_descriptors, pBlock->size + BLK_UNION_OFF);

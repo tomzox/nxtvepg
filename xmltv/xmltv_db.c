@@ -574,11 +574,11 @@ static EPGDB_BLOCK * XmltvDb_BuildPi( void )
    }
    if (XML_STR_BUF_GET_STR_LEN(xds.pi_desc) > 0)
    {
-      xds.pi.off_short_info = piLen;
+      xds.pi.off_desc_text = piLen;
       piLen += XML_STR_BUF_GET_STR_LEN(xds.pi_desc) + 1;
    }
    else
-      xds.pi.off_short_info = 0;
+      xds.pi.off_desc_text = 0;
 
    // 2nd step: copy elements one after each other, then free single elements
    pBlk = EpgBlockCreate(BLOCK_TYPE_PI, piLen, xds.mtime);
@@ -590,7 +590,7 @@ static EPGDB_BLOCK * XmltvDb_BuildPi( void )
 
    // copy description text: only if present (else no memory was allocated above)
    if (XML_STR_BUF_GET_STR_LEN(xds.pi_desc) > 0)
-      strcpy((char *) PI_GET_SHORT_INFO(pPi), XML_STR_BUF_GET_STR(xds.pi_desc));
+      strcpy((char *) PI_GET_DESC_TEXT(pPi), XML_STR_BUF_GET_STR(xds.pi_desc));
 
    return pBlk;
 }
