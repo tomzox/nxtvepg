@@ -766,55 +766,45 @@ time_t EpgDbGetPiUpdateTime( const PI_BLOCK * pPiBlock )
 // - db needs not be locked since this is an atomic operation
 //   and no pointers into the db are returned
 //
-bool EpgDbGetStat( CPDBC dbc, EPGDB_BLOCK_COUNT * pCount, time_t acqMinTime )
+bool EpgDbGetStat( CPDBC dbc, EPGDB_BLOCK_COUNT * pCount, time_t now, time_t tsAcq )
 {
    const EPGDB_BLOCK * pBlock;
-   uchar  ai_version;
-   time_t now;
+   const time_t tsDay1 = tsAcq + 24*60*60;
+   const time_t tsDay2 = tsDay1 + 24*60*60;
    bool   result;
 
    memset(pCount, 0, sizeof(EPGDB_BLOCK_COUNT));
-   now = time(NULL);
 
    if (dbc->pAiBlock != NULL)
    {
-      ai_version = dbc->pAiBlock->blk.ai.version;
-
       pBlock = dbc->pFirstPi;
       while (pBlock != NULL)
       {
          if (pBlock->blk.pi.stop_time > now)
          {
-            pCount->allVersions += 1;
+            uint idx = ((pBlock->acqTimestamp >= tsAcq) ? 0 : 1);
 
-            if (pBlock->version == ai_version)
-            {
-               pCount->curVersion += 1;
-            }
+            if (pBlock->blk.pi.start_time < tsDay1)
+               pCount->day1[idx] += 1;
+            else if (pBlock->blk.pi.start_time < tsDay2)
+               pCount->day2[idx] += 1;
+            else
+               pCount->day3[idx] += 1;
          }
          else
-            pCount->expired += 1;
-
-         if ( (pBlock->acqTimestamp >= acqMinTime) &&
-              (pBlock->version == ai_version) )
          {
-            pCount->sinceAcq += 1;
+            if (pBlock->blk.pi.stop_time >= pBlock->acqTimestamp)
+               pCount->expiredSinceAcq += 1;
+            pCount->expired += 1;
          }
-
          pBlock = pBlock->pNextBlock;
       }
 
       // count number of defective blocks
-      // - no version comparison required, since these are discarded when AI version changes
       pBlock = dbc->pObsoletePi;
       while (pBlock != NULL)
       {
          pCount->defective += 1;
-         if (pBlock->acqTimestamp >= acqMinTime)
-         {
-            pCount->sinceAcq += 1;
-         }
-
          pBlock = pBlock->pNextBlock;
       }
 

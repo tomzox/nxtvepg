@@ -136,11 +136,9 @@ bool EpgAcqCtl_SelectMode( EPGACQ_MODE newAcqMode, EPGACQ_PHASE maxPhase,
                            uint ttxStartPg, uint ttxEndPg, uint ttxDuration );
 bool EpgAcqCtl_SetInputSource( uint inputIdx, uint slicerType );
 bool EpgAcqCtl_CheckDeviceAccess( void );
-void EpgAcqCtl_DescribeAcqState( EPGACQ_DESCR * pAcqState );
-void EpgAcqCtl_GetAcqModeStr( const EPGACQ_DESCR * pAcqState,
-                              const char ** ppModeStr, const char ** ppPasvStr, const char ** pStateStr );
 void EpgAcqCtl_Suspend( bool suspend );
 bool EpgAcqCtl_IsActive( void );
+time_t EpgAcqCtl_GetAcqBaseTime( time_t now );
 
 // interface to sub-modules
 bool EpgAcqCtl_TuneProvider( const EPGACQ_TUNER_PAR * par, EPGACQ_PASSIVE * pMode );
@@ -153,6 +151,9 @@ bool EpgAcqCtl_ProcessVps( void );
 // interface for status, statistics and timescales display
 bool EpgAcqCtl_GetAcqStats( EPG_ACQ_STATS * pAcqStats );
 void EpgAcqCtl_EnableAcqStats( bool enable );
+void EpgAcqCtl_DescribeAcqState( EPGACQ_DESCR * pAcqState );
+void EpgAcqCtl_GetAcqModeStr( const EPGACQ_DESCR * pAcqState,
+                              const char ** ppModeStr, const char ** ppPasvStr, const char ** pStateStr );
 bool EpgAcqCtl_GetVpsPdc( EPG_ACQ_VPS_PDC * pVpsPdc, VPSPDC_REQ_ID clientId, bool force );
 void EpgAcqCtl_ResetVpsPdc( void );
 

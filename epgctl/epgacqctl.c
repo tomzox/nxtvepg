@@ -487,6 +487,23 @@ bool EpgAcqCtl_IsActive( void )
 }
 
 // ---------------------------------------------------------------------------
+// Query the start time of "today" in terms of acquisition
+// - intended to be used to check if database was acquired on the same day
+// - for teletext, schedules start at 6am
+//
+time_t EpgAcqCtl_GetAcqBaseTime( time_t now )
+{
+   struct tm * pTm = localtime(&now);
+   time_t tsAcq = now - pTm->tm_hour * 60*60
+                      - pTm->tm_min * 60
+                      - pTm->tm_sec
+                      + 6*60*60;
+   if (pTm->tm_hour < 6)
+      tsAcq -= 24*60*60;
+   return tsAcq;
+}
+
+// ---------------------------------------------------------------------------
 // Query cause for the last acquisition failure
 // - must only be called when acq start failed
 //

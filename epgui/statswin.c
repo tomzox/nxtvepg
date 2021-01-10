@@ -63,6 +63,7 @@
 #include "epgui/epgmain.h"
 #include "epgui/cmdline.h"
 #include "epgui/uictrl.h"
+#include "epgui/rcfile.h"
 #include "epgui/statswin.h"
 
 
@@ -72,10 +73,12 @@
 typedef struct
 {
    uint32_t  expir;
-   uint32_t  s1cur;
-   uint32_t  s1old;
-   uint32_t  s2cur;
-   uint32_t  s2old;
+   uint32_t  day1cur;
+   uint32_t  day1old;
+   uint32_t  day2cur;
+   uint32_t  day2old;
+   uint32_t  day3cur;
+   uint32_t  day3old;
 } STATS_DB_HIST_ELEM;
 
 #define STATS_DB_HIST_WIDTH     128
@@ -134,14 +137,22 @@ static void StatsWin_UpdateHistLine( uint idx )
 {
    if (dbStatsWinState.histScaleY > 0)
    {
-      uint v0 =      (128.0 * dbStatsWinState.hist[idx].expir / dbStatsWinState.histScaleY);
-      uint v1 = v0 + (128.0 * dbStatsWinState.hist[idx].s1cur / dbStatsWinState.histScaleY);
-      uint v2 = v1 + (128.0 * dbStatsWinState.hist[idx].s1old / dbStatsWinState.histScaleY);
-      uint v3 = v2 + (128.0 * dbStatsWinState.hist[idx].s2cur / dbStatsWinState.histScaleY);
-      uint v4 = v3 + (128.0 * dbStatsWinState.hist[idx].s2old / dbStatsWinState.histScaleY);
+      uint v0 =      dbStatsWinState.hist[idx].expir;
+      uint v1 = v0 + dbStatsWinState.hist[idx].day1cur;
+      uint v2 = v1 + dbStatsWinState.hist[idx].day1old;
+      uint v3 = v2 + dbStatsWinState.hist[idx].day2cur;
+      uint v4 = v3 + dbStatsWinState.hist[idx].day2old;
+      uint v5 = v4 + dbStatsWinState.hist[idx].day3cur;
+      uint v6 = v5 + dbStatsWinState.hist[idx].day3old;
 
-      sprintf(comm, "DbStatsWin_AddHistory .dbstats_ui %d %d %d %d %d %d\n",
-                                           idx, v0, v1, v2, v3, v4);
+      sprintf(comm, "DbStatsWin_AddHistory .dbstats_ui %d %d %d %d %d %d %d %d\n", idx,
+                                           (128 * v0 / dbStatsWinState.histScaleY),
+                                           (128 * v1 / dbStatsWinState.histScaleY),
+                                           (128 * v2 / dbStatsWinState.histScaleY),
+                                           (128 * v3 / dbStatsWinState.histScaleY),
+                                           (128 * v4 / dbStatsWinState.histScaleY),
+                                           (128 * v5 / dbStatsWinState.histScaleY),
+                                           (128 * v6 / dbStatsWinState.histScaleY));
       eval_check(interp, comm);
    }
    else
@@ -166,7 +177,9 @@ static void StatsWin_UpdateHist( const EPGDB_BLOCK_COUNT * pCount )
       dbStatsWinState.histIdx = 0;
    }
    const uint idx = dbStatsWinState.histIdx;
-   uint total = pCount->allVersions + pCount->expired + pCount->defective;
+   uint total = pCount->day1[0] + pCount->day2[0] + pCount->day3[0] +
+                pCount->day1[1] + pCount->day2[1] + pCount->day3[1] +
+                pCount->expired + pCount->defective;
 
    if (total > 0)
    {
@@ -175,7 +188,7 @@ static void StatsWin_UpdateHist( const EPGDB_BLOCK_COUNT * pCount )
          dprintf2("StatsWin-UpdateHist: rescaling from %d to %d\n", dbStatsWinState.histScaleY, total);
          eval_check(interp, "DbStatsWin_ClearHistory .dbstats_ui\n");
 
-         dbStatsWinState.histScaleY = total * 3 / 2;  // 50% head-room for new max value
+         dbStatsWinState.histScaleY = total * 5 / 4;  // 25% head-room for further increase
 
          for (uint idx2 = 0; idx2 < dbStatsWinState.histIdx; ++idx2)
          {
@@ -183,10 +196,12 @@ static void StatsWin_UpdateHist( const EPGDB_BLOCK_COUNT * pCount )
          }
       }
       dbStatsWinState.hist[idx].expir = pCount->expired + pCount->defective;
-      dbStatsWinState.hist[idx].s1cur = pCount->allVersions - pCount->curVersion;
-      dbStatsWinState.hist[idx].s1old = pCount->allVersions;
-      dbStatsWinState.hist[idx].s2cur = 0;
-      dbStatsWinState.hist[idx].s2old = 0;
+      dbStatsWinState.hist[idx].day1cur = pCount->day1[0];
+      dbStatsWinState.hist[idx].day1old = pCount->day1[1];
+      dbStatsWinState.hist[idx].day2cur = pCount->day2[0];
+      dbStatsWinState.hist[idx].day2old = pCount->day2[1];
+      dbStatsWinState.hist[idx].day3cur = pCount->day3[0];
+      dbStatsWinState.hist[idx].day3old = pCount->day3[1];
    }
    else
    {
@@ -201,12 +216,12 @@ static void StatsWin_UpdateHist( const EPGDB_BLOCK_COUNT * pCount )
 // ----------------------------------------------------------------------------
 // Fill window with database statistics and pie chart
 //
-static void StatsWin_PrintDbStats( EPGDB_CONTEXT * dbc, EPGDB_BLOCK_COUNT * count )
+static void StatsWin_PrintDbStats( EPGDB_CONTEXT * dbc, EPGDB_BLOCK_COUNT * pCount )
 {
    const AI_BLOCK *pAi;
    time_t lastAiUpdate;
    char  provname[60+1], datestr[25+1];
-   uint  allVersionsCount, curVersionCount, obsolete;
+   uint  total, totalSinceAcq, anyDay[2];
    uint  netwopCount;
 
    // default values if database is empty
@@ -229,37 +244,51 @@ static void StatsWin_PrintDbStats( EPGDB_CONTEXT * dbc, EPGDB_BLOCK_COUNT * coun
       EpgDbLockDatabase(dbc, FALSE);
    }
 
-   obsolete         = count->expired + count->defective;
-   allVersionsCount = count->allVersions + obsolete;
-   curVersionCount  = count->curVersion + obsolete;
+   anyDay[0] = pCount->day1[0] + pCount->day2[0] + pCount->day3[0];
+   anyDay[1] = pCount->day1[1] + pCount->day2[1] + pCount->day3[1];
+   total = anyDay[0] + anyDay[1] + pCount->expired + pCount->defective;
+   totalSinceAcq = anyDay[0] + anyDay[1] + pCount->expiredSinceAcq;
 
-   sprintf(comm, "EPG provider:     %s\n"
-                 "Last update:      %s\n"
-                 "Networks in db:   %d\n"
-                 "Blocks in db:     %d\n"
-                 "Current version:  %d\n"
-                 "Expired total:    %d (%d%%)\n"
-                 "Defective blocks: %d (%d%%)",
+   sprintf(comm, "EPG provider:       %s\n"
+                 "Last update:        %s (%d%%)\n"
+                 "Networks in db:     %d\n"
+                 "Blocks in db:       %d\n"
+                 "Blocks today/...:   %d / %d / %d\n"
+                 "Expired total:      %d (%d%%)\n"
+                 "Expired since acq.: %d (%d%%)\n"
+                 "Defective blocks:   %d (%d%%)",
                  provname,
-                 datestr,
+                 datestr, ACQ_COUNT_TO_PERCENT(anyDay[0], anyDay[0] + anyDay[1]),
                  netwopCount,
-                 allVersionsCount,
-                 curVersionCount,
-                 count->expired, ACQ_COUNT_TO_PERCENT(count->expired, allVersionsCount),
-                 count->defective, ACQ_COUNT_TO_PERCENT(count->defective, allVersionsCount)
+                 total,
+                 pCount->day1[0] + pCount->day1[1],
+                    pCount->day2[0] + pCount->day2[1],
+                    pCount->day3[0] + pCount->day3[1],
+                 pCount->expired, ACQ_COUNT_TO_PERCENT(pCount->expired, total),
+                 pCount->expiredSinceAcq,
+                    ACQ_COUNT_TO_PERCENT(pCount->expiredSinceAcq, totalSinceAcq),
+                 pCount->defective, ACQ_COUNT_TO_PERCENT(pCount->defective, total)
           );
 
    // finally configure the popup text to show the string
    StatsWin_ConfigureLabelText(".dbstats_ui.browser.stat", comm);
 
-   if (allVersionsCount > 0)
+   if (total > 0)
    {
-      uint total = allVersionsCount;  // TODO TTX temporary
-      sprintf(comm, "DbStatsWin_PaintPie .dbstats_ui %d %d %d %d\n",
-                    (int)((double)(count->defective + count->expired) / total * 359.9),
-                    (int)((double)(count->curVersion + count->defective + count->expired) / total * 359.9),
-                    (int)((double)(count->allVersions + count->defective + count->expired) / total * 359.9),
-                    (int)((double) /*count->ai / total * */ 359.9));
+      uint v0 =      pCount->defective + pCount->expired - pCount->expiredSinceAcq;
+      uint v1 =      pCount->defective + pCount->expired;
+      uint v2 = v1 + pCount->day1[0];
+      uint v3 = v2 + pCount->day1[1];
+      uint v4 = v3 + pCount->day2[0];
+      uint v5 = v4 + pCount->day2[1];
+      uint v6 = v5 + pCount->day3[0];
+      uint v7 = v6 + pCount->day3[1];
+
+      sprintf(comm, "DbStatsWin_PaintPie .dbstats_ui %d %d %d %d %d %d %d %d\n",
+                                         (359 * v0 / total), (359 * v1 / total),
+                                         (359 * v2 / total), (359 * v3 / total),
+                                         (359 * v4 / total), (359 * v5 / total),
+                                         (359 * v6 / total), (359 * v7 / total));
    }
    else
    {
@@ -371,12 +400,9 @@ static void StatsWin_PrintAcqStats( EPGDB_CONTEXT * dbc, EPGACQ_DESCR * pAcqStat
 //
 static void StatsWin_UpdateDbStatsWin( ClientData clientData )
 {
-   EPGDB_CONTEXT * dbc;
    EPGDB_BLOCK_COUNT count;
    EPGACQ_DESCR acqState;
    EPG_ACQ_STATS sv;
-
-   dbc = pUiDbContext;
 
    if (dbStatsWinState.open)
    {
@@ -384,13 +410,14 @@ static void StatsWin_UpdateDbStatsWin( ClientData clientData )
 
       // acq not running for this database -> display db stats only
       memset(&count, 0, sizeof(count));
-      if (dbc != NULL)
+      if (pUiDbContext != NULL)
       {
-         EpgDbGetStat(dbc, &count, 0);
+         time_t now = time(NULL);
+         EpgDbGetStat(pUiDbContext, &count, now, EpgAcqCtl_GetAcqBaseTime(now));
       }
 
       // print database statistics and pie chart
-      StatsWin_PrintDbStats(dbc, &count);
+      StatsWin_PrintDbStats(pUiDbContext, &count);
 
       EpgAcqCtl_DescribeAcqState(&acqState);
 
@@ -413,7 +440,7 @@ static void StatsWin_UpdateDbStatsWin( ClientData clientData )
          StatsWin_UpdateHist(&count);
 
          // text description
-         StatsWin_PrintAcqStats(dbc, &acqState, &sv);
+         StatsWin_PrintAcqStats(pUiDbContext, &acqState, &sv);
 
          // remove the old update timer
          if (dbStatsWinState.updateHandler != NULL)
@@ -520,15 +547,15 @@ static void StatsWin_UpdateTtxStats( ClientData clientData )
                                    pAcqStateStr);
 
       // configure the popup text to show the string
-      StatsWin_ConfigureLabelText(STATS_WIN_TTX_WNAM ".acq.stat", comm);
+      StatsWin_ConfigureLabelText(STATS_WIN_TTX_WNAM ".fupp.stat", comm);
 
-      StatsWin_ConfigureLabelText(STATS_WIN_TTX_WNAM ".acq.stat_0", "Channel name:");
-      StatsWin_ConfigureLabelText(STATS_WIN_TTX_WNAM ".acq.stat_1", "Channel VPS/PDC:");
-      StatsWin_ConfigureLabelText(STATS_WIN_TTX_WNAM ".acq.stat_2", "Capture range:");
-      StatsWin_ConfigureLabelText(STATS_WIN_TTX_WNAM ".acq.stat_3", "Captured pages:");
-      StatsWin_ConfigureLabelText(STATS_WIN_TTX_WNAM ".acq.stat_4", "Captured packets:");
-      StatsWin_ConfigureLabelText(STATS_WIN_TTX_WNAM ".acq.stat_5", "Decoding errors:");
-      StatsWin_ConfigureLabelText(STATS_WIN_TTX_WNAM ".acq.stat_6", "TTX data rate [baud]:");
+      StatsWin_ConfigureLabelText(STATS_WIN_TTX_WNAM ".flow.stat_0", "Channel name:");
+      StatsWin_ConfigureLabelText(STATS_WIN_TTX_WNAM ".flow.stat_1", "Channel VPS/PDC:");
+      StatsWin_ConfigureLabelText(STATS_WIN_TTX_WNAM ".flow.stat_2", "Capture range:");
+      StatsWin_ConfigureLabelText(STATS_WIN_TTX_WNAM ".flow.stat_3", "Captured pages:");
+      StatsWin_ConfigureLabelText(STATS_WIN_TTX_WNAM ".flow.stat_4", "Captured packets:");
+      StatsWin_ConfigureLabelText(STATS_WIN_TTX_WNAM ".flow.stat_5", "Decoding errors:");
+      StatsWin_ConfigureLabelText(STATS_WIN_TTX_WNAM ".flow.stat_6", "TTX data rate [baud]:");
 
       // VPS
       // TODO move into stats array
@@ -561,7 +588,7 @@ static void StatsWin_UpdateTtxStats( ClientData clientData )
       {
          // channel name
          if (acqState.ttxGrabIdx[srcIdx] < chanCount)
-            WintvCfg_ExtractName(pTtxNames, chanCount, acqState.ttxGrabIdx[srcIdx], comm, 30);
+            WintvCfg_ExtractName(pTtxNames, chanCount, acqState.ttxGrabIdx[srcIdx], comm, 18);
          else
             sprintf(comm, "channel #%d", acqState.ttxGrabIdx[srcIdx]);
          sprintf(idxBuf, "%d", 0 * MAX_VBI_DVB_STREAMS + srcIdx);
@@ -607,7 +634,7 @@ static void StatsWin_UpdateTtxStats( ClientData clientData )
       {
          for (uint rowIdx = 0; rowIdx < STATS_WIN_TTX_ROWS; ++rowIdx)
          {
-            sprintf(comm, "grid " STATS_WIN_TTX_WNAM ".acq.tab_%d_%d", rowIdx, srcIdx);
+            sprintf(comm, "grid " STATS_WIN_TTX_WNAM ".flow.tab_%d_%d", rowIdx, srcIdx);
             eval_check(interp, comm);
          }
       }
@@ -616,7 +643,7 @@ static void StatsWin_UpdateTtxStats( ClientData clientData )
       {
          for (uint rowIdx = 0; rowIdx < STATS_WIN_TTX_ROWS; ++rowIdx)
          {
-            sprintf(comm, "grid remove " STATS_WIN_TTX_WNAM ".acq.tab_%d_%d", rowIdx, srcIdx);
+            sprintf(comm, "grid remove " STATS_WIN_TTX_WNAM ".flow.tab_%d_%d", rowIdx, srcIdx);
             eval_check(interp, comm);
          }
       }
@@ -646,7 +673,7 @@ static void StatsWin_UpdateDbStatsWinTimeout( ClientData clientData )
 // ----------------------------------------------------------------------------
 // Update status line of browser main window
 // - possible bits of information about browser db:
-//   + allversion percentage of PI
+//   + note if database is empty or all expired
 //   + time & date of last database update
 //   + percentage of expired PI
 // - possible bits of information about acq:
@@ -654,13 +681,13 @@ static void StatsWin_UpdateDbStatsWinTimeout( ClientData clientData )
 //   + CNI in acq db
 //   + mode: forced-passive & reason, passive, cycle state
 //
-static void StatsWin_UpdateDbStatusLine( ClientData clientData )
+static void StatsWin_UpdateMainStatusLine( ClientData clientData )
 {
    EPGDB_BLOCK_COUNT count;
    EPGACQ_DESCR acqState;
    const AI_BLOCK *pAi;
    char  provName[40];
-   ulong allCount, expiredCount, expiredBase;
+   uint  curTotal;
    time_t dbAge;
    bool isPassiveAcq;
    #ifdef USE_DAEMON
@@ -673,8 +700,11 @@ static void StatsWin_UpdateDbStatusLine( ClientData clientData )
 
    if (EpgDbContextGetCni(pUiDbContext) != 0)
    {
-      // compute statistics
-      EpgDbGetStat(pUiDbContext, &count, 0);
+      // compute database block statistics
+      time_t now = time(NULL);
+      time_t startToday = EpgAcqCtl_GetAcqBaseTime(now);
+      time_t lastUpdate = EpgDbGetAiUpdateTime(pUiDbContext);
+      EpgDbGetStat(pUiDbContext, &count, now, startToday);
 
       // get name of UI provider network
       EpgDbLockDatabase(pUiDbContext, TRUE);
@@ -682,214 +712,212 @@ static void StatsWin_UpdateDbStatusLine( ClientData clientData )
       if (EpgDbContextIsMerged(pUiDbContext))
          sprintf(comm + strlen(comm), "Merged database");
       else if (pAi != NULL)
-         sprintf(comm + strlen(comm), "%s database", AI_GET_SERVICENAME(pAi));
+         sprintf(comm + strlen(comm), "%s", AI_GET_SERVICENAME(pAi));
       else
          strcat(comm, "Browser database");
       EpgDbLockDatabase(pUiDbContext, FALSE);
 
-      allCount     = count.allVersions + count.expired + count.defective;
-      expiredCount = count.expired;
-      expiredBase  = count.allVersions + expiredCount;
+      curTotal = count.day1[0] + count.day2[0] + count.day3[0] +
+                count.day1[1] + count.day2[1] + count.day3[1];
 
-      // print fill percentage across all db versions
-      if ((allCount == 0) || (expiredCount + count.defective >= allCount))
-      {
-         strcat(comm, " is empty");
-      }
-
-      // warn about age of database if more than one hour old
-      dbAge = (time(NULL) - EpgDbGetAiUpdateTime(pUiDbContext)) / 60;
-      if (dbAge >= 24*60)
-      {
+      // warn about age of database
+      dbAge = (now - lastUpdate) / 60;
+      if (dbAge >= 7*24*60)
+         sprintf(comm + strlen(comm), ", %1.1f weeks old", (double)dbAge / (7*24*60));
+      else if (dbAge >= 24*60)
          sprintf(comm + strlen(comm), ", %1.1f days old", (double)dbAge / (24*60));
-      }
-      else if (dbAge >= 10*60)
-      {
+      else if (lastUpdate < startToday)
          sprintf(comm + strlen(comm), ", %ld hours old", (dbAge + 60/2) / 60);
-      }
 
-      // print how much of PI are expired
-      if ( (expiredBase > 0) && (expiredCount > 0) &&
-           ((dbAge >= 60) || (expiredCount * 10 >= expiredBase)) )
+      // print percentage of PI that are expired since time of acquisition
+      if (curTotal == 0)
       {
-         sprintf(comm + strlen(comm), ", %d%% expired", ACQ_COUNT_TO_PERCENT(expiredCount, expiredBase));
+         if (count.expired == 0)
+            strcat(comm, ", is empty");
+         else
+            strcat(comm, ", is fully expired");
+      }
+      else if ((count.expiredSinceAcq > 0) && (lastUpdate < startToday))
+      {
+         sprintf(comm + strlen(comm), ", %d%% expired",
+                 ACQ_COUNT_TO_PERCENT(count.expiredSinceAcq, (curTotal + count.expiredSinceAcq)));
       }
       strcat(comm, ". ");
    }
 
-   // fetch current state and acq db statistics from acq control
-   EpgAcqCtl_DescribeAcqState(&acqState);
-   provName[0] = 0;
-
-   {
-      char * pTtxNames = NULL;
-      uint chanCount;
-
-      if ( WintvCfg_GetFreqTab(&pTtxNames, NULL, &chanCount, NULL) &&
-           (acqState.ttxGrabIdx[0] >= 0) && (acqState.ttxGrabIdx[0] < (int)chanCount))
-      {
-         WintvCfg_ExtractName(pTtxNames, chanCount, acqState.ttxGrabIdx[0], provName, sizeof(provName));
-      }
-      if (pTtxNames != NULL)
-         xfree(pTtxNames);
-   }
-
-
    // describe acq state (disabled, network connect, running)
-
-   #ifdef USE_DAEMON
-   if (acqState.isNetAcq)
+   if (RcFile_Query()->ttx.ttx_enable)
    {
-      if ( EpgAcqClient_DescribeNetState(&netState) )
+      // fetch current state and acq db statistics from acq control
+      EpgAcqCtl_DescribeAcqState(&acqState);
+      provName[0] = 0;
+
       {
-         // network connection to acquisition server is not set up -> describe network state instead
-         switch (netState.state)
+         char * pTtxNames = NULL;
+         uint chanCount;
+
+         if ( WintvCfg_GetFreqTab(&pTtxNames, NULL, &chanCount, NULL) &&
+              (acqState.ttxGrabIdx[0] >= 0) && (acqState.ttxGrabIdx[0] < (int)chanCount))
          {
-            case NETDESCR_CONNECT:
-               strcat(comm, "Acquisition: connecting to server..");
-               break;
-            case NETDESCR_ERROR:
-            case NETDESCR_DISABLED:
-               strcat(comm, "Acquisition stalled: network error");
-               break;
-            case NETDESCR_RUNNING:
-               if (acqState.ttxGrabState == ACQDESCR_NET_CONNECT)
-               {  // note: in state RUNNING display "loading" until the first stats report is available
+            WintvCfg_ExtractName(pTtxNames, chanCount, acqState.ttxGrabIdx[0], provName, sizeof(provName));
+         }
+         if (pTtxNames != NULL)
+            xfree(pTtxNames);
+      }
+
+
+      #ifdef USE_DAEMON
+      if (acqState.isNetAcq)
+      {
+         if ( EpgAcqClient_DescribeNetState(&netState) )
+         {
+            // network connection to acquisition server is not set up -> describe network state instead
+            switch (netState.state)
+            {
+               case NETDESCR_CONNECT:
                   strcat(comm, "Acquisition: connecting to server..");
-               }
-               break;
-            default:
-               fatal1("StatsWin-UpdateDbStatusLine: unknown net state %d", netState.state);
-               break;
-         }
+                  break;
+               case NETDESCR_ERROR:
+               case NETDESCR_DISABLED:
+                  strcat(comm, "Acquisition stalled: network error");
+                  break;
+               case NETDESCR_RUNNING:
+                  if (acqState.ttxGrabState == ACQDESCR_NET_CONNECT)
+                  {  // note: in state RUNNING display "loading" until the first stats report is available
+                     strcat(comm, "Acquisition: connecting to server..");
+                  }
+                  break;
+               default:
+                  fatal1("StatsWin-UpdateDbStatusLine: unknown net state %d", netState.state);
+                  break;
+            }
 
-         if (netState.state != NETDESCR_RUNNING)
-         {  // set acq state to suppress additional output (e.g. acq phase)
-            acqState.ttxGrabState = ACQDESCR_NET_CONNECT;
+            if (netState.state != NETDESCR_RUNNING)
+            {  // set acq state to suppress additional output (e.g. acq phase)
+               acqState.ttxGrabState = ACQDESCR_NET_CONNECT;
+            }
          }
       }
-   }
-   #endif
+      #endif
 
-   isPassiveAcq = (acqState.mode == ACQMODE_PASSIVE) ||
-                  (acqState.passiveReason != ACQPASSIVE_NONE);
+      isPassiveAcq = (acqState.mode == ACQMODE_PASSIVE) ||
+                     (acqState.passiveReason != ACQPASSIVE_NONE);
 
-   switch (acqState.ttxGrabState)
-   {
-      case ACQDESCR_DISABLED:
-         strcat(comm, "Acquisition is disabled");
-         break;
-      case ACQDESCR_NET_CONNECT:
-      case ACQDESCR_SCAN:
-         break;
-      case ACQDESCR_STARTING:
-         if ((isPassiveAcq == FALSE) && (provName[0] != 0))
-         {
-            sprintf(comm + strlen(comm), "Acquisition is starting up for %s", provName);
-         }
-         else
-            strcat(comm, "Acquisition is waiting for reception");
-         break;
-      case ACQDESCR_TTX_PG_SEQ_SCAN:
-         strcat(comm, "Acquisition scanning teletext");
-         break;
-      case ACQDESCR_NO_RECEPTION:
-         if (EpgSetup_CheckTvCardConfig() == FALSE)
-         {
-            strcat(comm, "Acquisition: TV card not configured");
-         }
-         else if ((isPassiveAcq == FALSE) && (provName[0] != 0))
-         {
-            sprintf(comm + strlen(comm), "Acquisition: no reception on %s", provName);
-         }
-         else
-            strcat(comm, "Acquisition: no teletext reception");
-         break;
-      case ACQDESCR_IDLE:
-         strcat(comm, "Acquisition: idle");
-         break;
-      case ACQDESCR_RUNNING:
-         if (provName[0] != 0)
-         {
-            if (acqState.cyclePhase == ACQMODE_PHASE_MONITOR)
-               sprintf(comm + strlen(comm), "Acquisition complete, refreshing %s", provName);
+      switch (acqState.ttxGrabState)
+      {
+         case ACQDESCR_DISABLED:
+            strcat(comm, "Acquisition is disabled");
+            break;
+         case ACQDESCR_NET_CONNECT:
+         case ACQDESCR_SCAN:
+            break;
+         case ACQDESCR_STARTING:
+            if ((isPassiveAcq == FALSE) && (provName[0] != 0))
+            {
+               sprintf(comm + strlen(comm), "Acquisition is starting up for %s", provName);
+            }
             else
-               sprintf(comm + strlen(comm), "Acquisition working on %s", provName);
+               strcat(comm, "Acquisition is waiting for reception");
+            break;
+         case ACQDESCR_TTX_PG_SEQ_SCAN:
+            strcat(comm, "Acquisition scanning teletext");
+            break;
+         case ACQDESCR_NO_RECEPTION:
+            if (EpgSetup_CheckTvCardConfig() == FALSE)
+            {
+               strcat(comm, "Acquisition: TV card not configured");
+            }
+            else if ((isPassiveAcq == FALSE) && (provName[0] != 0))
+            {
+               sprintf(comm + strlen(comm), "Acquisition: no reception on %s", provName);
+            }
+            else
+               strcat(comm, "Acquisition: no teletext reception");
+            break;
+         case ACQDESCR_IDLE:
+            strcat(comm, "Acquisition: idle");
+            break;
+         case ACQDESCR_RUNNING:
+            if (provName[0] != 0)
+            {
+               if (acqState.cyclePhase == ACQMODE_PHASE_MONITOR)
+                  sprintf(comm + strlen(comm), "Acquisition complete, refreshing %s", provName);
+               else
+                  sprintf(comm + strlen(comm), "Acquisition working on %s", provName);
+            }
+            else
+            {  // internal inconsistancy
+               //TODO fatal0("StatsWin-UpdateDbStatusLine: no AI block while in state RUNNING");
+               sprintf(comm + strlen(comm), "Acquisition in progress..");
+               // patch state to prevent further output
+               acqState.ttxGrabState = ACQDESCR_NET_CONNECT;
+            }
+            break;
+
+         default:
+            fatal1("StatsWin-UpdateDbStatusLine: unknown acq state %d", acqState.ttxGrabState);
+      }
+
+      // describe acq mode, warn the user if passive
+      if ( (acqState.ttxGrabState != ACQDESCR_NET_CONNECT) &&
+           (acqState.ttxGrabState != ACQDESCR_DISABLED) &&
+           (acqState.ttxGrabState != ACQDESCR_SCAN))
+      {
+         if (acqState.mode == ACQMODE_PASSIVE)
+         {
+            strcat(comm, " (passive mode)");
+         }
+         else if (acqState.passiveReason != ACQPASSIVE_NONE)
+         {
+            strcat(comm, " (forced passive)");
+         }
+         else if (acqState.mode == ACQMODE_CYCLIC_2)
+         {
+            // completeness for MONITOR state already stated above
+            if (acqState.cyclePhase != ACQMODE_PHASE_MONITOR)
+            {
+               sprintf(comm + strlen(comm), ", overall %d%% complete",
+                       ACQ_COUNT_TO_PERCENT(acqState.ttxGrabDone, acqState.ttxSrcCount));
+            }
          }
          else
-         {  // internal inconsistancy
-            //TODO fatal0("StatsWin-UpdateDbStatusLine: no AI block while in state RUNNING");
-            sprintf(comm + strlen(comm), "Acquisition in progress..");
-            // patch state to prevent further output
-            acqState.ttxGrabState = ACQDESCR_NET_CONNECT;
-         }
-         break;
-
-      default:
-         fatal1("StatsWin-UpdateDbStatusLine: unknown acq state %d", acqState.ttxGrabState);
-   }
-
-   // describe acq mode, warn the user if passive
-   if ( (acqState.ttxGrabState != ACQDESCR_NET_CONNECT) &&
-        (acqState.ttxGrabState != ACQDESCR_DISABLED) &&
-        (acqState.ttxGrabState != ACQDESCR_SCAN))
-   {
-      if (acqState.mode == ACQMODE_PASSIVE)
-      {
-         strcat(comm, " (passive mode)");
-      }
-      else if (acqState.passiveReason != ACQPASSIVE_NONE)
-      {
-         strcat(comm, " (forced passive)");
-      }
-      else if (acqState.mode == ACQMODE_CYCLIC_2)
-      {
-         // completeness for MONITOR state already stated above
-         if (acqState.cyclePhase != ACQMODE_PHASE_MONITOR)
          {
-            sprintf(comm + strlen(comm), ", overall %d%% complete",
-                    ACQ_COUNT_TO_PERCENT(acqState.ttxGrabDone, acqState.ttxSrcCount));
+            switch (acqState.cyclePhase)
+            {
+               case ACQMODE_PHASE_NOWNEXT:
+                  sprintf(comm + strlen(comm), " phase 'Now', %d%% complete",
+                          ACQ_COUNT_TO_PERCENT(acqState.ttxGrabDone, acqState.ttxSrcCount));
+                  break;
+               case ACQMODE_PHASE_FULL:
+                  sprintf(comm + strlen(comm), " phase 'Full', %d%% complete",
+                          ACQ_COUNT_TO_PERCENT(acqState.ttxGrabDone, acqState.ttxSrcCount));
+                  break;
+               case ACQMODE_PHASE_MONITOR:
+                  // completeness for MONITOR state already stated above
+                  break;
+               default:
+                  break;
+            }
          }
       }
-      else
+
+      switch (acqState.ttxGrabState)
       {
-         switch (acqState.cyclePhase)
-         {
-            case ACQMODE_PHASE_NOWNEXT:
-               sprintf(comm + strlen(comm), " phase 'Now', %d%% complete",
-                       ACQ_COUNT_TO_PERCENT(acqState.ttxGrabDone, acqState.ttxSrcCount));
-               break;
-            case ACQMODE_PHASE_FULL:
-               sprintf(comm + strlen(comm), " phase 'Full', %d%% complete",
-                       ACQ_COUNT_TO_PERCENT(acqState.ttxGrabDone, acqState.ttxSrcCount));
-               break;
-            case ACQMODE_PHASE_MONITOR:
-               sprintf(comm + strlen(comm), " phase 'Complete'");
-               break;
-            default:
-               break;
-         }
+         case ACQDESCR_SCAN:
+            break;
+         case ACQDESCR_STARTING:
+         case ACQDESCR_TTX_PG_SEQ_SCAN:
+            strcat(comm, "...");
+            break;
+         default:
+            strcat(comm, ".");
+            break;
       }
    }
 
-   switch (acqState.ttxGrabState)
+   if (Tcl_SetVar(interp, "dbstatus_line", comm, TCL_GLOBAL_ONLY) == NULL)
    {
-      case ACQDESCR_SCAN:
-         break;
-      case ACQDESCR_STARTING:
-      case ACQDESCR_TTX_PG_SEQ_SCAN:
-         strcat(comm, "...");
-         break;
-      default:
-         strcat(comm, ".");
-         break;
-   }
-
-   {
-      if (Tcl_SetVar(interp, "dbstatus_line", comm, TCL_GLOBAL_ONLY) == NULL)
-      {
-         debugTclErr(interp, "assigning to var dbstatus_line");
-      }
+      debugTclErr(interp, "assigning to var dbstatus_line");
    }
 }
 
@@ -1055,7 +1083,7 @@ void StatsWin_StatsUpdate( int target )
    }
 
    // update the main window status line
-   AddMainIdleEvent(StatsWin_UpdateDbStatusLine, NULL, TRUE);
+   AddMainIdleEvent(StatsWin_UpdateMainStatusLine, NULL, TRUE);
 }
 
 // ----------------------------------------------------------------------------
@@ -1076,4 +1104,3 @@ void StatsWin_Create( void )
 
    memset(&dbStatsWinState, 0, sizeof(dbStatsWinState));
 }
-

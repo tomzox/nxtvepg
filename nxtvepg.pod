@@ -744,8 +744,9 @@ EPG information in teletext usually isn't updated more than once per day
 (programme changes notwithstanding). Therefore it should be sufficient to
 run the grabber once per day.
 
-You can monitor acquisition progress using the "Aquisition statistics"
-dialog in the Control menu. See L<"STATISTICS"> for details.
+Acquisition progress can be monitored using the "Teletext grabber statistics"
+and "Database statistics" dialogs in the Control menu.  See L<"STATISTICS">
+for details.
 
 =head2 Acquisition modes
 
@@ -822,13 +823,14 @@ acquisition.)
 There are multiple ways to obtain information about the state of the
 databases and the acquisition process: the first and most obvious is the
 status line at the bottom of the main window (only if enabled, see
-L<"CONFIGURATION">). The second one are the timescale popup window,
-which visualize for each TV network the time ranges which are covered
+L<"CONFIGURATION">). The second one is the timescale popup window,
+which visualizes for each TV network the time ranges which are covered
 with TV programme data. The third one is the database statistics popup
-window which offer technical details about the database (e.g. which
-percentage of entries is already loaded etc.), both in textual form and
-as charts. Last but no least, there's a status window for the Teletext
-EPG grabbing process.
+window which offer technical details about the database (e.g. how many
+programmes are available per day etc.), both in textual form and
+as charts. Finally, there's a status window for the Teletext EPG
+grabbing process showing the overall state of acquisition and statistics
+about teletext packets received from TV networks.
 
 
 =head2 Status line
@@ -839,46 +841,32 @@ relevant information is included there, i.e. the kind of information
 presented depends on the current state.
 
 For the browser database you'll normally just see the name of the XMLTV
-file. If acquisition is working, you'll see a percentage that describes
-how many of the TV channels are done and which channel is currently being
-worked on.
+file.  If the database is more than a day old, its age and the percentage
+of programme information that expired since the last update is appended.
+(Note the frequency of required updates depends on length of coverage and
+dynamics of your EPG provider; for the teletext grabber it's recommended
+to update data at least once a day, see L<"DATA ACQUISITION">.)
 
-If more than 10% of the blocks in the database lie in the past, you'll
-additionally see a note about this percentage of expired blocks. Note
-that a 100% loaded database may appear completely empty when all blocks
-are expired.  As soon as you start acquisition the fill percentage will
-drop to 0 because a new inventory will have been loaded which no longer
-contains the expired blocks.
+If the Teletext EPG grabber is enabled, acquisition status is indicated
+following the database status. The status indicates if acquisition is
+currently enabled, and if so, to which percentage it is done and which
+channel is currently received from. Additionally, there may be a note
+about the current phase of acquisition, indicating "Now" when quick
+initial refresh is ongoing (if enabled in Teletext grabber configuration),
+of "Full" while the full range of TV schedules are captured, or
+"Complete".
 
-When acquisition for the browser database stopped more than 60 minutes ago,
-a note is added to the status line. In this case it may be advisable to
-start acquisition for this database to load descriptions for programmes
-that are now included in the "Near" time range (see L<"DATA ACQUISITION">).
-
-
-If acquisition is currently not active you'll see a note about that,
-often together with a reason, e.g. "no reception" when you've manually
-tuned a station that doesn't transmit Teletext or isn't enabled in the
-Teletext grabber configuration.
-
-Else you'll see the name of the content provider and a percentage
-that describes the progress of acquisition. Note that this percentage may
-be different from the overall fill percentage given with the browser
-database, as it also reflects blocks that have to be reloaded due to
-version changes.
-
-Additionally there may be a note about the current mode of acquisition,
-like the current phase for cyclic acquisition modes or "forced passive" when
-nxtvepg is not able to change the channel, maybe due to a TV application
-running in parallel. See L<"DATA ACQUISITION"> for details.
+In case there is no reception or other kinds of errors, this is also
+indicated here. In particular, the note "forced passive" means that
+nxtvepg is not able to tune the TV channels it would need to update the
+database, most likely because some other application is already using the
+TV tuner. (See L<"DATA ACQUISITION"> for details.)
 
 
 =head2 Timescale popup window
 
 You can get a quick overview of EPG coverage for the different networks
 using the timescale window which can be opened from the Control menu.
-The timescales are updated when the Teletext EPG grabber is running and
-done with grabbing EPG data for a network.
 
 The timescale window has one scale for each network covered by the XMLTV
 input file (or merged files). The left end of each scale refers to the
@@ -888,50 +876,49 @@ kept by your EPG provider, some or all TV programmes may lie in the past.
 The exact dates are printed in the date scale at the top of the window, the
 current time is additionally marked with a small arrow labeled "now".
 
-Ranges that are covered by the database are marked in shades of red or
-blue; uncovered ranges in-between are marked gray. The range beyond the
-last programm per network is left black. (That last range depends on the
-extent of TV schedule tables in Teletext and varies widely between
-networks.) The detailed meaning of colors is explained in the following
-list. (However not all of these color codes are actually used anymore, as
-not all are applicable to acquisition via the Teletext EPG grabber.)
+Ranges that are covered by the database are marked in shades of yellow,
+red and blue. Uncovered ranges in-between are marked gray. The ranges
+before the first and beyond the last programm of each network is left
+black. The detailed meaning of colors is as follows:
 
 =over 4
 
-=item I<red:>
+=item I<bright red:>
 
-PI blocks received in stream 1, i.e. cycle phase 'Near'.
+Programme data covering today's TV schedule. Note with respect to this
+color mark-up, a day starts at 6 o'clock in the morning.
+
+=item I<pink:>
+
+Programme data covering tomorrow's TV schedule.
 
 =item I<blue:>
 
-PI blocks received in stream 2, i.e. cycle phase 'All'.
+Programme data covering TV schedule after tomorrow.
 
-=item I<dark red or blue:>
+=item I<dark red, pink, and blue:>
 
-PI blocks from an earlier database version.
+Same as above, however the programme data was acquired more than a day
+ago.
 
-=item I<orange:>
+=item I<dark yellow / orange:>
 
-expired PI blocks from stream 1 or an earlier database version.
-
-=item I<cyan:>
-
-expired PI blocks from stream 2 and the current database version.
+Expired programme information (i.e. stop time is in the past)
 
 =item I<yellow:>
 
-invalid PI blocks (overlapping or zero run-time,
-block number not in the range given in inventory, etc.)
+Invalid programme blocks (i.e. zero or negative run-time, or overlapping
+with other programmes in the schedule)
 
 =item I<gray:>
 
-missing PI blocks. Note that the range can only be roughly estimated,
-as the time range a block covers is not known until the actual block
-is available.
+Gaps between programme coverage, possibly due to gaps in TV transmission,
+for TV channels that do not broadcast full 24 hours per day, or due to
+lost data in EPG acquisition (e.g. due to decoding errors in Teletext).
 
 =item I<black:>
 
-time range which is not covered by the content provider.
+Time range which is not covered by the content provider.
 
 =back
 
@@ -946,11 +933,6 @@ The database statistics popup window is opened via the Control menu. It
 displays statistical information about the EPG database loaded in the main
 window.
 
-While the Teletext Grabber enabled and working on the same database, and
-it is a merged database, a second pane is added to the window that shows a
-histogram of acquisition progress.
-
-
 =over 4
 
 =item I<Last update:>
@@ -959,128 +941,161 @@ The time when the database was updated (according to its file modification
 timestamp). For a merged database this is the latest time when any of the
 merged files was updated.
 
-=item I<Block count db:>
+=item I<Networks in db:>
 
-How many blocks are in the local database. At maximum this can be the
-number of blocks given in the AI block.
+The number of TV networks covered by the database.
 
-=item I<Current version:>
+=item I<Blocks in db:>
 
-How many blocks are in the local database and have the latest version.
+How many blocks are in the database.
 
-=item I<Expired:>
+=item I<Blocks today/...:>
 
-Total number and percentage of expired blocks in the database.  This value
-depends on the expire "cut-off time" configured by the user, i.e. on how
-long expired blocks are kept until they are removed from the database.
-Normally such blocks disappear from the programme list, but this can be
-changed with the expire time filter in the Filter menu
-(see also L<"FILTERING">).
+How many blocks are in the database covering the TV schedule of
+today, tomorrow, and the days after tomorrow, respectively.
+Note expired blocks are nout counted, therefore the first value is
+usually lower.
+
+=item I<Expired total:>
+
+Total number and percentage of expired blocks in the database (i.e.
+programmes whose stop time is in the past). Note it is normal for this
+value to increase over time, until the next database update.
+
+During updates, it depends on your data provider and grabber if expired
+programmes are removed immediately, or kept for some time (e.g. to allow
+looking up description of programmes after they ended, as you can do via
+the I<Expired display> filter.) For the Teletext EPG grabber, you can
+configure this threshold (see L<"CONFIGURATION"> section "Teletext grabber").
+
+=item I<Expired since acq.:>
+
+Total number and percentage of blocks in the database that expired since
+the database was updated (where the time of update is determined by the
+timestamp of the respective XMLTV source file). This value is equal to
+the "expired total" when your provider or grabber remove all expired
+programmes during updates.
 
 =item I<Defective blocks:>
 
-Number of blocks with invalid or overlapping start time. These blocks
-do not show up in the browser (as it would be impossible to handle if
-there is more than one "now" entry for a network).  The percentage given
-here is in respect to the actual number of blocks in the local database
-(all versions), not the AI.
+Number of blocks with invalid blocks in the database (i.e. zero or
+negative run-time, or overlapping with other programmes in the schedule).
+These blocks do not show up in the browser (as it would be impossible to
+handle if there is more than one "now" entry for a network).
 
 =back
 
 The pie chart on the left on the window visualizes these numbers. The
-circle represents 100% of the blocks listed in AI.  It's divided in
-stream 1 (red) and stream 2 (blue). The shaded segments represent the
-blocks that are still missing in the local database. The yellow segments
-the percentage of expired and/or defective blocks.
+circle represents 100% of the blocks in the database.  It's divided in
+four parts: yellow for expired and defective programmes; red for today's
+programmes; pink for tomorrow's programmes, and blue for the rest. For
+each of the latter three, the portion of programmes whose data was
+acquired before the current day is marked stippled.
+
+While Teletext EPG acquisition is enabled, the histogram below the pie
+chart shows the same information as the pie chart, however tracked over
+time.
 
 
-=head2 Acquisition statistics
+=head2 Teletext grabber statistics
+
+The Teletext EPG grabber statistics popup window is opened via the Control
+menu. The window contains two separate parts: The upper part shows
+configuration and overall state of acquisition. The lower part shows a
+table that indicates a number of statistics about teletext reception for
+all currently received TV channels.
+
+Description of information in the upper part of the window:
 
 =over 4
 
+=item I<Acq mode:>
+
+The current acquisition mode as configured by the user, and the mode's
+currently worked-on phase: "Now", "Full", or "Complete".
+
+=item I<Acq passive:>
+
+While acquisition is not allowed ot not able to tune TV-channels, this
+line states the reason. It could be that the acquisition mode is
+configured to passive, or that tuning of TV channels failed.
+
+=item I<Channels done:>
+
+Indicates the number of TV channels that are configured for Teletext EPG
+acquisition, and how many of these are already received.
+
+=item I<Current channels:>
+
+The number of TV channels where Teletext is currently captured from. For
+analog input devices this is always zero or one, but DVB allows capturing
+concurrently from multiple TV networks (i.e. all networks sharing a
+physical transponder.)
+
 =item I<Acq. runtime:>
 
-How long the acquisition has been continuously running for this database.
-This timer is reset upon provider or database version changes or when an
-external channel change is detected.
+How long the acquisition has been working on the current channel.
 
-=item I<Channel Index:>
+=item I<Acq. state:>
 
-The index in range of 0 to one less than the number of channels configured
-for use by the Teletext EPG grabber. This gives the progress of
-acquisition in the current cycle phase.
+State of Teletext reception on the currently tuned channel: "Capturing"
+means Teletext pages are being received from the configured page range;
+"starting up" means the grabber is waiting for the first of the configured
+pages to be received; "scanning" is printed during phase "Now" when
+checking the stream of different TV channels for the one where the first
+configured page can be received with smallest delay.
 
-=item I<Channel Name:>
+=back
 
-The name of the channel where Teletext is currently captured from. The
-name is the one given in the TV channel table loaded from the configure TV
-application.
+The lower part of the window shows a table: The first row shows the names
+of the TV channels which are currently received. The following rows show
+statistical information for each of the channel in the respective columns.
+
+=over 4
 
 =item I<Channel VPS/PDC:>
 
-The VPS/PDC code that has last been received on the currently tuned channel.
-Usually this will be the same as the provider CNI given in the database
-statistics, but you might see different values here when you manually tune
-in a different channel with an external application.
+The VPS/PDC code that has last been received on the respective TV channel.
+Source may be PDC (packet 8/30/2), NI (packet 8/30/1), or VPS. The given
+CNI is the equivalent PDC code, if defined, or else the NI code.
 
-If a valid VPS/PDC code (Programme Identification Label, PIL) was received
-together with the CNI it is appended after the CNI in decoded format
-(i.e. DD.MM HH:MM with day, month, hour and minute).  Note: the VPS/PDC
-codes are used to uniquely identify the current programme on a given
-network.  You can display the codes for all programmes in the database
-(if you enable them in L<"CONFIGURATION">, section "Select attributes") or pass them
-to external applications (see L<"CONFIGURATION">, section "Context menu configuration")
+If a valid VPS PIL (Programme Identification Label) was received, this is
+appended in decoded format (i.e. DD.MM HH:MM with day, month, hour and
+minute).
+
+=item I<Capture range:>
+
+This is actually the configuration value entered in the Teletext Grabber
+configuration.  It specifies the first and last teletext page number which
+are captured for grabbing EPG for each TV channel.
+
+=item I<Captured pages:>
+
+Number of Teletext pages received from the given capture page range
+(including repetitions and sub-pages, i.e. this is simply the number of
+received page headers).
+
+=item I<Captured packages:>
+
+Number of processed Teletext packets from the given capture page range.
+Note a teletext page usually consists of 23-25 packets, although blank
+lines may be omitted. The second number of this table row indicates the
+percentage of processed packages compared to the entire Teletext data
+stream.
+
+=item I<Decoding errors:>
+
+Indicates the number of Teletext characters for which decoding errors were
+detected (control information is Hamming-8/4 protected, text data only
+parity protected). The percentage is calculated relative to the total
+number of received Teletext packages with 45 bytes each.
 
 =item I<TTX data rate:>
 
 The rate at which teletext data lines are received on the current channel
 in baud, i.e. bits per second.  Each teletext line counts as 45 bytes.
 
-=item I<Captured range:>
-
-The first and last teletext page number which are captured for grabbing
-EPG for the current channel.
-
-=item I<Captured pages:>
-
-Number of pages received in the given range (including repetitions and
-sub-pages).
-
-=item I<Decoder quality:>
-
-Reception and loss statistics: Count of received EPG teletext pages and
-count of complete EPG pages missing in the sequence.  Count of received
-teletext packets (usually 23 per page) and missing packets.  Note: page
-and packet loss is usually caused by decoding errors in packet and page
-headers (which carry a 50% redundancy so this is a strong indication of
-weak signal quality) or when a TV application running in parallel
-interferes with capture configuration (i.e. when not all required lines
-in VBI can be received)
-
-Next is the number of received and dropped blocks.  Blocks are usually
-assembled from data received in several teletext packets and have to
-be dropped if packets or pages inbetween are missing. Blocks may also
-be dropped due to decoding or check-sum errors (above note regarding
-these errors applies here too)
-
-The final line lists the number of decoded text characters (e.g. programme
-titles and descriptions) and how many decoding errors were detected.
-Forward error protection used for text is pretty weak, so you may see
-errors here even with relatively good signal quality.  With bad signal
-quality the actual error rate might be higher then displayed, since the
-protection cannot detect double-bit errors.
-
-=item I<Acq mode:>
-
-The current acquisition mode as configured by the user, or forced passive
-if nxtvepg failed to switch the channel.
-
 =back
-
-The diagram at the left displays a history of fill percentages for
-stream 1 and 2; the meaning of the colors is the same as in the
-timescale window.
-
 
 
 =head1 MERGED DATABASES
@@ -1944,6 +1959,42 @@ daemon is running on the same host and with the same user id as the
 browser process.
 
 
+=head2 View statistics/timescales
+
+The following commands open windows with statistics about the databases
+and acquisition progress.  See L<"STATISTICS"> for details.
+
+=over 4
+
+=item B<View coverage timescales>
+
+Toggles the timescale window for the browser database. The window
+reflects for each network included in the selected database, which
+time ranges are covered by programme information. While acquisition
+is working on the database, you can watch how more and more of the
+scales get populated.
+See also L<"STATISTICS">, section "Timescale popup window".
+
+
+=item B<View database statistics>
+
+Toggles the browser database statistics window, which informs you about
+number of program entries in the database, fill percentage, expiration
+percentage, date of last update etc.  If the acquisition is working on
+the same database, it also shows a high-level state and progress of
+acquisition. See also L<"STATISTICS">, section "Database statistics".
+
+
+=item B<Teletext grabber statistics>
+
+Toggles the acquisition statistics window, which informs you about the
+current state of acquisition as well as statistics of teletext packages
+received from the currently received TV networks.
+See also L<"STATISTICS">, section "Teletext grabber statistics".
+
+=back
+
+
 =head2 Export as text
 
 Open a dialog that allows to export the complete database into a text
@@ -2111,51 +2162,6 @@ written programmes can be limited by appending a number to the keyword
 to export only selected channels and programmes (for details see
 L<"OPTIONS">)
 
-=head2 View statistics/timescales
-
-The following four commands are used to open windows with statistics
-about the databases and acquisition progress.
-See L<"STATISTICS"> for details.
-
-=over 4
-
-=item B<View timescales>
-
-Toggles the timescale window for the browser database. The window
-reflects for each network included in the selected database, which
-time ranges are covered by programme information. If acquisition
-is working on the database, you can watch how more and more of the
-scales get covered.
-See also L<"STATISTICS: Status line">
-
-
-=item B<View statistics>
-
-Toggles the browser database statistics window, which informs you about
-number of program entries in the database, fill percentage, expiration
-percentage, date of last update etc.  If the acquisition is working on
-the same database, it also contains information about state and progress
-of acquisition.
-See also L<"STATISTICS: Timescale popup window">.
-
-
-=item B<View acq timescales>
-
-Toggles the timescale window for the acquisition database. This entry
-is only available if the acquisition uses a different database than
-the browser (e.g. when using a manual or cyclic acquisition mode, see
-L<"DATA ACQUISITION">)
-
-
-=item B<View acq statistics>
-
-Toggles the acquisition statistics window, which informs you about
-state and progress of acquisition. If the acquisition control mechanism
-switches to a different database, the acq statistics window will
-automatically follow.
-
-=back
-
 =head2 Quit
 
 Close all windows and terminate the application.
@@ -2310,7 +2316,7 @@ teletext viewer I<alevt>) is much more error tolerant.  When you select
 I<automatic> acquisition will always start with the simple algorithmm
 but switch to the elaborate one when the transmission error rate is
 above recommended limits (see also
-L<"STATISTICS: Acquisition statistics">).
+L<"STATISTICS: Teletext grabber statistics">).
 
 B<Windows only:> at the bottom of the dialog window there are additional
 options, which you only need to try if acquisition does not work

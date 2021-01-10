@@ -44,6 +44,7 @@
 #include "epgdb/epgtscqueue.h"
 #include "epgctl/epgacqctl.h"
 #include "epgctl/epgctxmerge.h"
+#include "epgtcl/draw_stats.h"
 #include "epgui/epgmain.h"
 #include "epgui/uictrl.h"
 #include "epgui/timescale.h"
@@ -69,12 +70,13 @@ const char * const tsc_wid = ".tsc_ui";
 
 typedef enum
 {
-   STREAM_COLOR_CURRENT_V1,
-   //STREAM_COLOR_CURRENT_V2,
-   STREAM_COLOR_OLD_V1,
-   //STREAM_COLOR_OLD_V2,
-   STREAM_COLOR_EXPIRED_V1,
-   //STREAM_COLOR_EXPIRED_V2,
+   STREAM_COLOR_DAY1_CUR,
+   STREAM_COLOR_DAY1_OLD,
+   STREAM_COLOR_DAY2_CUR,
+   STREAM_COLOR_DAY2_OLD,
+   STREAM_COLOR_DAY3_CUR,
+   STREAM_COLOR_DAY3_OLD,
+   STREAM_COLOR_EXPIRED,
    STREAM_COLOR_DEFECTIVE,
    STREAM_COLOR_MISSING,
    STREAM_COLOR_COUNT
@@ -82,14 +84,15 @@ typedef enum
 
 const char * const streamColors[STREAM_COLOR_COUNT] =
 {
-   "red",           // stream 1, current version -> red
-   //"#4040ff",       // stream 1, current version -> blue
-   "#A52A2A",       // stream 2, obsolete version -> brown
-   //"#483D8B",       // stream 2, obsolete version -> DarkSlate
-   "#FFC000",       // stream 1, expired -> orange
-   //"#4CFFFF",       // stream 2, expired -> cyan
-   "yellow",        // defect block -> yellow
-   "#888888"        // missing block -> gray
+   EPGTCL_STATS_DB_COL_DAY1_CUR_STR,   // color codes defined in draw_stats.tcl
+   EPGTCL_STATS_DB_COL_DAY1_OBS_STR,
+   EPGTCL_STATS_DB_COL_DAY2_CUR_STR,
+   EPGTCL_STATS_DB_COL_DAY2_OBS_STR,
+   EPGTCL_STATS_DB_COL_DAY3_CUR_STR,
+   EPGTCL_STATS_DB_COL_DAY3_OBS_STR,
+   EPGTCL_STATS_DB_COL_EXPIRED_STR,
+   EPGTCL_STATS_DB_COL_DEFECTIVE_STR,
+   EPGTCL_STATS_DB_COL_MISSING_STR,
 };
 
 // timescale popup configuration (must match Tcl source)
@@ -333,7 +336,7 @@ static void TimeScale_HighlightNetwop( uchar netwop )
       {
          sprintf(comm, "TimeScale_MarkNet %s %d %s",
                        tsc_wid, netwop,
-                       streamColors[STREAM_COLOR_CURRENT_V1]);
+                       streamColors[STREAM_COLOR_DAY1_CUR]);
          eval_check(interp, comm);
 
          tscaleState.highlighted = netwop;
@@ -433,17 +436,9 @@ static void TimeScale_AddPi( EPGDB_PI_TSC * ptsc )
       else if (pPt->flags & PI_TSC_MASK_IS_DEFECTIVE)
          col = STREAM_COLOR_DEFECTIVE;
       else if (pPt->flags & PI_TSC_MASK_IS_EXPIRED)
-      {
-         col = STREAM_COLOR_EXPIRED_V1;
-      }
-      else if (pPt->flags & PI_TSC_MASK_IS_CUR_VERSION)
-      {
-         col = STREAM_COLOR_CURRENT_V1;
-      }
+         col = STREAM_COLOR_EXPIRED;
       else
-      {
-         col = STREAM_COLOR_OLD_V1;
-      }
+         col = pPt->flags & (PI_TSC_MASK_IS_OLD_VERSION | PI_TSC_MASK_DAY_MASK);
 
       TimeScale_DisplayPi(col, pPt->netwop, startTime, stopTime,
                           pPt->flags & PI_TSC_MASK_HAS_DESC_TEXT,
@@ -529,7 +524,7 @@ static void TimeScale_CreateOrRebuild( ClientData dummy )
 
             // initialize the scales with the PI already in the db
             EpgTscQueue_Init(&tsc);
-            EpgTscQueue_AddAll(&tsc, pUiDbContext);
+            EpgTscQueue_AddAll(&tsc, pUiDbContext, now, EpgAcqCtl_GetAcqBaseTime(now));
 
             EpgTscQueue_SetProvCni(&tsc, EpgDbContextGetCni(pUiDbContext));
             TimeScale_AddPi(&tsc);

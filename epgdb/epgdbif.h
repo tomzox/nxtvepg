@@ -32,6 +32,17 @@ typedef enum
    RUNNING_AT
 } EPGDB_TIME_SEARCH_MODE;
 
+// database statistics
+typedef struct
+{
+   uint32_t  day1[2];
+   uint32_t  day2[2];
+   uint32_t  day3[2];
+   uint32_t  expiredSinceAcq;
+   uint32_t  expired;
+   uint32_t  defective;
+} EPGDB_BLOCK_COUNT;
+
 // ----------------------------------------------------------------------------
 // Declaration of service interface functions
 //
@@ -67,7 +78,6 @@ time_t EpgDbGetPiUpdateTime( const PI_BLOCK * pPiBlock );
 void EpgDbSetAiUpdateTime( const EPGDB_CONTEXT * dbc, time_t acqTimestamp );
 void EpgDbSetPiAcqCallback( EPGDB_CONTEXT * dbc, EPGDB_PI_ACQ_CB * pCb );
 
-bool  EpgDbGetStat( const EPGDB_CONTEXT * dbc, EPGDB_BLOCK_COUNT * pCount, time_t acqMinTime );
-
+bool EpgDbGetStat( const EPGDB_CONTEXT * dbc, EPGDB_BLOCK_COUNT * pCount, time_t now, time_t tsAcq );
 
 #endif  // __EPGDBIF_H

@@ -35,6 +35,17 @@
 #=CONST= ::tsc_cv_tail_y0        22
 #=CONST= ::tsc_cv_tail_h          4
 
+# colors shared by DB pie, DB histogram, and timescales
+#=CONST= ::stats_db_col_day1_cur  "red"
+#=CONST= ::stats_db_col_day1_obs  "#A52A2A"
+#=CONST= ::stats_db_col_day2_cur  "#C52ACA"
+#=CONST= ::stats_db_col_day2_obs  "#983398"
+#=CONST= ::stats_db_col_day3_cur  "#5050FF"
+#=CONST= ::stats_db_col_day3_obs  "#483D8B"
+#=CONST= ::stats_db_col_expired   "#FFD000"
+#=CONST= ::stats_db_col_defective "yellow"
+#=CONST= ::stats_db_col_missing   "#888888"
+
 #=LOAD=TimeScale_Open
 #=LOAD=DbStatsWin_Create
 #=LOAD=StatsWinTtx_Create
@@ -477,45 +488,46 @@ proc DbStatsWin_Create {wname} {
 ## ---------------------------------------------------------------------------
 ## Paint the pie which reflects the current database percentages
 ##
-proc DbStatsWin_PaintPie {wname val1exp val1cur val1all val1total} {
+proc DbStatsWin_PaintPie {wname expCur expAll day1cur day1nxt day2cur day2nxt day3cur day3nxt} {
 
    catch [ $wname.browser.pie delete all ]
 
-   if {$val1total > 0} {
-      # paint the slice of stream 1 in red
-      $wname.browser.pie create arc 1 1 127 127 -start 0 -extent $val1total -fill red
+   if {$expAll > 0} {
+      # mark expired and defective percentage
+      $wname.browser.pie create arc 1 1 127 127 -start 0 -extent $expAll -fill $::stats_db_col_expired
 
-      if {$val1exp > 0} {
-         # mark expired and defective percentage in yellow
-         $wname.browser.pie create arc 1 1 127 127 -start 0 -extent $val1exp -fill yellow -outline {} -stipple gray75
-      }
-      if {$val1cur < $val1all} {
-         # mark percentage of old version in shaded red
-         $wname.browser.pie create arc 1 1 127 127 -start $val1cur -extent [expr $val1all - $val1cur] -fill #A52A2A -outline {} -stipple gray50
-      }
-      if {$val1all < $val1total} {
-         # mark percentage of missing stream 1 data in slight red
-         $wname.browser.pie create arc 1 1 127 127 -start $val1all -extent [expr $val1total - $val1all] -fill #FFDDDD -outline {} -stipple gray75
+      if {$expAll > $expCur} {
+         # blocks already expired before last aquisition
+         $wname.browser.pie create arc 1 1 127 127 -start 0 -extent $expCur -fill black -stipple gray25 -outline {}
       }
    }
+   if {$day1nxt > $expAll} {
+      # blocks covering current day, acq. up-to-date
+      $wname.browser.pie create arc 1 1 127 127 -start $expAll -extent [expr {$day1nxt - $expAll}] -fill $::stats_db_col_day1_cur
 
-#   if {$val1total < 359.9} {
-#      # paint the slice of stream 2 in blue
-#      $wname.browser.pie create arc 1 1 127 127 -start $val1total -extent [expr 359.999 - $val1total] -fill blue
-#
-#      if {$val2exp > 0} {
-#         # mark expired and defective percentage in yellow
-#         $wname.browser.pie create arc 1 1 127 127 -start $val1total -extent [expr $val2exp - $val1total] -fill yellow -outline {} -stipple gray75
-#      }
-#      if {$val2cur < $val2all} {
-#         # mark percentage of old version in shaded blue
-#         $wname.browser.pie create arc 1 1 127 127 -start $val2cur -extent [expr $val2all - $val2cur] -fill #483D8B -outline {} -stipple gray50
-#      }
-#      if {$val2all < 359.9} {
-#         # mark percentage of missing stream 1 data in slight blue
-#         $wname.browser.pie create arc 1 1 127 127 -start $val2all -extent [expr 359.9 - $val2all] -fill #DDDDFF -outline {} -stipple gray75
-#      }
-#   }
+      if {$day1nxt > $day1cur} {
+         # blocks covering current day, acq. outdated
+         $wname.browser.pie create arc 1 1 127 127 -start $day1cur -extent [expr {$day1nxt - $day1cur}] -fill $::stats_db_col_day1_obs -stipple gray25 -outline {}
+      }
+   }
+   if {$day2nxt > $day1nxt} {
+      # blocks covering next day, acq. up-to-date
+      $wname.browser.pie create arc 1 1 127 127 -start $day1nxt -extent [expr {$day2nxt - $day1nxt}] -fill $::stats_db_col_day2_cur
+
+      if {$day2nxt > $day2cur} {
+         # blocks covering next day, acq. outdated
+         $wname.browser.pie create arc 1 1 127 127 -start $day2cur -extent [expr {$day2nxt - $day2cur}] -fill $::stats_db_col_day2_obs -stipple gray25 -outline {}
+      }
+   }
+   if {$day3nxt > $day2nxt} {
+      # blocks covering next-but-one day, acq. up-to-date
+      $wname.browser.pie create arc 1 1 127 127 -start $day2nxt -extent [expr {$day3nxt - $day2nxt}] -fill $::stats_db_col_day3_cur
+
+      if {$day3nxt > $day3cur} {
+         # blocks covering next-but-one day, acq. outdated
+         $wname.browser.pie create arc 1 1 127 127 -start $day3cur -extent [expr {$day3nxt - $day3cur}] -fill $::stats_db_col_day3_obs -stipple gray25 -outline {}
+      }
+   }
 }
 
 ## ---------------------------------------------------------------------------
@@ -529,25 +541,34 @@ proc DbStatsWin_ClearPie {wname} {
 ## ---------------------------------------------------------------------------
 ## Add a line to the history graph
 ##
-proc DbStatsWin_AddHistory {wname pos valEx val1c val1o val2c val2o} {
+proc DbStatsWin_AddHistory {wname pos exp day1cur day1nxt day2cur day2nxt day3cur day3nxt} {
 
-   $wname.acq.hist addtag "TBDEL" enclosed $pos 0 [expr $pos + 2] 128
+   # first visible X coordinate is +1
+   incr pos
+
+   $wname.acq.hist addtag "TBDEL" enclosed $pos 0 [expr {$pos + 2}] 128
    catch [ $wname.acq.hist delete "TBDEL" ]
 
-   if {$valEx > 0} {
-      $wname.acq.hist create line $pos 128 $pos [expr 128 - $valEx] -fill yellow
+   if {$exp > 0} {
+      $wname.acq.hist create line $pos 128 $pos [expr {128 - $exp}] -fill $::stats_db_col_expired
    }
-   if {$val1c > $valEx} {
-      $wname.acq.hist create line $pos [expr 128 - $valEx] $pos [expr 128 - $val1c] -fill red
+   if {$day1cur > $exp} {
+      $wname.acq.hist create line $pos [expr {128 - $day1cur}] $pos [expr {128 - $exp}] -fill $::stats_db_col_day1_cur
    }
-   if {$val1o > $val1c} {
-      $wname.acq.hist create line $pos [expr 128 - $val1c] $pos [expr 128 - $val1o] -fill #A52A2A
+   if {$day1nxt > $day1cur} {
+      $wname.acq.hist create line $pos [expr {128 - $day1nxt}] $pos [expr {128 - $day1cur}] -fill $::stats_db_col_day1_obs
    }
-   if {$val2c > $val1o} {
-      $wname.acq.hist create line $pos [expr 128 - $val1o] $pos [expr 128 - $val2c] -fill blue
+   if {$day2cur > $day1nxt} {
+      $wname.acq.hist create line $pos [expr {128 - $day2cur}] $pos [expr {128 - $day1nxt}] -fill $::stats_db_col_day2_cur
    }
-   if {$val2o > $val2c} {
-      $wname.acq.hist create line $pos [expr 128 - $val2c] $pos [expr 128 - $val2o] -fill #483D8B
+   if {$day2nxt > $day2cur} {
+      $wname.acq.hist create line $pos [expr {128 - $day2nxt}] $pos [expr {128 - $day2cur}] -fill $::stats_db_col_day2_obs
+   }
+   if {$day3cur > $day2nxt} {
+      $wname.acq.hist create line $pos [expr {128 - $day3cur}] $pos [expr {128 - $day2nxt}] -fill $::stats_db_col_day3_cur
+   }
+   if {$day3nxt > $day3cur} {
+      $wname.acq.hist create line $pos [expr {128 - $day3nxt}] $pos [expr {128 - $day3cur}] -fill $::stats_db_col_day3_obs
    }
 }
 
@@ -571,35 +592,34 @@ proc StatsWinTtx_Create {wname ttx_rows ttx_cols} {
    wm resizable $wname 0 0
    wm group $wname .
 
-   frame $wname.acq -relief sunken -borderwidth 2
-   label $wname.acq.stat -font $font_fixed -justify left -anchor nw
-   grid  $wname.acq.stat -row 0 -column 0 -columnspan [expr {$ttx_cols + 1}] -sticky w -padx 5
+   frame $wname.fupp -relief sunken -borderwidth 2
+   label $wname.fupp.stat -font $font_fixed -justify left -anchor nw
+   pack  $wname.fupp.stat -side left -padx 5 -pady 5 -anchor w -fill x -expand 1
 
+   button $wname.fupp.qmark -bitmap bitmap_qmark -cursor top_left_arrow -takefocus 0
+   relief_ridge_v84 $wname.fupp.qmark
+   bind $wname.fupp.qmark <ButtonRelease-1> {PopupHelp $helpIndex(Statistics) "Teletext grabber statistics"}
+   pack $wname.fupp.qmark -side left -anchor n
+   bind $wname <Key-F1> {PopupHelp $helpIndex(Configuration) "Teletext grabber"}
+   pack $wname.fupp -side top -fill both
+
+   frame $wname.flow -relief sunken -borderwidth 2
    for {set row 0} {$row < $ttx_rows} {incr row} {
-      label $wname.acq.stat_$row -font $font_fixed -justify left -anchor w
-      grid  $wname.acq.stat_$row -row [expr {$row + 1}] -column 0 -sticky nw -padx 5
+      label $wname.flow.stat_$row -font $font_fixed -justify left -anchor w
+      grid  $wname.flow.stat_$row -row [expr {$row + 1}] -column 0 -sticky nw -padx 5
 
       for {set col 0} {$col < $ttx_cols} {incr col} {
          set idx [expr {($ttx_cols * $row) + $col}]
-         label $wname.acq.tab_${row}_${col} -textvariable stats_ttx_tab($idx) \
+         label $wname.flow.tab_${row}_${col} -textvariable stats_ttx_tab($idx) \
                      -font $font_fixed -justify left
-         grid  $wname.acq.tab_${row}_${col} -row [expr {$row + 1}] -column [expr {$col + 1}] -sticky nw -padx 5
+         grid  $wname.flow.tab_${row}_${col} -row [expr {$row + 1}] -column [expr {$col + 1}] -sticky nw -padx 5
       }
    }
    for {set col 1} {$col < $ttx_cols + 1} {incr col} {
-      grid columnconfigure $wname.acq $col -weight 2
+      grid columnconfigure $wname.flow $col -weight 2
    }
-
-   # TODO help refers to config dialog, which doesn't even mention the stats window
-   button $wname.acq.qmark -bitmap bitmap_qmark -cursor top_left_arrow -takefocus 0
-   relief_ridge_v84 $wname.acq.qmark
-   bind   $wname.acq.qmark <ButtonRelease-1> {PopupHelp $helpIndex(Configuration) "Teletext grabber"}
-   grid   $wname.acq.qmark -row 0 -column [expr {$ttx_cols + 1}] -sticky n
-   bind   $wname <Key-F1> {PopupHelp $helpIndex(Configuration) "Teletext grabber"}
+   pack $wname.flow -side top -fill both
 
    # inform the control code when the window is destroyed
-   bind $wname.acq <Destroy> [list + C_StatsWin_ToggleTtxStats 0]
-
-   pack $wname.acq -side top -anchor nw -fill both
+   bind $wname.fupp <Destroy> [list + C_StatsWin_ToggleTtxStats 0]
 }
-

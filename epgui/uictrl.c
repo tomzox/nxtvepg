@@ -138,17 +138,18 @@ static const char * UiControl_GetDbStateMsg( EPGDB_STATE state )
          break;
 
       case EPGDB_PROV_SEL_OR_TTX:
-         pMsg = "No XMLTV file selected. Please load one or more via the Control menu."
-                "Else configure the Teletext EPG "
-                "grabber for creating XMLTV files via acquisition from a TV capture card.";
+         pMsg = "No EPG data loaded. Please load one or more XMLTV files via the "
+                "Control menu, or configure the Teletext EPG grabber for creating "
+                "XMLTV files via acquisition from a TV capture card.";
          break;
 
       case EPGDB_PROV_SEL:
-         pMsg = "No XMLTV file selected. Please load one or more via the Control menu.";
+         pMsg = "No EPG data loaded. Please load one or more XMLTV files via the "
+                "Control menu.";
          break;
 
       case EPGDB_ACQ_NO_TUNER:
-         pMsg = "The loaded database is empty, or all programmes are expired. "
+         pMsg = "The loaded XMLTV file is empty, or all programmes are expired. "
                 "Since you have configured a video input source that does not support "
                 "channel tuning, you have to manually select a TV channel at the "
                 "external video equipment to enable nxtvepg to refresh its database. "
@@ -156,7 +157,7 @@ static const char * UiControl_GetDbStateMsg( EPGDB_STATE state )
          break;
 
       case EPGDB_ACQ_ACCESS_DEVICE:
-         pMsg = "The loaded database is empty, or all programmes are expired. "
+         pMsg = "The loaded XMLTV file is empty, or all programmes are expired. "
                 "The TV channel could not be changed because the video device is "
                 "kept busy by another application. Therefore you have to make sure "
                 "you have tuned the TV channel of the selected EPG provider "
@@ -164,27 +165,27 @@ static const char * UiControl_GetDbStateMsg( EPGDB_STATE state )
          break;
 
       case EPGDB_ACQ_PASSIVE:
-         pMsg = "The loaded database is empty, or all programmes are expired. "
+         pMsg = "The loaded XMLTV file is empty, or all programmes are expired. "
                 "You have configured acquisition mode to passive, so EPG data "
                 "can only be acquired once you use another application to tune to "
                 "the selected EPG provider's TV channel.";
          break;
 
       case EPGDB_ACQ_WAIT:
-         pMsg = "The loaded database is empty, or all programmes are expired. "
+         pMsg = "The loaded XMLTV file is empty, or all programmes are expired. "
                 "Please wait a few minutes until EPG data is received "
-                "or select a different EPG source via the Control menu.";
+                "or choose a different EPG source via the Control menu.";
          break;
 
       case EPGDB_ACQ_WAIT_DAEMON:
-         pMsg = "The loaded database is empty, or all programmes are expired. "
+         pMsg = "The loaded XMLTV file is empty, or all programmes are expired. "
                 "The EPG acquisition daemon is active, however not working on the "
                 "EPG source selected for display. "
                 "Choose a different source via the Control menu.";
          break;
 
       case EPGDB_ACQ_OTHER_PROV:
-         pMsg = "The loaded database is empty, or all programmes are expired. "
+         pMsg = "The loaded XMLTV file is empty, or all programmes are expired. "
                 "The Teletext EPG grabber is active, but not working on the "
                 "EPG source selected for display. "
                 "Choose a different source via the Control menu, or reconfigure "
@@ -192,16 +193,15 @@ static const char * UiControl_GetDbStateMsg( EPGDB_STATE state )
          break;
 
       case EPGDB_EMPTY:
-         pMsg = "The loaded database is empty, or all programmes are expired. "
+         pMsg = "The loaded XMLTV file is empty, or all programmes are expired. "
                 "Load EPG data from a different XMLTV file via the Control menu, "
                 "or enable EPG acquisition from teletext for updating the EPG data.";
          break;
 
       case EPGDB_PREFILTERED_EMPTY:
-         pMsg = "None of the programmes in this database match your network "
-                "preselection. Either add more networks for this provider or "
-                "select a different one in the Configure menus. Starting EPG "
-                "acquisition might also help.";
+         pMsg = "None of the programmes in the loaded EPG data match your network "
+                "preselection. Either enable display of all networks for this provider, "
+                "or load a different XMLTV file via the Configure menu.";
          break;
 
       case EPGDB_OK:
@@ -249,7 +249,7 @@ static EPGDB_STATE UiControl_GetDbState( void )
       else if (EpgContextCtl_HaveProviders() == FALSE)
          dbState = ((drvType != BTDRV_SOURCE_NONE) ? EPGDB_PROV_NONE_BUT_TTX : EPGDB_PROV_NONE);
       else
-         dbState = ((drvType != BTDRV_SOURCE_NONE) ? EPGDB_PROV_SEL_OR_TTX : EPGDB_PROV_SEL_OR_TTX);
+         dbState = ((drvType != BTDRV_SOURCE_NONE) ? EPGDB_PROV_SEL_OR_TTX : EPGDB_PROV_SEL);
    }
    else
    {  // AI present, but no PI in database

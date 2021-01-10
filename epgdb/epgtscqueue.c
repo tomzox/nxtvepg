@@ -37,7 +37,6 @@
 #include "epgdb/epgdbif.h"
 #include "epgdb/epgtscqueue.h"
 
-
 #if DEBUG_SWITCH == ON
 // ----------------------------------------------------------------------------
 // Check consistancy of the doubly-linked queue and the buffers contained within
@@ -60,10 +59,10 @@ static bool EpgTscQueue_CheckConsistancy( EPGDB_PI_TSC * pQueue )
       assert(pWalk->popIdx <= pWalk->fillCount);  // == is allowed
 
       // check the queue linkage
-      assert(pWalk->u.p.pPrev == pPrev);
+      assert(pWalk->pPrev == pPrev);
 
       pPrev = pWalk;
-      pWalk = pWalk->u.p.pNext;
+      pWalk = pWalk->pNext;
    }
    assert (pPrev == pQueue->pTail);
 
@@ -102,7 +101,7 @@ void EpgTscQueue_Clear( EPGDB_PI_TSC * pQueue )
       pTscBuf = pQueue->pHead;
       while (pTscBuf != NULL)
       {
-         pNext = pTscBuf->u.p.pNext;
+         pNext = pTscBuf->pNext;
          xfree(pTscBuf);
          pTscBuf = pNext;
       }
@@ -120,18 +119,18 @@ void EpgTscQueue_Clear( EPGDB_PI_TSC * pQueue )
 //
 static void EpgTscQueue_Unlink( EPGDB_PI_TSC * pQueue, EPGDB_PI_TSC_BUF * pTscBuf )
 {
-   if (pTscBuf->u.p.pPrev != NULL)
-      pTscBuf->u.p.pPrev->u.p.pNext = pTscBuf->u.p.pNext;
+   if (pTscBuf->pPrev != NULL)
+      pTscBuf->pPrev->pNext = pTscBuf->pNext;
    else
-      pQueue->pHead = pTscBuf->u.p.pNext;
+      pQueue->pHead = pTscBuf->pNext;
 
-   if (pTscBuf->u.p.pNext != NULL)
-      pTscBuf->u.p.pNext->u.p.pPrev = pTscBuf->u.p.pPrev;
+   if (pTscBuf->pNext != NULL)
+      pTscBuf->pNext->pPrev = pTscBuf->pPrev;
    else
-      pQueue->pTail = pTscBuf->u.p.pPrev;
+      pQueue->pTail = pTscBuf->pPrev;
 
-   pTscBuf->u.p.pPrev = NULL;
-   pTscBuf->u.p.pNext = NULL;
+   pTscBuf->pPrev = NULL;
+   pTscBuf->pNext = NULL;
 
    assert(EpgTscQueue_CheckConsistancy(pQueue));
 }
@@ -182,7 +181,7 @@ const EPGDB_PI_TSC_ELEM * EpgTscQueue_PopElem( EPGDB_PI_TSC * pQueue, time_t * p
             if (pTscBuf->popIdx >= pTscBuf->fillCount)
             {  // found a fully popped buffer -> free it
 
-               pTemp = pTscBuf->u.p.pPrev;
+               pTemp = pTscBuf->pPrev;
                // first unlink the buffer from the queue...
                EpgTscQueue_Unlink(pQueue, pTscBuf);
                // ...then free it
@@ -197,7 +196,7 @@ const EPGDB_PI_TSC_ELEM * EpgTscQueue_PopElem( EPGDB_PI_TSC * pQueue, time_t * p
                   break;
                }
                // try the next buffer
-               pTscBuf = pTscBuf->u.p.pPrev;
+               pTscBuf = pTscBuf->pPrev;
             }
          } while (pTscBuf != NULL);
 
@@ -257,14 +256,14 @@ static EPGDB_PI_TSC_BUF * EpgTscQueue_CreateNew( EPGDB_PI_TSC * pQueue )
    // insert the buffer at the head of the queue
    if (pQueue->pHead != NULL)
    {
-      pQueue->pHead->u.p.pPrev = pTscBuf;
-      pTscBuf->u.p.pNext = pQueue->pHead;
-      pTscBuf->u.p.pPrev = NULL;
+      pQueue->pHead->pPrev = pTscBuf;
+      pTscBuf->pNext = pQueue->pHead;
+      pTscBuf->pPrev = NULL;
       pQueue->pHead = pTscBuf;
    }
    else
    {
-      pTscBuf->u.p.pPrev = pTscBuf->u.p.pNext = NULL;
+      pTscBuf->pPrev = pTscBuf->pNext = NULL;
       pQueue->pHead = pQueue->pTail = pTscBuf;
    }
 
@@ -274,8 +273,8 @@ static EPGDB_PI_TSC_BUF * EpgTscQueue_CreateNew( EPGDB_PI_TSC * pQueue )
    pTscBuf->fillCount = 0;
    pTscBuf->popIdx    = 0;
 
-   if ((pTscBuf->u.p.pNext != NULL) && (pTscBuf->provCni == pTscBuf->u.p.pNext->provCni))
-      pTscBuf->baseTime = pTscBuf->u.p.pNext->baseTime;
+   if ((pTscBuf->pNext != NULL) && (pTscBuf->provCni == pTscBuf->pNext->provCni))
+      pTscBuf->baseTime = pTscBuf->pNext->baseTime;
    else
       pTscBuf->baseTime = 0;
 
@@ -356,15 +355,17 @@ static void EpgTscQueue_Append( EPGDB_PI_TSC * pQueue, time_t startTime, time_t 
 // ----------------------------------------------------------------------------
 // display coverage by PI currently in database
 //
-void EpgTscQueue_AddAll( EPGDB_PI_TSC * pQueue, EPGDB_CONTEXT * dbc )
+void EpgTscQueue_AddAll( EPGDB_PI_TSC * pQueue, EPGDB_CONTEXT * dbc,
+                         time_t now, time_t tsAcq )
 {
    const EPGDB_BLOCK * pBlock;
    const AI_BLOCK  *pAi;
    const PI_BLOCK  *pPi;
-   time_t now;
    time_t lastStopTime;
    uchar  flags;
    uint   netwop;
+   const time_t tsDay1 = tsAcq + 24*60*60;
+   const time_t tsDay2 = tsDay1 + 24*60*60;
 
    if ((pQueue != NULL) && (dbc != NULL))
    {
@@ -374,8 +375,6 @@ void EpgTscQueue_AddAll( EPGDB_PI_TSC * pQueue, EPGDB_CONTEXT * dbc )
       {
          // set parameters for buffer creation
          pQueue->writeProvCni = EpgDbContextGetCni(dbc);
-
-         now = time(NULL);
 
          // loop over all PI in the database (i.e. in parallel across all netwops)
          for (netwop=0; netwop < pAi->netwopCount; netwop++)
@@ -387,11 +386,17 @@ void EpgTscQueue_AddAll( EPGDB_PI_TSC * pQueue, EPGDB_CONTEXT * dbc )
                pPi = &pBlock->blk.pi;
                flags = 0;
 
-               if (pBlock->version == pAi->version)
-                  flags |= PI_TSC_MASK_IS_CUR_VERSION;
+               if (pBlock->acqTimestamp < tsAcq)
+                  flags |= PI_TSC_MASK_IS_OLD_VERSION;
 
                if (pPi->stop_time < now)
                   flags |= PI_TSC_MASK_IS_EXPIRED;
+               else if (pBlock->blk.pi.start_time < tsDay1)
+                  flags |= (0 << PI_TSC_MASK_DAY_SHIFT);
+               else if (pBlock->blk.pi.start_time < tsDay2)
+                  flags |= (1 << PI_TSC_MASK_DAY_SHIFT);
+               else
+                  flags |= (2 << PI_TSC_MASK_DAY_SHIFT);
 
                if (PI_HAS_DESC_TEXT(pPi))
                   flags |= PI_TSC_MASK_HAS_DESC_TEXT;

@@ -223,14 +223,8 @@ typedef struct EPGDB_CONTEXT_STRUCT
 #define EPGDB_TUNER_GET_FREQ(FREQ)  ((FREQ) & 0xFFFFFF)
 #define EPGDB_TUNER_GET_NORM(FREQ)  ((FREQ) >> 24)
 
-typedef struct
-{
-   uint32_t  curVersion;
-   uint32_t  allVersions;
-   uint32_t  expired;
-   uint32_t  defective;
-   uint32_t  sinceAcq;
-} EPGDB_BLOCK_COUNT;
+// ----------------------------------------------------------------------------
+// Macros for provider database CNI
 
 // max number of databases that can be merged into one
 #define MAX_MERGED_DB_COUNT  63

@@ -1,4 +1,4 @@
- ---------------------------------------------------------------------------
+# ---------------------------------------------------------------------------
 #
 #  nxtvepg online manual - German version
 #
@@ -278,7 +278,7 @@ Programminformationen werden im Browser aktualisiert sobald eine XMLTV Datei akt
 Wenn Sie nicht den TV-Tuner als Eingang wählen (d.h. Sie wählen eine externe Quelle über den Composite- oder S-Video-Eingang) oder der TV-Tuner durch eine andere Anwendung in Beschlag genommen wird (nur bei UNIX, z.B. wenn man TV sieht), werden zwar trotzdem Daten akquiriert, es ist Ihnen aber nicht mehr möglich automatisch den TV-Sender zu wechseln. Folglich sind Sie selbst für die Auswahl des TV-Kanals des Providers verantwortlich, dessen Datenbank Sie laden oder auffrischen wollen.
 
 TV-Programmtabellen in Teletext werden üblicherweise nur einmal täglich aktualisiert (es sei den es treten aktuelle Programmänderungen auf). Von daher ist es ausreichend die Akquisition einmal täglich laufen zu lassen.
-Sie können den Fortschritt der Akquisition über das Fenster mit der Zeitskalen- und Datenbankstatistik über das Control-Menü beobachten. Siehe L<"STATISTICS"> für Details.
+Sie können den Fortschritt der Akquisition über die verschiedenen über das Control-Menü aufrufbaren Statistikfenster beobachten. (Siehe L<"STATISTICS"> für Details.)
 
 =head2 Acquisition modes
 
@@ -310,61 +310,51 @@ Welcher Modus der Beste für Sie ist, hängt davon ab wie Sie Ihren Browser nutzen
 
 =head1 STATISTICS
 
-Es gibt eine Reihe von Optionan, Informationen zum Status der Datenbank und des Akquisitions-Prozesses zu erhalten: Der Erste und prägnanteste ist die Statuszeile am unteren Rand des Hauptfensters (nur wenn diese auch aktiviert ist, siehe L<"CONFIGURATION">). Der Zweite besteht aus dem Zeitskalen-Fenster ("timescale"), welche die mit TV-Programmdaten belegten Zeitspannen jedes TV-Senders visualisiert. Der Dritte besteht aus der Datenbankstatistik, welche technische Details über die im Browser geladene Datenbank liefern (wie z.B. welcher Prozentsatz an Einträgen bereits aktualisiert ist usw.). Weiterhin gibt es ein Fenster das Status und Historie des EPG Grabbers wiederspiegelt.
+Es gibt eine Reihe von Optionan, Informationen zum Status der Datenbank und des Akquisitions-Prozesses zu erhalten: Der Erste und prägnanteste ist die Statuszeile am unteren Rand des Hauptfensters (nur wenn diese auch aktiviert ist, siehe L<"CONFIGURATION">). Der Zweite besteht aus dem Zeitskalen-Fenster ("timescale"), welche die mit TV-Programmdaten belegten Zeitspannen jedes TV-Senders visualisiert. Der Dritte besteht aus der Datenbankstatistik, welche technische Details über die im Browser geladene Datenbank liefern (wie z.B. welcher Prozentsatz an Einträgen bereits aktualisiert ist usw.). Weiterhin gibt es ein Fenster das Status des Teletext EPG Grabbers wiederspiegelt.
 
 =head2 Status line
 
-Die Statuszeile fasst separat den Status der Browserdatenbank (außer bei einer zusammengeführten Datenbank) und den des Akquisitionsprozesses zusammen. Aus Platzgründen enthält sie nur die relevanteste Information, d.h. die angezeigte Information hängt vom jeweiligen Status ab.
+Die Statuszeile fasst separat den Status der Browserdatenbank und den des Akquisitionsprozesses zusammen. Aus Platzgründen enthält sie nur die relevanteste Information, d.h. die angezeigte Information hängt vom jeweiligen Status ab.
 
-Zur Browserdatenbank sehen Sie normalerweise den Namen der XMLTV Datei. Falls die Akquisition aktiv ist, wird der Prozentsatz der erledigten TV-Sender und der Name des aktuell bearbeiteten Senders angezeigt.
+Zur Browserdatenbank sehen Sie normalerweise nur den Namen der XMLTV Datei. Ist die Datei mehr als einen Tag alt, wird zusätzlich das Alter und der Anteil der seit der letzten Aktualisierung abgelaufenen Programme angezeigt.  (In welchem Intervall die Daten aktualisiert werden sollten ist nxtvepg nicht bekannt, da dies von der Vorschaulänge und Dynamik Ihres Anbieters abhängt. Für den Teletext EPG Grabber ist eine tägliche Aktualisierung empfohlen; siehe auch L<"DATA ACQUISITION">).
 
-Liegen mehr als 10% der Einträge der Programmdatenbank in der Vergangenheit, werden Sie zusätzlich einen Hinweis über den Prozentsatz der abgelaufenen Einträge sehen. Beachten Sie, dass eine zu 100% geladene Datenbank komplett leer erscheinen kann, wenn alle enthaltenen Programme abgelaufen sind. Sobald Sie die Akquisition starten, wird der prozentuale Füllgrad auf 0 fallen, weil ein neuer Bestand geladen wird, der diese verfallenen Blöcke nicht mehr enthält.
+Falls der Teletext EPG Grabber eingeschalten ist, wird zusätzlich der Status der Akquisition dargestellt. Dies umfasst die Information ob die Akquisition aktuell aktiv ist und falls ja, der Anteil der bereits geladenen TV-Programme und der Name des Programmes von dem aktuell empfangen wird. Zusätzlich erscheint eine Angabe zur Akquisitionsphase, wie z.B. "Now" falls der initiale Schnelldurchgang läuft (falls diese Option in der Konfiguration eingeschalten ist), "Full" während des Ladens der kompletten Daten, oder "Complete" nachdem die Daten aller Programme geladen sind.
 
-Hat die Akquisition der Browserdatenbank mehr als 60 Minuten zuvor angehalten, wird der Statuszeile ein Hinweis beigefügt. In diesem Fall kann es angebracht sein, die Akquisition für diese Datenbank zu starten, um Beschreibungen für in der "I<Near>"-Zeitspanne enthaltene Sendungen zu laden (siehe L<"DATA ACQUISITION">).
-
-Ist die Akquisition derzeit nicht aktiv, wird darauf hingewiesen. Gegebenenfalls erscheint auch ein Hinweis auf den Grund (z.B. "no reception" oder "forced passive" wenn der Senderwechsel durch eine andere Applikation blockiert wird.)
-
-Andernfalls werden Sie den Sendernamen des Inhaltproviders sehen und einen Prozentsatz, der den Akquisitionsprozess beschreibt. Zu bemerken ist, dass sich dieser Prozentsatz von der prozentualen Gesamtfüllrate unterscheiden kann, die mit der Browserdatenbank übergeben wird, da sie ebenso Blöcke widerspiegelt, die aufgrund von Versions-Änderungen neu geladen werden müssen.
-
-Zusätzlich kann ein Hinweis über den aktuellen Modus der Akquisition erscheinen, wie die aktuelle Phase für zyklische Akquisitionsmodi oder "I<forced passive>" wenn nxtvepg nicht in der Lage ist, den TV-Kanal zu wechseln (u.U. weil eine TV-Anwendung parallel läuft). Siehe L<"DATA ACQUISITION"> für Details.
+Falls die Akquisition blockiert ist oder ein Fehler aufgetreten ist, wird dies hier angezeigt. Insbesondere erscheint der Hinweis "forced passive" wenn nxtvepg nicht in der Lage ist TV-Programme umzuschalten um dort Teletext zu laden. (In der Regel ist die Ursache dafür dass eine andere Applikation die TV-KArte belegt.)
 
 =head2 Timescale popup window
 
-Das Zeitskalenfenster spiegelt für jeden TV-Sender wieder, welche Zeitspannen mit TV-Programminformationen in der Datenbank belegt sind. Arbeitet die Akquisition an der Datenbank, können Sie die Fortschritt bzw. den Aktualisierungsgrad der TV-Programmdatenbank beobachten.
+Das Zeitskalenfenster spiegelt für jeden TV-Sender wieder, welche Zeitspannen mit TV-Programminformationen in der Datenbank belegt sind.
 
 Das Fenster besitzt eine Skala für jeden TV-Sender, der von der geladenen XMLTV Datei abgedeckt wird. Das linke Ende der Skalen verweist auf die Startzeit der ältesten in der Datenbank vorhandenen TV-Sendung. Abhängig davon wie lange das letzte Update der Datenbank zurückliegt und wie lange der EPG Anbieter abgelaufene Programme in der Datenbank hält, können die Sendungen teilweise oder sogar ganz in der Vergangenheit liegen. Die exakten Datierungen werden in der Datumsskala am oberen Rand des Fensters ausgegeben, wobei die aktuelle Zeit zusätzlich durch einen mit "now" gekennzeichneten kleinen Pfeil markiert ist.
 
-Bereiche die von Sendungen des jeweiligen Senders in der Datenbank belegt werden, sind durch rote oder blaue Farbe markiert, nicht belegte Teilbereiche sind grau. Der Bereich jenseits des letzten bekannten Programms ist schwarz. (Die Länge der unbelegten Bereiche unterscheidet sich für jeden Sender da diese direkt mit der Länge der Programmübersicht im Teletext abhängen.) Die Bedeutung der unterschiedlichen Farben sind in der folgenden Liste beschrieben. (Aktuell werden nicht mehr alle dieser Farben verwendet, da nicht alle für den Teletext-EPG grabber anwendbar sind.)
+Bereiche die von Sendungen des jeweiligen Senders in der Datenbank belegt werden, sind durch gelbe, rote, pink, oder blaue Farbe markiert. Bereiche ohne Programminformation sind grau. Die Bereiche vor dem ersten und jenseits des letzten bekannten Programms sind schwarz. Die Bedeutung der unterschiedlichen Farben im einzelnen ist wie folgt:
 
 =over 4
 
-=item I<Rot:>
+=item I<Hellrot:>
 
-PI-Blöcke, die in Datenstrom 1 empfangen wurden, d.h. Zyklusphase "Near"
+Programminformationen des aktuellen Tages. Der Start einen Tages ist hier auf 6 Uhr morgens festgelegt.
 
-=item I<Blau:>
+=item I<Helles pink:>
 
-PI-Blöcke, die in Datenstrom 2 empfangen wurden, d.h. Zyklusphase "All"
+Programminformationen des folgenden Tages.
 
-=item I<Dunkelrot oder Dunkelblau:>
+=item I<Hellblau:>
 
-PI-Blöcke aus einer früheren Datenbankversion
+Programminformationen des übernächsten und folgender Tage.
 
-=item I<Orange:>
+=item I<Dunkelrot, dunkles pink oder Dunkelblau:>
 
-Abgelaufene PI-Blöcke aus Stream 1
-
-=item I<Magenta:>
-
-Abgelaufene PI-Blöcke aus Stream 2
+Wie oben, jedoch liegt die Aktualisierung der Programminformation mehr als einen Tage zurück.
 
 =item I<Gelb:>
 
-Ungültige PI-Blöcke (Überschneidung oder 0 Minuten Laufzeit, Blocknummer nicht im Bereich der angegebenen Bestandsliste usw.)
+Ungültige PI-Blöcke (Überschneidung oder 0 Minuten Laufzeit)
 
 =item I<Grau:>
 
-Fehlende PI-Blöcke. Zu bemerken ist, dass deren Zahl nur ungefähr geschätzt werden kann, da die Dauer, die ein Block abdeckt, nicht bekannt ist solange der Block noch nicht verfügbar ist.
+Lücken in der Programminformation. Grund dafür können Sendepausen sein (d.h. bei TV-Sendern die nicht 24 Stunden am Tag senden), oder Übertragungsfehler in der EPG Akquisition
 
 =item I<Schwarz:>
 
@@ -376,13 +366,13 @@ Sendungen für die momentan Beschreibungstexte verfügbar sind werden zusätzlich d
 
 =head2 Database statistics
 
-Über das Control-Menü kann ein Fenster geöffnet werden welches statistische Informationen über die Browserdatenbank darstellt. Falls die Datenbank vom Teletext EPG Grabber aktualisiert wird, wird ein zusätzlicher Bereich unterhalb den Statistiken eingeblendet, in dem ein Histogramm und Statusinformationen zur Akquisition dargestellt sind.
+Über das Control-Menü kann ein Fenster geöffnet werden welches statistische Informationen über den Inhalt der Browserdatenbank darstellt.
 
 =over 4
 
 =item I<Last update:>
 
-Die Uhrzeit zu welcher die Datenbank zuletzt aktualisiert wurde (basierend auf dem Modifikationszeitstempel der zugehörigen XMLTV Datei). Für zusammenfeührte Datenbanken ist dies der letzte Zeitpunkt zu dem eine der enthaltenen XMLTV Dateien aktualisiert wurde.
+Die Uhrzeit zu welcher die Datenbank zuletzt aktualisiert wurde (basierend auf dem Modifikationszeitstempel der zugehörigen XMLTV Datei). Für zusammengeführte Datenbanken ist dies der letzte Zeitpunkt zu dem eine der enthaltenen XMLTV Dateien aktualisiert wurde.
 
 =item I<Block count db:>
 
@@ -394,61 +384,83 @@ Wie viele Blöcke sind in der lokalen Datenbank vorhanden und haben die neueste V
 
 =item I<Expired:>
 
-Gesamtzahl und Prozentsatz abgelaufener Blöcke in der Datenbank. Dieser Wert hängt von der vom Nutzer konfigurierten Löschverzögerung ab, d.h. davon wie lange abgelaufene Blöcke behalten werden bis sie aus der Datenbank entfernt werden. Normalerweise verschwinden solche Blöcke aus der Liste der Sendungen, dies kann jedoch über den Filter "I<expire time>" im Filter-Menü (siehe auch L<"FILTERING">) geändert werden.
+Gesamtzahl und Prozentsatz abgelaufener Blöcke in der Datenbank. Es ist völlig normal dass dieser Wert im Laufe der Zeit ansteigt, bis zur nächsten Aktualisierung der Datenbank.
+
+Wie bei der Aktualisierung mit abgelaufenen Programminformationen umgegangen wird, hängt vom gewählten EPG Anbieter ab: Anbieter können abgelaufene Programme sofort löschen, oder für eine gewisse Zeit erhalten (z.B. um zu Erlauben Informationen wie Programmbeschreibung und Darsteller auch nach Ablauf der Sendung nochmal nachzulesen, wie über den I<Expired display> Filter möglich.) Beim Teletext EPG Grabber können Sie dies selbst bestimmen, siehe Kapitel L<"CONFIGURATION">, "Teletext grabber".
 
 =item I<Defective blocks:>
 
-Anzahl der Blöcke mit ungültiger oder überlappender Startzeit. Diese Blöcke tauchen nicht im Browser auf (da es schwer wäre damit umzugehen, dass mehr als ein "now"-Eintrag eines Senders existiert). Der hier angegebene Prozentsatz bezieht sich auf die aktuell in der lokalen Datenbank vorhandenen Blöcke (alle Versionen), nicht auf die der AI.
+Anzahl der Blöcke mit ungültiger oder überlappender Startzeit. Diese Blöcke tauchen nicht im Browser auf (da es schwer wäre damit umzugehen, dass mehr als ein "now"-Eintrag eines Senders existiert).
 
 =back
 
 Das Tortendiagramm zur Linken des Fensters visualisiert diese Zahlen. Der Kreis repräsentiert 100% der in der AI aufgelisteten Blöcke. Er ist aufgeteilt in Stream 1 (rot) und Stream 2 (blau). Die schraffierten Segmente stellen die Blöcke dar, die in der lokalen Datenbank noch fehlen, die gelben Segmente den Prozentsatz an abgelaufenen und/oder fehlerhaften Blöcken.
 
-=head2 Acquisition statistics
+Falls die Datenbank vom Teletext EPG Grabber aktualisiert wird, wird ein zusätzlicher Bereich unterhalb den Statistiken eingeblendet, in dem ein Histogramm und Statusinformationen zur Akquisition dargestellt sind.
+
+=head2 Teletext grabber statistics
+
+Über das Control-Menü kann ein Fenster geöffnet werden welches Informationen über den Status des Teletext EPG Grabber gibt. Das Fenster präsentiert die Informationen in zwei getrennten Bereichen: Der obere Bereich zeigt die Konfiguration und übergreifenden aktuellen Status. Der untere Bereich zeigt eine Reihe on Statistiken über Teletextempfang aus den aktuell eingestellten TV-Sendern.
+
+Beschreibung der Informationen im oberen Bereich des Fensters:
 
 =over 4
 
+=item I<Acq mode:>
+
+Der derzeitige Akquisitionsmodus wie vom Benutzer konfiguriert, und dessen aktuelle Phase: "Now", "Full", oder "Complete".
+
+=item I<Acq passive:>
+
+Falls Wechsel des TV-Senders zum Zweck des Teletextempfangs nicht möglich ist, wird hier der Grund dafür angegeben.
+
+=item I<Channels done:>
+
+Gibt die Anzahl der für Teletext EPG Akquisition konfigurierten TV-Sender an, und die Zahl der davon bereits erledigten Sender.
+
+=item I<Current channels:>
+
+Gibt die Anzahl der Sender an von denen aktuell Teletext empfangen wird. Bei analogen TV-Karten ist dies höchstens ein Sender. Bei DVB ist jedoch paralleler Empfang mehrerer TV-Sender möglich (d.h. aller Sender die einen Transponder teilen).
+
 =item I<Acq. runtime:>
 
-Wie lange die Akquisition durchgehend für diese Datenbank gelaufen ist. Dieser Wert wird bei einem Providerwechsel oder einem Wechsel der Datenbankversion zurückgesetzt oder auch wenn ein externer Kanalwechsel bemerkt wird.
+Gibt an, wie lange der Teletext vom aktuell eingestellten TV-Sender ampfangen wurde.
 
-=item I<Channel Index:>
+=item I<Acq. state:>
 
-Index des Senders innerhalb der Sendertabelle an dem der Teletext-EPG grabber gerade arbeitet.
+Der Status des Empfangs auf dem aktuellen Sender: "Capturing" während des Ladens von Teletextseiten; "Starting up" in der Zeit zwischen Senderwechsel und dem ersten Empfang einer Teletextseite im eingestellten Bereich; "Scanning" in der Phase "Now" bei der Suche nach einem Sender wo zeitnah die erste Seite des eingestellten Bereichs empfangen werden kann.
 
-=item I<Channel Name:>
+=back
 
-Name des Senders innerhalb der Sendertabelle an dem der Teletext-EPG grabber gerade arbeitet.
+Der untere Bereich des Fensters besteht aus einer Tabelle: Die erste Zeile gibt die Namen der TV-Sender an von denen aktuell Teletext empfangen wird. Die folgenden Zeilen zeigen die folgenden statistische Informationen for jeden der Sender in der entsprechenden Spalte:
+
+=over 4
 
 =item I<Channel VPS/PDC:>
 
-Die Senderkennung welche zuletzt auf dem aktuell eingeschalteten TV-Kanal empfangen wurde. Üblicherweise wird sie dieselbe sein wie die Provider-CNI, die in der Datenbankstatistik ausgegeben wird. Jedoch könnten Sie hier unterschiedliche Werte sehen, wenn Sie manuell über eine externe Applikation in einen anderen Kanal wechseln.
+Die Senderkennung (CNI) welche zuletzt auf dem jeweiligen TV-Sender empfangen wurde. Quelle dafür kann PDC (Packet 8/30/2), NI (Packet 8/30/1), oder VPS sein. Die ausgegebene CNI ist das PDC Äquivalent, falls vorhanden, sonst NI.
 
-Wurde ein gültiger VPS/PDC-Code (Programme Identification Label, PIL) zusammen mit der CNI empfangen, wird er nach der CNI in dekodiertem Format (z.B. DD.MM HH:MM mit Tag, Monat, Stunde und Minute) angehängt. Die VPS/PDC-Codes dienen dazu den aktuellen Programmtitel zu identifizieren. Sie können sich die Codes für alle in der Datenbank enthaltenen Sendungen anzeigen lassen (wenn Sie diese in L<"CONFIGURATION">, Kapitel "Select attributes" aktivieren) oder einer externen Anwendung übergeben (siehe L<"CONFIGURATION">, Kapitel "Context menu configuration").
+Wurde ein Programme Identification Label (PIL) empfangen, wird er nach der CNI in dekodiertem Format (z.B. DD.MM HH:MM mit Tag, Monat, Stunde und Minute) angehängt.
+
+=item I<Capture range:>
+
+Dies gibt die Nummern der für die jeweiligen Sender konfigurierten ersten und letzten Teletextseite die geladen werden an. Die Angabe ist direkt aus der Konfiguration dees Teletext-Grabbers übernommen.
+
+=item I<Captured pages:>
+
+Anzahl der empfangenen Teletext Seiten (inklusive Wiederholungen und Unterseiten, d.h. vereinfacht gesagt die Anzahl der empfangen Seitenheader.)
+
+=item I<Captured packages:>
+
+Anzahl der verarbeiteten Teletext "Packets" (d.h. Textzeilen) aus der aktuellen "Capture range". Eine Teletextseite besteht meist aus 23-25 Zeilen. Die zweite Angabe in dieser Tabellenzeile gibt an wieviel Prozent der insgesamt empfangen "packets" verarbeitet wurden.
+
+=item I<Decoding errors:>
+
+Gibt die Anzahl Dekodierungsfehler bei der Verarbeitung von Teletext an. (Kontrollinformation ist Kamming-8/4 geschützt, Textdaten nur mit Parity Bits.) Der Prozentsatz ist berechnet aus der Gesamtzahl verarbeiteter Packets mit je 45 Bytes.
 
 =item I<TTX data rate:>
 
 Die Rate in Baud, d.h. Bits pro Sekunde, mit welcher Teletext-Datenzeilen im aktuellen Kanal empfangen werden. Jede Teletextzeile hat 45 Bytes.
-
-=item I<Captured range:>
-
-Nummern der ersten und letzten Teletextseite die vom aktuell bearbeiteten Sender geladen werden.
-
-=item I<Captured pages:>
-
-Anzahl der bereits geladenen Seiten (inklusive Wiederholungen und Unterseiten).
-
-=item I<Decoder quality:>
-
-Empfangs- und Verluststatistik: Anzahl der empfangenen EPG-Teletextseiten und Anzahl der kompletten EPG-Seiten, die in den Paketen vermisst werden. Die Anzahl der empfangenen Teletext-Pakete (gewöhnlich 23 pro Seite) und der fehlenden Pakete. Beachten Sie: Seiten- und Paketverlust wird üblicherweise durch Dekodierungsfehler in Paket- und Seitenheadern (die eine 50%-ige Redundanz übertragen, dies ist also ein starker Indikator für eine schwache Signalqualität) verursacht oder wenn eine TV-Anwendung in parallelen Oberflächen mit einer Capture-Konfiguration läuft (d.h. wenn nicht alle erforderlichen Zeilen in der VBI empfangen werden können).
-
-Das Nächste ist die Anzahl der empfangenen und fallen gelassenen Blöcke. Blöcke werden üblicherweise aus Daten verschiedener empfangener Teletextpakete zusammengestellt und müssen fallen gelassen werden, falls Pakete oder Seiten darin fehlen. Blöcke müssen ebenfalls wegfallen, wenn Dekodierungs- oder Prüfsummenfehler vorliegen (die obige Notiz, die diese Art Fehler näher betrachtet, trifft auch hierauf zu).
-
-Die letzte Zeile listet die Anzahl dekodierter Zeichen innerhalb des Textes auf (z.B. Programmtitel und -beschreibungen) und wie viele Dekodierungsfehler erkannt wurden. Der für Text verwendete Schutz vor Weiterleitungsfehlern ist sehr schwach. So kann es sein, dass Sie trotz relativ guter Signalqualität Fehler sehen werden. Bei einer schlechten Signalqualität ist die aktuelle Fehlerquote möglicherweise höher als angegeben, da der Schutz keine Double-Bit-Fehler erkennt.
-
-=item I<Acq mode:>
-
-Der derzeitige Akquisitionsmodus wie vom Benutzer konfiguriert oder "forced passive" (erzwungenermaßen passiv) falls nxttvepg nicht zum Kanal wechseln konnte.
 
 =back
 
@@ -776,6 +788,26 @@ Wenn Sie versuchen zu verbinden, aber der Daemon läuft noch nicht, wird Ihnen an
 
 Zu bemerken ist, dass das Trennen der Verbindung zum Daemon oder das Beenden des Browsers die Akquisition nicht stoppt und infolgedessen das Gerät nicht freigibt. Ist dies das, was Sie wollen, wählen Sie stattdessen den Befehl "I<Enable acquisition>", welcher den Daemon beendet. Natürlich ist diese Option nur verfügbar, wenn Ihr Daemon auf demselben Host und mit derselben Benutzerkennung läuft wie der Browserprozess.
 
+=head2 View statistics/timescales
+
+Die folgenden Kommandos öffnen Fenster mit Statistiken zu den Programmdaten und dem Fortschritt der Datenakquisition.  Siehe auch L<"STATISTICS"> für eine detaillierte Beschreibung der einzelnen Angaben.
+
+=over 4
+
+=item B<View coverage timescales>
+
+Blendet das Zeitskalenfenster für die Browserdatenbank ein und aus. Das Fenster spiegelt für jeden in der gewählten Datenbank eingebundenen Sender wieder, welche Zeitspannen mit Programminformationen belegt sind. Arbeitet die Akquisition an der Datenbank, können Sie fortlaufend beobachten, wie sich die Datenbank füllt. Siehe auch L<"STATISTICS">, Abschnitt "Timescale popup window">.
+
+=item B<View database statistics>
+
+Blendet das Statistikfenster für die Browser-Datenbank ein oder aus.  Die Statistik gibt Auskunft über die Anzahl der Programmeinträge in der Datenbank, den prozentualen Füllungsgrad, den Prozentsatz der abgelaufenen Einträge, das Datum des letzten Updates usw.  Läuft die Akquisition auf der gleichen Datenbank, enthält es zusätzlich Information zu Status und Fortschritt der Akquisition. Für Details siehe L<"STATISTICS">, Abschnitt "Database statistics">.
+
+=item B<Teletext grabber statistics>
+
+Blendet das Statistikfenster für den Teletext EPG Grabber ein oder aus. Dieses gibt über Status und Fortschritt der Akquisition Auskunft. Zusätzlich werden Statistiken über Teletextdatenempfang aus den aktuell eingestellten TV-Programmen angezeigt.  Für Details siehe L<"STATISTICS">, Abschnitt "Teletext grabber statistics".
+
+=back
+
 =head2 Export as text
 
 Öffnet einen Dialog, der es erlaubt, alle Programminformationen in einem fixen Textformat in eine Datei zu exportieren. Jede Zeile dieser Datei wird einen Eintrag in der Datenbank repräsentieren. Die einzelnen Datenfelder der Zeilen sind durch Tabulator-Zeichen getrennt; die Zeile wird durch ein einziges new-line-Zeichen abgeschlossen (d.h. UNIX-Textformat, auch auf Windows). Fehlende Werte werden in einigen Fällen durch C<\N> repräsentiert, welches den MySQL-NULL-Identifier darstellt (zurzeit nur für das VPS/PDC-Feld verwendet).
@@ -866,30 +898,6 @@ Das Aussehen des erzeugten Dokuments wird durch ein internes CSS-Stylesheet fest
 
 B<Tipp:> Die HTML Datei kann auch direkt über die Befehlszeile mittels des Schalters B<-dump html> erzeugt werden. In dem Fall können sie die Zahl der geschriebenen Sendungen durch Anhängen von ":" und einer Zahl angeben (z.B. "-dump html:50" für den Export von 50 Programmen.) Weiterhin können Sie eine oder mehrere B<-epgquery> Optionen anfügen um den Export auf ausgewählte Sender oder Programme einzuschränken (für Details siehe L<"OPTIONS">)
 
-=head2 View statistics/timescales
-
-Die folgenden vier Kommandos öffnen Fenster mit Statistiken zu den Programmdaten und dem Fortschritt der Datenakquisition.  Siehe auch L<"STATISTICS"> für eine detaillierte Beschreibung der einzelnen Angaben.
-
-=over 4
-
-=item B<View timescales>
-
-Blendet das Zeitskalenfenster für die Browserdatenbank ein und aus. Das Fenster spiegelt für jeden in der gewählten Datenbank eingebundenen Sender wieder, welche Zeitspannen mit Programminformationen belegt sind. Arbeitet die Akquisition an der Datenbank, können Sie fortlaufend beobachten, wie sich die Datenbank füllt. Siehe auch L<"STATISTICS: Status line">.
-
-=item B<View statistics>
-
-Blendet das Statistikfenster für die Browser-Datenbank ein oder aus (d.h. für den Anbieter dessen Daten Sie aktuell im Hauptfenster verwenden).  Die Statistik gibt Auskunft über die Anzahl der Programmeinträge in der Datenbank, den prozentualen Füllungsgrad, den Prozentsatz der abgelaufenen Einträge, das Datum des letzten Updates usw.  Läuft die Akquisition auf der gleichen Datenbank, enthält es zusätzlich Information zu Status und Fortschritt der Akquisition. Für Details siehe L<"STATISTICS: Timescale popup window">.
-
-=item B<View acq timescales>
-
-Blendet das Zeitskalenfenster für die aktuell von der Akquisition befüllte Datenbank ein oder aus.  Dieser Eintrag ist nur verfügbar, wenn die Akquisition auf einer anderen Datenbank arbeitet als der, die im Browsers verwendet wird (z.B. im Falle der Akquisitionsmodi I<manual> oder I<cyclic>, siehe L<"DATA ACQUISITION">).
-
-=item B<View acq statistics>
-
-Blendet das Statistikfenster für die aktuell von der Akquisition befüllte Datenbank ein oder aus.  Die Statistik gibt über Status und Fortschritt der Akquisition Auskunft. Schaltet die Akquisition zu einer anderen Datenbank um, folgt das Statistikfenster automatisch zum neuen Anbieter. Für Details siehe L<"DATA ACQUISITION">.
-
-=back
-
 =head2 Quit
 
 Schließt alle Fenster und beendet die Anwendung. Wurde die Akquisition als Daemon gestartet, wird dieser nicht beendet (siehe L<"CONTROL: Connect to acq. daemon">).
@@ -935,7 +943,7 @@ Zu beachten ist, dass wenn nicht der TV-Tuner als Eingabe gewählt wird, nxtvepg 
 
 Haben Sie mehr als eine TV-Tunerkarte in Ihrem Rechner, können Sie wählen, welche Sie nutzen wollen. Dieselbe Auswahl wird über die Befehlszeilenoption B<-card> getroffen (siehe L<"OPTIONS">). Das Popupmenü wird Ihnen alle Kartentypen - wie im Treiber konfiguriert - auflisten. Zu bemerken ist, dass sich das Ändern der Karte ebenso auf die Input-Wahl auswirken wird, insbesondere wenn die Karten unterschiedliche Sortierreihenfolgen der Input-Typen besitzen.
 
-Die Option "I<Slicer Quality>" wählt zwischen verschiedenen Algorithmen aus, mit denen der Teletext aus dem analogen Videosignal extrahiert wird. Der Algorithmus I<simple> funktioniert nur bei ausgezeichnetem TV-Empfang, hat jedoch den Vorteil, sehr wenig CPU-Ressourcen zu verbrauchen. Der Algorithmus I<elaborate> (aus Zappings libzvbi zapping.sourceforge.net und ursprünglich für den Linux-Teletextviewer I<alevt> entwickelt) ist wesentlich fehlertoleranter. Wenn Sie I<automatic> wählen, wird die Akquisition immer mit dem einfachen Algorithmus starten, jedoch auf den aufwendigeren umschalten, wenn die Fehlerrate bestimmte Grenzwerte übersteigt (siehe auch L<"STATISTICS: Acquisition statistics">).
+Die Option "I<Slicer Quality>" wählt zwischen verschiedenen Algorithmen aus, mit denen der Teletext aus dem analogen Videosignal extrahiert wird. Der Algorithmus I<simple> funktioniert nur bei ausgezeichnetem TV-Empfang, hat jedoch den Vorteil, sehr wenig CPU-Ressourcen zu verbrauchen. Der Algorithmus I<elaborate> (aus Zappings libzvbi zapping.sourceforge.net und ursprünglich für den Linux-Teletextviewer I<alevt> entwickelt) ist wesentlich fehlertoleranter. Wenn Sie I<automatic> wählen, wird die Akquisition immer mit dem einfachen Algorithmus starten, jedoch auf den aufwendigeren umschalten, wenn die Fehlerrate bestimmte Grenzwerte übersteigt (siehe auch L<"STATISTICS: Teletext grabber statistics">).
 
 B<Nur Windows:> am unteren Rand der Dialogbox sind weitere Optionen, die nur benötigt werden, wenn überprüft werden soll, ob die Akquisition nicht korrekt arbeitet.
 

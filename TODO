@@ -6,11 +6,12 @@ you have ideas for additional features.
 
 Post-Nextview EPG:
 - New DB type: "Load Teletext EPG...": automatically follow TTX acq, even if DB not exist yet
-- extend XMLTV database statistics
-  - pie chart: different color for current day
-  - histogram, merged db: show percentage of DBs updated during last 12-24 hours
-  - timescale: different color for DBs older than 12-24 hours
-  - timescale: "acq tail": highlight networks/time ranges acq is working for
+- stats db histogram: lower update frequency to ~30 seconds; update while window not open
+- stats db histogram, merged db: show percentage of DBs updated during last 12-24 hours
+- stats timescale: "acq tail": highlight networks/time ranges acq is working for
+- stats timescale: keep network names visible even when scrolling
+- stats timescale: scroll to make "now" visible upon opening
+- stats acquisition/teletext: add overall acq. runtime (i.e. in addition to per-channel time)
 - move USE_TTX_GRABBER to exclude all acqusition if not set
 - merge & load dialog: directory drop-down: add history
 - merge dialog, "configure" sub-menu: simplify to single list with
@@ -25,6 +26,7 @@ Post-Nextview EPG:
 - DVB-S support
 - support more TV apps channel.conf
 - XMLTV CNI mapping fundamentally broken
+- XMLTV: yacc generated code crashes
 - mplayer, VLC & VDR plugin for EPG display
 - teletext: use separate thread for post-processing (takes long time for 10 DBs)
 - teletext: ? move TTX packet decoding into acq thread?
@@ -92,6 +94,7 @@ XMLTV import:
   for non-auto mode: pass language selection to XML parser;
   used by EpgSetup_GetDefaultLang(): pAiBlock->lang
 - change max netwop count from 254 to dynamic? (high effort in epgfilter.h and epgdbmerge.c)
+  more importantly: MAX_MERGED_DB_COUNT is currently limited to 63
 - programmes with start time only should not be discarded
   automatically set stop time to start of subsequent programme
 - extend PI struct to hold all XMLTV info fields?
