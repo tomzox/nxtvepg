@@ -211,7 +211,7 @@ static int PiBox_Toggle( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *
 
             if (isInitial == FALSE)
             {  // if in database exception state, re-display the message
-               UiControl_AiStateChange(DB_TARGET_UI);
+               UiControl_AiStateChange(NULL);
             }
          }
       }
@@ -227,7 +227,7 @@ static int PiBox_Toggle( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *
 
             if (isInitial == FALSE)
             {  // if in database exception state, re-display the message
-               UiControl_AiStateChange(DB_TARGET_UI);
+               UiControl_AiStateChange(NULL);
             }
          }
       }

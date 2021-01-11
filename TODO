@@ -6,7 +6,6 @@ you have ideas for additional features.
 
 Post-Nextview EPG:
 - New DB type: "Load Teletext EPG...": automatically follow TTX acq, even if DB not exist yet
-- stats db histogram: lower update frequency to ~30 seconds; update while window not open
 - stats db histogram, merged db: show percentage of DBs updated during last 12-24 hours
 - stats timescale: "acq tail": highlight networks/time ranges acq is working for
 - stats timescale: keep network names visible even when scrolling
@@ -23,7 +22,7 @@ Post-Nextview EPG:
 - XMLTV service name: when merging teletext-only use "Merged teletext (%d networks)"
 - DVB TTX stream decoding issues: "Illegal line order", "Unknown data_unit_id"
 - DVB: automatic detection of teletext PID (in channel scan or otherwise)
-- DVB-S support
+- DVB-S & DVB-T support
 - support more TV apps channel.conf
 - XMLTV CNI mapping fundamentally broken
 - XMLTV: yacc generated code crashes

@@ -58,6 +58,7 @@
 #include "epgui/wintvcfg.h"
 #include "epgui/cmdline.h"
 #include "epgui/daemon.h"
+#include "epgui/statswin.h"
 #include "epgctl/epgctxctl.h"
 #include "epgvbi/vbidecode.h"
 #include "epgvbi/cni_tables.h"
@@ -490,7 +491,7 @@ static int MenuCmd_ToggleAcq( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_
       }
 
       // update help message in listbox if database is empty
-      UiControl_CheckDbState();
+      UiControl_CheckDbState(NULL);
 
       Tcl_ResetResult(interp);
       result = TCL_OK;
@@ -693,7 +694,8 @@ static int MenuCmd_ChangeProvider( ClientData ttp, Tcl_Interp *interp, int objc,
             // in case follow-ui acq mode is used, change the acq db too
             EpgSetup_AcquisitionMode(NETACQ_KEEP);
 
-            UiControl_AiStateChange(DB_TARGET_UI);
+            UiControl_AiStateChange(NULL);
+            StatsWin_UiStatsUpdate(TRUE, TRUE);
             eval_check(interp, "ResetFilterState");
 
             PiBox_Reset();
@@ -1618,7 +1620,8 @@ static int MenuCmd_ProvMerge_Start( ClientData ttp, Tcl_Interp *interp, int objc
 
          EpgSetup_AcquisitionMode(NETACQ_KEEP);
 
-         UiControl_AiStateChange(DB_TARGET_UI);
+         UiControl_AiStateChange(NULL);
+         StatsWin_UiStatsUpdate(TRUE, TRUE);
          eval_check(interp, "ResetFilterState");
 
          PiBox_Reset();
@@ -1811,7 +1814,7 @@ static int MenuCmd_StartEpgScan( ClientData ttp, Tcl_Interp *interp, int objc, T
                sprintf(comm, "EpgScanButtonControl start\n");
                eval_check(interp, comm);
                // update PI listbox help message, if there's no db in the browser yet
-               UiControl_CheckDbState();
+               UiControl_CheckDbState(NULL);
                // update main window status line
                UiControlMsg_AcqEvent(ACQ_EVENT_STATS_UPDATE);
                // Install the event handler
@@ -1848,7 +1851,7 @@ static int MenuCmd_StopEpgScan( ClientData ttp, Tcl_Interp *interp, int objc, Tc
    sprintf(comm, "EpgScanButtonControl stop\n");
    eval_check(interp, comm);
 
-   UiControl_CheckDbState();
+   UiControl_CheckDbState(NULL);
 
    return TCL_OK;
 }
@@ -2108,7 +2111,7 @@ static int MenuCmd_UpdateHardwareConfig( ClientData ttp, Tcl_Interp *interp, int
       EpgSetup_CardDriver(-1);
 
       // update help message in listbox if database is empty
-      UiControl_CheckDbState();
+      UiControl_CheckDbState(NULL);
 
       result = TCL_OK;
    }
@@ -2500,7 +2503,7 @@ static int MenuCmd_UpdateTtxConfig( ClientData ttp, Tcl_Interp *interp, int objc
       UpdateRcFile(TRUE);
 
       // update help message in listbox if database is empty
-      UiControl_CheckDbState();
+      UiControl_CheckDbState(NULL);
 
       // enable aquisition, if auto-start enabled
       const RCFILE * pRc = RcFile_Query();

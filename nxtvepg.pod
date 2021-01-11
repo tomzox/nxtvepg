@@ -994,7 +994,9 @@ acquired before the current day is marked stippled.
 
 While Teletext EPG acquisition is enabled, the histogram below the pie
 chart shows the same information as the pie chart, however tracked over
-time.
+time. The state information printed to the right of the histogram has
+the same meaning as described in the next chapter for Teletext grabber
+statistics.
 
 
 =head2 Teletext grabber statistics
@@ -1034,7 +1036,10 @@ physical transponder.)
 
 =item I<Acq. runtime:>
 
-How long the acquisition has been working on the current channel.
+How long the acquisition has been working on the current channel, in
+seconds (i.e. format MM::SS).  The value in parenthesis states the capture
+duration configured for this channel in the Teletext Grabber
+configuration.
 
 =item I<Acq. state:>
 

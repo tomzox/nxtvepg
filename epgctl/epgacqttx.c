@@ -203,7 +203,8 @@ bool EpgAcqTtx_GetAcqStats( EPG_ACQ_STATS * pAcqStats )
       pAcqStats->lastStatsUpdate = time(NULL);
       pAcqStats->acqStartTime    = acqCtl.acqStartTime;
       // FIXME? use decStartTime instead of acqCtl.acqStartTime
-      pAcqStats->acqDuration     = pAcqStats->lastStatsUpdate - acqCtl.acqStartTime;
+      pAcqStats->acqRuntime      = pAcqStats->lastStatsUpdate - acqCtl.acqStartTime;
+      pAcqStats->acqDuration     = acqCtl.acqDuration;
 
       for (idx = 0; idx < acqCtl.ttxActiveCount; idx++)
       {
@@ -279,8 +280,6 @@ bool EpgAcqTtx_Start( EPGACQ_MODE mode, EPGACQ_PHASE cyclePhase )
       // set input source and tuner frequency (also detect if device is busy)
       EpgAcqTtx_UpdateProvider();
       result = EpgAcqTtx_TtxStart();
-
-      UiControlMsg_AcqEvent(ACQ_EVENT_PROV_CHANGE);
    }
 #endif // USE_TTX_GRABBER
 
@@ -746,7 +745,7 @@ bool EpgAcqTtx_MonitorSources( void )
                   // match -> enable acquisition
                   dprintf2("EpgAcqTtx-MonitorSources: load passive from channel %d (%s)\n", acqCtl.ttxSrcIdx[0], EpgAcqTtx_GetChannelName(acqCtl.ttxSrcIdx[0]));
                   acqCtl.state = TTXACQ_STATE_GRAB_PASSIVE;
-                  UiControlMsg_AcqEvent(ACQ_EVENT_PROV_CHANGE);
+                  UiControlMsg_AcqEvent(ACQ_EVENT_CTL);
                }
                else
                {  // frequency mismatch -> restart
@@ -830,7 +829,7 @@ bool EpgAcqTtx_MonitorSources( void )
             EpgAcqTtx_UpdateProvider();
             EpgAcqTtx_TtxStart();
 
-            UiControlMsg_AcqEvent(ACQ_EVENT_PROV_CHANGE);
+            UiControlMsg_AcqEvent(ACQ_EVENT_CTL);
          }
          else
          {
@@ -848,7 +847,7 @@ bool EpgAcqTtx_MonitorSources( void )
          acqCtl.state = TTXACQ_STATE_IDLE;
          acqCtl.ttxActiveCount = 0;
          EpgAcqTtx_TtxStart();
-         UiControlMsg_AcqEvent(ACQ_EVENT_PROV_CHANGE);
+         UiControlMsg_AcqEvent(ACQ_EVENT_CTL);
       }
    }
 #endif // USE_TTX_GRABBER

@@ -81,7 +81,11 @@ typedef struct
    uint32_t  day3old;
 } STATS_DB_HIST_ELEM;
 
-#define STATS_DB_HIST_WIDTH     128
+#define STATS_DB_HIST_WIDTH     128    // histogram canvas width [pixels]
+#define STATS_DB_HIST_HEIGHT    128    // histogram canvas height [pixels]
+#define STATS_DB_HIST_UPD_FREQ  20     // min. time delta for histogram entries [seconds]
+#define STATS_DB_ACQ_UPD_FREQ   10     // update frequency for acq. stats in DB stats window
+#define STATS_TTX_UPD_FREQ      2      // update frequency for TTX grabber stats window
 
 static struct
 {
@@ -90,6 +94,7 @@ static struct
    bool     histNeedsReset;
    uint     histIdx;
    uint     histScaleY;
+   time_t   histUpdateTs;
    STATS_DB_HIST_ELEM hist[STATS_DB_HIST_WIDTH];
    Tcl_TimerToken updateHandler;
 } dbStatsWinState;
@@ -146,13 +151,13 @@ static void StatsWin_UpdateHistLine( uint idx )
       uint v6 = v5 + dbStatsWinState.hist[idx].day3old;
 
       sprintf(comm, "DbStatsWin_AddHistory .dbstats_ui %d %d %d %d %d %d %d %d\n", idx,
-                                           (128 * v0 / dbStatsWinState.histScaleY),
-                                           (128 * v1 / dbStatsWinState.histScaleY),
-                                           (128 * v2 / dbStatsWinState.histScaleY),
-                                           (128 * v3 / dbStatsWinState.histScaleY),
-                                           (128 * v4 / dbStatsWinState.histScaleY),
-                                           (128 * v5 / dbStatsWinState.histScaleY),
-                                           (128 * v6 / dbStatsWinState.histScaleY));
+                    (STATS_DB_HIST_HEIGHT * v0 / dbStatsWinState.histScaleY),
+                    (STATS_DB_HIST_HEIGHT * v1 / dbStatsWinState.histScaleY),
+                    (STATS_DB_HIST_HEIGHT * v2 / dbStatsWinState.histScaleY),
+                    (STATS_DB_HIST_HEIGHT * v3 / dbStatsWinState.histScaleY),
+                    (STATS_DB_HIST_HEIGHT * v4 / dbStatsWinState.histScaleY),
+                    (STATS_DB_HIST_HEIGHT * v5 / dbStatsWinState.histScaleY),
+                    (STATS_DB_HIST_HEIGHT * v6 / dbStatsWinState.histScaleY));
       eval_check(interp, comm);
    }
    else
@@ -160,41 +165,74 @@ static void StatsWin_UpdateHistLine( uint idx )
 }
 
 // ----------------------------------------------------------------------------
-// Update the history diagram in the db statistics window
+// Refresh the complete history content
 //
-static void StatsWin_UpdateHist( const EPGDB_BLOCK_COUNT * pCount )
+static void StatsWin_RefreshHist( void )
 {
+   if (dbStatsWinState.histNeedsReset == FALSE)
+   {
+      eval_check(interp, "DbStatsWin_ClearHistory .dbstats_ui\n");
+
+      for (uint idx2 = 0; idx2 < STATS_DB_HIST_WIDTH; ++idx2)
+      {
+         StatsWin_UpdateHistLine(idx2);
+      }
+   }
+}
+
+// ----------------------------------------------------------------------------
+// Update the history diagram data and the display, if open
+// - ATTN: may be called while statistics window is not open
+//
+static void StatsWin_UpdateHist( const EPGDB_BLOCK_COUNT * pCount, time_t now )
+{
+   time_t updDelta = now - dbStatsWinState.histUpdateTs;
+
    if (dbStatsWinState.histNeedsReset)
-   {  // acquisition was reset -> clear history
+   {
+      dprintf0("StatsWin-UpdateHist: resetting history\n");
       dbStatsWinState.histNeedsReset = FALSE;
       dbStatsWinState.histScaleY = 1;
       dbStatsWinState.histIdx = 0;
+      dbStatsWinState.histUpdateTs = now;
+      memset(dbStatsWinState.hist, 0, sizeof(dbStatsWinState.hist));
 
-      eval_check(interp, "DbStatsWin_ClearHistory .dbstats_ui\n");
+      if (dbStatsWinState.open)
+         eval_check(interp, "DbStatsWin_ClearHistory .dbstats_ui\n");
    }
    else if (dbStatsWinState.histIdx >= STATS_DB_HIST_WIDTH)
    {
       dbStatsWinState.histIdx = 0;
+      dbStatsWinState.histUpdateTs = now;
    }
-   const uint idx = dbStatsWinState.histIdx;
+   else if (updDelta >= STATS_DB_HIST_UPD_FREQ)
+   {
+      dbStatsWinState.histIdx = (dbStatsWinState.histIdx + 1) % STATS_DB_HIST_WIDTH;
+      dbStatsWinState.histUpdateTs = now;
+   }
+   // else: overwrite previous histIdx
+
+   uint idx = dbStatsWinState.histIdx;
    uint total = pCount->day1[0] + pCount->day2[0] + pCount->day3[0] +
                 pCount->day1[1] + pCount->day2[1] + pCount->day3[1] +
                 pCount->expired + pCount->defective;
 
-   if (total > 0)
+   if ((dbStatsWinState.histScaleY < total) && dbStatsWinState.open)
    {
-      if (dbStatsWinState.histScaleY < total)
-      {
-         dprintf2("StatsWin-UpdateHist: rescaling from %d to %d\n", dbStatsWinState.histScaleY, total);
-         eval_check(interp, "DbStatsWin_ClearHistory .dbstats_ui\n");
+      dprintf2("StatsWin-UpdateHist: rescaling from %d to %d\n", dbStatsWinState.histScaleY, total);
 
-         dbStatsWinState.histScaleY = total * 5 / 4;  // 25% head-room for further increase
+      dbStatsWinState.histScaleY = total * 5 / 4;  // 25% head-room for further increase
+      StatsWin_RefreshHist();
+   }
 
-         for (uint idx2 = 0; idx2 < dbStatsWinState.histIdx; ++idx2)
-         {
-            StatsWin_UpdateHistLine(idx2);
-         }
-      }
+   ssize_t cnt = (now - dbStatsWinState.histUpdateTs) / STATS_DB_HIST_UPD_FREQ; 
+   if (cnt < 1)
+      cnt = 1;
+   else if (cnt > STATS_DB_HIST_WIDTH)
+      cnt = STATS_DB_HIST_WIDTH;
+
+   for (uint repIdx = 0; repIdx < cnt; ++repIdx)
+   {
       dbStatsWinState.hist[idx].expir = pCount->expired + pCount->defective;
       dbStatsWinState.hist[idx].day1cur = pCount->day1[0];
       dbStatsWinState.hist[idx].day1old = pCount->day1[1];
@@ -202,15 +240,12 @@ static void StatsWin_UpdateHist( const EPGDB_BLOCK_COUNT * pCount )
       dbStatsWinState.hist[idx].day2old = pCount->day2[1];
       dbStatsWinState.hist[idx].day3cur = pCount->day3[0];
       dbStatsWinState.hist[idx].day3old = pCount->day3[1];
-   }
-   else
-   {
-      memset(&dbStatsWinState.hist[idx], 0, sizeof(dbStatsWinState.hist[0]));
-   }
 
-   StatsWin_UpdateHistLine(idx);
+      if (dbStatsWinState.open)
+         StatsWin_UpdateHistLine(idx);
 
-   dbStatsWinState.histIdx = (dbStatsWinState.histIdx + 1) % STATS_DB_HIST_WIDTH;
+      idx = (idx + 1) & STATS_DB_HIST_WIDTH;
+   }
 }
 
 // ----------------------------------------------------------------------------
@@ -302,7 +337,6 @@ static void StatsWin_PrintDbStats( EPGDB_CONTEXT * dbc, EPGDB_BLOCK_COUNT * pCou
 //
 static void StatsWin_PrintAcqStats( EPGDB_CONTEXT * dbc, EPGACQ_DESCR * pAcqState, EPG_ACQ_STATS * sv )
 {
-   time32_t acq_duration;
    const char * pAcqModeStr;
    const char * pAcqPasvStr;
    char * pTtxNames = NULL;
@@ -341,17 +375,13 @@ static void StatsWin_PrintAcqStats( EPGDB_CONTEXT * dbc, EPGACQ_DESCR * pAcqStat
    }
 #endif
 
-   if ((sv->acqStartTime > 0) && (sv->acqStartTime <= sv->lastStatsUpdate))
-      acq_duration = sv->lastStatsUpdate - sv->acqStartTime;
-   else
-      acq_duration = 0;
-
    strOff += sprintf(commBuf + strOff,
                      "Channels done:    %d of %d (%d%%)\n"
-                     "Acq runtime:      %02d:%02d\n",
+                     "Acq runtime:      %02d:%02d (of %02d:%02d)\n",
                      pAcqState->ttxGrabDone, pAcqState->ttxSrcCount,
-                     ACQ_COUNT_TO_PERCENT(pAcqState->ttxGrabDone, pAcqState->ttxSrcCount),
-                        (uint)(acq_duration / 60), (uint)(acq_duration % 60));
+                        ACQ_COUNT_TO_PERCENT(pAcqState->ttxGrabDone, pAcqState->ttxSrcCount),
+                     (sv->acqRuntime / 60), (sv->acqRuntime % 60),
+                        (sv->acqDuration / 60), (sv->acqDuration % 60));
 
    EpgAcqCtl_GetAcqModeStr(pAcqState, /* forTtx := FALSE,*/ &pAcqModeStr, &pAcqPasvStr, NULL);
    if (EpgSetup_CheckTvCardConfig() == FALSE)
@@ -406,13 +436,13 @@ static void StatsWin_UpdateDbStatsWin( ClientData clientData )
 
    if (dbStatsWinState.open)
    {
-      dprintf0("StatsWin-UpdateDbStatsWin\n");
+      dprintf2("StatsWin-UpdateDbStatsWin: histShown?:%d histIdx:%d\n", dbStatsWinState.histShown, dbStatsWinState.histIdx);
 
       // acq not running for this database -> display db stats only
+      time_t now = time(NULL);
       memset(&count, 0, sizeof(count));
       if (pUiDbContext != NULL)
       {
-         time_t now = time(NULL);
          EpgDbGetStat(pUiDbContext, &count, now, EpgAcqCtl_GetAcqBaseTime(now));
       }
 
@@ -433,11 +463,13 @@ static void StatsWin_UpdateDbStatsWin( ClientData clientData )
             sprintf(comm, "pack .dbstats_ui.acq -side top -anchor nw -fill both "
                                                "-after .dbstats_ui.browser\n");
             eval_check(interp, comm);
+
             dbStatsWinState.histShown = TRUE;
+            StatsWin_RefreshHist();
          }
 
          // display graphical database fill percentage histogramm
-         StatsWin_UpdateHist(&count);
+         StatsWin_UpdateHist(&count, now);
 
          // text description
          StatsWin_PrintAcqStats(pUiDbContext, &acqState, &sv);
@@ -451,7 +483,7 @@ static void StatsWin_UpdateDbStatsWin( ClientData clientData )
          if ((acqState.ttxGrabState != ACQDESCR_DISABLED) && (acqState.isNetAcq == FALSE))
          {
             dbStatsWinState.updateHandler =
-               Tcl_CreateTimerHandler(10*1000, StatsWin_UpdateDbStatsWinTimeout, NULL);
+               Tcl_CreateTimerHandler(STATS_DB_ACQ_UPD_FREQ*1000, StatsWin_UpdateDbStatsWinTimeout, NULL);
          }
       }
       else
@@ -472,6 +504,24 @@ static void StatsWin_UpdateDbStatsWin( ClientData clientData )
 }
 
 // ----------------------------------------------------------------------------
+// Update DB histogram while the statistics window is not open
+//
+static void StatsWin_UpdateDbHist( ClientData clientData )
+{
+   EPGDB_BLOCK_COUNT count;
+   time_t now = time(NULL);
+
+   if (dbStatsWinState.open == FALSE)
+   {
+      dprintf2("StatsWin-UpdateDbStatsWin: histShown?:%d histIdx:%d\n", dbStatsWinState.histShown, dbStatsWinState.histIdx);
+      if (EpgDbGetStat(pUiDbContext, &count, now, EpgAcqCtl_GetAcqBaseTime(now)))
+      {
+         StatsWin_UpdateHist(&count, now);
+      }
+   }
+}
+
+// ----------------------------------------------------------------------------
 // Update the teletext grabber statistics window
 //
 static void StatsWin_UpdateTtxStats( ClientData clientData )
@@ -479,7 +529,6 @@ static void StatsWin_UpdateTtxStats( ClientData clientData )
    EPGACQ_DESCR acqState;
    EPG_ACQ_STATS sv;
    EPG_ACQ_VPS_PDC vpsPdc;
-   time32_t acq_duration;
    const char * pAcqModeStr;
    const char * pAcqPasvStr;
    const char * pAcqStateStr;
@@ -499,11 +548,6 @@ static void StatsWin_UpdateTtxStats( ClientData clientData )
       {
          pAcqPasvStr = "TV card not configured";
       }
-
-      if ((sv.acqStartTime > 0) && (sv.acqStartTime <= sv.lastStatsUpdate))
-         acq_duration = sv.lastStatsUpdate - sv.acqStartTime;
-      else
-         acq_duration = 0;
 
       comm[0] = 0;
 
@@ -536,14 +580,15 @@ static void StatsWin_UpdateTtxStats( ClientData clientData )
                                    "Acq passive:      %s\n"
                                    "Channels done:    %d of %d (%d%%)\n"
                                    "Current channels: %d\n"
-                                   "Acq runtime:      %02d:%02d\n"
+                                   "Acq runtime:      %02d:%02d (of %02d:%02d)\n"
                                    "Acq state:        %s",
                                    pAcqModeStr,
                                    ((pAcqPasvStr == NULL) ? "---" : pAcqPasvStr),
                                    acqState.ttxGrabDone, acqState.ttxSrcCount,
                                      ACQ_COUNT_TO_PERCENT(acqState.ttxGrabDone, acqState.ttxSrcCount),
                                    acqState.ttxGrabCount,
-                                   ((uint)acq_duration / 60), ((uint)acq_duration % 60),
+                                   (sv.acqRuntime / 60), (sv.acqRuntime % 60),
+                                      (sv.acqDuration / 60), (sv.acqDuration % 60),
                                    pAcqStateStr);
 
       // configure the popup text to show the string
@@ -655,7 +700,7 @@ static void StatsWin_UpdateTtxStats( ClientData clientData )
       // set up a timer to re-display the stats in case there's no TTX reception
       if ((acqState.ttxGrabState != ACQDESCR_DISABLED) && (acqState.isNetAcq == FALSE))
          statsWinTtx.updateHandler =
-            Tcl_CreateTimerHandler(2*1000, StatsWin_UpdateTtxStats, NULL);
+            Tcl_CreateTimerHandler(STATS_TTX_UPD_FREQ*1000, StatsWin_UpdateTtxStats, NULL);
    }
 }
 
@@ -957,7 +1002,6 @@ static int StatsWin_ToggleDbStats( ClientData ttp, Tcl_Interp *interp, int argc,
 
             dbStatsWinState.open = TRUE;
             dbStatsWinState.histShown = FALSE;
-            dbStatsWinState.histNeedsReset = TRUE;
             dbStatsWinState.updateHandler = NULL;
 
             // enable extended statistics reports
@@ -1067,22 +1111,43 @@ static int StatsWin_ToggleTtxStats( ClientData ttp, Tcl_Interp *interp, int argc
 // - the function is also triggered by GUI provider changes
 //   plus regularily every minute (to update expiration statistics)
 //
-void StatsWin_StatsUpdate( int target )
+void StatsWin_UiStatsUpdate( bool provChange, bool dbUpdate )
 {
-   // update the db statistics window of the given db, if open
-   if ( dbStatsWinState.open &&
-        ( (target == DB_TARGET_UI) ||
-          ((target == DB_TARGET_ACQ) && dbStatsWinState.histShown) ))
-   {
-      AddMainIdleEvent(StatsWin_UpdateDbStatsWin, UINT2PVOID(target), FALSE);
-   }
+   dprintf2("StatsWin-UiStatsUpdate: provChange:%d dbUpdate:%d\n", provChange, dbUpdate);
 
-   if ( (target == DB_TARGET_ACQ) && statsWinTtx.open)
+   if (provChange)
+   {
+      dbStatsWinState.histNeedsReset = TRUE;
+   }
+   if (dbStatsWinState.open)
+   {
+      AddMainIdleEvent(StatsWin_UpdateDbStatsWin, NULL, TRUE);
+   }
+   else if (dbUpdate)
+   {
+      AddMainIdleEvent(StatsWin_UpdateDbHist, NULL, TRUE);
+   }
+   if (provChange || dbUpdate)
+   {
+      AddMainIdleEvent(StatsWin_UpdateMainStatusLine, NULL, TRUE);
+   }
+}
+
+// ----------------------------------------------------------------------------
+// Schedule an update of all statistics output
+//
+void StatsWin_AcqStatsUpdate( bool provChange )
+{
+   dprintf1("StatsWin-AcqStatsUpdate: provChange:%d\n", provChange);
+
+   if (dbStatsWinState.open && (dbStatsWinState.histShown || provChange))
+   {
+      AddMainIdleEvent(StatsWin_UpdateDbStatsWin, NULL, TRUE);
+   }
+   if (statsWinTtx.open)
    {
       AddMainIdleEvent(StatsWin_UpdateTtxStats, NULL, TRUE);
    }
-
-   // update the main window status line
    AddMainIdleEvent(StatsWin_UpdateMainStatusLine, NULL, TRUE);
 }
 
@@ -1103,4 +1168,5 @@ void StatsWin_Create( void )
       fatal0("StatsWin-Create: commands are already created");
 
    memset(&dbStatsWinState, 0, sizeof(dbStatsWinState));
+   dbStatsWinState.histNeedsReset = TRUE;
 }

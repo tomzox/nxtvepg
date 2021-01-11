@@ -1812,7 +1812,7 @@ static bool PiListBox_HandleAcqEvent( const EPGDB_CONTEXT * usedDbc, EPGDB_PI_AC
    }
    else if ( (pibox_state != PIBOX_LIST) && (usedDbc == dbc) && (event == EPGDB_PI_INSERTED) )
    {  // listbox was in an error state -> switch to normal mode
-      UiControl_CheckDbState();
+      UiControl_CheckDbState(NULL);
       return TRUE;
    }
 

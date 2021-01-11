@@ -33,13 +33,6 @@ typedef enum
    CTX_RELOAD_ERR_REQ,         // db was requested by the user interaction
 } CONTEXT_RELOAD_ERR_HAND;
 
-enum
-{
-   DB_TARGET_UI   = 0,
-   DB_TARGET_ACQ  = 1,
-   DB_TARGET_BOTH = 2
-};
-
 typedef enum
 {
    ACQ_EVENT_PROV_CHANGE,
@@ -53,7 +46,7 @@ typedef enum
 // Interface to other GUI modules
 #ifdef _TCL
 void UiControl_AiStateChange( ClientData clientData );
-void UiControl_CheckDbState( void );
+void UiControl_CheckDbState( ClientData clientData );
 void UiControl_ReloadError( ClientData clientData );
 void UiControl_DisplayErrorMessage( char * pMsg );
 #endif

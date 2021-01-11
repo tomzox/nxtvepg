@@ -396,7 +396,7 @@ Anzahl der Blöcke mit ungültiger oder überlappender Startzeit. Diese Blöcke tauc
 
 Das Tortendiagramm zur Linken des Fensters visualisiert diese Zahlen. Der Kreis repräsentiert 100% der in der AI aufgelisteten Blöcke. Er ist aufgeteilt in Stream 1 (rot) und Stream 2 (blau). Die schraffierten Segmente stellen die Blöcke dar, die in der lokalen Datenbank noch fehlen, die gelben Segmente den Prozentsatz an abgelaufenen und/oder fehlerhaften Blöcken.
 
-Falls die Datenbank vom Teletext EPG Grabber aktualisiert wird, wird ein zusätzlicher Bereich unterhalb den Statistiken eingeblendet, in dem ein Histogramm und Statusinformationen zur Akquisition dargestellt sind.
+Falls die Datenbank vom Teletext EPG Grabber aktualisiert wird, wird ein zusätzlicher Bereich unterhalb den Statistiken eingeblendet, in dem ein Histogramm und Statusinformationen zur Akquisition dargestellt sind. Das Histogram zeigt dieselbe Information wie das Tortendiagramm, jedoch in Form eines Balkendiagramms über einer Zeitachse. Die Statusinformationen zur Rechten des Balkendiagramms haben dieselbe Bedeutung wie im nächsten Kapitel für die Teletext grabber statistics beschrieben.
 
 =head2 Teletext grabber statistics
 
@@ -424,7 +424,7 @@ Gibt die Anzahl der Sender an von denen aktuell Teletext empfangen wird. Bei ana
 
 =item I<Acq. runtime:>
 
-Gibt an, wie lange der Teletext vom aktuell eingestellten TV-Sender ampfangen wurde.
+Der erste Wert gibt an, wie lange der Teletext vom aktuell eingestellten TV-Sender ampfangen wurde (in Sekunden, Format MM::SS).  Der Wert in Klammern dahinter gibt die für den aktuellen Sender konfigurierte "Capture duration" an (siehe L<"CONFIGURATION">, "Teletext grabber").
 
 =item I<Acq. state:>
 

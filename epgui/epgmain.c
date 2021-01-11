@@ -308,7 +308,7 @@ static void EventHandler_TimerDbSetDateTime( ClientData clientData )
    AddMainIdleEvent(ClockMinEvent, NULL, TRUE);
 
    // update expiration statistics in status line and db stats popup
-   StatsWin_StatsUpdate(DB_TARGET_UI);
+   StatsWin_UiStatsUpdate(FALSE, TRUE);
 
    expirationHandler = Tcl_CreateTimerHandler(1000 * (60 - time(NULL) % 60), EventHandler_TimerDbSetDateTime, NULL);
 }
@@ -2350,7 +2350,7 @@ int main( int argc, char *argv[] )
       }
 
       // init main window title, PI listbox state and status line
-      UiControl_AiStateChange(DB_TARGET_UI);
+      UiControl_AiStateChange(NULL);
 
       if (Tk_GetNumMainWindows() > 0)
       {

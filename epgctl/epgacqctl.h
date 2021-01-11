@@ -108,6 +108,7 @@ typedef struct
 {
    time32_t            acqStartTime;
    time32_t            lastStatsUpdate;
+   uint32_t            acqRuntime;
    uint32_t            acqDuration;
    TTX_GRAB_STATS      pkgStats[MAX_VBI_DVB_STREAMS];
    TTX_DEC_STATS       ttx_dec[MAX_VBI_DVB_STREAMS];

@@ -470,7 +470,7 @@ static int SelectExpiredPiDisplay( ClientData ttp, Tcl_Interp *interp, int objc,
    if ( (lastStop != 0) &&
         ((lastStop <= oldThresh) != (lastStop <= newThresh)) )
    {
-      UiControl_CheckDbState();
+      UiControl_CheckDbState(NULL);
    }
    return TCL_OK; 
 }
@@ -1345,7 +1345,7 @@ static int PiFilter_SelectAirTimes( ClientData ttp, Tcl_Interp *interp, int objc
 //
 static int UpdateNetwopList( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
 {
-   UiControl_AiStateChange(DB_TARGET_UI);
+   UiControl_AiStateChange(NULL);
 
    return TCL_OK;
 }

@@ -27,7 +27,8 @@
 void StatsWin_Create( void );
 
 // Interface to ui event distribution
-void StatsWin_StatsUpdate( int target );
+void StatsWin_UiStatsUpdate( bool provChange, bool dbUpdate );
+void StatsWin_AcqStatsUpdate( bool provChange );
 
 
 #endif  // __STATSWIN_H

@@ -203,10 +203,11 @@ void EpgAcqCtl_GetAcqModeStr( const EPGACQ_DESCR * pAcqState, const char ** ppMo
       switch (pAcqState->ttxGrabState)
       {
          case ACQDESCR_DISABLED:
+         case ACQDESCR_SCAN:
             *pStateStr = "disabled";
             break;
          case ACQDESCR_NET_CONNECT:
-         case ACQDESCR_SCAN:
+            *pStateStr = "connecting to server";
             break;
          case ACQDESCR_STARTING:
             if (pAcqState->passiveReason == ACQPASSIVE_NONE)
@@ -733,8 +734,8 @@ bool EpgAcqCtl_SelectMode( EPGACQ_MODE newAcqMode, EPGACQ_PHASE maxPhase,
                EpgAcqCtl_Start();
             }
 
-            // if there was no provider change, at least notify about acq state change
-            UiControlMsg_AcqEvent(ACQ_EVENT_STATS_UPDATE);
+            // notify about possible provider change
+            UiControlMsg_AcqEvent(ACQ_EVENT_PROV_CHANGE);
          }
       }
    }

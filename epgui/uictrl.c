@@ -326,7 +326,7 @@ static EPGDB_STATE UiControl_GetDbState( void )
 // - this is used to display a helpful message in the PI listbox as long as
 //   the database is empty
 //
-void UiControl_CheckDbState( void )
+void UiControl_CheckDbState( ClientData clientData )
 {
    FILTER_CONTEXT *pPreFilterContext;
    const AI_BLOCK *pAiBlock;
@@ -379,7 +379,7 @@ void UiControl_CheckDbState( void )
    else
       state = EPGDB_NOT_INIT;
 
-   dprintf2("UiControl-CheckDbState: pibox state #%d (%.45s...)\n", state, UiControl_GetDbStateMsg(state));
+   dprintf2("UiControl-CheckDbState: pibox state #%d (%.45s...)\n", state, ((state != EPGDB_OK) ? UiControl_GetDbStateMsg(state) : "OK"));
    PiBox_ErrorMessage(UiControl_GetDbStateMsg(state));
 }
 
@@ -391,7 +391,6 @@ void UiControl_CheckDbState( void )
 //
 void UiControl_AiStateChange( ClientData clientData )
 {
-   uint target = PVOID2UINT(clientData);
    const AI_BLOCK *pAiBlock;
    const char * name;
    Tcl_DString cmd_dstr;
@@ -414,7 +413,7 @@ void UiControl_AiStateChange( ClientData clientData )
 #endif
 
    // check if the message relates to the browser db
-   if ((pUiDbContext != NULL) && (target == DB_TARGET_UI))
+   if (pUiDbContext != NULL)
    {
       EpgDbLockDatabase(pUiDbContext, TRUE);
       pAiBlock = EpgDbGetAi(pUiDbContext);
@@ -483,13 +482,11 @@ void UiControl_AiStateChange( ClientData clientData )
    }
 
    // if db is empty, display or update the help message
-   UiControl_CheckDbState();
+   UiControl_CheckDbState(NULL);
 
-   if (target == DB_TARGET_UI)
-   {  // update main window status line and other db related output
-      StatsWin_StatsUpdate(DB_TARGET_UI);
-      TimeScale_ProvChange();
-   }
+   // update main window status line and other db related output
+   StatsWin_UiStatsUpdate(FALSE, TRUE);
+   TimeScale_ProvChange();
 }
 
 // ----------------------------------------------------------------------------
@@ -537,7 +534,7 @@ static void UiControl_LoadAcqDb( ClientData clientData )
                      EpgContextCtl_Close(pDbContext);
 
                      PiBox_Refresh();
-                     UiControl_AiStateChange(DB_TARGET_UI);
+                     UiControl_AiStateChange(NULL);
 
                      if (count > 1)
                      {
@@ -546,7 +543,7 @@ static void UiControl_LoadAcqDb( ClientData clientData )
                      else  // all DBs updated -> final notifications
                      {
                         TimeScale_VersionChange(cni);
-                        StatsWin_StatsUpdate(DB_TARGET_ACQ);
+                        StatsWin_UiStatsUpdate(FALSE, TRUE);
                      }
                   }
                }
@@ -571,10 +568,10 @@ static void UiControl_LoadAcqDb( ClientData clientData )
                pUiDbContext = pDbContext;
 
                PiBox_Refresh();
-               UiControl_AiStateChange(DB_TARGET_UI);
+               UiControl_AiStateChange(NULL);
 
                TimeScale_VersionChange(cni);
-               StatsWin_StatsUpdate(DB_TARGET_ACQ);
+               StatsWin_UiStatsUpdate(FALSE, TRUE);
             }
             else
                debug1("UiControl-LoadAcqDb: failed to load db 0x%04X\n", cni);
@@ -838,31 +835,34 @@ void UiControlMsg_AcqEvent( ACQ_EVENT acqEvent )
       switch (acqEvent)
       {
          case ACQ_EVENT_PROV_CHANGE:
-            StatsWin_StatsUpdate(DB_TARGET_ACQ);
+            // sent when starting/stopping acq or upon change of channel table
+            StatsWin_AcqStatsUpdate(TRUE);
             if (EpgDbContextGetCni(pUiDbContext) == 0)
             {
-               AddMainIdleEvent(UiControl_AiStateChange, (ClientData) DB_TARGET_ACQ, FALSE);
+               AddMainIdleEvent(UiControl_CheckDbState, NULL, TRUE);
             }
             break;
 
          case ACQ_EVENT_STATS_UPDATE:
-            StatsWin_StatsUpdate(DB_TARGET_ACQ);
+            // sent upon driver config change, driver failure, tuning failure
+            StatsWin_AcqStatsUpdate(FALSE);
             TimeScale_AcqStatsUpdate();
             MenuCmd_AcqStatsUpdate();
             break;
 
          case ACQ_EVENT_CTL:
-            StatsWin_StatsUpdate(DB_TARGET_ACQ);
+            // regular TTX acq scheduling (e.g. channel change)
+            StatsWin_AcqStatsUpdate(FALSE);
             break;
 
-         // also sent when updating an existing DB
          case ACQ_EVENT_NEW_DB:
+            // sent after post-processing of TTX grabber: update DB or new DB
             // further events are triggered after DB is reloaded
             AddMainIdleEvent(UiControl_LoadAcqDb, NULL, TRUE);
             break;
 
          case ACQ_EVENT_VPS_PDC:
-            StatsWin_StatsUpdate(DB_TARGET_ACQ);
+            StatsWin_AcqStatsUpdate(FALSE);
             break;
       }
    }

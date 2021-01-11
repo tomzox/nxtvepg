@@ -4648,7 +4648,7 @@ static bool PiNetBox_HandleAcqEvent( const EPGDB_CONTEXT * usedDbc, EPGDB_PI_ACQ
              (event == EPGDB_PI_INSERTED) )
    {  // listbox is in an error state (maybe db empty)
       // -> check if status changed due to db insertion
-      UiControl_CheckDbState();
+      UiControl_CheckDbState(NULL);
    }
    return result;
 }
