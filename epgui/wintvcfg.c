@@ -41,6 +41,7 @@
 #include <errno.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <linux/dvb/frontend.h>  // for QUAM
 #endif
 #include <stdio.h>
 #include <stdlib.h>
@@ -344,7 +345,7 @@ static void WintvCfg_ChanTabAddDvbFreq( TV_CHNTAB_BUF * pChanTab, const EPGACQ_T
    // open call must precede addition, hence there must be at least one free slot left
    assert(pChanTab->itemCount < pChanTab->maxItemCount);
    assert(pChanTab->pData[pChanTab->itemCount].freq.norm == CHNTAB_MISSING_FREQ);
-   assert(freq->norm == EPGACQ_TUNER_NORM_DVB);
+   assert(EPGACQ_TUNER_NORM_IS_DVB(freq->norm));
 
    pChanTab->pData[pChanTab->itemCount].freq = *freq;
 }
@@ -487,6 +488,14 @@ static void WintvCfg_ChanTabSort( TV_CHNTAB_BUF * pChanTab )
       pChanTab->pStrBuf = pNewStrBuf;
       assert(pDstStr - pNewStrBuf == pChanTab->strBufOff);
    }
+}
+
+static void WintvCfg_ChanTabAddDvb( TV_CHNTAB_BUF * pChanTab, const char * pName, const EPGACQ_TUNER_PAR * par )
+{
+   WintvCfg_ChanTabItemOpen(pChanTab);
+   WintvCfg_ChanTabAddName(pChanTab, pName);
+   WintvCfg_ChanTabAddDvbFreq(pChanTab, par);
+   WintvCfg_ChanTabItemClose(pChanTab);
 }
 #endif // WIN32
 
@@ -931,21 +940,69 @@ static bool WintvCfg_GetDscalerChanTab( TV_CHNTAB_BUF * pChanTab, const char * p
 #else  // not WIN32
 
 // ----------------------------------------------------------------------------
+// Helper function for parsing text lines of channels.conf
+// - Given "maxCnt" should be +1 abouve max expected too catch excessive fields
+// - Replaces all ':' in the given string with zero bytes and fills the given
+//   array with pointers to the thus generated sub-strings
+// - Newline char is stripped from the last field
+//
+static uint WintvCfg_SplitStringColon( char * sbuf, char ** fields, uint maxCnt )
+{
+   char * sep = sbuf;
+   int fieldIdx;
+
+   fields[0] = sbuf;
+   for (fieldIdx = 1; fieldIdx < maxCnt; ++fieldIdx)
+   {
+      sep = strchr(sep, ':');
+      if (sep == NULL)
+         break;
+      *(sep++) = 0;
+      fields[fieldIdx] = sep;
+   }
+
+   // trim trailing newline char from last field
+   char *p1 = fields[fieldIdx - 1];
+   char *p2 = p1 + strlen(p1) - 1;
+   while ((p2 >= p1) && isspace(*p2))
+      *(p2--) = 0;
+
+   // detect excessive fields above maxCnt
+   if (strchr(fields[fieldIdx - 1], ':') != NULL)
+      fieldIdx += 1;
+
+   return fieldIdx;
+}
+
+// ----------------------------------------------------------------------------
 // Extract all channels from VDR "channels.conf" table
 // - Format: http://www.vdr-wiki.de/wiki/index.php/Channels.conf
 // - List is a colon-separated table with one line per channel; each line contains:
 //   name:freq:param:signal source:symbol rate:VPID:APID:TPID:CAID:SID:NID:TID:RID
 //
-#include <linux/dvb/frontend.h>  // for QUAM
+typedef enum
+{
+   CCNF_VDR_NAME,
+   CCNF_VDR_FREQUENCY,
+   CCNF_VDR_PARAM,
+   CCNF_VDR_SIG_SRC,
+   CCNF_VDR_SYMBOL_RATE,
+   CCNF_VDR_PID_VIDEO,
+   CCNF_VDR_PID_AUDIO,
+   CCNF_VDR_PID_TTX,
+   CCNF_VDR_PID_CA,
+   CCNF_VDR_SERVICE_ID,
+   CCNF_VDR_NID,
+   CCNF_VDR_TID,
+   CCNF_VDR_RID,
+   CCNF_VDR_COUNT
+} T_FIELDS_VDR;
 
 static bool WintvCfg_GetVdrChanTab( TV_CHNTAB_BUF * pChanTab, const char * pChanTabPath, char ** ppErrMsg )
 {
    char sbuf[2048];
    FILE * fp;
-   const int field_cnt = 13;
-   char * fields[field_cnt];
-   int field_idx;
-   char * sep_ptr;
+   char * fields[CCNF_VDR_COUNT + 1];
    bool result = FALSE;
 
    if (pChanTabPath != NULL)
@@ -959,47 +1016,46 @@ static bool WintvCfg_GetVdrChanTab( TV_CHNTAB_BUF * pChanTab, const char * pChan
 
             if (fgets(sbuf, 2048-1, fp) != NULL)
             {
-               sep_ptr = sbuf;
-               fields[0] = sbuf;
-               for (field_idx = 1; field_idx < field_cnt; ++field_idx)
-               {
-                  sep_ptr = strchr(sep_ptr, ':');
-                  if (sep_ptr == NULL)
-                     break;
-                  *(sep_ptr++) = 0;
-                  fields[field_idx] = sep_ptr;
-               }
-
-               if (field_idx == field_cnt)
+               if (WintvCfg_SplitStringColon(sbuf, fields, CCNF_VDR_COUNT + 1) == CCNF_VDR_COUNT)
                {
                   // strip bouquet name from network name
-                  char * p1 = strchr(fields[0], ';');
+                  char * p1 = strchr(fields[CCNF_VDR_NAME], ';');
                   if (p1 != NULL)
                      *p1 = 0;
-                  // trim trailing newline char from last field
-                  char *p2 = fields[field_cnt - 1];
-                  p1 += strlen(p2) - 1;
-                  while ((p1 >= p2) && isspace(*p1))
-                     *(p1--) = 0;
 
                   EPGACQ_TUNER_PAR par;
                   memset(&par, 0, sizeof(par));
 
-                  par.norm = EPGACQ_TUNER_NORM_DVB;
-                  par.freq = atol(fields[1]);
+                  if (strcmp(fields[CCNF_VDR_SIG_SRC], "C") == 0)
+                     par.norm = EPGACQ_TUNER_NORM_DVB_C;
+                  else if (strcmp(fields[CCNF_VDR_SIG_SRC], "T") == 0)
+                     par.norm = EPGACQ_TUNER_NORM_DVB_T;
+                  else
+                     par.norm = EPGACQ_TUNER_NORM_DVB_S;
+
+                  par.freq = atol(fields[CCNF_VDR_FREQUENCY]);
                   while (par.freq <= 1000000)
                      par.freq *= 1000;
 
-                  par.symbolRate = atol(fields[4]) * 1000;
-                  par.ttxPid = atol(fields[7]);  // implicitly ignore ";" and following
+                  par.ttxPid     = atol(fields[CCNF_VDR_PID_TTX]);  // implicitly ignore ";" and following
+                  par.serviceId  = atol(fields[CCNF_VDR_SYMBOL_RATE]);
+
+                  par.symbolRate = atol(fields[CCNF_VDR_SYMBOL_RATE]) * 1000;
                   par.modulation = QAM_AUTO;
+                  par.inversion  = INVERSION_AUTO;
+                  par.codeRate   = FEC_AUTO;
+                  par.codeRateLp = FEC_AUTO;
+                  par.bandwidth  = BANDWIDTH_AUTO;
+                  par.transMode  = TRANSMISSION_MODE_AUTO;
+                  par.guardBand  = GUARD_INTERVAL_AUTO;
+                  par.hierarchy  = HIERARCHY_AUTO;
 
                   // skip radio channels etc.
-                  if (par.ttxPid != 0)
+                  if (atol(fields[CCNF_VDR_PID_VIDEO]) != 0)
                   {
-                     char * field_par = fields[2];
-                     char * end = field_par + strlen(field_par);
-                     while (field_par < end)
+                     char * field_par = fields[CCNF_VDR_PARAM];
+                     char * field_end = field_par + strlen(field_par);
+                     while (field_par < field_end)
                      {
                         char op = *(field_par++);
                         char * ends;
@@ -1016,31 +1072,146 @@ static bool WintvCfg_GetVdrChanTab( TV_CHNTAB_BUF * pChanTab, const char * pChan
                            case 'T':
                            case 'G':
                            case 'Y':
-                              if (field_par < end)
+                           case 'S':
+                              val = strtol(field_par, &ends, 10);
+                              if (ends != field_par)
                               {
-                                 val = strtol(field_par, &ends, 10);
                                  field_par = ends;
+
                                  if (op == 'M')
                                  {
                                     switch (val)
                                     {
-                                       case 0:  par.modulation = QPSK; break;
+                                       case 2:  par.modulation = QPSK; break;
+                                       case 5:  par.modulation = PSK_8; break;
+                                       case 6:  par.modulation = APSK_16; break;
+                                       case 7:  par.modulation = APSK_32; break;
+                                       case 10: par.modulation = VSB_8; break;
+                                       case 11: par.modulation = VSB_16; break;
+                                       case 12: par.modulation = DQPSK; break;
+
                                        case 16:  par.modulation = QAM_16; break;
                                        case 32:  par.modulation = QAM_32; break;
                                        case 64:  par.modulation = QAM_64; break;
                                        case 128:  par.modulation = QAM_128; break;
                                        case 256:  par.modulation = QAM_256; break;
+                                       case 998:  // 998 acc. to w_scan
+                                       case 999:  par.modulation = QAM_AUTO; break;
                                        default:
-                                          fprintf(stderr, "WARNING: invalid Modulation value %ld in VDR: %s", val, sbuf);
+                                          fprintf(stderr, "WARNING: invalid modulation value %ld in VDR: %s", val, sbuf);
                                     }
                                  }
                                  else if (op == 'B')
                                  {
-                                    // TODO bandwidth DVB-T
+                                    switch (val)
+                                    {
+                                       case 8:  par.bandwidth = BANDWIDTH_8_MHZ; break;
+                                       case 7:  par.bandwidth = BANDWIDTH_7_MHZ; break;
+                                       case 6:  par.bandwidth = BANDWIDTH_6_MHZ; break;
+                                       case 5:  par.bandwidth = BANDWIDTH_5_MHZ; break;
+                                       case 10:  par.bandwidth = BANDWIDTH_10_MHZ; break;
+                                       case 1712: par.bandwidth = BANDWIDTH_1_712_MHZ; break;
+                                       case 999:  par.bandwidth = BANDWIDTH_AUTO; break;
+                                       default:
+                                          fprintf(stderr, "WARNING: invalid bandwidth value %ld in VDR: %s", val, sbuf);
+                                    }
+                                 }
+                                 else if (op == 'T')
+                                 {
+                                    switch (val)
+                                    {
+                                       case 2:   par.transMode = TRANSMISSION_MODE_2K; break;
+                                       case 8:   par.transMode = TRANSMISSION_MODE_8K; break;
+                                       case 4:   par.transMode = TRANSMISSION_MODE_4K; break;
+                                       case 1:   par.transMode = TRANSMISSION_MODE_1K; break;
+                                       case 16:  par.transMode = TRANSMISSION_MODE_16K; break;
+                                       case 32:  par.transMode = TRANSMISSION_MODE_32K; break;
+                                       case 999: par.transMode = TRANSMISSION_MODE_AUTO; break;
+                                       default:
+                                          fprintf(stderr, "WARNING: invalid transmission mode value %ld in VDR: %s", val, sbuf);
+                                    }
                                  }
                                  else if (op == 'I')
                                  {
-                                    // TODO inversion bandwidth DVB-T, DVB-C
+                                    switch (val)
+                                    {
+                                       case 0:   par.inversion = INVERSION_OFF; break;
+                                       case 1:   par.inversion = INVERSION_ON; break;
+                                       case 999: par.inversion = INVERSION_AUTO; break;
+                                       default:
+                                          fprintf(stderr, "WARNING: invalid inversion value %ld in VDR: %s", val, sbuf);
+                                    }
+                                 }
+                                 else if ((op == 'C') || (op == 'C'))
+                                 {
+                                    int conv = 0;
+                                    switch (val)
+                                    {
+                                       case 0: conv = FEC_NONE; break;
+                                       case 12: conv = FEC_1_2; break;
+                                       case 23: conv = FEC_2_3; break;
+                                       case 25: conv = FEC_2_5; break;
+                                       case 34: conv = FEC_3_4; break;
+                                       case 35: conv = FEC_3_5; break;
+                                       case 45: conv = FEC_4_5; break;
+                                       case 56: conv = FEC_5_6; break;
+                                       case 67: conv = FEC_6_7; break;
+                                       case 78: conv = FEC_7_8; break;
+                                       case 89: conv = FEC_8_9; break;
+                                       case 910: conv = FEC_9_10; break;
+                                       case 999: conv = FEC_AUTO; break;
+                                       default:
+                                          fprintf(stderr, "WARNING: invalid code rate value %ld in VDR: %s", val, sbuf);
+                                    }
+                                    if (op == 'C')
+                                       par.codeRate = conv;
+                                    else
+                                       par.codeRateLp = conv;
+                                 }
+                                 else if (op == 'G')
+                                 {
+                                    switch (val)
+                                    {
+                                       case 32:    par.guardBand = GUARD_INTERVAL_1_32; break;
+                                       case 16:    par.guardBand = GUARD_INTERVAL_1_16; break;
+                                       case 8:     par.guardBand = GUARD_INTERVAL_1_8; break;
+                                       case 4:     par.guardBand = GUARD_INTERVAL_1_4; break;
+                                       case 128:   par.guardBand = GUARD_INTERVAL_1_128; break;
+                                       case 19128: par.guardBand = GUARD_INTERVAL_19_128; break;
+                                       case 19256: par.guardBand = GUARD_INTERVAL_19_256; break;
+                                       case 999:   par.guardBand = GUARD_INTERVAL_AUTO; break;
+                                       default:
+                                          fprintf(stderr, "WARNING: invalid guard band value %ld in VDR: %s", val, sbuf);
+                                    }
+                                 }
+                                 else if (op == 'Y')
+                                 {
+                                    switch (val)
+                                    {
+                                       case 0:    par.hierarchy = HIERARCHY_NONE; break;
+                                       case 1:    par.hierarchy = HIERARCHY_1; break;
+                                       case 2:    par.hierarchy = HIERARCHY_2; break;
+                                       case 4:    par.hierarchy = HIERARCHY_4; break;
+                                       case 999:   par.hierarchy = HIERARCHY_AUTO; break;
+                                       default:
+                                          fprintf(stderr, "WARNING: invalid guard band value %ld in VDR: %s", val, sbuf);
+                                    }
+                                 }
+                                 else if (op == 'S')
+                                 {
+                                    switch (val)
+                                    {
+                                       case 0:   // DVB-S or DVB-T
+                                          break;
+                                       case 1:   // DVB-S2 or DVB-T2
+                                          if (par.norm == EPGACQ_TUNER_NORM_DVB_T)
+                                             par.norm = EPGACQ_TUNER_NORM_DVB_T2;
+                                          else if (par.norm == EPGACQ_TUNER_NORM_DVB_S)
+                                             par.norm = EPGACQ_TUNER_NORM_DVB_S2;
+                                          break;
+                                       default:
+                                          fprintf(stderr, "WARNING: invalid DVB-S generation %ld in VDR: %s", val, sbuf);
+                                    }
                                  }
                               }
                               else
@@ -1054,6 +1225,10 @@ static bool WintvCfg_GetVdrChanTab( TV_CHNTAB_BUF * pChanTab, const char * pChan
                            case 'V':
                            case 'R':
                            case 'L':
+                              // POLARIZATION_HORIZONTAL
+                              // POLARIZATION_VERTICAL
+                              // POLARIZATION_CIRCULAR_LEFT
+                              // POLARIZATION_CIRCULAR_RIGHT
                               break;
 
                            // ignore whitespace
@@ -1066,15 +1241,344 @@ static bool WintvCfg_GetVdrChanTab( TV_CHNTAB_BUF * pChanTab, const char * pChan
                         }
                      }
 
-                     WintvCfg_ChanTabItemOpen(pChanTab);
-                     WintvCfg_ChanTabAddName(pChanTab, fields[0]);
-                     WintvCfg_ChanTabAddDvbFreq(pChanTab, &par);
-                     WintvCfg_ChanTabItemClose(pChanTab);
+                     WintvCfg_ChanTabAddDvb(pChanTab, fields[CCNF_VDR_NAME], &par);
                   }
                }
                else
                {
-                  fprintf(stderr, "WARNING: Malformed channel table entry skipped: %s\n", sbuf);
+                  fprintf(stderr, "WARNING: Malformed VDR channels.conf entry skipped: %s\n", sbuf);
+               }
+            }
+            else
+               break;
+         }
+         fclose(fp);
+
+         result = TRUE;
+      }
+      else
+      {  // file open failed -> warn the user
+         if (ppErrMsg != NULL)
+            SystemErrorMessage_Set(ppErrMsg, errno,
+                                   "Check your settings in the TV interaction configuration dialog. "
+                                   "Could not open channel table \"", pChanTabPath, "\": ", NULL);
+      }
+   }
+   return result;
+}
+
+// ----------------------------------------------------------------------------
+// Conversion helper functions for Mplayer configuration
+//
+#if 0
+static int WintvCfg_MplayerPolarization( const char * pName, char ** pError )
+{
+   if (strncmp(pName, "h") == 0)
+      return POLARIZATION_HORIZONTAL;
+   if (strncmp(pName, "v") == 0)
+      return POLARIZATION_VERTICAL;
+   if (strncmp(pName, "l") == 0)
+      return POLARIZATION_CIRCULAR_LEFT;
+   if (strncmp(pName, "r") == 0)
+      return POLARIZATION_CIRCULAR_RIGHT;
+   *pError = "invalid POLARIZATION";
+   return 0;
+}
+#endif
+
+static int WintvCfg_MplayerInversion( const char * pName, char ** pError )
+{
+   if (strcmp(pName, "INVERSION_AUTO") == 0)
+       return INVERSION_AUTO;
+   if (strcmp(pName, "INVERSION_OFF") == 0)
+       return INVERSION_OFF;
+   if (strcmp(pName, "INVERSION_ON") == 0)
+       return INVERSION_ON;
+   *pError = "invalid INVERSION";
+   return 0;
+}
+
+static int WintvCfg_MplayerCoderate( const char * pName, char ** pError )
+{
+   if (strcmp(pName, "FEC_AUTO") == 0)
+      return FEC_AUTO;
+   if (strcmp(pName, "FEC_NONE") == 0)
+       return FEC_NONE;
+   if (strcmp(pName, "FEC_2_5") == 0)
+       return FEC_2_5;
+   if (strcmp(pName, "FEC_1_2") == 0)
+       return FEC_1_2;
+   if (strcmp(pName, "FEC_3_5") == 0)
+       return FEC_3_5;
+   if (strcmp(pName, "FEC_2_3") == 0)
+       return FEC_2_3;
+   if (strcmp(pName, "FEC_3_4") == 0)
+       return FEC_3_4;
+   if (strcmp(pName, "FEC_4_5") == 0)
+       return FEC_4_5;
+   if (strcmp(pName, "FEC_5_6") == 0)
+       return FEC_5_6;
+   if (strcmp(pName, "FEC_6_7") == 0)
+       return FEC_6_7;
+   if (strcmp(pName, "FEC_7_8") == 0)
+       return FEC_7_8;
+   if (strcmp(pName, "FEC_8_9") == 0)
+       return FEC_8_9;
+   if (strcmp(pName, "FEC_9_10") == 0)
+       return FEC_9_10;
+   *pError = "invalid FEC code rate";
+   return 0;
+}
+
+static int WintvCfg_MplayerModulation( const char * pName, char ** pError )
+{
+   if (strcmp(pName, "QAM_AUTO") == 0)
+       return QAM_AUTO;
+   if (strcmp(pName, "QPSK") == 0)
+       return QPSK;
+   if (strcmp(pName, "QAM_16") == 0)
+       return QAM_16;
+   if (strcmp(pName, "QAM_32") == 0)
+       return QAM_32;
+   if (strcmp(pName, "QAM_64") == 0)
+       return QAM_64;
+   if (strcmp(pName, "QAM_128") == 0)
+       return QAM_128;
+   if (strcmp(pName, "QAM_256") == 0)
+       return QAM_256;
+   if (strcmp(pName, "VSB_8") == 0)
+       return VSB_8;
+   if (strcmp(pName, "VSB_16") == 0)
+       return VSB_16;
+   if (strcmp(pName, "PSK_8") == 0)
+       return PSK_8;
+   if (strcmp(pName, "APSK_16") == 0)
+       return APSK_16;
+   if (strcmp(pName, "APSK_32") == 0)
+       return APSK_32;
+   if (strcmp(pName, "DQPSK") == 0)
+       return DQPSK;
+   if (strcmp(pName, "QAM_4_NR") == 0)
+       return QAM_4_NR;
+   *pError = "invalid modulation";
+   return 0;
+}
+
+static int WintvCfg_MplayerBandwidth( const char * pName, char ** pError )
+{
+   if (strcmp(pName, "BANDWIDTH_AUTO") == 0)
+      return BANDWIDTH_AUTO;
+   if (strcmp(pName, "BANDWIDTH_8_MHZ") == 0)
+       return 8000000;
+   if (strcmp(pName, "BANDWIDTH_7_MHZ") == 0)
+       return 7000000;
+   if (strcmp(pName, "BANDWIDTH_6_MHZ") == 0)
+       return 6000000;
+   if (strcmp(pName, "BANDWIDTH_5_MHZ") == 0)
+       return 5000000;
+   if (strcmp(pName, "BANDWIDTH_10_MHZ") == 0)
+       return 10000000;
+   if (strcmp(pName, "BANDWIDTH_1_712_MHZ") == 0)
+       return 1712000;
+   *pError = "invalid bandwidth";
+   return 0;
+}
+
+static int WintvCfg_MplayerTransmissionMode( const char * pName, char ** pError )
+{
+   if (strcmp(pName, "TRANSMISSION_MODE_AUTO") == 0)
+      return TRANSMISSION_MODE_AUTO;
+   if (strcmp(pName, "TRANSMISSION_MODE_1K") == 0)
+       return TRANSMISSION_MODE_1K;
+   if (strcmp(pName, "TRANSMISSION_MODE_2K") == 0)
+       return TRANSMISSION_MODE_2K;
+   if (strcmp(pName, "TRANSMISSION_MODE_4K") == 0)
+       return TRANSMISSION_MODE_4K;
+   if (strcmp(pName, "TRANSMISSION_MODE_8K") == 0)
+       return TRANSMISSION_MODE_8K;
+   if (strcmp(pName, "TRANSMISSION_MODE_16K") == 0)
+       return TRANSMISSION_MODE_16K;
+   if (strcmp(pName, "TRANSMISSION_MODE_32K") == 0)
+       return TRANSMISSION_MODE_32K;
+   if (strcmp(pName, "TRANSMISSION_MODE_C1") == 0)
+       return TRANSMISSION_MODE_C1; 
+   if (strcmp(pName, "TRANSMISSION_MODE_C3780") == 0)
+       return TRANSMISSION_MODE_C3780;
+   *pError = "invalid transmission mode";
+   return 0;
+}
+
+static int WintvCfg_MplayerGuardInterval( const char * pName, char ** pError )
+{
+   if (strcmp(pName, "GUARD_INTERVAL_AUTO") == 0)
+      return GUARD_INTERVAL_AUTO;
+   if (strcmp(pName, "GUARD_INTERVAL_1_32") == 0)
+       return GUARD_INTERVAL_1_32;
+   if (strcmp(pName, "GUARD_INTERVAL_1_16") == 0)
+       return GUARD_INTERVAL_1_16;
+   if (strcmp(pName, "GUARD_INTERVAL_1_8") == 0)
+       return GUARD_INTERVAL_1_8;
+   if (strcmp(pName, "GUARD_INTERVAL_1_4") == 0)
+       return GUARD_INTERVAL_1_4;
+   if (strcmp(pName, "GUARD_INTERVAL_1_128") == 0)
+       return GUARD_INTERVAL_1_128;
+   if (strcmp(pName, "GUARD_INTERVAL_19_128") == 0)
+       return GUARD_INTERVAL_19_128;
+   if (strcmp(pName, "GUARD_INTERVAL_19_256") == 0)
+       return GUARD_INTERVAL_19_256;
+   if (strcmp(pName, "GUARD_INTERVAL_PN420") == 0)
+       return GUARD_INTERVAL_PN420;
+   if (strcmp(pName, "GUARD_INTERVAL_PN595") == 0)
+       return GUARD_INTERVAL_PN595;
+   if (strcmp(pName, "GUARD_INTERVAL_PN945") == 0)
+       return GUARD_INTERVAL_PN945;
+   *pError = "invalid guard interval";
+   return 0;
+}
+
+static int WintvCfg_MplayerHierarchy( const char * pName, char ** pError )
+{
+   if (strcmp(pName, "HIERARCHY_AUTO") == 0)
+      return HIERARCHY_AUTO;
+   if (strcmp(pName, "HIERARCHY_NONE") == 0)
+       return HIERARCHY_NONE;
+   if (strcmp(pName, "HIERARCHY_1") == 0)
+       return HIERARCHY_1;
+   if (strcmp(pName, "HIERARCHY_2") == 0)
+       return HIERARCHY_2;
+   if (strcmp(pName, "HIERARCHY_4") == 0)
+       return HIERARCHY_4;
+   *pError = "invalid hierarchy";
+   return 0;
+}
+
+static int WintvCfg_Atoi( const char * pName, char ** pError )
+{
+   char * pEnd;
+   long longVal = strtol(pName, &pEnd, 0);
+   long intVal = longVal;
+   if ((pEnd != pName) && (*pEnd == 0) && (intVal == longVal))
+      return intVal;
+   *pError = "expected numerical value";
+   return 0;
+}
+
+static long WintvCfg_Atol( const char * pName, char ** pError )
+{
+   char * pEnd;
+   long longVal = strtol(pName, &pEnd, 0);
+   if ((pEnd != pName) && (*pEnd == 0))
+      return longVal;
+   *pError = "expected numerical value";
+   return 0;
+}
+
+// ----------------------------------------------------------------------------
+// Extract all channels from mplayer "channels.conf" table
+// - Format differs between DVB-C, DVB-S, DVB-T2: different number of columns
+// - See dump_mplayer.c in https://www.gen2vdr.de/wirbel/w_scan/archiv.html
+//
+// DVB-C:  NAME:FREQUENCY:INVERSION:SYMBOL_RATE:FEC:MODULATION:PID_VIDEO:PID_AUDIO:SERVICE_ID
+// DVB-S:  NAME:FREQUENCY:POLARIZATION:ROTOR_POS:SYMBOL_RATE:PID_VIDEO:PID_AUDIO:SERVICE_ID
+// DVB-T2: NAME:FREQUENCY:INVERSION:BANDWIDTH:SYMBOL_RATE:SYMBOL_RATE_LP:MODULATION:TRANSMISSION:GUARD_BAND:HIEARCHY:PID_VIDEO:PID_AUDIO:SERVICE_ID
+//
+// Examples:
+// DVB-C:  name:610000000:INVERSION_AUTO:6900000:FEC_NONE:QAM_64:1511:1512:50122
+// DVB-S:  name:11727:h:0:27500:109:209:9
+// DVB-T2: name:474000000:INVERSION_AUTO:BANDWIDTH_8_MHZ:FEC_AUTO:FEC_AUTO:QAM_256:TRANSMISSION_MODE_32K:GUARD_INTERVAL_1_128:HIERARCHY_AUTO:6601:6602:17540
+//
+static bool WintvCfg_GetMplayerChanTab( TV_CHNTAB_BUF * pChanTab, const char * pChanTabPath, char ** ppErrMsg )
+{
+   EPGACQ_TUNER_PAR par;
+   char sbuf[2048];
+   FILE * fp;
+   char * fields[13+1];  // MAX(8, 7, 13)
+   bool result = FALSE;
+
+   if (pChanTabPath != NULL)
+   {
+      fp = fopen(pChanTabPath, "r");
+      if (fp != NULL)
+      {
+         while (feof(fp) == FALSE)
+         {
+            char * error = NULL;
+            memset(&par, 0, sizeof(par));
+            sbuf[0] = '\0';
+
+            if (fgets(sbuf, 2048-1, fp) != NULL)
+            {
+               uint fieldCnt = WintvCfg_SplitStringColon(sbuf, fields, 13+1);
+
+               if (fieldCnt == 9)
+               {
+                  // skip radio channels etc.
+                  if (atol(fields[6]) != 0)  // PID_VIDEO
+                  {
+                     // DVB-C:  NAME:FREQUENCY:INVERSION:SYMBOL_RATE:FEC:MODULATION:PID_VIDEO:PID_AUDIO:SERVICE_ID
+                     par.norm       = EPGACQ_TUNER_NORM_DVB_C;
+                     par.freq       = WintvCfg_Atol(fields[1], &error);
+                     par.inversion  = WintvCfg_MplayerInversion(fields[2], &error);
+                     par.symbolRate = WintvCfg_Atoi(fields[3], &error);
+                     par.codeRate   = WintvCfg_MplayerCoderate(fields[4], &error);
+                     par.modulation = WintvCfg_MplayerModulation(fields[5], &error);
+                     par.serviceId  = WintvCfg_Atoi(fields[8], &error);
+
+                     if (error == NULL)
+                        WintvCfg_ChanTabAddDvb(pChanTab, fields[0], &par);
+                     else
+                        fprintf(stderr, "WARNING: Error parsing DVB-C config: %s: %s\n", error, sbuf);
+                  }
+               }
+               else if (fieldCnt == 8)
+               {
+                  // skip radio channels etc.
+                  if (atol(fields[5]) != 0)  // PID_VIDEO
+                  {
+                     // DVB-S:  NAME:FREQUENCY:POLARIZATION:ROTOR_POS:SYMBOL_RATE:PID_VIDEO:PID_AUDIO:SERVICE_ID
+                     par.norm       = EPGACQ_TUNER_NORM_DVB_S;
+                     par.freq       = WintvCfg_Atol(fields[1], &error);
+                     //par.polarization = WintvCfg_MplayerPolarization(fields[2], &error);
+                     //par.rotorPos = WintvCfg_WintvCfg_Atoi(fields[3], &error);
+                     par.symbolRate = WintvCfg_Atoi(fields[4], &error);
+                     par.serviceId  = WintvCfg_Atoi(fields[7], &error);
+                     par.inversion  = INVERSION_AUTO;
+                     par.modulation = QAM_AUTO;
+                     par.codeRate   = FEC_AUTO;
+
+                     if (error == NULL)
+                        WintvCfg_ChanTabAddDvb(pChanTab, fields[0], &par);
+                     else
+                        fprintf(stderr, "WARNING: Error parsing DVB-S config: %s: %s\n", error, sbuf);
+                  }
+               }
+               else if (fieldCnt == 13)
+               {
+                  // skip radio channels etc.
+                  if (atol(fields[10]) != 0)  // PID_VIDEO
+                  {
+                     // DVB-T2: NAME:FREQUENCY:INVERSION:BANDWIDTH:SYMBOL_RATE:SYMBOL_RATE_LP:MODULATION:TRANSMISSION:GUARD_BAND:HIEARCHY:PID_VIDEO:PID_AUDIO:SERVICE_ID
+                     par.norm       = EPGACQ_TUNER_NORM_DVB_T2;
+                     par.freq       = WintvCfg_Atol(fields[1], &error);
+                     par.inversion  = WintvCfg_MplayerInversion(fields[2], &error);
+                     par.bandwidth  = WintvCfg_MplayerBandwidth(fields[3], &error);
+                     par.codeRate   = WintvCfg_MplayerCoderate(fields[4], &error);
+                     par.codeRateLp = WintvCfg_MplayerCoderate(fields[5], &error);
+                     par.modulation = WintvCfg_MplayerModulation(fields[6], &error);
+                     par.transMode  = WintvCfg_MplayerTransmissionMode(fields[7], &error);
+                     par.guardBand  = WintvCfg_MplayerGuardInterval(fields[8], &error);
+                     par.hierarchy  = WintvCfg_MplayerHierarchy(fields[9], &error);
+                     par.serviceId  = WintvCfg_Atoi(fields[12], &error);
+
+                     if (error == NULL)
+                        WintvCfg_ChanTabAddDvb(pChanTab, fields[0], &par);
+                     else
+                        fprintf(stderr, "WARNING: Error parsing DVB-T config: %s: %s\n", error, sbuf);
+                  }
+               }
+               else
+               {
+                  fprintf(stderr, "WARNING: Malformed mplayer channels.conf entry skipped (unexpected field count): %s\n", sbuf);
                }
             }
             else
@@ -1638,6 +2142,11 @@ static const TVAPP_LIST tvAppList[TVAPP_COUNT] =
    { "FreeTV",   FALSE, WintvCfg_GetFreetvChanTab,   "" },
 #else
    { "VDR",      TRUE,  WintvCfg_GetVdrChanTab,      "channels.conf" },
+   { "mplayer",  TRUE,  WintvCfg_GetMplayerChanTab,  "channels.conf" },
+   { "Kaffeine", TRUE,  WintvCfg_GetMplayerChanTab,  "channels.conf" },
+   { "Totem",    TRUE,  WintvCfg_GetMplayerChanTab,  "channels.conf" },
+   { "Xine",     TRUE,  WintvCfg_GetMplayerChanTab,  "channels.conf" },
+
    { "Xawtv",    FALSE, WintvCfg_GetXawtvChanTab,    ".xawtv" },
    { "XawDecode",FALSE, WintvCfg_GetXawtvChanTab,    ".xawdecode/xawdecoderc" },
    { "XdTV",     FALSE, WintvCfg_GetXawtvChanTab,    ".xdtv/xdtvrc" },
@@ -1805,4 +2314,3 @@ bool WintvCfg_GetFreqTab( char ** ppNameTab, EPGACQ_TUNER_PAR ** ppFreqTab, uint
 
    return result;
 }
-

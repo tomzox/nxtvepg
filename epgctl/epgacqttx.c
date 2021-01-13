@@ -327,15 +327,21 @@ static void EpgAcqTtx_TunePid( void )
 
    if (acqCtl.ttxActiveCount == 1)
    {
-      for (uint idx = 0; (idx < acqCtl.ttxSrcCount) && (pidCount < MAX_VBI_DVB_STREAMS); ++idx)
+      // first add only PIDs that are not done yet; afterwards any remaining
+      // interation is needed in case there are more than MAX number of channels on same transponder
+      for (uint loop = 0; (loop < 2) && (pidCount < MAX_VBI_DVB_STREAMS); ++loop)
       {
-         if (   (acqCtl.pSources[idx].freq.freq == par->freq)
-             && (idx != acqCtl.ttxSrcIdx[0]) )
+         for (uint idx = 0; (idx < acqCtl.ttxSrcCount) && (pidCount < MAX_VBI_DVB_STREAMS); ++idx)
          {
-            dprintf2("EpgAcqTtx-TunePid: piggy-backing channel %d (%s)\n", idx, EpgAcqTtx_GetChannelName(idx));
-            pidList[pidCount] = acqCtl.pSources[idx].freq.ttxPid;
-            acqCtl.ttxSrcIdx[pidCount] = idx;
-            pidCount += 1;
+            if ( (acqCtl.pSources[idx].freq.freq == par->freq) &&
+                 (acqCtl.pSources[idx].srcDone == (loop ==1)) &&
+                 (idx != acqCtl.ttxSrcIdx[0]) )
+            {
+               dprintf2("EpgAcqTtx-TunePid: piggy-backing channel %d (%s)\n", idx, EpgAcqTtx_GetChannelName(idx));
+               pidList[pidCount] = acqCtl.pSources[idx].freq.ttxPid;
+               acqCtl.ttxSrcIdx[pidCount] = idx;
+               pidCount += 1;
+            }
          }
       }
       acqCtl.ttxActiveCount = pidCount;
@@ -482,7 +488,7 @@ static bool EpgAcqTtx_DetectSource( void )
       {
          for (idx = 0; idx < acqCtl.ttxSrcCount; idx++)
             if (   (par.norm == acqCtl.pSources[idx].freq.norm)
-                && (  (par.norm == EPGACQ_TUNER_NORM_DVB)
+                && (  EPGACQ_TUNER_NORM_IS_DVB(par.norm)
                     ? (CMP_DVB_FREQ(acqCtl.pSources[idx].freq.freq) == CMP_DVB_FREQ(par.freq))
                     : (acqCtl.pSources[idx].freq.freq == par.freq) ))
                break;
@@ -527,7 +533,7 @@ static bool EpgAcqTtx_CheckSourceFreq( uint idx )
       {
          if (isTuner)
          {
-            if (par.norm == EPGACQ_TUNER_NORM_DVB)
+            if (EPGACQ_TUNER_NORM_IS_DVB(par.norm))
                result = (CMP_DVB_FREQ(acqCtl.pSources[idx].freq.freq) == CMP_DVB_FREQ(par.freq));
             else
                result = (acqCtl.pSources[idx].freq.freq == par.freq);

@@ -279,7 +279,7 @@ proc XawtvConfigTestPathAndType {} {
       # OK
       if {[llength [C_GetNetwopNames]] > 0} {
          tk_messageBox -type ok -icon info -title "Info" -parent .xawtvcf \
-                       -message "Test sucessful: found $chn_count names in the $name channel table."
+                       -message "Test sucessful: found $chn_count TV channels in $name."
       } else {
          tk_messageBox -type ok -icon info -title "Info" -parent .xawtvcf \
                        -message "Test sucessful: found $chn_count channels. You can now use the network name dialog in the configure menu to synchronize names between nxtvepg and $name"

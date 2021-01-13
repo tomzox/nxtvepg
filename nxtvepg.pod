@@ -3231,10 +3231,10 @@ DVB only:
 The Teletext EPG grabber requires a channel table which contains a
 TV channel table, indicating names, frequencies and the PID of the
 teletext data stream. nxtvepg does not create such files; you need to
-use an external DVB channel scan application for that and point nxtvepg
-to use its output. Currently, only the VDR format is supported, as it
-is the only one that includes the PID of Teletext (e.g. unlike the one
-used by mplayer).
+use an external DVB channel scan application such as B<w_scan> for
+that and point nxtvepg to use its output. Currently, nxtvepg supports
+the format used by VDR and the format shared by I<mplayer>, I<Kaffeine>,
+I<xine>, I<Totem> and others.
 See also L<"CONFIGURATION">, section "TV application interaction".
 
 

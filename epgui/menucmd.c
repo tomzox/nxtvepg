@@ -294,9 +294,13 @@ static void MenuCmd_StartLocalAcq( Tcl_Interp * interp )
    wasNetAcq = IsRemoteAcqDefault();
 
    RcFile_SetNetAcqEnable(FALSE);
-   EpgSetup_AcquisitionMode(NETACQ_DEFAULT);
 
-   if (EpgAcqCtl_Start())
+   if (EpgSetup_AcquisitionMode(NETACQ_DEFAULT) == FALSE)
+   {
+      strcpy(comm, "tk_messageBox -type ok -icon error -message {Error while configuring the Teletext EPG Grabber. Please check your configuration.}");
+      eval_check(interp, comm);
+   }
+   else if (EpgAcqCtl_Start())
    {
       // if acq mode changed, update the rc/ini file
       if (wasNetAcq)
@@ -690,9 +694,6 @@ static int MenuCmd_ChangeProvider( ClientData ttp, Tcl_Interp *interp, int objc,
          {
             EpgContextCtl_Close(pUiDbContext);
             pUiDbContext = pDbContext;
-
-            // in case follow-ui acq mode is used, change the acq db too
-            EpgSetup_AcquisitionMode(NETACQ_KEEP);
 
             UiControl_AiStateChange(NULL);
             StatsWin_UiStatsUpdate(TRUE, TRUE);
@@ -1617,8 +1618,6 @@ static int MenuCmd_ProvMerge_Start( ClientData ttp, Tcl_Interp *interp, int objc
       {
          EpgContextCtl_Close(pUiDbContext);
          pUiDbContext = pDbContext;
-
-         EpgSetup_AcquisitionMode(NETACQ_KEEP);
 
          UiControl_AiStateChange(NULL);
          StatsWin_UiStatsUpdate(TRUE, TRUE);

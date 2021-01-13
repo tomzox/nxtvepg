@@ -51,12 +51,15 @@
 
 #include "epgvbi/btdrv.h"
 #include "epgdb/epgblock.h"
+#include "epgdb/epgdbfil.h"
 #include "epgvbi/tvchan.h"
 #ifdef WIN32
 #include "epgvbi/winshm.h"
 #endif
+#include "epgctl/epgacqctl.h"
 #include "epgui/rcfile.h"
 #include "epgui/epgmain.h"
+#include "epgui/epgsetup.h"
 #include "epgui/wintvcfg.h"
 #include "epgui/wintvui.h"
 
@@ -559,6 +562,12 @@ static int WintvUi_UpdateConfig( ClientData ttp, Tcl_Interp *interp, int objc, T
       {
          // note: destinction between UNIX and WIN32 config is inside
          RcFile_SetTvApp(appIdx, Tcl_GetString(objv[2]));
+
+         // reconfigure the TTX grabber as it depends on the channel table
+         if (EpgSetup_AcquisitionMode(NETACQ_KEEP) == FALSE)
+         {
+            EpgAcqCtl_Stop();
+         }
       }
       else
          debug1("WintvUi-UpdateConfig: cannot save invalid index %d", appIdx);

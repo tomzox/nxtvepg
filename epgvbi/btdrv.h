@@ -275,6 +275,7 @@ typedef struct
    uchar     cardIndex;
    int       dvbPid[MAX_VBI_DVB_STREAMS];
    int       dvbPidCnt;
+   int       dvbPidReqNo;
    int       chnPrio;
    # if defined(__NetBSD__) || defined(__FreeBSD__)
    uchar     inputIndex;
@@ -293,17 +294,32 @@ typedef enum
   EPGACQ_TUNER_NORM_PAL = 0,     // analog norm IDs fixed for used in RC file
   EPGACQ_TUNER_NORM_NTSC = 1,
   EPGACQ_TUNER_NORM_SECAM = 2,
-  EPGACQ_TUNER_NORM_DVB,
+  EPGACQ_TUNER_NORM_DVB_C,
+  EPGACQ_TUNER_NORM_DVB_S,
+  EPGACQ_TUNER_NORM_DVB_S2,
+  EPGACQ_TUNER_NORM_DVB_T,
+  EPGACQ_TUNER_NORM_DVB_T2,
   EPGACQ_TUNER_EXTERNAL,         // external input (no tuning)
   EPGACQ_TUNER_NORM_COUNT
 } EPGACQ_TUNER_NORM;
+
+#define EPGACQ_TUNER_NORM_IS_DVB(X) (((X) >= EPGACQ_TUNER_NORM_DVB_C) && \
+                                     ((X) <= EPGACQ_TUNER_NORM_DVB_T2))
 
 typedef struct
 {
    EPGACQ_TUNER_NORM norm;
    long              freq;
-   int               modulation;
    long              symbolRate;
+   int               codeRate;    // FEC
+   int               codeRateLp;  // DVB-T only
+   int               inversion;
+   int               modulation;  // QAM
+   int               bandwidth;   // DVB-T only
+   int               transMode;   // DVB-T only
+   int               guardBand;   // DVB-T only
+   int               hierarchy;   // DVB-T only
+   int               serviceId;
    int               ttxPid;
 } EPGACQ_TUNER_PAR;
 

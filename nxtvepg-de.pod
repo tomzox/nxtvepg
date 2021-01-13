@@ -1348,7 +1348,8 @@ Diese nicht-reguläre Datei wird vom Daemon erzeugt, um dem lokalen Client Verbin
 
 =item B<.../channels.conf>
 
-Nur mit DVB: Der Teletext EPG Grabber benötigt eine TV-Kanaltabelle mit den Namen, Frequenzen und Teletext PID aller empfangbaren TV Sender. nxtvepg kann die TV-Kanaltabelle nicht selber erzeugen. Sie benötigen daher eine externe Applikation die die DVB Kanalsuche durchführt und eine solche Datei erzeugt. Aktuell wird nur das VDR Format unterstützt, da nur dieses die Teletext PID enthält (im Gegensatz z.B. zu mplayer).  Siehe auch L<"CONFIGURATION">, Kapitel "TV application interaction".
+Nur mit DVB: Der Teletext EPG Grabber benötigt eine TV-Kanaltabelle mit den Namen, Frequenzen und Teletext PID aller empfangbaren TV Sender. nxtvepg kann die TV-Kanaltabelle nicht selber erzeugen. Sie benötigen daher eine externe Applikation die die DVB Kanalsuche durchführt und eine solche Datei erzeugt. (Empfehlenswert dafür ist B<w_scan>.) nxtvepg understützt sowohl das von VDR definierte Format als auch das von diversen anderen Applikationen wie I<mplayer>, I<Kaffeine>,
+I<xine>, und I<Totem> gemeinsam verwendete Format. Siehe auch L<"CONFIGURATION">, Kapitel "TV application interaction".
 
 =item B<$HOME/.Xdefaults>
 

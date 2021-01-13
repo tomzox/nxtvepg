@@ -124,6 +124,11 @@
 
 #define DEV_MAX_NAME_LEN 64
 
+#define VBI_DVB_ADD_CMD(CMD, DATA)  do{ \
+                  props[propCnt].cmd = CMD; \
+                  props[propCnt].u.data = DATA; \
+                  propCnt += 1; }while(0)
+
 typedef enum
 {
    DEV_TYPE_VBI,
@@ -146,6 +151,7 @@ static int vbiCardIndex;
 static int bufLineSize;
 static int bufLines;
 static uint vbiInCount;
+static uint vbiDvbPidReqNo;
 static char *pSysErrorText = NULL;
 
 // vars used in the control process
@@ -482,7 +488,7 @@ static bool BtDriver_SetDvbPid(uint bufIdx, int pid)
       filter.input        = DMX_IN_FRONTEND;
       filter.output       = DMX_OUT_TAP;
       filter.pes_type     = DMX_PES_OTHER;
-      filter.flags        = DMX_IMMEDIATE_START;
+      filter.flags        = DMX_IMMEDIATE_START | DMX_CHECK_CRC;
 
       if (IOCTL(vbiIn[bufIdx].fd, DMX_SET_PES_FILTER, &filter) != -1)
       {
@@ -671,13 +677,13 @@ static bool BtDriver_SetInputSource( int inputIdx, EPGACQ_TUNER_NORM norm, bool 
 
    if (video_fd != -1)
    {
-      if ((pVbiBuf->drvType == BTDRV_SOURCE_DVB) && (norm == EPGACQ_TUNER_NORM_DVB))
+      if ((pVbiBuf->drvType == BTDRV_SOURCE_DVB) && EPGACQ_TUNER_NORM_IS_DVB(norm))
       {
          // TODO front-end selection?
          isTuner = TRUE;
          result = TRUE;
       }
-      else if ((pVbiBuf->drvType == BTDRV_SOURCE_ANALOG) && (norm != EPGACQ_TUNER_NORM_DVB))  // V4L2
+      else if ((pVbiBuf->drvType == BTDRV_SOURCE_ANALOG) && !EPGACQ_TUNER_NORM_IS_DVB(norm))  // V4L2
       {
          struct v4l2_input v4l2_desc_in;
          uint32_t v4l2_inp;
@@ -807,21 +813,51 @@ bool BtDriver_TuneChannel( int inputIdx, const EPGACQ_TUNER_PAR * pFreqPar, bool
       {
          if ( (wasOpen || *pIsTuner) && (pFreqPar->freq != 0) )
          {
-            // Set the tuner frequency
-            if (pFreqPar->norm == EPGACQ_TUNER_NORM_DVB)
+            if (EPGACQ_TUNER_NORM_IS_DVB(pFreqPar->norm))
             {
-               struct dtv_property props[] =
+               struct dtv_property props[13];
+               uint propCnt = 0;
+               memset(props, 0, sizeof(props));
+
+               if ( (pFreqPar->norm == EPGACQ_TUNER_NORM_DVB_T) ||
+                    (pFreqPar->norm == EPGACQ_TUNER_NORM_DVB_T2))
                {
-                  { .cmd = DTV_FREQUENCY, .u = { .data = pFreqPar->freq } }, // S: kHz, C+T: Hz
-                  { .cmd = DTV_MODULATION, .u = { .data = pFreqPar->modulation } },
-                  { .cmd = DTV_SYMBOL_RATE, .u = { .data = pFreqPar->symbolRate } },
-                  //{ .cmd = DTV_INNER_FEC, .u = { .data = 0 } },
-                  //{ .cmd = DTV_INVERSION, .u = { .data = 1 } },
-                  { .cmd = DTV_TUNE, .u = { .data = 0 } }
-               };
+                  if (pFreqPar->norm == EPGACQ_TUNER_NORM_DVB_T)
+                     VBI_DVB_ADD_CMD( DTV_DELIVERY_SYSTEM, SYS_DVBT);
+                  else
+                     VBI_DVB_ADD_CMD( DTV_DELIVERY_SYSTEM, SYS_DVBT2);
+
+                  VBI_DVB_ADD_CMD( DTV_FREQUENCY, pFreqPar->freq);
+                  VBI_DVB_ADD_CMD( DTV_INVERSION, pFreqPar->inversion);
+                  VBI_DVB_ADD_CMD( DTV_BANDWIDTH_HZ, pFreqPar->bandwidth);
+                  VBI_DVB_ADD_CMD( DTV_CODE_RATE_HP, pFreqPar->codeRate);
+                  VBI_DVB_ADD_CMD( DTV_CODE_RATE_LP, pFreqPar->codeRateLp);
+                  VBI_DVB_ADD_CMD( DTV_MODULATION, pFreqPar->modulation);
+                  VBI_DVB_ADD_CMD( DTV_TRANSMISSION_MODE, pFreqPar->transMode);
+                  VBI_DVB_ADD_CMD( DTV_GUARD_INTERVAL, pFreqPar->guardBand);
+                  VBI_DVB_ADD_CMD( DTV_HIERARCHY, pFreqPar->hierarchy);
+               }
+               else  // DVB-C or DVB-S: note for DVB-S some params are always AUTO
+               {
+                  if (pFreqPar->norm == EPGACQ_TUNER_NORM_DVB_S)
+                     VBI_DVB_ADD_CMD( DTV_DELIVERY_SYSTEM, SYS_DVBS);
+                  else if (pFreqPar->norm == EPGACQ_TUNER_NORM_DVB_S2)
+                     VBI_DVB_ADD_CMD( DTV_DELIVERY_SYSTEM, SYS_DVBS2);
+                  else
+                     VBI_DVB_ADD_CMD( DTV_DELIVERY_SYSTEM, SYS_DVBC_ANNEX_C);
+
+                  VBI_DVB_ADD_CMD( DTV_FREQUENCY, pFreqPar->freq);
+                  VBI_DVB_ADD_CMD( DTV_INVERSION, pFreqPar->inversion);
+                  VBI_DVB_ADD_CMD( DTV_MODULATION, pFreqPar->modulation);
+                  VBI_DVB_ADD_CMD( DTV_SYMBOL_RATE, pFreqPar->symbolRate);
+                  VBI_DVB_ADD_CMD( DTV_INNER_FEC, pFreqPar->codeRate);
+               }
+               VBI_DVB_ADD_CMD( DTV_TUNE, 0);
+               assert(propCnt <= sizeof(props)/sizeof(props[0]));
+
                struct dtv_properties prop =
                {
-                  .num = sizeof(props) / sizeof(props[0]),
+                  .num = propCnt,
                   .props = props,
                };
                if (IOCTL(video_fd, FE_SET_PROPERTY, &prop) == 0)
@@ -958,26 +994,41 @@ bool BtDriver_QueryChannel( EPGACQ_TUNER_PAR * pFreqPar, uint * pInput, bool * p
       {
          if (pVbiBuf->drvType == BTDRV_SOURCE_DVB)
          {
-            struct dtv_property props[] =
-            {
-               { .cmd = DTV_FREQUENCY, .u = { .data = 0 } }, // S: kHz, C+T: Hz
-               { .cmd = DTV_MODULATION, .u = { .data = 0 } },
-               { .cmd = DTV_SYMBOL_RATE, .u = { .data = 0 } },
-               //{ .cmd = DTV_INVERSION, .u = { .data = 0 } },
-               //{ .cmd = DTV_INNER_FEC, .u = { .data = 0 } },
-               //{ .cmd = DTV_BANDWIDTH_HZ, .u = { .data = 0 } },
-            };
+            struct dtv_property props[13];
+            uint propCnt = 0;
+            memset(props, 0, sizeof(props));
+
+            VBI_DVB_ADD_CMD( DTV_DELIVERY_SYSTEM, 0);
+            VBI_DVB_ADD_CMD( DTV_FREQUENCY, 0 ); // S: kHz, C+T: Hz
+            VBI_DVB_ADD_CMD( DTV_MODULATION, 0 );
+            VBI_DVB_ADD_CMD( DTV_SYMBOL_RATE, 0 );
+            VBI_DVB_ADD_CMD( DTV_INVERSION, 0 );
+
             struct dtv_properties prop =
             {
-               .num = sizeof(props) / sizeof(props[0]),
+               .num = propCnt,
                .props = props,
             };
             if (IOCTL(video_fd, FE_GET_PROPERTY, &prop) == 0)
             {
-               pFreqPar->norm = EPGACQ_TUNER_NORM_DVB;
-               pFreqPar->freq = props[0].u.data;
-               pFreqPar->modulation = props[1].u.data;
-               pFreqPar->symbolRate = props[2].u.data;
+               switch (props[0].u.data)
+               {
+                  case SYS_DVBC_ANNEX_A: /* fall-through */
+                  case SYS_DVBC_ANNEX_B: /* fall-through */
+                  case SYS_DVBC_ANNEX_C: pFreqPar->norm = EPGACQ_TUNER_NORM_DVB_C; break;
+                  case SYS_DVBT:         pFreqPar->norm = EPGACQ_TUNER_NORM_DVB_T; break;
+                  case SYS_DVBT2:        pFreqPar->norm = EPGACQ_TUNER_NORM_DVB_T2; break;
+                  case SYS_DVBS:         pFreqPar->norm = EPGACQ_TUNER_NORM_DVB_S; break;
+                  case SYS_DVBS2:        pFreqPar->norm = EPGACQ_TUNER_NORM_DVB_S2; break;
+                  default:  // invalid value is returned after the frontend device has been closed
+                     debug1("BtDriver-QueryChannel: unknown system:%d", props[0].u.data);
+                     pFreqPar->norm = EPGACQ_TUNER_NORM_COUNT;
+                     break;
+               }
+               pFreqPar->freq = props[1].u.data;
+               pFreqPar->modulation = props[2].u.data;
+               pFreqPar->symbolRate = props[3].u.data;
+               pFreqPar->inversion = props[4].u.data;
 
                // PID is configured by ourselves, so it makes no sense to query
                pFreqPar->ttxPid = 0;
@@ -1136,6 +1187,8 @@ void BtDriver_TuneDvbPid( const int * pidList, uint pidCount )
       pVbiBuf->dvbPid[idx] = pidList[idx];
    }
    pVbiBuf->dvbPidCnt = pidCount;
+   // finally change request seq.no. so that VBI threads picks up the parameters
+   pVbiBuf->dvbPidReqNo += 1;
 
    // interrupt the slave thread if blocked in read() or select()
    if (pVbiBuf->vbiSlaveRunning)
@@ -1287,7 +1340,7 @@ const char * BtDriver_GetInputName( uint cardIndex, int drvType, uint inputIdx )
                pName = (const char *) name;
             }
             else  // we iterate until an error is returned, hence ignore errors after input #0
-               ifdebug4(inputIdx == 0, "BtDriver-GetInputName: ioctl(ENUMINPUT) for %s, input #%d failed with errno %d: %s", ((pDevName != NULL) ? pDevName : BtDriver_GetDevicePath(DEV_TYPE_VIDEO, cardIndex, FALSE)), inputIdx, errno, strerror(errno));
+               ifdebug4(inputIdx == 0, "BtDriver-GetInputName: ioctl(ENUMINPUT) for %s, input #%d failed with errno %d: %s", ((pDevName != NULL) ? pDevName : BtDriver_GetDevicePath(DEV_TYPE_VIDEO, cardIndex, BTDRV_SOURCE_ANALOG)), inputIdx, errno, strerror(errno));
          }
       }
       close(fd);
@@ -1550,7 +1603,7 @@ static void BtDriver_OpenVbiBuf( uint bufIdx )
    if (vbiIn[bufIdx].dvbPid != -1)
    {
       bufLines            = 1;
-      bufLineSize         = 8*1024;
+      bufLineSize         = 4096;  // DMX_SET_BUFFER_SIZE: default ring buffer in kernel is 2*4096
 
       if (vbiIn[bufIdx].zvbiDemux == NULL)
       {
@@ -1940,6 +1993,8 @@ static void * BtDriver_Main( void * foo )
    if (vbiIn[0].fd == -1)
    {
       vbiInCount = (pVbiBuf->drvType == BTDRV_SOURCE_DVB) ? pVbiBuf->dvbPidCnt : 1;
+      vbiDvbPidReqNo = pVbiBuf->dvbPidReqNo;
+
       for (uint bufIdx = 0; bufIdx < vbiInCount; ++bufIdx)
          BtDriver_OpenVbi(bufIdx);
    }
@@ -1956,13 +2011,13 @@ static void * BtDriver_Main( void * foo )
          if ((vbiIn[0].fd != -1) &&
              ((vbiCardIndex != pVbiBuf->cardIndex) ||
               (vbiInCount != pVbiBuf->dvbPidCnt) ||
-              (vbiIn[0].dvbPid != ((pVbiBuf->drvType == BTDRV_SOURCE_DVB) ? pVbiBuf->dvbPid[0] : -1))))
+              (vbiDvbPidReqNo != pVbiBuf->dvbPidReqNo)))
          #else
          if ((vbiIn[0].fd != -1) &&
              ((vbiCardIndex != pVbiBuf->cardIndex) ||
               (vbiInputIndex != pVbiBuf->inputIndex) ||
               (vbiInCount != pVbiBuf->dvbPidCnt) ||
-              (vbiIn[0].dvbPid != ((pVbiBuf->drvType == BTDRV_SOURCE_DVB) ? pVbiBuf->dvbPid[0] : -1))))
+              (vbiDvbPidReqNo != pVbiBuf->dvbPidReqNo)))
          #endif
          {  // switching to a different device -> close the previous one
             bool keepVideoOpen = (vbiIn[0].fd != -1);
@@ -1972,6 +2027,8 @@ static void * BtDriver_Main( void * foo )
          if (vbiIn[0].fd == -1)
          {  // acq was switched on -> open device
             vbiInCount = (pVbiBuf->drvType == BTDRV_SOURCE_DVB) ? pVbiBuf->dvbPidCnt : 1;
+            vbiDvbPidReqNo = pVbiBuf->dvbPidReqNo;
+
             for (uint bufIdx = 0; bufIdx < vbiInCount; ++bufIdx)
                BtDriver_OpenVbi(bufIdx);
          }
@@ -2022,6 +2079,7 @@ bool BtDriver_Init( void )
       vbiIn[bufIdx].fd = -1;
    video_fd = -1;
    vbiInCount = 1;
+   vbiDvbPidReqNo = ~0U;
 
    pthread_cond_init(&vbi_start_cond, NULL);
    pthread_mutex_init(&vbi_start_mutex, NULL);

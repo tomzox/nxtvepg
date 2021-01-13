@@ -351,6 +351,13 @@ error:
 }
 #endif
 
+
+// dummies for wintvui.c
+#include "epgdb/epgdbfil.h"
+#include "epgui/epgsetup.h"
+bool EpgSetup_AcquisitionMode( NETACQ_SET_MODE netAcqSetMode ) { return FALSE; }
+void EpgAcqCtl_Stop( void ) {}
+
 #ifndef WIN32
 // ---------------------------------------------------------------------------
 // Get X11 display for the TV app

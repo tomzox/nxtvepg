@@ -614,17 +614,15 @@ static bool EpgSetup_GetTtxConfig( uint * pCount, char ** ppNames, EPGACQ_TUNER_
 #endif // USE_TTX_GRABBER
 
 // ----------------------------------------------------------------------------
-// Pass acq mode and CNI list to acquisition control
-// - called after the user leaves acq mode dialog or client/server dialog
-//   with "Ok", plus whenever the browser database provider is changed
-//   -> acq ctl must check if parameters have changed before resetting acq
-// - this function is not used by the acquisition daemon; here on client-side
-//   network mode equals follow-ui because only content that's currently used
-//   in the display should be forwarded from the server
-// - if no valid config is found, the default mode is used: Follow-UI
+// Pass acq mode and channel list to acquisition control
+// - called upon start of acq and after the user leaves Teletext grabber or
+//   client/server cfg dialog with "Ok"
+// - acq ctl reset acq only if parameters have changed
+// - this function is not used by the acquisition daemon
 //
-void EpgSetup_AcquisitionMode( NETACQ_SET_MODE netAcqSetMode )
+bool EpgSetup_AcquisitionMode( NETACQ_SET_MODE netAcqSetMode )
 {
+   bool result = FALSE;
 #ifdef USE_TTX_GRABBER
    const RCFILE * pRc;
    EPGACQ_TUNER_PAR * pTtxFreqs;
@@ -637,13 +635,9 @@ void EpgSetup_AcquisitionMode( NETACQ_SET_MODE netAcqSetMode )
 
    pRc = RcFile_Query();
    if ((pRc != NULL) && (pRc->acq.acq_mode < ACQMODE_COUNT))
-   {
       mode = pRc->acq.acq_mode;
-   }
-   else
-   {  // unrecognized mode -> fall back to default mode
+   else // unrecognized mode -> fall back to default mode
       mode = ACQMODE_CYCLIC_2;
-   }
 
    // check if network client mode is enabled
    isNetAcqDefault = IsRemoteAcqDefault();
@@ -684,8 +678,10 @@ void EpgSetup_AcquisitionMode( NETACQ_SET_MODE netAcqSetMode )
    if (EpgSetup_GetTtxConfig(&ttxFreqCount, &pTtxNames, &pTtxFreqs))
    {
       // pass the params to the acquisition control module
-      EpgAcqCtl_SelectMode(mode, ACQMODE_COUNT, ttxFreqCount, pTtxNames, pTtxFreqs,
-                           pRc->ttx.ttx_start_pg, pRc->ttx.ttx_end_pg, pRc->ttx.ttx_duration);
+      result = EpgAcqCtl_SelectMode(mode, ACQMODE_COUNT,
+                                    ttxFreqCount, pTtxNames, pTtxFreqs,
+                                    pRc->ttx.ttx_start_pg, pRc->ttx.ttx_end_pg,
+                                    pRc->ttx.ttx_duration);
    }
 
    if (pTtxNames != NULL)
@@ -693,6 +689,7 @@ void EpgSetup_AcquisitionMode( NETACQ_SET_MODE netAcqSetMode )
    if (pTtxFreqs != NULL)
       xfree(pTtxFreqs);
 #endif
+   return result;
 }
 
 // ----------------------------------------------------------------------------
@@ -732,8 +729,7 @@ bool EpgSetup_DaemonAcquisitionMode( bool forcePassive, int maxPhase )
          // pass the params to the acquisition control module
          result = EpgAcqCtl_SelectMode(mode, maxPhase,
                                        ttxFreqCount, pTtxNames, pTtxFreqs,
-                                       pRc->ttx.ttx_start_pg,
-                                       pRc->ttx.ttx_end_pg,
+                                       pRc->ttx.ttx_start_pg, pRc->ttx.ttx_end_pg,
                                        pRc->ttx.ttx_duration);
       }
 
