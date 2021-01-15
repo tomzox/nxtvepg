@@ -38,6 +38,7 @@ public:
       return *this;
    };
    bool is_valid() const { return m_year != -1; }
+   void invalidate() { m_year = -1; }
    void add_offset(int date_off) { m_date_off += date_off; }
    const char * trace_str() const;
 

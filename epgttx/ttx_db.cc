@@ -569,7 +569,6 @@ void DumpRawTeletext(TTX_DB * db, const char * p_name, int pg_start, int pg_end)
 
    fprintf(fp, "#!tv_grab_ttx -verify\n");
 
-   // return TRUE to allow to "require" the file
    db->page_db.dump_db_as_raw(fp, pg_start, pg_end);
 
    db->chn_id.dump_as_raw(fp);

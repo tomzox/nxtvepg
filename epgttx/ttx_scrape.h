@@ -50,9 +50,9 @@ public:
    bool check_redundant_subpage(OV_PAGE * prev);
    void calc_stop_times(const OV_PAGE * next);
    bool is_adjacent(const OV_PAGE * prev) const;
-   bool calc_date_off(const OV_PAGE * prev);
+   bool calc_date_off(const OV_PAGE * prev, const OV_PAGE * first);
    bool check_start_times();
-   void calculate_start_times();
+   void calculate_start_times(OV_PAGE * prev);
    void extract_ttx_ref(const T_TRAIL_REF_FMT& fmt, map<int,int>& ttx_ref_map);
    void extract_tv(map<int,int>& ttx_ref_map);
    void check_continuity(std::vector<TTX_PG_HANDLE>& pg_list, OV_PAGE * prev);
@@ -93,6 +93,7 @@ private:
    string       m_vps_time;
    string       m_vps_date;
    int          m_ttx_ref;
+   int          m_ttx_ref_sub;
    bool         m_is_tip;
    std::vector<string> m_ov_title;
 
@@ -131,11 +132,14 @@ public:
    const string& get_vps_date() const { return mp_ov_page->m_slots[m_slot_idx]->m_vps_date; }
    const TV_FEAT& get_feat() const { return mp_ov_page->m_slots[m_slot_idx]->m_ext_feat; }
    int get_ttx_ref() const { return mp_ov_page->m_slots[m_slot_idx]->m_ttx_ref; }
+   int get_ttx_ref_sub() const { return mp_ov_page->m_slots[m_slot_idx]->m_ttx_ref_sub; }
    void merge_feat(const TV_FEAT& feat) { mp_ov_page->m_slots[m_slot_idx]->merge_feat(feat); }
    void merge_desc(const string& desc) { mp_ov_page->m_slots[m_slot_idx]->merge_desc(desc); }
    void merge_title(const string& title, const string& sub_title) {
       mp_ov_page->m_slots[m_slot_idx]->merge_title(title, sub_title);
    }
+   int get_ov_page_no() const { return mp_ov_page->m_page; }
+   int get_ov_page_sub() const { return mp_ov_page->m_sub; }
 private:
    OV_PAGE *    mp_ov_page;
    int          m_slot_idx;
@@ -145,5 +149,6 @@ std::vector<OV_PAGE*> ParseAllOvPages(TTX_PAGE_DB * db, int ov_start, int ov_end
 void ParseAllContent(std::vector<OV_PAGE*>& ov_pages);
 std::vector<TTX_PG_HANDLE> CheckMissingPages(std::vector<OV_PAGE*>& ov_pages);
 void FilterExpiredSlots(std::list<TV_SLOT>& Slots, int expire_min);
+void FilterOverlappingSlots(list<TV_SLOT>& Slots);
 
 #endif // __TTX_SCRAPE_H

@@ -114,7 +114,7 @@ void XmlToLatin1(string& title)
 /* ------------------------------------------------------------------------------
  * Export programme data into XMLTV format
  */
-void ExportTitle(FILE * fp, const TV_SLOT& slot, const string& ch_id)
+void ExportTitle(FILE * fp, const TV_SLOT& slot, const string& ch_id, TTX_PAGE_DB *db)
 {
    assert(slot.get_title().length() > 0);
    assert(slot.get_start_t() != -1);
@@ -138,11 +138,14 @@ void ExportTitle(FILE * fp, const TV_SLOT& slot, const string& ch_id)
       }
       Latin1ToXml(title);
 
-      //TODO fprintf(fp, "\n<!-- TTX %03X.%04d %02d:%02d %02d.%02d.%04d -->\n", ...);
+      const TTX_DB_PAGE* pg = db->get_sub_page(slot.get_ov_page_no(), slot.get_ov_page_sub());
 
       fprintf(fp, "\n<programme start=\"%s\"%s%s channel=\"%s\">\n"
+                  "\t<!-- TTX %03X.%04X ACQTS:%ld -->\n"
                   "\t<title>%s</title>\n",
                   start_str.c_str(), stop_str.c_str(), vps_str.c_str(), ch_id.c_str(),
+                  slot.get_ov_page_no(), slot.get_ov_page_sub(),
+                     ((pg != 0) ? pg->get_timestamp() : 0),
                   title.c_str());
 
       if (slot.get_subtitle().length() > 0) {
@@ -155,7 +158,7 @@ void ExportTitle(FILE * fp, const TV_SLOT& slot, const string& ch_id)
       }
       if (slot.get_ttx_ref() != -1) {
          if (slot.get_desc().length() > 0) {
-            fprintf(fp, "\t<!-- TTX %03X -->\n", slot.get_ttx_ref());
+            fprintf(fp, "\t<!-- TTX %03X.%04X -->\n", slot.get_ttx_ref(), slot.get_ttx_ref_sub());
             string desc = slot.get_desc();
             Latin1ToXml(desc);
             fprintf(fp, "\t<desc>%s</desc>\n", desc.c_str());
@@ -354,15 +357,6 @@ TV_FEAT GetXmltvFeat(const string& xml)
 
    return feat;
 }
-
-class TV_SLOT_cmp_start_t
-{
-public:
-  bool operator() (const TV_SLOT a, const TV_SLOT b) const {
-     return a.get_start_t() < b.get_start_t();
-  }
-};
-
 
 /* ------------------------------------------------------------------------------
  * Read an XMLTV input file
@@ -705,10 +699,9 @@ void XMLTV::ExportXmltv(list<TV_SLOT>& NewSlots, const char * p_file_name,
             p++;
          }
       }
-      // sort new programmes by start time
-      NewSlots.sort(TV_SLOT_cmp_start_t());
 
       // map holding old programmes is already sorted, as start time is used as key
+      // (also, new list is expected to be sorted by caller)
       list<time_t> OldSlotList;
       for (map<time_t,string>::iterator p = OldProgHash.begin(); p != OldProgHash.end(); p++)
          OldSlotList.push_back(p->first);
@@ -718,7 +711,7 @@ void XMLTV::ExportXmltv(list<TV_SLOT>& NewSlots, const char * p_file_name,
          switch (MergeNextSlot(NewSlots, OldSlotList, OldProgHash)) {
             case 1:
                assert(!NewSlots.empty());
-               ExportTitle(fp, NewSlots.front(), m_ch_id);
+               ExportTitle(fp, NewSlots.front(), m_ch_id, &mp_db->page_db);
                NewSlots.pop_front();
                break;
             case 2:
@@ -736,7 +729,7 @@ void XMLTV::ExportXmltv(list<TV_SLOT>& NewSlots, const char * p_file_name,
       //for (list<TV_SLOT>::iterator p = NewSlots.begin(); p != NewSlots.end(); p++)
       //   ExportTitle(fp, *(*p), m_ch_id);
       while (!NewSlots.empty()) {
-         ExportTitle(fp, NewSlots.front(), m_ch_id);
+         ExportTitle(fp, NewSlots.front(), m_ch_id, &mp_db->page_db);
 
          NewSlots.pop_front();
       }
@@ -751,12 +744,15 @@ void XMLTV::ExportXmltv(list<TV_SLOT>& NewSlots, const char * p_file_name,
    fclose(fp);
 }
 
-void XMLTV::SetChannelName(TTX_DB * db, const char * user_chname, const char * user_chid)
+/* ------------------------------------------------------------------------------
+ * Assign channel names for use during export
+ */
+void XMLTV::SetChannelName(const char * user_chname, const char * user_chid)
 {
    // get channel name from teletext header packets
-   m_ch_name = user_chname ? string(user_chname) : ParseChannelName(&db->page_db);
+   m_ch_name = user_chname ? string(user_chname) : ParseChannelName(&mp_db->page_db);
 
-   m_ch_id = user_chid ? string(user_chid) : db->chn_id.get_ch_id();
+   m_ch_id = user_chid ? string(user_chid) : mp_db->chn_id.get_ch_id();
 
    if (m_ch_name.length() == 0) {
       m_ch_name = m_ch_id;
@@ -769,6 +765,10 @@ void XMLTV::SetChannelName(TTX_DB * db, const char * user_chname, const char * u
    }
 }
 
+/* ------------------------------------------------------------------------------
+ * Optionally assign expire threshold for use during import
+ * - given value must be in unit of minutes
+ */
 void XMLTV::SetExpireTime(int expire_min)
 {
    // must be set before import

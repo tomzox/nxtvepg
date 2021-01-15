@@ -24,18 +24,21 @@
 class XMLTV
 {
 public:
-   XMLTV() : m_expire_min(-1) {}
+   XMLTV(TTX_DB * db)
+      : mp_db(db)
+      , m_expire_min(-1) {}
    void ImportXmltvFile(const char * fname);
    void ExportXmltv(list<TV_SLOT>& NewSlots, const char * p_file_name,
                     const char * p_my_ver, const char * p_my_url);
-   void SetChannelName(TTX_DB * db, const char * user_chname, const char * user_chid);
+   void SetChannelName(const char * user_chname, const char * user_chid);
    void SetExpireTime(int expire_min);
 private:
+   TTX_DB * const mp_db;
+   int m_expire_min;
    map<string,string> m_merge_prog;
    map<string,string> m_merge_chn;
    string m_ch_name;
    string m_ch_id;
-   int m_expire_min;
 };
 
 #endif // __TTX_XMLTV_H

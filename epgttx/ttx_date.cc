@@ -773,8 +773,6 @@ time_t T_PG_DATE::convert_time(int hour, int min, int date_off) const
 
 /* ------------------------------------------------------------------------------
  * Calculate delta in days between the given programme slot and a discrete date
- * - works both on program "slot" and "pgdate" which have the same member names
- *   (since Perl doesn't have strict typechecking for structs)
  */
 int T_PG_DATE::calc_date_delta(const T_PG_DATE& slot2) const
 {
@@ -798,13 +796,20 @@ int T_PG_DATE::calc_date_delta(const T_PG_DATE& slot2) const
    time_t date2 = mktime(&tm2);
 
    // add 2 hours to allow for shorter days during daylight saving time change
-   return (date2 + 2*60*60 - date1) / (24*60*60);
+   if (date2 > date1)
+      return (date2 + 2*60*60 - date1) / (24*60*60);
+   else
+      return -(date1 + 2*60*60 - date2) / (24*60*60);
 }
 
+/* ------------------------------------------------------------------------------
+ * Return date in form of a string for debug output
+ * - WARNING: returns pointer to a static buffer
+ */
 const char * T_PG_DATE::trace_str() const
 {
    static char buf[100];
-   sprintf(buf, "%d.%d.%d, DELTA %d", m_mday, m_month, m_year, m_date_off);
+   snprintf(buf, sizeof(buf), "%d.%d.%d, DELTA %d", m_mday, m_month, m_year, m_date_off);
    return buf;
 }
 
