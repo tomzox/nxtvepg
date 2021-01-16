@@ -321,9 +321,11 @@ static void EpgAcqTtx_TunePid( void )
 {
    const EPGACQ_TUNER_PAR * par = &acqCtl.pSources[acqCtl.ttxSrcIdx[0]].freq;
    int pidList[MAX_VBI_DVB_STREAMS];
+   int serviceIds[MAX_VBI_DVB_STREAMS];
    uint pidCount = 1;
 
    pidList[0] = par->ttxPid;
+   serviceIds[0] = par->serviceId;
 
    if (acqCtl.ttxActiveCount == 1)
    {
@@ -337,8 +339,9 @@ static void EpgAcqTtx_TunePid( void )
                  (acqCtl.pSources[idx].srcDone == (loop ==1)) &&
                  (idx != acqCtl.ttxSrcIdx[0]) )
             {
-               dprintf2("EpgAcqTtx-TunePid: piggy-backing channel %d (%s)\n", idx, EpgAcqTtx_GetChannelName(idx));
+               dprintf3("EpgAcqTtx-TunePid: piggy-backing PID:%d channel %d (%s)\n", acqCtl.pSources[idx].freq.ttxPid, idx, EpgAcqTtx_GetChannelName(idx));
                pidList[pidCount] = acqCtl.pSources[idx].freq.ttxPid;
+               serviceIds[pidCount] = acqCtl.pSources[idx].freq.serviceId;
                acqCtl.ttxSrcIdx[pidCount] = idx;
                pidCount += 1;
             }
@@ -346,7 +349,7 @@ static void EpgAcqTtx_TunePid( void )
       }
       acqCtl.ttxActiveCount = pidCount;
    }
-   BtDriver_TuneDvbPid(pidList, pidCount);
+   BtDriver_TuneDvbPid(pidList, serviceIds, pidCount);
 }
 
 // ---------------------------------------------------------------------------
@@ -359,6 +362,8 @@ static bool EpgAcqTtx_UpdateProvider( void )
 {
    bool result = FALSE;
    time_t now = time(NULL);
+
+   dprintf3("EpgAcqTtx-UpdateProvider: mode:%d forced?:%d act:%d\n", acqCtl.mode, acqCtl.passiveReason, acqCtl.ttxActiveCount);
 
    if ( (acqCtl.mode != ACQMODE_PASSIVE) && (acqCtl.ttxActiveCount > 0) )
    {
@@ -424,6 +429,7 @@ void EpgAcqTtx_InitCycle( EPGACQ_PHASE phase )
    acqCtl.allSrcDone = FALSE;
    acqCtl.lastDoneSrc = -1;
    acqCtl.lastDoneTime = 0;
+   acqCtl.passiveReason = ACQPASSIVE_NONE;
 }
 
 #ifdef USE_TTX_GRABBER
@@ -495,7 +501,7 @@ static bool EpgAcqTtx_DetectSource( void )
 
          if (idx < acqCtl.ttxSrcCount)
          {
-            dprintf3("EpgAcqTtx-DetectSource: freq %ld -> src=%d (%s)\n", par.freq, idx, EpgAcqTtx_GetChannelName(idx));
+            dprintf4("EpgAcqTtx-DetectSource: norm:%d/freq %ld -> src=%d (%s)\n", par.norm, par.freq, idx, EpgAcqTtx_GetChannelName(idx));
             acqCtl.ttxActiveCount = 1;
             acqCtl.ttxSrcIdx[0] = idx;
             // request PID for selected channel and others sharing frequency
@@ -504,8 +510,9 @@ static bool EpgAcqTtx_DetectSource( void )
          }
          else
          {
-            dprintf1("EpgAcqTtx-DetectSource: freq %ld unknown\n", par.freq);
+            dprintf2("EpgAcqTtx-DetectSource: norm:%d freq:%ld unknown\n", par.norm, par.freq);
             acqCtl.ttxActiveCount = 0;
+            acqCtl.state = TTXACQ_STATE_STARTUP;
          }
       }
       else
@@ -581,8 +588,10 @@ void EpgAcqTtx_ChannelChange( void )
       // restart acquisition
       acqCtl.acqStartTime = time(NULL);
       acqCtl.chanChangeTime = acqCtl.acqStartTime;
-      acqCtl.state = TTXACQ_STATE_STARTUP;
-      EpgAcqTtx_DetectSource();
+      if (EpgAcqTtx_DetectSource())
+         acqCtl.state = TTXACQ_STATE_STARTUP;
+      else
+         acqCtl.state = TTXACQ_STATE_IDLE;
 
       EpgAcqTtx_TtxStart();
       UiControlMsg_AcqEvent(ACQ_EVENT_CTL);
@@ -791,7 +800,10 @@ bool EpgAcqTtx_MonitorSources( void )
    }
    else if (acqCtl.state == TTXACQ_STATE_IDLE)
    {
-      advance = (now >= acqCtl.chanChangeTime + TTX_GRAB_TIMEOUT_IDLE);
+      if (acqCtl.mode == ACQMODE_PASSIVE)
+         advance = (now >= acqCtl.chanChangeTime + TTX_GRAB_TIMEOUT_IDLE);
+      else  // try leaving forced passive mode
+         advance = (now >= acqCtl.chanChangeTime + TTX_START_TIMEOUT_IDLE);
    }
    else
       fatal1("EpgAcqTtx-MonitorSources: invalid acq state %d", acqCtl.state);
@@ -881,7 +893,7 @@ bool EpgAcqTtx_ProcessPackets( bool * pCheckSlicer )
             chnChanged += 1;
       }
 
-      if (0) // TODO DVB
+      if (0) // if (chnChanged > 0) // TODO DVB
       {
          dprintf0("EpgAcqTtx-ProcessPackets: uncontrolled channel change detected\n");
          EpgAcqTtx_ChannelChange();

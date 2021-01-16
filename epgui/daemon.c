@@ -121,7 +121,7 @@ void Daemon_SystemClockCmd( EPG_CLOCK_CTRL_MODE clockMode )
          fprintf(stderr, "nxtvepg: FATAL: Tuning channel \"%s\": %s\n", pNameList, BtDriver_GetLastError());
          exit(1);
       }
-      BtDriver_TuneDvbPid(&pFreqTab[0].ttxPid, 1);
+      BtDriver_TuneDvbPid(&pFreqTab[0].ttxPid, &pFreqTab[0].serviceId, 1);
 
       ttxTime = 0;
       waitCnt = 0;

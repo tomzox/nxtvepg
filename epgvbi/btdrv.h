@@ -271,11 +271,13 @@ typedef struct
    bool      vbiSlaveRunning;   // --:  TRUE while slave thread is running
    int       failureErrno;
 
+   uint      drvCfgReqNo;          // incremented for each change of following params
+   uint      drvCfgCnfNo;
    BTDRV_SOURCE_TYPE drvType;
-   uchar     cardIndex;
+   uint      cardIndex;
+   int       dvbSid[MAX_VBI_DVB_STREAMS];
    int       dvbPid[MAX_VBI_DVB_STREAMS];
    int       dvbPidCnt;
-   int       dvbPidReqNo;
    int       chnPrio;
    # if defined(__NetBSD__) || defined(__FreeBSD__)
    uchar     inputIndex;
@@ -340,7 +342,7 @@ const char * BtDriver_GetLastError( void );
 bool BtDriver_IsVideoPresent( void );
 bool BtDriver_QueryChannel( EPGACQ_TUNER_PAR * pFreqPar, uint * pInput, bool * pIsTuner );
 bool BtDriver_TuneChannel( int inputIdx, const EPGACQ_TUNER_PAR * pFreqPar, bool keepOpen, bool * pIsTuner );
-void BtDriver_TuneDvbPid( const int * pidList, uint pidCount );
+void BtDriver_TuneDvbPid( const int * pidList, const int * sidList, uint pidCount );
 
 #ifndef WIN32
 int BtDriver_GetDeviceOwnerPid( void );

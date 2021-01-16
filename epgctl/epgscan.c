@@ -278,7 +278,7 @@ uint EpgScan_EvHandler( void )
          {
             if ( BtDriver_TuneChannel(scanCtl.inputSrc, &freq, TRUE, &isTuner) )
             {
-               BtDriver_TuneDvbPid(&freq.ttxPid, 1);  // TODO concurrency
+               BtDriver_TuneDvbPid(&freq.ttxPid, &freq.serviceId, 1);  // TODO concurrency
                TtxDecode_StartScan();
 
                dprintf1("RESET channel %d\n", scanCtl.channel);
@@ -407,7 +407,7 @@ EPGSCAN_START_RESULT EpgScan_Start( int inputSource, bool doSlow, bool useXawtv,
          {
             if (isTuner)
             {
-               BtDriver_TuneDvbPid(&freq.ttxPid, 1);  // TODO concurrency
+               BtDriver_TuneDvbPid(&freq.ttxPid, &freq.serviceId, 1);  // TODO concurrency
                TtxDecode_StartScan();
 
                dprintf1("RESET channel %d\n", scanCtl.channel);

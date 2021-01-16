@@ -81,6 +81,12 @@ This message applies to all files within this release:
        Copyright (C) 2004,2005 by Kurt Lettmaier and Olaf Nöhring
        Released under the GPL.
 
+    DVB "w_scan" (20170107): PAT & PMT decoding
+       Copyright (C) 2006 - 2014 Winfried Koehler
+       Released under the GPL 2, or later.
+       Derived from the dvb scan tool:
+       Copyright: Johannes Stezenbach and others, GPLv2 and LGPL
+
 
     Credits for source code that once was included in this project
     but since has been removed:

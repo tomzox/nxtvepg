@@ -142,9 +142,9 @@ endif
 SUBDIRS = epgvbi epgdb epgctl epgui epgtcl tvsim xmltv epgttx
 EPGSRC  = epgvbi/btdrv4linux epgvbi/vbidecode epgvbi/zvbidecoder \
           epgvbi/ttxdecode epgvbi/hamming epgvbi/cni_tables epgvbi/tvchan \
-          epgvbi/dvb_demux epgvbi/syserrmsg epgdb/epgdbmerge \
-          epgdb/epgdbmgmt epgdb/epgdbif epgdb/epgdbfil epgdb/epgblock \
-          epgdb/epgnetio epgdb/epgtscqueue epgdb/ttxgrab \
+          epgvbi/dvb_demux epgvbi/dvb_scan_pmt epgvbi/syserrmsg \
+          epgdb/epgdbmerge epgdb/epgdbmgmt epgdb/epgdbif epgdb/epgdbfil \
+          epgdb/epgblock epgdb/epgnetio epgdb/epgtscqueue epgdb/ttxgrab \
           epgctl/debug epgctl/epgacqctl epgctl/epgacqttx \
           epgctl/epgscan epgctl/epgctxctl epgctl/epgctxmerge \
           epgctl/epgacqclnt epgctl/epgacqsrv
@@ -182,7 +182,8 @@ VBIREC_CSRC   = tvsim/vbirec_main
 VBIREC_CSRC2  = epgvbi/btdrv4linux epgvbi/vbidecode epgvbi/zvbidecoder \
                 epgvbi/ttxdecode epgvbi/hamming epgvbi/cni_tables \
                 epgvbi/syserrmsg epgctl/debug epgui/xawtv epgui/xiccc \
-                epgui/dumptext epgui/pidescr epgui/pdc_themes epgvbi/dvb_demux
+                epgui/dumptext epgui/pidescr epgui/pdc_themes \
+                epgvbi/dvb_demux epgvbi/dvb_scan_pmt
 VBIREC_TCLSRC = tvsim/vbirec_gui epgtcl/combobox
 
 NXTV_OBJS     = $(addprefix $(BUILD_DIR)/, $(addsuffix .o, $(EPGSRC) $(GUISRC) $(TCLSRC) $(XMLSRC)))

@@ -116,7 +116,7 @@ bool BtDriver_TuneChannel( int inputIdx, uint freq, bool keepOpen, bool * pIsTun
    return FALSE;
 }
 
-void BtDriver_TuneDvbPid( const int * pidList, uint pidCount )
+void BtDriver_TuneDvbPid( const int * pidList, const int * sidList, uint pidCount )
 {
 }
 

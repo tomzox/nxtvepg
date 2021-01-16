@@ -81,6 +81,7 @@
 #include "epgvbi/zvbidecoder.h"
 #include "epgvbi/ttxdecode.h"
 #include "epgvbi/dvb_demux.h"
+#include "epgvbi/dvb_scan_pmt.h"
 #include "epgvbi/btdrv.h"
 
 #if defined(__NetBSD__) || defined(__FreeBSD__)
@@ -146,16 +147,16 @@ static pthread_cond_t   vbi_start_cond;
 static pthread_mutex_t  vbi_start_mutex;
 
 // vars used in the acq slave process
-static bool acqShouldExit;
+static volatile bool acqShouldExit;
 static int vbiCardIndex;
 static int bufLineSize;
 static int bufLines;
 static uint vbiInCount;
-static uint vbiDvbPidReqNo;
+static uint vbiDrvType;
+static bool dvbScanActive;
 static char *pSysErrorText = NULL;
 
 // vars used in the control process
-static bool recvWakeUpSig;
 static int video_fd = -1;
 
 #if defined(__NetBSD__) || defined(__FreeBSD__)
@@ -168,6 +169,7 @@ static unsigned char *buffer;
 static struct
 {
    int               dvbPid;
+   int               dvbSid;
    int               fd;
    uchar           * rawbuf;
    vbi_raw_decoder   zvbiRawDec;
@@ -180,7 +182,7 @@ static struct
 // function forward declarations
 int BtDriver_StartCapture(void);
 static void * BtDriver_Main( void * foo );
-static void BtDriver_OpenVbiBuf( uint bufIdx );
+static void BtDriver_OpenVbiDataBuf( uint bufIdx );
 
 // ---------------------------------------------------------------------------
 // Get name of the specified device type
@@ -502,17 +504,13 @@ static bool BtDriver_SetDvbPid(uint bufIdx, int pid)
 }
 
 // ---------------------------------------------------------------------------
-// Open the VBI device
+// Open VBI device of the given stream
 //
-static void BtDriver_OpenVbi( uint bufIdx )
+static void BtDriver_OpenVbiBuf( uint bufIdx )
 {
-   BTDRV_SOURCE_TYPE drvType;
    char * pDevName;
    char tmpName[DEV_MAX_NAME_LEN];
    FILE *fp;
-
-   vbiCardIndex = pVbiBuf->cardIndex;
-   vbiIn[bufIdx].dvbPid = (pVbiBuf->drvType == BTDRV_SOURCE_DVB) ? pVbiBuf->dvbPid[bufIdx] : -1;
 
    #if defined(__NetBSD__) || defined(__FreeBSD__)
    // the bktr driver on NetBSD requires to start video capture for VBI to work
@@ -522,9 +520,8 @@ static void BtDriver_OpenVbi( uint bufIdx )
    if (BtDriver_StartCapture())
    #endif
    {
-      drvType = (vbiIn[bufIdx].dvbPid != -1) ? BTDRV_SOURCE_DVB : BTDRV_SOURCE_ANALOG;
-      pDevName = BtDriver_GetDevicePath(DEV_TYPE_VBI, vbiCardIndex, drvType);
-      if (drvType == BTDRV_SOURCE_DVB)
+      pDevName = BtDriver_GetDevicePath(DEV_TYPE_VBI, vbiCardIndex, vbiDrvType);
+      if (vbiDrvType == BTDRV_SOURCE_DVB)
       {
          vbiIn[bufIdx].zvbiLastTimestamp = 0.0;
          vbiIn[bufIdx].zvbiLastFrameNo = 0;
@@ -542,6 +539,7 @@ static void BtDriver_OpenVbi( uint bufIdx )
                errno = bak_errno;
             }
          }
+         // else: error handled below
       }
       else  // BTDRV_SOURCE_ANALOG
       {
@@ -579,7 +577,7 @@ static void BtDriver_OpenVbi( uint bufIdx )
       debug3("BtDriver-OpenVbi[%d]: failed with errno %d (%s)", bufIdx, pVbiBuf->failureErrno, strerror(pVbiBuf->failureErrno));
    }
    else
-   {  // open successful -> write pid in file
+   {  // open successful -> write process PID in file
       sprintf(tmpName, PIDFILENAME, vbiCardIndex);
       fp = fopen(tmpName, "w");
       if (fp != NULL)
@@ -588,14 +586,104 @@ static void BtDriver_OpenVbi( uint bufIdx )
          fclose(fp);
       }
       // allocate memory for the VBI data buffer
-      BtDriver_OpenVbiBuf(bufIdx);
+      BtDriver_OpenVbiDataBuf(bufIdx);
    }
 }
 
 // ---------------------------------------------------------------------------
-// Close the VBI device
+// Open VBI devices for the requested number of streams
 //
-static void BtDriver_CloseVbi( uint bufIdx, bool keepVideoOpen )
+static void BtDriver_OpenVbi( void )
+{
+   int dvbSid[MAX_VBI_DVB_STREAMS];
+   int scanCnt = 0;
+   uint drvCfgCnfNo;
+
+   pthread_mutex_lock(&vbi_start_mutex);
+   // copy input parameters from shared memory to local storage
+   vbiDrvType = pVbiBuf->drvType;
+   vbiCardIndex = pVbiBuf->cardIndex;
+   vbiInCount = (vbiDrvType == BTDRV_SOURCE_DVB) ? pVbiBuf->dvbPidCnt : 1;
+   drvCfgCnfNo = pVbiBuf->drvCfgReqNo;
+
+   for (uint bufIdx = 0; bufIdx < vbiInCount; ++bufIdx)
+   {
+      vbiIn[bufIdx].dvbPid = pVbiBuf->dvbPid[bufIdx];
+      vbiIn[bufIdx].dvbSid = pVbiBuf->dvbSid[bufIdx];
+   }
+   pthread_mutex_unlock(&vbi_start_mutex);
+
+   // open VBI devices for streams with known TTX PID
+   for (uint bufIdx = 0; bufIdx < vbiInCount; ++bufIdx)
+   {
+      if ((vbiDrvType == BTDRV_SOURCE_DVB) && (vbiIn[bufIdx].dvbPid == 0))
+      {
+         dvbSid[scanCnt] = vbiIn[bufIdx].dvbSid;
+         scanCnt += 1;
+      }
+      else
+      {
+         BtDriver_OpenVbiBuf(bufIdx);
+      }
+   }
+
+   // start PAT/PMT scan for streams with yet unknown TTX PID
+   if (scanCnt != 0)
+   {
+      const char * pDevName = BtDriver_GetDevicePath(DEV_TYPE_VBI, vbiCardIndex, BTDRV_SOURCE_DVB);
+      dprintf1("BtDriver-OpenVbi: starting PMT scan for %d services\n", scanCnt);
+      if (DvbScanPmt_Start(pDevName, dvbSid, scanCnt) != 0)
+      {
+         dvbScanActive = TRUE;
+      }
+      else
+      {
+         pVbiBuf->failureErrno = errno;
+         pVbiBuf->hasFailed = TRUE;
+      }
+   }
+
+   pVbiBuf->drvCfgCnfNo = drvCfgCnfNo;
+   pthread_cond_signal(&vbi_start_cond);
+}
+
+// ---------------------------------------------------------------------------
+// Open VBI devices for streams for which a TTX PID was found during PMT scan
+//
+static void BtDriver_OpenVbiAfterScan(void )
+{
+   T_DVB_SCAN_PMT scan[MAX_VBI_DVB_STREAMS];
+
+   dprintf1("BtDriver-OpenVbiAfterScan: cnt:%d\n", vbiInCount);
+   for (uint bufIdx = 0; bufIdx < vbiInCount; ++bufIdx)
+   {
+      scan[bufIdx].serviceId = vbiIn[bufIdx].dvbSid;
+      scan[bufIdx].ttxPid = 0;
+   }
+   // retrieve results of PMT scan
+   DvbScanPmt_GetResults(scan, vbiInCount);
+
+   for (uint bufIdx = 0; bufIdx < vbiInCount; ++bufIdx)
+   {
+      if (vbiIn[bufIdx].dvbPid == 0)
+      {
+         if (scan[bufIdx].ttxPid != 0)
+         {
+            vbiIn[bufIdx].dvbPid = scan[bufIdx].ttxPid;
+            BtDriver_OpenVbiBuf(bufIdx);
+         }
+         else
+         {
+            vbiIn[bufIdx].dvbPid = -1;
+         }
+      }
+   }
+}
+
+// ---------------------------------------------------------------------------
+// Close VBI device of the given stream
+//
+static void BtDriver_CloseVbiBuf( uint bufIdx )
 {
    char tmpName[DEV_MAX_NAME_LEN];
 
@@ -617,16 +705,32 @@ static void BtDriver_CloseVbi( uint bufIdx, bool keepVideoOpen )
       if (vbiIn[bufIdx].zvbiDemux != NULL)
          vbi_dvb_demux_delete(vbiIn[bufIdx].zvbiDemux);
       vbiIn[bufIdx].zvbiDemux = NULL;
+   }
+}
 
-      if ((video_fd != -1) && !keepVideoOpen)
-      {
-         dprintf2("BtDriver-CloseVbi[%d]: closing video fd %d\n", bufIdx, video_fd);
-         close(video_fd);
-         video_fd = -1;
+// ---------------------------------------------------------------------------
+// Close all VBI devices
+//
+static void BtDriver_CloseVbi( bool keepVideoOpen )
+{
+   for (uint bufIdx = 0; bufIdx < MAX_VBI_DVB_STREAMS; ++bufIdx)
+      BtDriver_CloseVbiBuf(bufIdx);
+
+   if (dvbScanActive)
+   {
+      dprintf0("BtDriver-CloseVbi: aborting DVB PMT scan\n");
+      DvbScanPmt_Stop();
+      dvbScanActive = FALSE;
+   }
+
+   if ((video_fd != -1) && !keepVideoOpen)
+   {
+      dprintf1("BtDriver-CloseVbi: closing video fd %d\n", video_fd);
+      close(video_fd);
+      video_fd = -1;
 #if defined(__NetBSD__) || defined(__FreeBSD__)
-         pVbiBuf->tv_cards[pVbiBuf->cardIndex].inUse = FALSE;
+      pVbiBuf->tv_cards[pVbiBuf->cardIndex].inUse = FALSE;
 #endif
-      }
    }
 }
 
@@ -752,6 +856,7 @@ static bool BtDriver_SetInputSource( int inputIdx, EPGACQ_TUNER_NORM norm, bool 
          if (pVbiBuf->tv_cards[cardIndex].inputs[inputIdx].isAvailable) {
            result=TRUE;
            pVbiBuf->inputIndex=inputIdx;
+           pVbiBuf->drvCfgReqNo += 1;
            if (pVbiBuf->tv_cards[cardIndex].inputs[inputIdx].isTuner) {
              *pIsTuner=TRUE;
            }
@@ -1177,18 +1282,22 @@ bool BtDriver_IsVideoPresent( void )
 // - can be set independently even if tuning failed
 // - actual configuration is executed within the slave thread
 //
-void BtDriver_TuneDvbPid( const int * pidList, uint pidCount )
+void BtDriver_TuneDvbPid( const int * pidList, const int * sidList, uint pidCount )
 {
    dprintf2("BtDriver-TuneDvbPid: pid:%d count:%d\n", pidList[0], pidCount);
    assert((pidCount > 0) && (pidCount <= MAX_VBI_DVB_STREAMS));
 
+   pthread_mutex_lock(&vbi_start_mutex);
    for (uint idx = 0; idx < pidCount; ++idx)
    {
       pVbiBuf->dvbPid[idx] = pidList[idx];
+      pVbiBuf->dvbSid[idx] = sidList[idx];
    }
    pVbiBuf->dvbPidCnt = pidCount;
+
    // finally change request seq.no. so that VBI threads picks up the parameters
-   pVbiBuf->dvbPidReqNo += 1;
+   pVbiBuf->drvCfgReqNo += 1;
+   pthread_mutex_unlock(&vbi_start_mutex);
 
    // interrupt the slave thread if blocked in read() or select()
    if (pVbiBuf->vbiSlaveRunning)
@@ -1370,24 +1479,37 @@ const char * BtDriver_GetInputName( uint cardIndex, int drvType, uint inputIdx )
 //
 bool BtDriver_Configure( int cardIndex, int drvType, int prio )
 {
-   struct timeval tv;
    bool wasEnabled;
+   bool result = FALSE;
 
-   wasEnabled = (pVbiBuf->scanEnabled || pVbiBuf->ttxEnabled) && !pVbiBuf->hasFailed;
+   dprintf2("BtDriver-Configure: card:%d drvType:%d\n", cardIndex, drvType);
 
-   // pass the new card index to the slave via shared memory
-   pVbiBuf->cardIndex = cardIndex;
-   pVbiBuf->drvType = drvType;
+   if ((drvType == BTDRV_SOURCE_DVB) || (drvType == BTDRV_SOURCE_ANALOG))
+   {
+      wasEnabled = (pVbiBuf->scanEnabled || pVbiBuf->ttxEnabled) && !pVbiBuf->hasFailed;
 
-   if (wasEnabled)
-   {  // wait 100ms for the slave to process the request
-      tv.tv_sec  = 0;
-      tv.tv_usec = 100000L;
-      select(0, NULL, NULL, NULL, &tv);
+      pthread_mutex_lock(&vbi_start_mutex);
+      // pass the new card index to the slave via shared memory
+      pVbiBuf->cardIndex = cardIndex;
+      pVbiBuf->drvType = drvType;
+      pVbiBuf->drvCfgReqNo += 1;
+      pthread_mutex_unlock(&vbi_start_mutex);
+
+      pthread_mutex_lock(&vbi_start_mutex);
+      while ( pVbiBuf->vbiSlaveRunning &&
+              (pVbiBuf->drvCfgCnfNo != pVbiBuf->drvCfgReqNo) )
+      {
+         pthread_cond_wait(&vbi_start_cond, &vbi_start_mutex);
+      }
+      pthread_mutex_unlock(&vbi_start_mutex);
+
+      // return FALSE if acq was disabled while processing the request
+      result = (!wasEnabled || !pVbiBuf->hasFailed);
    }
+   else
+      debug1("BtDriver-Configure: invalid drvType:%d\n", drvType);
 
-   // return FALSE if acq was disabled while processing the request
-   return (!wasEnabled || !pVbiBuf->hasFailed);
+   return result;
 }
 
 // ---------------------------------------------------------------------------
@@ -1459,7 +1581,6 @@ bool BtDriver_CheckCardParams( int drvType, uint cardIdx, uint input )
 //
 static void BtDriver_SignalWakeUp( int sigval )
 {
-   recvWakeUpSig = TRUE;
    signal(sigval, BtDriver_SignalWakeUp);
 }
 
@@ -1494,18 +1615,23 @@ bool BtDriver_StartAcq( void )
       {
          dprintf1("BtDriver-StartAcq: starting thread for drvType:%d\n", pVbiBuf->drvType);
 
-         pthread_mutex_lock(&vbi_start_mutex);
+         // block USR1 here as it is intended for the slave thread
+         sigemptyset(&sigmask);
+         sigaddset(&sigmask, SIGUSR1);
+         pthread_sigmask(SIG_BLOCK, &sigmask, NULL);
+
          SystemErrorMessage_Set(&pSysErrorText, 0, NULL);
          pVbiBuf->hasFailed = FALSE;
          pVbiBuf->failureErrno = 0;
+         pVbiBuf->drvCfgReqNo = 1;
+         pVbiBuf->drvCfgCnfNo = 0;
+
          if (pthread_create(&vbi_thread_id, NULL, BtDriver_Main, NULL) == 0)
          {
-            sigemptyset(&sigmask);
-            sigaddset(&sigmask, SIGUSR1);
-            pthread_sigmask(SIG_BLOCK, &sigmask, NULL);
-
             // wait for the slave to report the initialization result
-            pthread_cond_wait(&vbi_start_cond, &vbi_start_mutex);
+            pthread_mutex_lock(&vbi_start_mutex);
+            while (!pVbiBuf->vbiSlaveRunning && !pVbiBuf->hasFailed)
+               pthread_cond_wait(&vbi_start_cond, &vbi_start_mutex);
             pthread_mutex_unlock(&vbi_start_mutex);
 
             result = (pVbiBuf->hasFailed == FALSE);
@@ -1593,14 +1719,14 @@ void BtDriver_Exit( void )
 //   for each frame; each read on the vbi device should request all the lines
 //   of one frame, else the rest will be overwritten by the next frame
 //
-static void BtDriver_OpenVbiBuf( uint bufIdx )
+static void BtDriver_OpenVbiDataBuf( uint bufIdx )
 {
 #if !defined (__NetBSD__) && !defined (__FreeBSD__)
    struct v4l2_format vfmt2;
    struct v4l2_format vfmt2_copy;
 #endif
 
-   if (vbiIn[bufIdx].dvbPid != -1)
+   if (vbiDrvType == BTDRV_SOURCE_DVB)
    {
       bufLines            = 1;
       bufLineSize         = 4096;  // DMX_SET_BUFFER_SIZE: default ring buffer in kernel is 2*4096
@@ -1650,7 +1776,7 @@ static void BtDriver_OpenVbiBuf( uint bufIdx )
          vfmt2.fmt.vbi.count[1]		= 17;
          if (IOCTL(vbiIn[bufIdx].fd, VIDIOC_S_FMT, &vfmt2) != 0)
          {
-            debug2("BtDriver-OpenVbiBuf: ioctl(VIDIOC_S_FMT) failed with errno %d: %s", errno, strerror(errno));
+            debug2("BtDriver-OpenVbiDataBuf: ioctl(VIDIOC_S_FMT) failed with errno %d: %s", errno, strerror(errno));
             vfmt2 = vfmt2_copy;
          }
          dprintf8("VBI format: lines %d+%d, %d samples per line, rate=%d, offset=%d, flags=0x%X, start lines %d,%d\n", vfmt2.fmt.vbi.count[0], vfmt2.fmt.vbi.count[1], vfmt2.fmt.vbi.samples_per_line, vfmt2.fmt.vbi.sampling_rate, vfmt2.fmt.vbi.offset, vfmt2.fmt.vbi.flags, vfmt2.fmt.vbi.start[0], vfmt2.fmt.vbi.start[1]);
@@ -1717,7 +1843,7 @@ static bool BtDriver_DecodeFrameBuf( uint bufIdx )
    {
       // DVB demux is opened non-blocking because we do not know packet size per frame;
       // use select() for waiting until data is available (master sends signals upon events)
-      if (vbiIn[bufIdx].dvbPid != -1)
+      if (vbiDrvType == BTDRV_SOURCE_DVB)
       {
          vbi_sliced sliced[128];
          const uint8_t * restPtr = (uint8_t*) vbiIn[bufIdx].rawbuf;
@@ -1815,29 +1941,42 @@ static void BtDriver_DecodeFrame( void )
 
    // DVB demux is opened non-blocking because we do not know packet size per frame;
    // use select() for waiting until data is available (master sends signals upon events)
-   if (vbiIn[0].dvbPid != -1)
+   if (vbiDrvType == BTDRV_SOURCE_DVB)
    {
-      int max_fd = 0;
+      int max_fd = -1;
       fd_set ins;
       FD_ZERO(&ins);
       for (uint bufIdx = 0; bufIdx < vbiInCount; ++bufIdx)
       {
-         assert(vbiIn[bufIdx].fd != -1);
-         if (vbiIn[bufIdx].fd > max_fd)
-            max_fd = vbiIn[bufIdx].fd;
-         FD_SET(vbiIn[bufIdx].fd, &ins);
+         if (vbiIn[bufIdx].fd != -1)
+         {
+            if (vbiIn[bufIdx].fd > max_fd)
+               max_fd = vbiIn[bufIdx].fd;
+            FD_SET(vbiIn[bufIdx].fd, &ins);
+         }
       }
+      if (dvbScanActive)
+      {
+         max_fd = DvbScanPmt_GetFds(&ins, max_fd);
+      }
+      // note there may be zero open FD if the PMT scan found no channels with TTX PID
 
       int sel = select(max_fd + 1, &ins, NULL, NULL, NULL);  // infinitly
       if (sel > 0)
       {
          for (uint bufIdx = 0; bufIdx < vbiInCount; ++bufIdx)
          {
-            if (FD_ISSET(vbiIn[bufIdx].fd, &ins))
+            if ( (vbiIn[bufIdx].fd != -1) &&
+                 FD_ISSET(vbiIn[bufIdx].fd, &ins) )
             {
                if (BtDriver_DecodeFrameBuf(bufIdx) == FALSE)
                   break;
             }
+         }
+         if (dvbScanActive && DvbScanPmt_ProcessFds(&ins))
+         {
+            BtDriver_OpenVbiAfterScan();
+            dvbScanActive = FALSE;
          }
       }
       else if (sel < 0)
@@ -1974,66 +2113,35 @@ static void * BtDriver_Main( void * foo )
    sigset_t sigmask;
 
    pVbiBuf->vbiSlaveRunning = TRUE;
-   vbiIn[0].fd = -1;
-   #if defined(__NetBSD__) || defined(__FreeBSD__)
-   video_fd = -1;
-   #endif
-
    acqShouldExit = FALSE;
+
+   // block HUP as it is handled by the master thread
    sigemptyset(&sigmask);
    sigaddset(&sigmask, SIGHUP);
    pthread_sigmask(SIG_BLOCK, &sigmask, NULL);
+
+   // unblock USR1 which is sent my the master thread to wake-up the slave
    sigemptyset(&sigmask);
    sigaddset(&sigmask, SIGUSR1);
    pthread_sigmask(SIG_UNBLOCK, &sigmask, NULL);
-   signal(SIGUSR1, BtDriver_SignalWakeUp);
+
+   struct sigaction sa = { .sa_handler = BtDriver_SignalWakeUp };
+   sigaction(SIGUSR1, &sa, NULL);
 
    // open the VBI device and inform the master about the result (via the hasFailed flag)
-   pthread_mutex_lock(&vbi_start_mutex);
-   if (vbiIn[0].fd == -1)
-   {
-      vbiInCount = (pVbiBuf->drvType == BTDRV_SOURCE_DVB) ? pVbiBuf->dvbPidCnt : 1;
-      vbiDvbPidReqNo = pVbiBuf->dvbPidReqNo;
-
-      for (uint bufIdx = 0; bufIdx < vbiInCount; ++bufIdx)
-         BtDriver_OpenVbi(bufIdx);
-   }
-   if (pVbiBuf->hasFailed)
-      acqShouldExit = TRUE;
-   pthread_cond_signal(&vbi_start_cond);
-   pthread_mutex_unlock(&vbi_start_mutex);
+   BtDriver_OpenVbi();
 
    while (acqShouldExit == FALSE)
    {
       if (pVbiBuf->hasFailed == FALSE)
       {
-         #if !defined (__NetBSD__) && !defined (__FreeBSD__)
-         if ((vbiIn[0].fd != -1) &&
-             ((vbiCardIndex != pVbiBuf->cardIndex) ||
-              (vbiInCount != pVbiBuf->dvbPidCnt) ||
-              (vbiDvbPidReqNo != pVbiBuf->dvbPidReqNo)))
-         #else
-         if ((vbiIn[0].fd != -1) &&
-             ((vbiCardIndex != pVbiBuf->cardIndex) ||
-              (vbiInputIndex != pVbiBuf->inputIndex) ||
-              (vbiInCount != pVbiBuf->dvbPidCnt) ||
-              (vbiDvbPidReqNo != pVbiBuf->dvbPidReqNo)))
-         #endif
-         {  // switching to a different device -> close the previous one
-            bool keepVideoOpen = (vbiIn[0].fd != -1);
-            for (uint bufIdx = 0; bufIdx < MAX_VBI_DVB_STREAMS; ++bufIdx)
-               BtDriver_CloseVbi(bufIdx, keepVideoOpen);
-         }
-         if (vbiIn[0].fd == -1)
-         {  // acq was switched on -> open device
-            vbiInCount = (pVbiBuf->drvType == BTDRV_SOURCE_DVB) ? pVbiBuf->dvbPidCnt : 1;
-            vbiDvbPidReqNo = pVbiBuf->dvbPidReqNo;
-
-            for (uint bufIdx = 0; bufIdx < vbiInCount; ++bufIdx)
-               BtDriver_OpenVbi(bufIdx);
+         if (pVbiBuf->drvCfgCnfNo != pVbiBuf->drvCfgReqNo)
+         {  // device parameter change -> close & reopen
+            BtDriver_CloseVbi(TRUE);
+            BtDriver_OpenVbi();
          }
          else
-         {  // device is open -> capture the VBI lines of this frame
+         {  // capture VBI lines of this frame
             BtDriver_DecodeFrame();
          }
       }
@@ -2044,8 +2152,7 @@ static void * BtDriver_Main( void * foo )
       }
    }
 
-   for (uint bufIdx = 0; bufIdx < vbiInCount; ++bufIdx)
-      BtDriver_CloseVbi(bufIdx, FALSE);
+   BtDriver_CloseVbi(FALSE);
 
    pVbiBuf->hasFailed = TRUE;
    pVbiBuf->vbiSlaveRunning = FALSE;
@@ -2079,7 +2186,6 @@ bool BtDriver_Init( void )
       vbiIn[bufIdx].fd = -1;
    video_fd = -1;
    vbiInCount = 1;
-   vbiDvbPidReqNo = ~0U;
 
    pthread_cond_init(&vbi_start_cond, NULL);
    pthread_mutex_init(&vbi_start_mutex, NULL);
