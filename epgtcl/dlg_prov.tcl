@@ -296,7 +296,7 @@ proc PopupProviderMerge {} {
          set name [C_GetProvServiceName $cni]
          if {$name ne ""} {
             lappend provmerge_selist $cni
-            set provwin_names($cni) [C_GetProvServiceName $cni]
+            set provwin_names($cni) $name
          } else {
             # file no longer exists
             lappend dropped $cni

@@ -1603,7 +1603,10 @@ void XmltvDb_Destroy( void )
       EpgDbDestroy(xds.pDbContext, FALSE);
       xds.pDbContext = NULL;
    }
-   XmltvCni_MapDestroy(&xds.cniCtx);
+   if (xds.cniCtxInitDone)
+   {
+      XmltvCni_MapDestroy(&xds.cniCtx);
+   }
 }
 
 // ----------------------------------------------------------------------------

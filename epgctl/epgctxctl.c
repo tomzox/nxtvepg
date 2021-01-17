@@ -254,6 +254,28 @@ static CTX_CACHE * EpgContextCtl_AddStat( uint cni, time_t mtime, const char * p
 }
 
 // ---------------------------------------------------------------------------
+// Checks if an ERROR cache entry should be used for a result
+// - only use if there was a content error and mtime is unchanged
+// - do not use cached stat failure (mtime == 0) as it's cheap to retry
+//
+static bool EpgContextCtl_CachedErrorValid( CTX_CACHE * pContext )
+{
+   const char * pXmlPath;
+   bool result = FALSE;
+
+   if (pContext != NULL)
+   {
+      pXmlPath = XmltvCni_LookupProviderPath(pContext->provCni);
+
+      result = (pContext->state == CTX_CACHE_ERROR) &&
+               ((pContext->reloadErr & EPGDB_RELOAD_XML_MASK) != 0) &&
+               (pXmlPath != NULL) &&
+               (pContext->mtime == EpgContextCtl_GetMtime(pXmlPath));
+   }
+   return result;
+}
+
+// ---------------------------------------------------------------------------
 // Search for the given CNI in the list of opened context
 //
 static CTX_CACHE * EpgContextCtl_SearchCni( uint cni )
@@ -291,7 +313,7 @@ static EPGDB_RELOAD_RESULT EpgContextCtl_Load( CTX_CACHE * pContext )
    }
    else
    {  // path vanished from hash table - should never happen
-      debug1("EpgContextCtl-Load: path for XMLTV prov 0x%04X lost\n", pContext->provCni);
+      debug1("EpgContextCtl-Load: path for XMLTV prov 0x%04X lost", pContext->provCni);
       dberr = EPGDB_RELOAD_ACCESS;
       pDbContext = NULL;
    }
@@ -363,8 +385,8 @@ static EPGDB_RELOAD_RESULT EpgContextCtl_Load( CTX_CACHE * pContext )
 // ---------------------------------------------------------------------------
 // Peek into a database
 // - returns a database context with at least an AI block in it plus an OI
-//   if available; may be a complete database if it's is already loaded
-// - if no info is available for the CNI we attempt to peek into the db anyways
+//   if available; may be a complete database if already loaded
+// - if no info is available for the CNI, attempt to peek into the db anyways
 //   (1) useful to remember error state and suppress subsequent error messages
 //   (2) useful in case the dbdir is shared between client & server
 // - returns NULL if the reload fails and sends an error indication to the GUI
@@ -399,16 +421,26 @@ EPGDB_CONTEXT * EpgContextCtl_Peek( uint cni, int failMsgMode )
          dprintf4("EpgContextCtl-Peek: prov %04X found in cache, state %s, peek/open refCount %d/%d\n", cni, CtxCacheStateStr(pContext->state), pContext->peekRefCount, pContext->openRefCount);
          pContext->peekRefCount += 1;
       }
-      else if (pContext->state == CTX_CACHE_STAT)
+      else if ( (pContext->state == CTX_CACHE_STAT) ||
+                (pContext->state == CTX_CACHE_ERROR) )
       {  // database known, but not yet loaded -> load AI & OI only
          const char * pDbPath = XmltvCni_LookupProviderPath(pContext->provCni);
          if (pDbPath != NULL)
          {
-            pDbContext = Xmltv_CheckAndLoad(pDbPath, pContext->provCni, TRUE, &dberr, &mtime);
+            if (EpgContextCtl_CachedErrorValid(pContext) == FALSE)
+            {
+               pDbContext = Xmltv_CheckAndLoad(pDbPath, pContext->provCni, TRUE, &dberr, &mtime);
+            }
+            else
+            {
+               dberr = pContext->reloadErr;
+               pDbContext = NULL;
+            }
          }
          else
          {  // path vanished from hash table - should never happen
-            debug1("EpgContextCtl-Peek: path for XMLTV prov 0x%04X lost\n", pContext->provCni);
+            debug1("EpgContextCtl-Peek: path for XMLTV prov 0x%04X lost", pContext->provCni);
+            dberr = EPGDB_RELOAD_XML_CNI;
             pDbContext = NULL;
          }
 
@@ -434,11 +466,6 @@ EPGDB_CONTEXT * EpgContextCtl_Peek( uint cni, int failMsgMode )
             UiControlMsg_ReloadError(cni, dberr, failMsgMode, isNew);
             pContext = NULL;
          }
-      }
-      else if (pContext->state == CTX_CACHE_ERROR)
-      {
-         UiControlMsg_ReloadError(cni, pContext->reloadErr, failMsgMode, FALSE);
-         pContext = NULL;
       }
       else
       {
@@ -492,22 +519,23 @@ static CTX_CACHE * EpgContextCtl_OpenInt( CTX_CACHE * pContext, bool isNew,
          pContext->openRefCount += 1;
       }
       else if ( (pContext->state == CTX_CACHE_STAT) ||
+                (pContext->state == CTX_CACHE_ERROR) ||
                 (pContext->state == CTX_CACHE_PEEK) ||
                 ((pContext->state == CTX_CACHE_OPEN) && forceOpen) )
       {  // provider known, but database not yet loaded -> load now
 
-         reloadErr = EpgContextCtl_Load(pContext);
+         // skip load if file corrupt and mtime unchanged
+         if (EpgContextCtl_CachedErrorValid(pContext) == FALSE)
+            reloadErr = EpgContextCtl_Load(pContext);
+         else
+            reloadErr = pContext->reloadErr;
+
          if (reloadErr != EPGDB_RELOAD_OK)
          {
             UiControlMsg_ReloadError(pContext->provCni, reloadErr, failMsgMode, isNew);
             // do not use this context as result
             pContext = NULL;
          }
-      }
-      else if (pContext->state == CTX_CACHE_ERROR)
-      {
-         UiControlMsg_ReloadError(pContext->provCni, pContext->reloadErr, failMsgMode, FALSE);
-         pContext = NULL;
       }
       else
       {
@@ -616,7 +644,7 @@ static void EpgContextCtl_CloseInt( EPGDB_CONTEXT * pDbContext, bool isPeek )
 
       if (pContext != NULL)
       {
-         dprintf5("EpgContextCtl-Close: close context 0x%04X (%lx): state %s, peek/open refCount %d/%d: %d\n", EpgDbContextGetCni(pContext->pDbContext), (long)pContext, CtxCacheStateStr(pContext->state), pContext->peekRefCount, pContext->openRefCount);
+         dprintf5("EpgContextCtl-Close: close context 0x%04X (%lx): state %s, peek/open refCount %d/%d\n", EpgDbContextGetCni(pContext->pDbContext), (long)pContext, CtxCacheStateStr(pContext->state), pContext->peekRefCount, pContext->openRefCount);
          if (isPeek)
          {
             assert(pContext->peekRefCount > 0);

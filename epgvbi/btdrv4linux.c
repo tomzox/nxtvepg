@@ -1303,7 +1303,7 @@ void BtDriver_TuneDvbPid( const int * pidList, const int * sidList, uint pidCoun
    if (pVbiBuf->vbiSlaveRunning)
    {
       if (pthread_kill(vbi_thread_id, SIGUSR1) != 0)
-         debug2("BtDriver-TuneDvbPid: failed to notify slave thread (%d) %s\n", errno, strerror(errno));
+         debug2("BtDriver-TuneDvbPid: failed to notify slave thread (%d) %s", errno, strerror(errno));
    }
 }
 

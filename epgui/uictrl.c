@@ -548,7 +548,7 @@ static void UiControl_LoadAcqDb( ClientData clientData )
                   }
                }
                else
-                  debug2("UiControl-LoadAcqDb: failed to load db 0x%04X for merge update (total %d CNIs)\n", cni, count);
+                  debug2("UiControl-LoadAcqDb: failed to load db 0x%04X for merge update (total %d CNIs)", cni, count);
             }
          }
       }
@@ -574,7 +574,7 @@ static void UiControl_LoadAcqDb( ClientData clientData )
                StatsWin_UiStatsUpdate(FALSE, TRUE);
             }
             else
-               debug1("UiControl-LoadAcqDb: failed to load db 0x%04X\n", cni);
+               debug1("UiControl-LoadAcqDb: failed to load db 0x%04X", cni);
          }
       }
    }

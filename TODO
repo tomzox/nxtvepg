@@ -4,9 +4,15 @@ Your feedback is always welcome, so feel free to mail me if you want to
 boost any item's priority, find more points that need to be fixed or if
 you have ideas for additional features.
 
-Post-Nextview EPG:
+Mandatory fixes for release 3.0.0:
 - New DB type: "Load Teletext EPG...": automatically follow TTX acq, even if DB not exist yet
 - ttx grabber config: add channels.conf selection & auto-detect location
+- teletext: use TV channel name as XMLTV display name
+- XMLTV CNI mapping fundamentally broken
+- manual: move general description of TTX grabber from CONFIGURATION chapter
+  to an initial chapter; add description of config parameters
+
+Post-Nextview EPG:
 - stats db histogram, merged db: show percentage of DBs updated during last 12-24 hours
 - stats db histogram: add tool-tip to each pie of the chart (showing legend & percentage)
 - stats timescale: "acq tail": highlight networks/time ranges acq is working for
@@ -28,21 +34,14 @@ Post-Nextview EPG:
 - XMLTV service name: when merging teletext-only use "Merged teletext (%d networks)"
 - DVB TTX stream decoding issues: "Illegal line order", "Unknown data_unit_id"
 - DVB: update channel list in epgacqttx with TTX PIDs returned by PAT/PMT scan
-- XMLTV CNI mapping fundamentally broken
-- XMLTV: yacc generated code crashes
 - mplayer, VLC & VDR plugin for EPG display
 - teletext: use separate thread for post-processing (takes long time for 10 DBs)
 - teletext: ? move TTX packet decoding into acq thread?
 - teletext: use mtime delta to determine start channel of acq
-- teletext: use TV channel name as XMLTV display name
 - teletext acq stats: percentage cycle loaded (i.e. cycles done vs. max. sub-page count)
 - teletext configuration dialog: allow channel-specific config of page range, exclusion & duration
 - teletext emit XML encoding UTF-8
-- teletext: replace "Acquisitions statistics" chapter with one TTX grabber;
-            referred-to by dialog "?" button
 - teletext: in daemon mode: acq statistics display updates not working & "TODO" in epgacqsrv.c
-- manual: move general description of TTX grabber from CONFIGURATION chapter
-  to an initial chapter; add description of config parameters
 - port to WIN32: "Broadcast Driver Architecture" (filter graph)
 
 Missing documentation:
@@ -63,8 +62,6 @@ Teletext grabber:
     + page range used for overview
     + sub-page depth of overview pages & descriptions
       percentag of multi-pages in overview and descriptions
-- merge db open for acq:
-  after merge db open failure: do not attempt to open same db again
 - acq start: if last acq was aborted, continue seamless
   - determine age of XML files
   - determine delta between oldest and newest
@@ -75,12 +72,8 @@ Teletext grabber:
   - start grabber after 30 sec (if in NOW phase), next after 2min (reuse data)
   ? stop grabbing after 2nd grabber start (don't waste CPU) ?
 - ttxdecode: handle page range <800->800, i.e. split 700-799,000-099
-- merge with old XMLTV file
-  ? merge problem: how detect conflicts if programmes have no STOP time?
 - reduce parity errors during repeated reception
   - both during XMLTV merge and VBI packet reception
-- allow user to handle all TTX sources as one
-  ? i.e. merge sources automatically ?
 - check if all sub-pages are captured (on relevant pages only!)
   ? implement in nxtvepg or external post-processor ?
 - make overview page range configurable?

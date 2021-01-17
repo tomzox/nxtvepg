@@ -2176,7 +2176,7 @@ void Xawtv_Init( char * pTvX11Display, MAIN_REMOTE_CMD_HANDLER * pRemCmdCb )
          }
       }
       else
-         debug1("Xawtv-Init: failed to query main window id: %s\n", Tcl_GetStringResult(interp));
+         debug1("Xawtv-Init: failed to query main window id: %s", Tcl_GetStringResult(interp));
 
       Tcl_ResetResult(interp);
    }

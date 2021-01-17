@@ -403,7 +403,7 @@ static void WintvCfg_ChanTabAddName( TV_CHNTAB_BUF * pChanTab, const char * pNam
       pChanTab->strBufOff += len + 1;
    }
    else
-      debug3("WintvCfg-ChanTabAddName: duplicate name for channel #%d '%s': '%s'\n", pChanTab->itemCount, pChanTab->pStrBuf + pChanTab->pData[pChanTab->itemCount].strOff, pName);
+      debug3("WintvCfg-ChanTabAddName: duplicate name for channel #%d '%s': '%s'", pChanTab->itemCount, pChanTab->pStrBuf + pChanTab->pData[pChanTab->itemCount].strOff, pName);
 }
 
 // ----------------------------------------------------------------------------

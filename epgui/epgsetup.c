@@ -356,7 +356,7 @@ static bool EpgSetup_GetMergeDbNetwops( uint provCniCount, const uint * pProvCni
                         netwopCount += 1;
                      }
                      else
-                        debug1("EpgSetup-InitMergeDbNetwops: overflow of network table (max len %d)\n", MAX_NETWOP_COUNT);
+                        debug1("EpgSetup-InitMergeDbNetwops: overflow of network table (max len %d)", MAX_NETWOP_COUNT);
                   }
                }
             }
@@ -365,7 +365,7 @@ static bool EpgSetup_GetMergeDbNetwops( uint provCniCount, const uint * pProvCni
          EpgContextCtl_ClosePeek(pPeek);
       }
       else
-         debug1("EpgSetup-InitMergeDbNetwops: failed to peek DB 0x%04X (ignored)\n", pProvCniTab[dbIdx]);
+         debug1("EpgSetup-InitMergeDbNetwops: failed to peek DB 0x%04X (ignored)", pProvCniTab[dbIdx]);
    }
    *pCniCount = netwopCount;
 
@@ -798,7 +798,7 @@ bool EpgSetup_CardDriver( int newCardIndex )
       }
       else
       {
-         debug1("EpgSetup-CardDriver: setup for cardIdx:%d failed\n", newCardIndex);
+         debug1("EpgSetup-CardDriver: setup for cardIdx:%d failed", newCardIndex);
          EpgAcqCtl_Stop();
       }
    }

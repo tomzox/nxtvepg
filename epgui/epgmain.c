@@ -932,7 +932,7 @@ static void EventHandler_RemoteControlMsg( ClientData clientData )
          break;
 
       default:
-         debug1("EventHandler-RemoteControlMsg: unknown message code 0x%X\n", PVOID2UINT(clientData));
+         debug1("EventHandler-RemoteControlMsg: unknown message code 0x%X", PVOID2UINT(clientData));
          break;
    }
 }
