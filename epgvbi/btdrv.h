@@ -265,7 +265,7 @@ typedef struct
       TTX_TIME_BUF   ttxTime;      // Out: teletext time
    } buf[MAX_VBI_DVB_STREAMS];
 
-   uint32_t  slicerType;
+   VBI_SLICER_TYPE  slicerType;
 
    #ifndef WIN32
    bool      vbiSlaveRunning;   // --:  TRUE while slave thread is running
@@ -357,12 +357,12 @@ void BtDriver_CloseDevice( void );
 #if defined(__NetBSD__) || defined(__FreeBSD__)
 void BtDriver_ScanDevices( bool isMasterProcess );
 #endif
-const char * BtDriver_GetInputName( uint sourceIdx, int drvType, uint inputIdx );
-bool BtDriver_Configure( int sourceIdx, int drvType, int prio );
+const char * BtDriver_GetInputName( uint sourceIdx, BTDRV_SOURCE_TYPE drvType, uint inputIdx );
+bool BtDriver_Configure( int sourceIdx, BTDRV_SOURCE_TYPE drvType, int prio );
 void BtDriver_SelectSlicer( VBI_SLICER_TYPE slicerType );
 BTDRV_SOURCE_TYPE BtDriver_GetDefaultDrvType( void );
-bool BtDriver_CheckCardParams( int drvType, uint cardIdx, uint input );
-const char * BtDriver_GetCardName( int drvType, uint cardIdx, bool showDrvErr );
+bool BtDriver_CheckCardParams( BTDRV_SOURCE_TYPE drvType, uint cardIdx, uint input );
+const char * BtDriver_GetCardName( BTDRV_SOURCE_TYPE drvType, uint cardIdx, bool showDrvErr );
 
 
 #endif  // __BTDRV_H

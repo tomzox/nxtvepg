@@ -140,7 +140,7 @@ void EpgSetup_UpdateProvCniTable( void )
    if ((pAiBlock != NULL) && (pAiBlock->netwopCount > 0))
    {
       // fetch CNI list from AI block in database
-      pAiCni = xmalloc(sizeof(uint) * pAiBlock->netwopCount);
+      pAiCni = (uint*) xmalloc(sizeof(uint) * pAiBlock->netwopCount);
       pNetwop = AI_GET_NETWOPS(pAiBlock);
       for ( aiIdx = 0; aiIdx < pAiBlock->netwopCount; aiIdx++, pNetwop++ ) 
       {
@@ -166,7 +166,7 @@ void EpgSetup_UpdateProvCniTable( void )
       }
 
       // step #1: collect user-selected networks in the user-defined order
-      pNewOrdList = xmalloc(sizeof(uint) * pAiBlock->netwopCount);
+      pNewOrdList = (uint*) xmalloc(sizeof(uint) * pAiBlock->netwopCount);
       newOrdCount = 0;
       if (pOrdList != NULL)
       {
@@ -635,7 +635,7 @@ bool EpgSetup_AcquisitionMode( NETACQ_SET_MODE netAcqSetMode )
 
    pRc = RcFile_Query();
    if ((pRc != NULL) && (pRc->acq.acq_mode < ACQMODE_COUNT))
-      mode = pRc->acq.acq_mode;
+      mode = (EPGACQ_MODE) pRc->acq.acq_mode;
    else // unrecognized mode -> fall back to default mode
       mode = ACQMODE_CYCLIC_2;
 
@@ -678,7 +678,7 @@ bool EpgSetup_AcquisitionMode( NETACQ_SET_MODE netAcqSetMode )
    if (EpgSetup_GetTtxConfig(&ttxFreqCount, &pTtxNames, &pTtxFreqs))
    {
       // pass the params to the acquisition control module
-      result = EpgAcqCtl_SelectMode(mode, ACQMODE_COUNT,
+      result = EpgAcqCtl_SelectMode(mode, ACQMODE_PHASE_COUNT,
                                     ttxFreqCount, pTtxNames, pTtxFreqs,
                                     pRc->ttx.ttx_start_pg, pRc->ttx.ttx_end_pg,
                                     pRc->ttx.ttx_duration);
@@ -714,7 +714,7 @@ bool EpgSetup_DaemonAcquisitionMode( bool forcePassive, int maxPhase )
    }
    else
    {  // else use acq mode from rc/ini file
-      mode = pRc->acq.acq_mode;
+      mode = (EPGACQ_MODE) pRc->acq.acq_mode;
       if (mode >= ACQMODE_COUNT)
          EpgNetIo_Logger(LOG_ERR, -1, 0, "acqmode parameters error", NULL);
    }
@@ -727,7 +727,7 @@ bool EpgSetup_DaemonAcquisitionMode( bool forcePassive, int maxPhase )
       if (EpgSetup_GetTtxConfig(&ttxFreqCount, &pTtxNames, &pTtxFreqs))
       {
          // pass the params to the acquisition control module
-         result = EpgAcqCtl_SelectMode(mode, maxPhase,
+         result = EpgAcqCtl_SelectMode(mode, (EPGACQ_PHASE) maxPhase,
                                        ttxFreqCount, pTtxNames, pTtxFreqs,
                                        pRc->ttx.ttx_start_pg, pRc->ttx.ttx_end_pg,
                                        pRc->ttx.ttx_duration);
@@ -784,13 +784,13 @@ bool EpgSetup_CardDriver( int newCardIndex )
 
    if (drvType == BTDRV_SOURCE_NONE)
    {
-      BtDriver_Configure(cardIdx, drvType, prio);
+      BtDriver_Configure(cardIdx, BTDRV_SOURCE_NONE, prio);
       EpgAcqCtl_Stop();
    }
    else
    {
       // pass the hardware config params to the driver
-      if (BtDriver_Configure(cardIdx, drvType, prio))
+      if (BtDriver_Configure(cardIdx, (BTDRV_SOURCE_TYPE) drvType, prio))
       {
          // pass the input selection to acquisition control
          EpgAcqCtl_SetInputSource(input, slicer);
@@ -830,7 +830,7 @@ bool EpgSetup_CheckTvCardConfig( void )
    }
    else
    {
-      result = BtDriver_CheckCardParams(drvType, cardIdx, input);
+      result = BtDriver_CheckCardParams((BTDRV_SOURCE_TYPE)drvType, cardIdx, input);
    }
 
    return result;

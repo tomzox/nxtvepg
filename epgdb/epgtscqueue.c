@@ -251,7 +251,7 @@ static EPGDB_PI_TSC_BUF * EpgTscQueue_CreateNew( EPGDB_PI_TSC * pQueue )
    uint  maxCount;
 
    maxCount = PI_TSC_GET_BUF_COUNT();
-   pTscBuf = xmalloc(PI_TSC_GET_BUF_SIZE(maxCount));
+   pTscBuf = (EPGDB_PI_TSC_BUF*) xmalloc(PI_TSC_GET_BUF_SIZE(maxCount));
 
    // insert the buffer at the head of the queue
    if (pQueue->pHead != NULL)

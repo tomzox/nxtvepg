@@ -954,11 +954,11 @@ void EpgAcqTtx_SetParams( uint ttxSrcCount, const char * pTtxNames, const EPGACQ
          while(*(pNames++) != 0)
             ;
       // copy names
-      acqCtl.pTtxNames = xmalloc(pNames - pTtxNames);
+      acqCtl.pTtxNames = (char*) xmalloc(pNames - pTtxNames);
       memcpy(acqCtl.pTtxNames, pTtxNames, (pNames - pTtxNames));
 
       // copy frequency table
-      acqCtl.pSources = xmalloc(ttxSrcCount * sizeof(*acqCtl.pSources));
+      acqCtl.pSources = (TTXACQ_SOURCE*) xmalloc(ttxSrcCount * sizeof(*acqCtl.pSources));
       for (idx = 0; idx < ttxSrcCount; idx++)
       {
          acqCtl.pSources[idx].freq = pTtxFreqs[idx];

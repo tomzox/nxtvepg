@@ -89,7 +89,7 @@ static DUMP_XML_MODE EpgDump_QueryXmlDtdVersion( Tcl_Interp *interp )
          break;
       default:
          fatal1("EpgDump-QueryXmlDtdVersion: invalid mode %d\n", value);
-         dumpMode = EPGTCL_XMLTV_DTD_5_GMT;
+         dumpMode = DUMP_XMLTV_ANY;
          break;
    }
 
@@ -219,7 +219,7 @@ static int EpgDump_Text( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *
       }
       else
       {  // unsupported mode (internal error, since the GUI should use radio buttons)
-         Tcl_SetResult(interp, "C_DumpTabsDatabase: illegal type keyword", TCL_STATIC);
+         Tcl_SetResult(interp, (char*) "C_DumpTabsDatabase: illegal type keyword", TCL_STATIC);
          result = TCL_ERROR;
       }
    }
@@ -327,7 +327,7 @@ static int EpgDump_GetRawPi( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_O
          }
          APPEND_ASCII(comm, len);
 
-         char *p;
+         const char *p;
          switch(pPiBlock->feature_flags & 0x03)
          {
            case  0: p = "mono"; break;
@@ -401,11 +401,11 @@ void EpgDump_Standalone( EPGDB_CONTEXT * pDbContext, FILE * fp,
          {
             dumpSubMode = EpgDump_QueryXmlDtdVersion(interp);
          }
-         EpgDumpXml_Standalone(pUiDbContext, fc, stdout, dumpSubMode);
+         EpgDumpXml_Standalone(pUiDbContext, fc, stdout, (DUMP_XML_MODE) dumpSubMode);
          break;
 
       case EPG_DUMP_TEXT:
-         EpgDumpText_Standalone(pUiDbContext, fc, stdout, dumpSubMode);
+         EpgDumpText_Standalone(pUiDbContext, fc, stdout, (DUMP_TEXT_MODE) dumpSubMode);
          break;
 
       case EPG_DUMP_HTML:

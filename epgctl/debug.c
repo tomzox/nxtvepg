@@ -191,7 +191,7 @@ void * chk_malloc( size_t size, const char * pCallerFile, int callerLine )
    assert(size > 0);
 
    // perform the actual allocation, including some bytes for our framework
-   pElem = malloc(size + MALLOC_CHAIN_ADD_LEN);
+   pElem = (MALLOC_CHAIN*) malloc(size + MALLOC_CHAIN_ADD_LEN);
 
    // check the result pointer
    if (pElem == NULL)
@@ -256,7 +256,7 @@ void * chk_realloc( void * ptr, size_t size, const char * pCallerFile, int calle
    assert(memcmp((uchar *)&pElem[1] + pElem->size, pMallocMagic, sizeof(MALLOC_CHAIN_MAGIC_LEN)) == 0);
 
    // perform the actual re-allocation
-   pElem = realloc(pElem, size + MALLOC_CHAIN_ADD_LEN);
+   pElem = (MALLOC_CHAIN*) realloc(pElem, size + MALLOC_CHAIN_ADD_LEN);
 
    // check the result pointer
    if (pElem == NULL)
@@ -413,7 +413,7 @@ void chk_memleakage( void )
 //
 char * chk_strdup( const char * pSrc, const char * pCallerFile, int callerLine )
 {
-   char * pDst = chk_malloc(strlen(pSrc) + 1, pCallerFile, callerLine);
+   char * pDst = (char*) chk_malloc(strlen(pSrc) + 1, pCallerFile, callerLine);
    strcpy(pDst, pSrc);
    return pDst;
 }  

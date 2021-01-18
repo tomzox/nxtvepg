@@ -104,7 +104,7 @@ typedef enum
 } TVCHAN_FREQ_TAB_IDX;
 
 // index of the frequency table currently in use
-static TVCHAN_FREQ_TAB_IDX freqTabIdx = 0;
+static TVCHAN_FREQ_TAB_IDX freqTabIdx = FREQ_TAB_D_A_CH;
 
 // ---------------------------------------------------------------------------
 // Converts channel name back to frequency
@@ -113,7 +113,7 @@ uint TvChannels_NameToFreq( const char * pName )
 {
    const FREQ_TABLE *ft;
    char * pEnd;
-   TVCHAN_FREQ_TAB_IDX tabIdx;
+   uint  tabIdx;  // TVCHAN_FREQ_TAB_IDX
    uint  channel;
 
    for (tabIdx=0; tabIdx < FREQ_TAB_COUNT; tabIdx++)
@@ -269,7 +269,7 @@ bool TvChannels_GetNext( uint *pChan, uint *pFreq )
          // get the frequency of this channel
          uint freq = (uint) (16.0 * (ft->freqStart + (*pChan - ft->firstChannel) * ft->freqOffset));
          uint norm = ((freqTabIdx == FREQ_TAB_FRANCE) ? EPGACQ_TUNER_NORM_SECAM : EPGACQ_TUNER_NORM_PAL);
-         *pFreq = freq | (norm << 24);  // EPGDB_TUNER_FREQ_DEF(freq, norm)
+         *pFreq = TV_CHAN_FREQ_DEF(freq, norm);
          break;
       }
       ft += 1;
@@ -284,7 +284,7 @@ bool TvChannels_GetNext( uint *pChan, uint *pFreq )
 void TvChannels_SelectFreqTable( uint tableIdx )
 {
    if (tableIdx < FREQ_TAB_COUNT)
-      freqTabIdx = tableIdx;
+      freqTabIdx = (TVCHAN_FREQ_TAB_IDX) tableIdx;
    else
       debug1("TvChannels-SelectFreqTable: illegal index %d - ignored", tableIdx);
 }

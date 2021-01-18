@@ -438,7 +438,8 @@ static void TimeScale_AddPi( EPGDB_PI_TSC * ptsc )
       else if (pPt->flags & PI_TSC_MASK_IS_EXPIRED)
          col = STREAM_COLOR_EXPIRED;
       else
-         col = pPt->flags & (PI_TSC_MASK_IS_OLD_VERSION | PI_TSC_MASK_DAY_MASK);
+         col = (STREAM_COLOR)(pPt->flags & (PI_TSC_MASK_IS_OLD_VERSION |
+                                            PI_TSC_MASK_DAY_MASK));
 
       TimeScale_DisplayPi(col, pPt->netwop, startTime, stopTime,
                           pPt->flags & PI_TSC_MASK_HAS_DESC_TEXT,

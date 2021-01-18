@@ -126,7 +126,7 @@ static void ShellCmd_AppendChar( char c, DYN_CHAR_BUF * pCmdBuf )
 
    if (pCmdBuf->off == pCmdBuf->size)
    {
-      newbuf = xmalloc(pCmdBuf->size + 2048);
+      newbuf = (char*) xmalloc(pCmdBuf->size + 2048);
       memcpy(newbuf, pCmdBuf->strbuf, pCmdBuf->size);
       xfree(pCmdBuf->strbuf);
 
@@ -205,7 +205,7 @@ static void ShellCmd_AppendStringInfoTextCb( void *fp, const char * pDesc, bool 
          ShellCmd_AppendString(pCmdBuf, " //// ");
 
       // replace newline characters with "paragraph separators"
-      while ( (pNewline = strchr(pDesc, '\n')) != NULL )
+      while ( (pNewline = (char*) strchr(pDesc, '\n')) != NULL )
       {
          // print text up to (and excluding) the newline
          *pNewline = 0;  // XXX must not modify const string
@@ -583,7 +583,7 @@ static int PiOutput_ExecUserCmd( ClientData ttp, Tcl_Interp *interp, int objc, T
       // allocate temporary buffer for the command line to be built
       cmdbuf.size   = 2048;
       cmdbuf.off    = 0;
-      cmdbuf.strbuf = xmalloc(cmdbuf.size);
+      cmdbuf.strbuf = (char*) xmalloc(cmdbuf.size);
 
       EpgDbLockDatabase(pUiDbContext, TRUE);
       pAiBlock = EpgDbGetAi(pUiDbContext);
@@ -678,7 +678,7 @@ Tcl_Obj * PiOutput_ParseScript( Tcl_Interp *interp, Tcl_Obj * pCmdObj,
    // allocate temporary buffer for the command line to be built
    cmdbuf.size   = 2048;
    cmdbuf.off    = 0;
-   cmdbuf.strbuf = xmalloc(cmdbuf.size);
+   cmdbuf.strbuf = (char*) xmalloc(cmdbuf.size);
 
    pResultList = Tcl_NewListObj(0, NULL);
 

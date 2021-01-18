@@ -53,13 +53,14 @@
 //
 static void DumpText_PiInfoTextCb( void * vp, const char * pDesc, bool addSeparator )
 {
-   char * pNewline;
+   PI_DESCR_BUF * pBuf = (PI_DESCR_BUF*) vp;
+   const char * pNewline;
 
-   if (vp != NULL)
+   if (pBuf != NULL)
    {
       if (addSeparator)
       {  // output separator between texts from different providers
-         PiDescription_BufAppend(vp, " //%// ", -1);
+         PiDescription_BufAppend(pBuf, " //%// ", -1);
       }
 
       // check for newline chars, they must be replaced, because one PI must
@@ -67,13 +68,13 @@ static void DumpText_PiInfoTextCb( void * vp, const char * pDesc, bool addSepara
       while ( (pNewline = strchr(pDesc, '\n')) != NULL )
       {
          // print text up to (and excluding) the newline
-         PiDescription_BufAppend(vp, pDesc, pNewline - pDesc);
-         PiDescription_BufAppend(vp, " // ", -1);
+         PiDescription_BufAppend(pBuf, pDesc, pNewline - pDesc);
+         PiDescription_BufAppend(pBuf, " // ", -1);
          // skip to text following the newline
          pDesc = pNewline + 1;
       }
       // write the segement behind the last newline
-      PiDescription_BufAppend(vp, pDesc, -1);
+      PiDescription_BufAppend(pBuf, pDesc, -1);
    }
 }
 
@@ -85,7 +86,7 @@ static void DumpText_Pi( PI_DESCR_BUF * pb, const PI_BLOCK * pPi, const EPGDB_CO
    uchar hour, minute, day, month;
    uint  year;
    char  str_buf[128];
-   char *pStrSoundFormat;
+   const char *pStrSoundFormat;
    struct tm *pTm;
    time_t start_time;
    time_t stop_time;
@@ -294,27 +295,27 @@ void EpgDumpText_Standalone( EPGDB_CONTEXT * pDbContext, FILTER_CONTEXT * fc,
    {
       DumpText_PdcThemes(&pbuf);
    }
-   else
-   {
-      if (mode == DUMP_TEXT_AI)
-      {  // Dump application information block
-         pAi = EpgDbGetAi(pDbContext);
-         if (pAi != NULL)
-         {
-            DumpText_Ai(&pbuf, pAi);
-         }
-      }
-      else
-      {  // Dump programme information blocks
-         pPi = EpgDbSearchFirstPi(pDbContext, fc);
-         while (pPi != NULL)
-         {
-            DumpText_Pi(&pbuf, pPi, pDbContext);
-
-            pPi = EpgDbSearchNextPi(pDbContext, fc, pPi);
-         }
+   else if (mode == DUMP_TEXT_AI)
+   {  // Dump application information block
+      pAi = EpgDbGetAi(pDbContext);
+      if (pAi != NULL)
+      {
+         DumpText_Ai(&pbuf, pAi);
       }
    }
+   else if (mode == DUMP_TEXT_PI)
+   {  // Dump programme information blocks
+      pPi = EpgDbSearchFirstPi(pDbContext, fc);
+      while (pPi != NULL)
+      {
+         DumpText_Pi(&pbuf, pPi, pDbContext);
+
+         pPi = EpgDbSearchNextPi(pDbContext, fc, pPi);
+      }
+   }
+   else
+      debug1("EpgDumpText-Standalone: invalid mode:%d\n", mode);
+
    EpgDbLockDatabase(pDbContext, FALSE);
 }
 

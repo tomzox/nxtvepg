@@ -346,7 +346,7 @@ static void StatsWin_PrintAcqStats( EPGDB_CONTEXT * dbc, EPGACQ_DESCR * pAcqStat
 
    // allocate long string buffer - needed for channel name list
    const size_t commBufsize = TCL_COMM_BUF_SIZE + MAX_VBI_DVB_STREAMS * (18+50+2);
-   commBuf = xmalloc(commBufsize);
+   commBuf = (char*) xmalloc(commBufsize);
    commBuf[0] = 0;
    strOff = 0;
 

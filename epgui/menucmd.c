@@ -575,7 +575,7 @@ static int MenuCmd_IsNetAcqActive( ClientData ttp, Tcl_Interp *interp, int objc,
       // netacq is TRUE if and only if acq is enabled in netacq mode so we need not check the general
       // acq state (actually we must not check for DISABLED because that's set after network errors)
 
-      Tcl_SetResult(interp, (isActive ? "1" : "0"), TCL_STATIC);
+      Tcl_SetObjResult(interp, Tcl_NewBooleanObj(isActive));
 
       result = TCL_OK;
    }
@@ -609,7 +609,7 @@ static int MenuCmd_IsAcqExternal( ClientData ttp, Tcl_Interp *interp, int objc, 
       else
          isExternal = FALSE;
 
-      Tcl_SetResult(interp, (isExternal ? "1" : "0"), TCL_STATIC);
+      Tcl_SetObjResult(interp, Tcl_NewBooleanObj(isExternal));
 
       result = TCL_OK;
    }
@@ -1071,7 +1071,7 @@ static int MenuCmd_UpdateProvCniConfig( ClientData ttp, Tcl_Interp *interp, int 
       {
          if (cniSelCount > RC_MAX_DB_NETWOPS)
             cniSelCount = RC_MAX_DB_NETWOPS;
-         pSelCni = xmalloc(sizeof(*pSelCni) * (cniSelCount + 1));  // +1 to avoid zero-len alloc
+         pSelCni = (uint*) xmalloc(sizeof(*pSelCni) * (cniSelCount + 1));  // +1 to avoid zero-len alloc
          for (idx = 0; (idx < cniSelCount) && (result == TCL_OK); idx++)
             result = Tcl_GetIntFromObj(interp, pSelCniObjv[idx], (int*)&pSelCni[idx]);
 
@@ -1083,7 +1083,7 @@ static int MenuCmd_UpdateProvCniConfig( ClientData ttp, Tcl_Interp *interp, int 
                if (cniSupCount > RC_MAX_DB_NETWOPS)
                   cniSupCount = RC_MAX_DB_NETWOPS;
 
-               pSupCni = xmalloc(sizeof(*pSupCni) * (cniSupCount + 1));
+               pSupCni = (uint*) xmalloc(sizeof(*pSupCni) * (cniSupCount + 1));
                for (idx = 0; (idx < cniSupCount) && (result == TCL_OK); idx++)
                   result = Tcl_GetIntFromObj(interp, pSupCniObjv[idx], (int*)&pSupCni[idx]);
 
@@ -1336,9 +1336,9 @@ static int MenuCmd_UpdateNetwopNames( ClientData ttp, Tcl_Interp *interp, int ob
       result = Tcl_ListObjGetElements(interp, objv[1], &objCount, &pObjArgv);
       if (result == TCL_OK)
       {
-         pCniList = xmalloc(sizeof(*pCniList) * objCount/2);
-         pNameList = xmalloc(sizeof(*pNameList) * objCount/2);
-         pDstrList = xmalloc(sizeof(*pDstrList) * objCount/2);
+         pCniList = (uint*) xmalloc(sizeof(*pCniList) * objCount/2);
+         pNameList = (const char**) xmalloc(sizeof(*pNameList) * objCount/2);
+         pDstrList = (Tcl_DString*) xmalloc(sizeof(*pDstrList) * objCount/2);
          for (idx = 0; idx < objCount/2; idx++)
             Tcl_DStringInit(&pDstrList[idx]);
 
@@ -1947,7 +1947,7 @@ static int MenuCmd_ScanTvCards( ClientData ttp, Tcl_Interp *interp, int objc, Tc
       cardIdx = 0;
       do
       {
-         pName = BtDriver_GetCardName(drvType, cardIdx, showDrvErr);
+         pName = BtDriver_GetCardName((BTDRV_SOURCE_TYPE) drvType, cardIdx, showDrvErr);
          if (pName != NULL)
             Tcl_ListObjAppendElement(interp, pResultList, TranscodeToUtf8(EPG_ENC_SYSTEM, NULL, pName, NULL));
 
@@ -1987,7 +1987,7 @@ static int MenuCmd_GetInputList( ClientData ttp, Tcl_Interp *interp, int objc, T
       inputIdx = 0;
       while (1)
       {
-         pName = BtDriver_GetInputName(cardIndex, drvType, inputIdx);
+         pName = BtDriver_GetInputName(cardIndex, (BTDRV_SOURCE_TYPE) drvType, inputIdx);
 
          if (pName != NULL)
             Tcl_ListObjAppendElement(interp, pResultList, TranscodeToUtf8(EPG_ENC_SYSTEM, NULL, pName, NULL));
@@ -2138,7 +2138,7 @@ static int MenuCmd_TclCbCheckTvCardConfig( ClientData ttp, Tcl_Interp *interp, i
 #else
       isOk = EpgSetup_CheckTvCardConfig();
 #endif
-      Tcl_SetResult(interp, (isOk ? "1" : "0"), TCL_STATIC);
+      Tcl_SetObjResult(interp, Tcl_NewBooleanObj(isOk));
       result = TCL_OK;
    }
    return result;

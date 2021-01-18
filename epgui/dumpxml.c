@@ -137,7 +137,7 @@ void EpgDumpXml_HtmlRemoveQuotes( const char * pStr, char * pBuf, uint maxOutLen
 //
 static void EpgDumpXml_AppendInfoTextCb( void *vp, const char * pDesc, bool addSeparator )
 {
-   DUMP_XML_CB_INFO * pCbInfo = vp;
+   DUMP_XML_CB_INFO * pCbInfo = (DUMP_XML_CB_INFO*) vp;
    FILE * fp;
    const char * pNewline;
 
@@ -438,7 +438,7 @@ void EpgDumpXml_Standalone( EPGDB_CONTEXT * pDbContext, FILTER_CONTEXT * fc,
             }
             else
             {
-               pChnIds[netwopIdx] = xmalloc(16+3+1);
+               pChnIds[netwopIdx] = (char*) xmalloc(16+3+1);
                sprintf(pChnIds[netwopIdx], "CNI%04X", cni);
             }
             EpgDumpXml_HtmlRemoveQuotes(pChnIds[netwopIdx], pChnIds[netwopIdx], strlen(pChnIds[netwopIdx]) + 1);

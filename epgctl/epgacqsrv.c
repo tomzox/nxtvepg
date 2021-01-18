@@ -216,7 +216,7 @@ static void EpgAcqServer_BuildDbUpdateMsg( EPGDBSRV_STATE * req )
 //
 static char * EpgAcqServer_BuildAcqDescrStr( void )
 {
-   char * pMsg = xmalloc(10000);
+   char * pMsg = (char*) xmalloc(10000);
    EPGACQ_DESCR acqState;
    EPG_ACQ_STATS sv;
    EPG_ACQ_VPS_PDC vpsPdc;
@@ -299,7 +299,7 @@ static void EpgAcqServer_AddConnection( int listen_fd, bool isLocal )
    {
       dprintf1("EpgAcqServer-AddConnection: fd %d\n", sock_fd);
 
-      req = xmalloc(sizeof(EPGDBSRV_STATE));
+      req = (EPGDBSRV_STATE*) xmalloc(sizeof(EPGDBSRV_STATE));
       memset(req, 0, sizeof(EPGDBSRV_STATE));
 
       req->state         = SRV_STATE_WAIT_CON_REQ;
@@ -417,7 +417,7 @@ static bool EpgAcqServer_TakeMessage( EPGDBSRV_STATE *req, EPGDBSRV_MSG_BODY * p
          // shortest must be checked first to avoid reading beyond end-of-message
          if (memcmp(pMsg, "PID", 3) == 0)
          {
-            char * pStr = xmalloc(20);
+            char * pStr = (char*) xmalloc(20);
             snprintf(pStr, 20, "PID %ld\n", (long) getpid());
             EpgNetIo_WriteMsg(&req->io, MSG_TYPE_CONQUERY_CNF, strlen(pStr), pStr, TRUE);
             result = TRUE;
@@ -856,12 +856,12 @@ void EpgAcqServer_SetAddress( bool do_tcp_ip, const char * pIpStr, const char * 
    // make a copy of the new config strings
    if (pIpStr != NULL)
    {
-      srvState.listen_ip = xmalloc(strlen(pIpStr) + 1);
+      srvState.listen_ip = (char*) xmalloc(strlen(pIpStr) + 1);
       strcpy(srvState.listen_ip, pIpStr);
    }
    if (pPort != NULL)
    {
-      srvState.listen_port = xmalloc(strlen(pPort) + 1);
+      srvState.listen_port = (char*) xmalloc(strlen(pPort) + 1);
       strcpy(srvState.listen_port, pPort);
    }
    srvState.do_tcp_ip = do_tcp_ip;

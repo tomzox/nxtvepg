@@ -102,7 +102,7 @@
 
 typedef struct
 {
-   char       * p_disp_name;
+   const char * p_disp_name;
    time_t       pi_min_time;
    time_t       pi_max_time;
    uint         cni;
@@ -197,7 +197,7 @@ static void Xmltv_ParseThemeString( char * pStr, XML_LANG_CODE lang )
    bool isNew;
    char * p;
 
-   pCache = XmlHash_CreateEntry(xds.pThemeHash, pStr, &isNew);
+   pCache = (HASHED_THEMES*) XmlHash_CreateEntry(xds.pThemeHash, pStr, &isNew);
 
    if (isNew)
    {
@@ -254,7 +254,7 @@ static void Xmltv_ParseThemeString( char * pStr, XML_LANG_CODE lang )
 // ----------------------------------------------------------------------------
 // Parse timestamp
 //
-static time_t XmltvDb_ParseTimestamp( char * pStr, uint len )
+static time_t XmltvDb_ParseTimestamp( const char * pStr, uint len )
 {
    time_t tval = parse_xmltv_date_v5(pStr, len);
 
@@ -408,11 +408,11 @@ static EPGDB_BLOCK * XmltvDb_BuildOi( void )
    blockLen = sizeof(OI_BLOCK);
 
    pOi->off_header = blockLen;
-   strcpy((void *) OI_GET_HEADER(pOi), XML_STR_BUF_GET_STR(oiHeader));
+   strcpy((char *) OI_GET_HEADER(pOi), XML_STR_BUF_GET_STR(oiHeader));  // cast to remove const
    blockLen += XML_STR_BUF_GET_STR_LEN(oiHeader) + 1;
 
    pOi->off_message = blockLen;
-   strcpy((void *) OI_GET_MESSAGE(pOi), XML_STR_BUF_GET_STR(oiMessage));
+   strcpy((char *) OI_GET_MESSAGE(pOi), XML_STR_BUF_GET_STR(oiMessage));  // cast to remove const
    blockLen += XML_STR_BUF_GET_STR_LEN(oiMessage) + 1;
 
    XmlCdata_Free(&oiHeader);
@@ -458,7 +458,7 @@ static EPGDB_BLOCK * XmltvDb_BuildAi( const char * pProvName )
    blockLen += pAi->netwopCount * sizeof(AI_NETWOP);
 
    pAi->off_serviceNameStr = blockLen;
-   strcpy((void *) AI_GET_SERVICENAME(pAi), XML_STR_BUF_GET_STR(aiServiceName));
+   strcpy((char *) AI_GET_SERVICENAME(pAi), XML_STR_BUF_GET_STR(aiServiceName));  // cast to remove const
    blockLen += XML_STR_BUF_GET_STR_LEN(aiServiceName) + 1;
    XmlCdata_Free(&aiServiceName);
 
@@ -691,7 +691,7 @@ void Xmltv_ChannelCreate( void )
          memcpy(pTmp, xds.p_chn_table, xds.chn_tab_size * sizeof(*xds.p_chn_table));
          xfree(xds.p_chn_table);
       }
-      xds.p_chn_table = pTmp;
+      xds.p_chn_table = (XMLTV_CHN*) pTmp;
       // grow table in steps of 64 (64 should be enough for everyone)
       xds.chn_tab_size += 64;
    }
@@ -723,7 +723,7 @@ void Xmltv_ChannelClose( void )
            (xds.chn_count < MAX_NETWOP_COUNT) && // XXX FIXME should remove static limit on number of networks
            (xds.p_chn_table[xds.chn_count].p_disp_name != NULL) )
       {
-         pChnIdx = XmlHash_CreateEntry(xds.pChannelHash, xds.p_chn_id_tmp, &isNew);
+         pChnIdx = (uint*) XmlHash_CreateEntry(xds.pChannelHash, xds.p_chn_id_tmp, &isNew);
          if (isNew)
          {
             xds.p_chn_table[xds.chn_count].cni = XmltvCni_MapNetCni(&xds.cniCtx, xds.p_chn_id_tmp);
@@ -747,7 +747,7 @@ void Xmltv_ChannelClose( void )
       {
          if (xds.p_chn_table[xds.chn_count].p_disp_name != NULL)
          {
-            xfree(xds.p_chn_table[xds.chn_count].p_disp_name);
+            xfree((void*)xds.p_chn_table[xds.chn_count].p_disp_name);  // cast to remove const
             xds.p_chn_table[xds.chn_count].p_disp_name = NULL;
          }
       }
@@ -764,7 +764,7 @@ void Xmltv_ChannelClose( void )
 
 void Xmltv_ChannelSetId( XML_STR_BUF * pBuf )
 {
-   char * pStr = XML_STR_BUF_GET_STR(*pBuf);
+   const char * pStr = XML_STR_BUF_GET_STR(*pBuf);
 
    assert(xds.chn_open);
 
@@ -891,10 +891,10 @@ void Xmltv_TsClose( void )
 
 void Xmltv_TsSetChannel( XML_STR_BUF * pBuf )
 {
-   char * pStr = XML_STR_BUF_GET_STR(*pBuf);
+   const char * pStr = XML_STR_BUF_GET_STR(*pBuf);
    uint * pChnIdx;
 
-   pChnIdx = XmlHash_SearchEntry(xds.pChannelHash, pStr);
+   pChnIdx = (uint*) XmlHash_SearchEntry(xds.pChannelHash, pStr);
    if (pChnIdx != NULL)
    {
       dprintf2("Xmltv-TsSetChannel: %s: %d\n", pStr, *pChnIdx);
@@ -909,7 +909,7 @@ void Xmltv_TsSetChannel( XML_STR_BUF * pBuf )
 
 void Xmltv_TsSetStartTime( XML_STR_BUF * pBuf )
 {
-   char * pStr = XML_STR_BUF_GET_STR(*pBuf);
+   const char * pStr = XML_STR_BUF_GET_STR(*pBuf);
    uint len = XML_STR_BUF_GET_STR_LEN(*pBuf);
 
    xds.pi.start_time = XmltvDb_ParseTimestamp(pStr, len);
@@ -919,7 +919,7 @@ void Xmltv_TsSetStartTime( XML_STR_BUF * pBuf )
 
 void Xmltv_TsSetStopTime( XML_STR_BUF * pBuf )
 {
-   char * pStr = XML_STR_BUF_GET_STR(*pBuf);
+   const char * pStr = XML_STR_BUF_GET_STR(*pBuf);
    uint len = XML_STR_BUF_GET_STR_LEN(*pBuf);
 
    xds.pi.stop_time = XmltvDb_ParseTimestamp(pStr, len);
@@ -930,7 +930,7 @@ void Xmltv_TsSetStopTime( XML_STR_BUF * pBuf )
 // liveness    (live | joined | prerecorded) #IMPLIED
 void Xmltv_TsSetFeatLive( XML_STR_BUF * pBuf )
 {
-   char * pStr = XML_STR_BUF_GET_STR(*pBuf);
+   const char * pStr = XML_STR_BUF_GET_STR(*pBuf);
 
    if (strcasecmp(pStr, "live") == 0)
    {
@@ -947,7 +947,7 @@ void Xmltv_TsSetFeatCrypt( XML_STR_BUF * pBuf )
 
 static void XmltvDb_TsCodeTimeAssign( XMLTV_CODE_TIME_SYS system, XML_STR_BUF * pBuf )
 {
-   char * pStr = XML_STR_BUF_GET_STR(*pBuf);
+   const char * pStr = XML_STR_BUF_GET_STR(*pBuf);
    uint len = XML_STR_BUF_GET_STR_LEN(*pBuf);
 
    switch (system)
@@ -1002,7 +1002,7 @@ void Xmltv_TsCodeTimeSetVP( XML_STR_BUF * pBuf )
 
 void Xmltv_TsCodeTimeSetSystem( XML_STR_BUF * pBuf )
 {
-   char * pStr = XML_STR_BUF_GET_STR(*pBuf);
+   const char * pStr = XML_STR_BUF_GET_STR(*pBuf);
 
    if (strcasecmp(pStr, "vps") == 0)
       xds.pi_code_time_sys = XMLTV_CODE_VPS;
@@ -1025,7 +1025,7 @@ void Xmltv_PiTitleAdd( XML_STR_BUF * pBuf )
 
 void Xmltv_PiEpisodeTitleAdd( XML_STR_BUF * pBuf )
 {
-   char * pStr = XML_STR_BUF_GET_STR(*pBuf);
+   const char * pStr = XML_STR_BUF_GET_STR(*pBuf);
 
    if ( (alphaNumTab[(uchar)*pStr] == ALNUM_UCHAR) ||
         (alphaNumTab[(uchar)*pStr] == ALNUM_LCHAR) )
@@ -1074,7 +1074,7 @@ void Xmltv_PiCatSetType( XML_STR_BUF * pBuf )
 
 void Xmltv_PiCatSetSystem( XML_STR_BUF * pBuf )
 {
-   char * pStr = XML_STR_BUF_GET_STR(*pBuf);
+   const char * pStr = XML_STR_BUF_GET_STR(*pBuf);
 
    if (strcasecmp(pStr, "pdc") == 0)
    {
@@ -1086,7 +1086,7 @@ void Xmltv_PiCatSetSystem( XML_STR_BUF * pBuf )
 
 void Xmltv_PiCatSetCode( XML_STR_BUF * pBuf )
 {
-   char * pStr = XML_STR_BUF_GET_STR(*pBuf);
+   const char * pStr = XML_STR_BUF_GET_STR(*pBuf);
    char  *p;
    long  code;
 
@@ -1130,14 +1130,14 @@ void Xmltv_PiVideoAspectClose( void )
 
 void Xmltv_PiVideoAspectSetX( XML_STR_BUF * pBuf )
 {
-   char * pStr = XML_STR_BUF_GET_STR(*pBuf);
+   const char * pStr = XML_STR_BUF_GET_STR(*pBuf);
 
    xds.pi_aspect_x = atoi(pStr);
 }
 
 void Xmltv_PiVideoAspectSetY( XML_STR_BUF * pBuf )
 {
-   char * pStr = XML_STR_BUF_GET_STR(*pBuf);
+   const char * pStr = XML_STR_BUF_GET_STR(*pBuf);
 
    xds.pi_aspect_y = atoi(pStr);
 }
@@ -1145,7 +1145,7 @@ void Xmltv_PiVideoAspectSetY( XML_STR_BUF * pBuf )
 // DTD 0.5: aspect specified as PCDATA
 void Xmltv_PiVideoAspectAddXY( XML_STR_BUF * pBuf )
 {
-   char * pStr = XML_STR_BUF_GET_STR(*pBuf);
+   const char * pStr = XML_STR_BUF_GET_STR(*pBuf);
    int nscan;
    int asp_x, asp_y;
 
@@ -1161,7 +1161,7 @@ void Xmltv_PiVideoAspectAddXY( XML_STR_BUF * pBuf )
 
 void Xmltv_PiVideoColourAdd( XML_STR_BUF * pBuf )
 {
-   char * pStr = XML_STR_BUF_GET_STR(*pBuf);
+   const char * pStr = XML_STR_BUF_GET_STR(*pBuf);
 
    if (strcasecmp(pStr, "no") == 0)
    {
@@ -1178,7 +1178,7 @@ void Xmltv_PiVideoColourAdd( XML_STR_BUF * pBuf )
 
 void Xmltv_PiVideoQualityAdd( XML_STR_BUF * pBuf )
 {
-   char * pStr = XML_STR_BUF_GET_STR(*pBuf);
+   const char * pStr = XML_STR_BUF_GET_STR(*pBuf);
 
    if ( (strcasecmp(pStr, "PAL+") == 0) ||
         (strcasecmp(pStr, "PALplus") == 0) ||
@@ -1213,7 +1213,7 @@ void Xmltv_PiAudioClose( void )
 // DTD 0.5: "stereo-ness" specified as free text
 void Xmltv_PiAudioStereoAdd( XML_STR_BUF * pBuf )
 {
-   char * pStr = XML_STR_BUF_GET_STR(*pBuf);
+   const char * pStr = XML_STR_BUF_GET_STR(*pBuf);
 
    if (strcasecmp(pStr, "mono") == 0)
    {
@@ -1243,7 +1243,7 @@ void Xmltv_PiAudioStereoAdd( XML_STR_BUF * pBuf )
 // DTD 0.5 only: attribute type set as attribute
 void Xmltv_PiSubtitlesSetType( XML_STR_BUF * pBuf )
 {
-   char * pStr = XML_STR_BUF_GET_STR(*pBuf);
+   const char * pStr = XML_STR_BUF_GET_STR(*pBuf);
 
    if ( (strcmp(pStr, "teletext") == 0) ||
         (strcmp(pStr, "onscreen") == 0) )
@@ -1256,7 +1256,7 @@ void Xmltv_PiSubtitlesSetType( XML_STR_BUF * pBuf )
 
 void Xmltv_PiRatingSetSystem( XML_STR_BUF * pBuf )
 {
-   char * pStr = XML_STR_BUF_GET_STR(*pBuf);
+   const char * pStr = XML_STR_BUF_GET_STR(*pBuf);
 
    if (strcasecmp(pStr, "age") == 0)
    {
@@ -1280,7 +1280,7 @@ void Xmltv_PiRatingSetSystem( XML_STR_BUF * pBuf )
 
 void Xmltv_PiRatingAddText( XML_STR_BUF * pBuf )
 {
-   char * pStr = XML_STR_BUF_GET_STR(*pBuf);
+   const char * pStr = XML_STR_BUF_GET_STR(*pBuf);
    char * p;
    long age;
 
@@ -1383,7 +1383,7 @@ static void Xmltv_PiStarRatingSet( uint cval, uint max_val )
 // DTD 0.5 only: rating in format "n / m"
 void Xmltv_PiStarRatingAddText( XML_STR_BUF * pBuf )
 {
-   char * pStr = XML_STR_BUF_GET_STR(*pBuf);
+   const char * pStr = XML_STR_BUF_GET_STR(*pBuf);
    int nscan;
    uint cval, max_val;
 
@@ -1410,7 +1410,7 @@ void Xmltv_PiStarRatingClose( void )
 
 void Xmltv_PiStarRatingSetMax( XML_STR_BUF * pBuf )
 {
-   char * pStr = XML_STR_BUF_GET_STR(*pBuf);
+   const char * pStr = XML_STR_BUF_GET_STR(*pBuf);
    char * p;
    long val;
 
@@ -1570,7 +1570,7 @@ void XmltvDb_Destroy( void )
       for (idx = 0; (idx < xds.chn_count + 1) && (idx < xds.chn_tab_size); idx++)
       {
          if (xds.p_chn_table[idx].p_disp_name != NULL)
-            xfree(xds.p_chn_table[idx].p_disp_name);
+            xfree((void*)xds.p_chn_table[idx].p_disp_name);  // cast to remove const
       }
       xfree(xds.p_chn_table);
    }

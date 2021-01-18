@@ -376,7 +376,7 @@ static void Xawtv_ClassBufferAppend( Display * dpy, Window wid )
    { 
       pOld = xawtvWidScanBuf.pBuf;
       xawtvWidScanBuf.maxCount += 16;
-      xawtvWidScanBuf.pBuf = xmalloc(xawtvWidScanBuf.maxCount * sizeof(xawtvWidScanBuf.pBuf[0]));
+      xawtvWidScanBuf.pBuf = (XAWTV_WID_BUF*) xmalloc(xawtvWidScanBuf.maxCount * sizeof(xawtvWidScanBuf.pBuf[0]));
 
       if (pOld != NULL)
       {
@@ -1073,26 +1073,26 @@ static void Xawtv_IcccServeRequest( ClientData clientData )
 
          if (xiccc.events & XICCC_LOST_PEER)
          {
-            xiccc.events &= ~XICCC_LOST_PEER;
+            xiccc.events = (XICCC_EVENTS)(xiccc.events & ~XICCC_LOST_PEER);
             Xawtv_TvAttach(NULL);
          }
          if (xiccc.events & XICCC_NEW_PEER)
          {
-            xiccc.events &= ~XICCC_NEW_PEER;
+            xiccc.events = (XICCC_EVENTS)(xiccc.events & ~XICCC_NEW_PEER);
             Xawtv_TvAttach(NULL);
          }
          if (xiccc.events & XICCC_GOT_MGMT)
          {
-            xiccc.events &= ~XICCC_GOT_MGMT;
+            xiccc.events = (XICCC_EVENTS)(xiccc.events & ~XICCC_GOT_MGMT);
          }
          if (xiccc.events & XICCC_LOST_MGMT)
          {
-            xiccc.events &= ~XICCC_LOST_MGMT;
+            xiccc.events = (XICCC_EVENTS)(xiccc.events & ~XICCC_LOST_MGMT);
          }
 
          if (xiccc.events & XICCC_SETSTATION_REQ)
          {
-            xiccc.events &= ~XICCC_SETSTATION_REQ;
+            xiccc.events = (XICCC_EVENTS)(xiccc.events & ~XICCC_SETSTATION_REQ);
 
             first = TRUE;
             while (xiccc.pNewStationQueue != NULL)
@@ -1124,7 +1124,7 @@ static void Xawtv_IcccServeRequest( ClientData clientData )
             char * pResult;
             uint  argc;
 
-            xiccc.events &= ~XICCC_REMOTE_REQ;
+            xiccc.events = (XICCC_EVENTS)(xiccc.events & ~XICCC_REMOTE_REQ);
 
             while (xiccc.pRemoteCmdQueue != NULL)
             {
@@ -1660,7 +1660,7 @@ static int Xawtv_SendCmd( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj 
    else
    {
       // sum up the total length of all parameters, including terminating 0-Bytes
-      pass_dstr = xmalloc(sizeof(Tcl_DString) * objc);  // allocate one too many
+      pass_dstr = (Tcl_DString*) xmalloc(sizeof(Tcl_DString) * objc);  // allocate one too many
       dprintf0("Xawtv-SendCmd (via Tcl): ");
       len = 0;
       for (idx = 1; idx < objc; idx++)
@@ -1674,7 +1674,7 @@ static int Xawtv_SendCmd( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj 
       dprintf0("\n");
 
       // concatenate the parameters into one char-array, separated by 0-Bytes
-      pass = xmalloc(len);
+      pass = (char*) xmalloc(len);
       len = 0;
       pass[0] = 0;
       for (idx = 1; idx < objc; idx++)
@@ -1922,7 +1922,7 @@ static int Xawtv_ReadConfig( Tcl_Interp *interp, XAWTVCF *pNewXawtvcf )
                   pNewXawtvcf->tunetv   = tunetv;
                   pNewXawtvcf->follow   = follow;
                   pNewXawtvcf->doPop    = doPop;
-                  pNewXawtvcf->popType  = popType;
+                  pNewXawtvcf->popType  = (POPTYPE) popType;
                   pNewXawtvcf->duration = duration;
                }
                else

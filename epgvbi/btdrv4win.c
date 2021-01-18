@@ -460,7 +460,7 @@ static bool BtDriver_SetInputSource( uint inputIdx, uint norm, bool * pIsTuner )
 // Return name for given input source index
 // - has to be called repeatedly with incremented indices until NULL is returned
 //
-const char * BtDriver_GetInputName( uint sourceIdx, int drvType, uint inputIdx )
+const char * BtDriver_GetInputName( uint sourceIdx, BTDRV_SOURCE_TYPE drvType, uint inputIdx )
 {
    const char * pName = NULL;
    HRESULT hres;
@@ -532,7 +532,7 @@ BTDRV_SOURCE_TYPE BtDriver_GetDefaultDrvType( void )
 // Return name & chip type for given TV card
 // - end of enumeration is indicated by a FALSE result or NULL name pointer
 //
-const char * BtDriver_GetCardName( int drvType, uint sourceIdx, bool showDrvErr )
+const char * BtDriver_GetCardName( BTDRV_SOURCE_TYPE drvType, uint sourceIdx, bool showDrvErr )
 {
    HRESULT hres;
    const char * pName = NULL;
@@ -729,7 +729,7 @@ static bool BtDriver_WdmLoad( void )
 // - this function is used to warn the user about parameter mismatch after
 //   hardware or driver configuration changes
 //
-bool BtDriver_CheckCardParams( int drvType, uint sourceIdx, uint input )
+bool BtDriver_CheckCardParams( BTDRV_SOURCE_TYPE drvType, uint sourceIdx, uint input )
 {
    bool   result = FALSE;
 
@@ -762,7 +762,7 @@ bool BtDriver_CheckCardParams( int drvType, uint sourceIdx, uint input )
 // - called at program start and after config change
 // - Important: input source and tuner freq must be set afterwards
 //
-bool BtDriver_Configure( int sourceIdx, int drvType, int prio )
+bool BtDriver_Configure( int sourceIdx, BTDRV_SOURCE_TYPE drvType, int prio )
 {
    bool sourceChange;
    bool result = TRUE;

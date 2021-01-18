@@ -111,6 +111,7 @@ typedef enum
    RCPARSE_EXTERN          = 1<<0,
    RCPARSE_IGNORE_UNKNOWN  = 1<<1,
    RCPARSE_ALLOC           = 1<<2,
+   RCPARSE_EXTERN_IGNORE_UNKNOWN = RCPARSE_EXTERN | RCPARSE_IGNORE_UNKNOWN,
 } RCPARSE_CFG_FLAGS;
 
 typedef struct
@@ -283,7 +284,7 @@ typedef struct
 static const RCPARSE_SECT rcParseCfg[] =
 {
    // assignment sections
-   { "VERSION", rcParseCfg_version, RC_ARR_CNT(rcParseCfg_version), RCPARSE_EXTERN|RCPARSE_IGNORE_UNKNOWN, 0,0,0 },
+   { "VERSION", rcParseCfg_version, RC_ARR_CNT(rcParseCfg_version), RCPARSE_EXTERN_IGNORE_UNKNOWN, 0,0,0 },
    { "ACQUISITION", rcParseCfg_acq, RC_ARR_CNT(rcParseCfg_acq), RCPARSE_NO_FLAGS, 0,0,0 },
    { "TELETEXT GRABBER", rcParseCfg_ttx, RC_ARR_CNT(rcParseCfg_ttx), RCPARSE_NO_FLAGS, 0,0,0 },
    { "DATABASE", rcParseCfg_db, RC_ARR_CNT(rcParseCfg_db), RCPARSE_IGNORE_UNKNOWN, 0,0,0 },
@@ -365,7 +366,7 @@ FILE * RcFile_WriteCreateFile( const char * pRcPath, char ** ppErrMsg )
    if (pRcPath != NULL)
    {
 #ifndef WIN32
-      char * pTmpRcPath = xmalloc(strlen(pRcPath) + 1+4);
+      char * pTmpRcPath = (char*) xmalloc(strlen(pRcPath) + 1+4);
       strcpy(pTmpRcPath, pRcPath);
       strcat(pTmpRcPath, ".tmp");
 #else
@@ -424,7 +425,7 @@ bool RcFile_WriteCloseFile( FILE * fp, bool writeOk, const char * pRcPath, char 
          writeOk = FALSE;
       }
 #ifndef WIN32
-      pTmpRcPath = xmalloc(strlen(pRcPath) + 1 + 4);
+      pTmpRcPath = (char*) xmalloc(strlen(pRcPath) + 1 + 4);
       strcpy(pTmpRcPath, pRcPath);
       strcat(pTmpRcPath, ".tmp");
 
@@ -613,7 +614,7 @@ bool RcFile_CopyForeignSections( const char * pRcPath, char ** ppBuf, uint * pBu
       if (stat(pRcPath, &st) == 0)
       {
          dprintf1("RcFile-CopyForeignSections: allocate buffer for %ld bytes\n", (long)st.st_size);
-         *ppBuf = xmalloc(st.st_size + 1);
+         *ppBuf = (char*) xmalloc(st.st_size + 1);
          bufOff = 0;
 
          fp = fopen(pRcPath, "r");
@@ -707,7 +708,7 @@ static void RcFile_DynListGrow( RCFILE_DYN_LIST * pDynList )
          pDynList->maxItemCount += RC_DYNLIST_STEP_SZ_1;
 
       pOldData = *pDynList->ppData;
-      *pDynList->ppData = xmalloc(pDynList->maxItemCount * pDynList->itemSize);
+      *pDynList->ppData = (char*) xmalloc(pDynList->maxItemCount * pDynList->itemSize);
 
       if (pOldData != NULL)
       {
@@ -1062,7 +1063,7 @@ bool RcFile_Load( const char * pRcPath, bool isDefault, char ** ppErrMsg )
 //
 bool RcFile_LoadFromString( const char * pRcString )
 {
-   char * pLineEnd;
+   const char * pLineEnd;
    char   sbuf[512];
    uint   sectIdx;
    RCFILE_DYN_LIST dynList;

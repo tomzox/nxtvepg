@@ -717,7 +717,7 @@ static void PiListBox_ScrollPageDown( int delta )
    int   new_count = 0;
    int   i, j;
 
-   pNewPiBlock = xmalloc(pibox_height * sizeof(PI_BLOCK *));
+   pNewPiBlock = (const PI_BLOCK**) xmalloc(pibox_height * sizeof(PI_BLOCK *));
    EpgDbLockDatabase(dbc, TRUE);
    if (pibox_count >= pibox_height)
    {
@@ -801,7 +801,7 @@ static void PiListBox_ScrollPageUp( int delta )
    int   new_count;
    int   i, j;
 
-   pNewPiBlock = xmalloc(pibox_height * sizeof(PI_BLOCK *));
+   pNewPiBlock = (const PI_BLOCK**) xmalloc(pibox_height * sizeof(PI_BLOCK *));
    if (pibox_count > 0)
    {
       EpgDbLockDatabase(dbc, TRUE);
@@ -1933,7 +1933,7 @@ static int PiListBox_Resize( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_O
    if ((height != pibox_height) || (pibox_list == NULL))
    {
       old_list = pibox_list;
-      pibox_list = xmalloc(height * sizeof(PIBOX_ENTRY));
+      pibox_list = (PIBOX_ENTRY*) xmalloc(height * sizeof(PIBOX_ENTRY));
 
       if ((old_list != NULL) && (pibox_count > 0))
       {

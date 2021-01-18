@@ -172,14 +172,14 @@ found:
 static int WintvUi_GetTvappList( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
 {
    Tcl_Obj * pResultList;
-   TVAPP_NAME appIdx;
+   uint appIdx;
    const char * pAppName;
    int   result;
 
    if (objc != 1)
    {  // parameter count is invalid
       #if (DEBUG_SWITCH_TCL_BGERR == ON)
-      Tcl_SetResult(interp, "C_Tvapp_GetTvappList: no parameters expected", TCL_STATIC);
+      Tcl_SetResult(interp, (char*) "C_Tvapp_GetTvappList: no parameters expected", TCL_STATIC);
       #endif
       result = TCL_ERROR;
    }
@@ -218,7 +218,7 @@ static int WintvUi_GetDefaultApp( ClientData ttp, Tcl_Interp *interp, int objc, 
    if (objc != 1)
    {  // parameter count is invalid
       #if (DEBUG_SWITCH_TCL_BGERR == ON)
-      Tcl_SetResult(interp, "C_Tvapp_GetDefaultApp: no parameters expected", TCL_STATIC);
+      Tcl_SetResult(interp, (char*) "C_Tvapp_GetDefaultApp: no parameters expected", TCL_STATIC);
       #endif
       result = TCL_ERROR;
    }
@@ -365,7 +365,7 @@ static int WintvUi_CfgNeedsPath( ClientData ttp, Tcl_Interp *interp, int objc, T
         (Tcl_GetIntFromObj(interp, objv[1], &appIdx) != TCL_OK) )
    {  // parameter count is invalid
       #if (DEBUG_SWITCH_TCL_BGERR == ON)
-      Tcl_SetResult(interp, "Usage C_Tvapp_CfgNeedsPath: <tvAppIdx>", TCL_STATIC);
+      Tcl_SetResult(interp, (char*) "Usage C_Tvapp_CfgNeedsPath: <tvAppIdx>", TCL_STATIC);
       #endif
       result = TCL_ERROR;
    }
@@ -432,7 +432,7 @@ static int WintvUi_TestChanTab( ClientData ttp, Tcl_Interp *interp, int objc, Tc
         (Tcl_GetIntFromObj(interp, objv[2], &newAppIdx) != TCL_OK) )
    {  // parameter count is invalid
       #if (DEBUG_SWITCH_TCL_BGERR == ON)
-      Tcl_SetResult(interp, "Usage C_Tvapp_TestChanTab: <showerr> <tvAppIdx> <path>", TCL_STATIC);
+      Tcl_SetResult(interp, (char*) "Usage C_Tvapp_TestChanTab: <showerr> <tvAppIdx> <path>", TCL_STATIC);
       #endif
       result = TCL_ERROR;
    }
@@ -552,7 +552,7 @@ static int WintvUi_UpdateConfig( ClientData ttp, Tcl_Interp *interp, int objc, T
         (Tcl_GetIntFromObj(interp, objv[1], &appIdx) != TCL_OK) )
    {
 #if (DEBUG_SWITCH_TCL_BGERR == ON)
-      Tcl_SetResult(interp, "Usage C_Tvapp_UpdateConfig: <tvAppIdx> <path>", TCL_STATIC);
+      Tcl_SetResult(interp, (char*) "Usage C_Tvapp_UpdateConfig: <tvAppIdx> <path>", TCL_STATIC);
 #endif
       result = TCL_ERROR;
    }

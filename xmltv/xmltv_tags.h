@@ -43,6 +43,7 @@ typedef enum
 // bitfield with detection codes
 typedef enum
 {
+   XMLTV_DETECTED_OK            = 0,         // no error
    XMLTV_DETECTED_UNSUP_ENC     = (1<<0),    // scanner found unsupported encoding
    XMLTV_DETECTED_XML           = (1<<1),    // <?xml...?> found
    XMLTV_DETECTED_UNSUP_XMLENC  = (1<<2),    // <?xml encoding="..."?> mismatch

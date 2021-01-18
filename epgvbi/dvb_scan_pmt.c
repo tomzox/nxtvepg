@@ -95,17 +95,17 @@ static int opt_verbosity = 9;
  * double linked list.
  ******************************************************************************/
 
-typedef struct {
-   void * first;
-   void * last;
-   uint32_t count;
-   } cList, * pList;
-
-typedef struct {
-   void * prev;
-   void * next;
+typedef struct _cItem {
+   struct _cItem * prev;
+   struct _cItem * next;
    uint32_t index;
    } cItem, * pItem;
+
+typedef struct _cList {
+   struct _cItem * first;
+   struct _cItem * last;
+   uint32_t count;
+   } cList, * pList;
 
 /*******************************************************************************
  * section buffer
@@ -118,8 +118,8 @@ typedef struct {
 
 struct section_buf {
   /*----------------------------*/
-  void * prev;
-  void * next;
+  struct section_buf * prev;  // pItem
+  struct section_buf * next;
   uint32_t index;
   /*----------------------------*/
   const char * dmx_devname;
@@ -147,8 +147,8 @@ struct section_buf {
 
 struct service {
   /*----------------------------*/
-  void *   prev;
-  void *   next;
+  struct service *   prev;  // pItem
+  struct service *   next;
   uint32_t index;
   /*----------------------------*/
   uint16_t transport_stream_id;
@@ -202,7 +202,7 @@ static void NewList(pList const list) {
 
 // append item at end of list.
 static void AddItem(pList list, void * item) {
-  pItem p = item;
+  pItem p = (pItem) item;
 
   p->index = list->count;
   p->prev  = list->last;
@@ -212,18 +212,18 @@ static void AddItem(pList list, void * item) {
      list->first = p;
      }
   else {
-     p = list->last;
-     p->next=item;
+     p = (pItem) list->last;
+     p->next = (pItem) item;
      }
 
-  list->last = item;
+  list->last = (pItem) item;
   list->count++;
 }
 
 // returns true, if a pointer is part of list.
 static bool IsMember(pList list, void * item) {
   pItem p;
-  for(p = list->first; p; p = p->next) {
+  for(p = (pItem) list->first; p; p = p->next) {
      if (p == item) {
         return true;
         }
@@ -233,7 +233,7 @@ static bool IsMember(pList list, void * item) {
 
 // remove item from list. free allocated memory if release_mem non-zero.
 static void UnlinkItem(pList list, void * item, bool freemem) {
-  pItem prev,next,p = item;
+  pItem prev,next,p = (pItem) item;
 
   if (IsMember(list, item) == false) {
      warning("Cannot %s: item %p is not member of list.\n",
@@ -286,7 +286,7 @@ static void UnlinkItem(pList list, void * item, bool freemem) {
  * (acc. DVB standards unique within one network, but in real life...)
  */
 static struct service * alloc_service(uint16_t service_id) {
-  struct service * s = calloc(1, sizeof(* s));
+  struct service * s = (struct service*) calloc(1, sizeof(* s));
   s->service_id = service_id;
   AddItem(current_services, s);
   return s;
@@ -295,7 +295,7 @@ static struct service * alloc_service(uint16_t service_id) {
 static struct service * find_service(uint16_t service_id) {
   struct service * s;
 
-  for(s = current_services->first; s; s = s->next) {
+  for(s = (struct service*) current_services->first; s; s = s->next) {
      if (s->service_id == service_id)
         return s;
      }
@@ -512,8 +512,8 @@ static void parse_pat(const unsigned char * buf, uint16_t section_length, uint16
        if (! (flags & SECTION_FLAG_INITIAL)) {
           if (s->priv == NULL) { //  && s->pmt_pid) |  pmt_pid is by spec: 0x0010 .. 0x1FFE . see EN13818-1 p.19 Table 2-3 - PID table
              s->priv = calloc(1, sizeof(struct section_buf));
-             setup_filter(s->priv, demux_devname, s->pmt_pid, TABLE_PMT, -1, 1, 0, SECTION_FLAG_FREE);
-             add_filter(s->priv);
+             setup_filter((struct section_buf*) s->priv, demux_devname, s->pmt_pid, TABLE_PMT, -1, 1, 0, SECTION_FLAG_FREE);
+             add_filter((struct section_buf*) s->priv);
              }
           }
        }
@@ -752,7 +752,7 @@ static int parse_section(struct section_buf * s) {
         }
      if (s->table_id_ext != table_id_ext) {
         assert(s->next_seg == NULL);
-        s->next_seg = calloc(1, sizeof(struct section_buf));
+        s->next_seg = (struct section_buf*) calloc(1, sizeof(struct section_buf));
         s->next_seg->segmented = s->segmented;
         s->next_seg->run_once = s->run_once;
         s->next_seg->timeout = s->timeout;
@@ -911,7 +911,7 @@ static void update_poll_fds(void) {
   for(i = 0; i < MAX_RUNNING; i++)
      poll_fds[i].fd = -1;
   i = 0;
-  for(s = running_filters->first; s; s = s->next) {
+  for(s = (struct section_buf*) running_filters->first; s; s = s->next) {
      if (i >= MAX_RUNNING)
         fatal("too many poll_fds\n");
      if (s->fd == -1)
@@ -1069,7 +1069,7 @@ int DvbScanPmt_Start(const char * pDemuxDev, const int * srv, int srvCnt)
     alloc_service(srv[idx]);
   }
 
-  s = calloc(1, sizeof(struct section_buf));
+  s = (struct section_buf*) calloc(1, sizeof(struct section_buf));
   setup_filter(s, demux_devname, PID_PAT, TABLE_PAT, -1, 1, 0, SECTION_FLAG_FREE);
   if (add_filter(s) == false) {
     DvbScanPmt_Stop();
@@ -1091,7 +1091,7 @@ int DvbScanPmt_GetResults(T_DVB_SCAN_PMT * srv, int srvCnt)
   int result = 0;
 
   while (current_services->first) {
-    s = current_services->first;
+    s = (struct service*) current_services->first;
     //printf("%d: video:%d teletext:%d\n", s->service_id, s->video_pid, s->teletext_pid);
 
     for(int idx = 0; idx < srvCnt; ++idx) {
@@ -1114,7 +1114,7 @@ void DvbScanPmt_Stop(void)
 {
   // close devices & free memory
   while (running_filters->first) {
-    stop_filter(running_filters->first);
+    stop_filter((struct section_buf*) running_filters->first);
   }
   assert(n_running == 0);
 
@@ -1131,7 +1131,7 @@ int DvbScanPmt_GetFds(fd_set *set, int max_fd)
 {
   struct section_buf * s;
 
-  for(s = running_filters->first; s; s = s->next) {
+  for(s = (struct section_buf*) running_filters->first; s; s = s->next) {
      if (s->fd != -1) {
        FD_SET(s->fd, set);
        if (s->fd > max_fd) {
@@ -1152,7 +1152,7 @@ int DvbScanPmt_ProcessFds(fd_set *set)
   int n_ev = 0;
   int i = 0;
 
-  for(s = running_filters->first; s; s = s->next) {
+  for(s = (struct section_buf*) running_filters->first; s; s = s->next) {
      if ((s->fd != -1) && FD_ISSET(s->fd, set)) {
        poll_fds[i].revents = POLLIN;
        n_ev++;

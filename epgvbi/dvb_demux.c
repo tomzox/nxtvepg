@@ -1868,7 +1868,7 @@ vbi_dvb_pes_demux_new(void)
 {
 	vbi_dvb_demux *dx;
 
-	dx = xmalloc (sizeof (*dx));
+	dx = (vbi_dvb_demux*) xmalloc (sizeof (*dx));
 	if (NULL == dx) {
 		errno = ENOMEM;
 		return NULL;

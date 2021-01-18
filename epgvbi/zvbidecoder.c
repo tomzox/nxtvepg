@@ -485,7 +485,7 @@ vbi_bit_slicer_init(vbi_bit_slicer *slicer,
 
 struct vbi_service_par {
 	unsigned int	id;		/* VBI_SLICED_ */
-	char *		label;
+	const char *	label;
 	int		first[2];	/* scanning lines (ITU-R), max. distribution; */
 	int		last[2];	/*  zero: no data from this field, requires field sync */
 	int		offset;		/* leading edge hsync to leading edge first CRI one bit
@@ -499,7 +499,7 @@ struct vbi_service_par {
 	char		cri_bits;
 	char		frc_bits;	/* cri_bits at cri_rate, frc_bits at bit_rate */
 	short		payload;	/* in bits */
-	char		modulation;	/* payload modulation */
+	vbi_modulation	modulation;	/* payload modulation */
 };
 
 const struct vbi_service_par
@@ -509,21 +509,21 @@ vbi_services[] = {
 		{ 7, 320 },
 		{ 22, 335 },
 		10300, 6937500, 6937500, /* 444 x FH */
-		625, 0x00AAAAE4, ~0, 10, 6, 42 * 8, VBI_MODULATION_NRZ_LSB
+		625, 0x00AAAAE4, ~0U, 10, 6, 42 * 8, VBI_MODULATION_NRZ_LSB
 	}, {
 		VBI_SLICED_TELETEXT_B, "Teletext System B, 625",
 		{ 6, 318 },
 		{ 22, 335 },
 		10300, 6937500, 6937500, /* 444 x FH */
-		625, 0x00AAAAE4, ~0, 10, 6, 42 * 8, VBI_MODULATION_NRZ_LSB
+		625, 0x00AAAAE4, ~0U, 10, 6, 42 * 8, VBI_MODULATION_NRZ_LSB
 	}, {
 		VBI_SLICED_VPS, "Video Programming System",
 		{ 16, 0 },
 		{ 16, 0 },
 		12500, 5000000, 2500000, /* 160 x FH */
-		625, 0xAAAA8A99, ~0, 24, 0, 13 * 8, VBI_MODULATION_BIPHASE_MSB
+		625, 0xAAAA8A99, ~0U, 24, 0, 13 * 8, VBI_MODULATION_BIPHASE_MSB
 	},
-	{ 0 }
+	{}
 };
 
 
@@ -907,7 +907,7 @@ bool ZvbiSliceAndProcess( vbi_raw_decoder *rd, uint8_t *raw, uint32_t frame_no )
          if (p_out != NULL)
             xfree(p_out);
          rdo_lines = rd->count[0] + rd->count[1];
-         p_out = xmalloc(sizeof(*p_out) * rdo_lines);
+         p_out = (vbi_sliced*) xmalloc(sizeof(*p_out) * rdo_lines);
       }
 
       if ( TtxDecode_NewVbiFrame(0, frame_no) )

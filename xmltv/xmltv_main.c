@@ -116,7 +116,7 @@ EPGDB_CONTEXT * Xmltv_Load( FILE * fp, uint provCni, const char * pProvName, tim
 //
 EPGDB_RELOAD_RESULT Xmltv_CheckHeader( const char * pFilename )
 {
-   XMLTV_DETECTION detection = 0;
+   XMLTV_DETECTION detection = XMLTV_DETECTED_OK;
    FILE * fp;
    EPGDB_RELOAD_RESULT result;
 
@@ -132,7 +132,7 @@ EPGDB_RELOAD_RESULT Xmltv_CheckHeader( const char * pFilename )
       if (XMLTV_DETECTED_OK(detection))
          result = EPGDB_RELOAD_OK;
       else
-         result = EPGDB_RELOAD_XML_MASK | detection;
+         result = (EPGDB_RELOAD_RESULT)(EPGDB_RELOAD_XML_MASK | detection);
 
       fclose(fp);
    }

@@ -157,7 +157,7 @@ void TtxDecode_StopTtxAcq( void )
 //
 void TtxDecode_GetScanResults( uint *pCni, bool *pNiWait, char *pDispText, uint textMaxLen )
 {
-   CNI_TYPE type;
+   uint     type;  // CNI_TYPE
    uint     idx;
    uint     cni;
    const uint bufIdx = 0;
@@ -246,7 +246,7 @@ bool TtxDecode_GetCniAndPil( uint bufIdx, uint * pCni, uint * pPil, CNI_TYPE * p
                              uint pCniInd[CNI_TYPE_COUNT], uint pPilInd[CNI_TYPE_COUNT],
                              volatile EPGACQ_BUF * pThisVbiBuf )
 {
-   CNI_TYPE type;
+   uint type;  // CNI_TYPE
    bool result = FALSE;
 
    if (pThisVbiBuf == NULL)
@@ -291,7 +291,7 @@ bool TtxDecode_GetCniAndPil( uint bufIdx, uint * pCni, uint * pPil, CNI_TYPE * p
                }
                if (pCniType != NULL)
                {
-                  *pCniType = type;
+                  *pCniType = (CNI_TYPE) type;
                }
                dprintf7("TtxDecode-GetCniAndPil: type:%d CNI?:%d 0x%04X, PIL?:%d %X (Ind:%d,%d)\n", type, pThisVbiBuf->buf[bufIdx].cnis[type].haveCni, pThisVbiBuf->buf[bufIdx].cnis[type].havePil, pThisVbiBuf->buf[bufIdx].cnis[type].outCni, pThisVbiBuf->buf[bufIdx].cnis[type].outPil, pThisVbiBuf->buf[bufIdx].cnis[type].outCniInd, pThisVbiBuf->buf[bufIdx].cnis[type].outPilInd);
                result = TRUE;
@@ -720,7 +720,7 @@ void TtxDecode_GetStatistics( uint bufIdx, TTX_DEC_STATS * pStats, time_t * pSta
    // check if initialization for the current channel is complete
    if (pVbiBuf->buf[bufIdx].chanChangeReq == pVbiBuf->buf[bufIdx].chanChangeCnf)
    {
-      *pStats = pVbiBuf->buf[bufIdx].ttxStats;
+      *pStats = *(TTX_DEC_STATS*) &pVbiBuf->buf[bufIdx].ttxStats;  // cast to remove volatile
       *pStatsStart = ttxStatsStart;
    }
    else

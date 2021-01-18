@@ -219,10 +219,6 @@ typedef struct EPGDB_CONTEXT_STRUCT
    EPGDB_PI_ACQ_CB *pPiAcqCb;
 } EPGDB_CONTEXT;
 
-#define EPGDB_TUNER_FREQ_DEF(FREQV, NORM) ((FREQV) | ((NORM)<<24))
-#define EPGDB_TUNER_GET_FREQ(FREQ)  ((FREQ) & 0xFFFFFF)
-#define EPGDB_TUNER_GET_NORM(FREQ)  ((FREQ) >> 24)
-
 // ----------------------------------------------------------------------------
 // Macros for provider database CNI
 
@@ -245,7 +241,7 @@ typedef struct EPGDB_CONTEXT_STRUCT
 // ----------------------------------------------------------------------------
 // Declaration of service interface functions
 //
-EPGDB_BLOCK * EpgBlockCreate( uchar type, uint size, time_t mtime );
+EPGDB_BLOCK * EpgBlockCreate( BLOCK_TYPE type, uint size, time_t mtime );
 
 bool EpgBlockCheckConsistancy( EPGDB_BLOCK * pBlock );
 

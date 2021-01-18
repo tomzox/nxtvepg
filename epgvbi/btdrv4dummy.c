@@ -149,7 +149,7 @@ int BtDriver_GetDeviceOwnerPid( void )
 // ---------------------------------------------------------------------------
 // Interface to GUI
 //
-const char * BtDriver_GetCardName( int drvType, uint cardIdx, bool showDrvErr )
+const char * BtDriver_GetCardName( BTDRV_SOURCE_TYPE drvType, uint cardIdx, bool showDrvErr )
 {
    if (cardIdx == 0)
       return "Dummy TV card";
@@ -157,7 +157,7 @@ const char * BtDriver_GetCardName( int drvType, uint cardIdx, bool showDrvErr )
       return NULL;
 }
 
-bool BtDriver_CheckCardParams( int drvType, uint sourceIdx, uint input )
+bool BtDriver_CheckCardParams( BTDRV_SOURCE_TYPE drvType, uint sourceIdx, uint input )
 {
    return TRUE;
 }
@@ -167,7 +167,7 @@ BTDRV_SOURCE_TYPE BtDriver_GetDefaultDrvType( void )
    return BTDRV_SOURCE_PCI;
 }
 
-const char * BtDriver_GetInputName( uint cardIdx, uint cardType, int drvType, uint inputIdx )
+const char * BtDriver_GetInputName( uint cardIdx, uint cardType, BTDRV_SOURCE_TYPE drvType, uint inputIdx )
 {
    if (inputIdx == 0)
       return "Dummy input";
@@ -175,7 +175,7 @@ const char * BtDriver_GetInputName( uint cardIdx, uint cardType, int drvType, ui
       return NULL;
 }
 
-bool BtDriver_Configure( int sourceIdx, int drvType, int prio, int chipType, int cardType,
+bool BtDriver_Configure( int sourceIdx, BTDRV_SOURCE_TYPE drvType, int prio, int chipType, int cardType,
                          int tunerType, int pllType, bool wdmStop )
 {
    return TRUE;

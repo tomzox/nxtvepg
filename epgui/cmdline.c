@@ -57,19 +57,18 @@
 #include "epgui/dumptext.h"
 #include "epgui/dumpxml.h"
 #include "epgui/epgquery.h"
-#include "epgui/daemon.h"
 #include "xmltv/xmltv_cni.h"
 #include "xmltv/xmltv_main.h"
-
 #include "epgui/cmdline.h"
+#include "epgui/daemon.h"
 
 
 // global structure which holds all command line options
 CMDLINE_OPTS mainOpts;
 
 // global strings which hold the version info
-char *epg_version_str ATTRIBUTE_USED = EPG_VERSION_STR;
-char epg_rcs_id_str[] ATTRIBUTE_USED = EPG_VERSION_RCS_ID;
+const char *epg_version_str ATTRIBUTE_USED = EPG_VERSION_STR;
+const char epg_rcs_id_str[] ATTRIBUTE_USED = EPG_VERSION_RCS_ID;
 
 
 
@@ -91,7 +90,7 @@ void CmdLine_AddRcFilePostfix( const char * pPostfix )
 
       if (pRcFile != NULL)
       {
-         pTmp = xmalloc(strlen(pRcFile) + 1 + strlen(pPostfix) + 1);
+         pTmp = (char*) xmalloc(strlen(pRcFile) + 1 + strlen(pPostfix) + 1);
          strcpy(pTmp, pRcFile);
          strcat(pTmp, ".");
          strcat(pTmp, pPostfix);
@@ -127,7 +126,7 @@ static void MainOptionError( const char *argv0, const char *argvn, const char * 
 #else
    len = strlen(pUsageFmt) + strlen(argv0)*3 +
          strlen(reason) + strlen(argvn);
-   pBuf = xmalloc(len + 1);
+   pBuf = (char*) xmalloc(len + 1);
    plen = snprintf(pBuf, len, pUsageFmt, argv0, reason, argvn, argv0, argv0);
    assert(plen < len);
    MessageBox(NULL, pBuf, "nxtvepg command line options error", MB_ICONSTOP | MB_OK | MB_TASKMODAL | MB_SETFOREGROUND);
@@ -197,9 +196,9 @@ static void Usage( const char *argv0, const char *argvn, const char * reason )
                       argv0, reason, argvn, argv0,
                       pWmUsage, pCommonUsage, pGuiUsage, pDaemonUsage);
 #else
-   pBuf = xmalloc(strlen(pUsageFmt) + strlen(pWmUsage) + strlen(pCommonUsage)
-                  + strlen(pGuiUsage) + strlen(pDaemonUsage)
-                  + strlen(argv0)*2 + strlen(reason) + strlen(argvn));
+   pBuf = (char*) xmalloc(strlen(pUsageFmt) + strlen(pWmUsage) + strlen(pCommonUsage)
+                          + strlen(pGuiUsage) + strlen(pDaemonUsage)
+                          + strlen(argv0)*2 + strlen(reason) + strlen(argvn));
    if (mainOpts.daemonOnly)
       sprintf(pBuf, pUsageFmt, argv0, reason, argvn, argv0, "", pCommonUsage, "", pDaemonUsage);
    else
@@ -420,16 +419,18 @@ static bool CmdLine_GetDumpMode( char * argv[], int argIdx )
       }
       else if (strncasecmp("html", pModeStr, 4) == 0)
       {
+         int mode;
          int nscan;
          if (strcasecmp("html", pModeStr) == 0)
          {
             mainOpts.optDumpMode = EPG_DUMP_HTML;
-            mainOpts.optDumpSubMode = 0;
+            mainOpts.optDumpSubMode = CLOCK_CTRL_NONE;
          }
-         else if ( (sscanf(pModeStr, "html:%u%n", (int*)&mainOpts.optDumpSubMode, &nscan) >= 1) &&
+         else if ( (sscanf(pModeStr, "html:%u%n", &mode, &nscan) >= 1) &&
                    (nscan >= strlen(pModeStr)) )
          {
             mainOpts.optDumpMode = EPG_DUMP_HTML;
+            mainOpts.optDumpSubMode = mode;
          }
          else
             MainOptionError(argv[0], argv[argIdx + 1], "parse error in HTML dump format");
@@ -609,9 +610,9 @@ static void CmdLine_Parse( int argc, char * argv[] )
             {
                mainOpts.optDaemonMode = EPG_CLOCK_CTRL;
                if (strcasecmp("set", argv[argIdx + 1]) == 0)
-                  mainOpts.optDumpSubMode = CLOCK_CTRL_SET;
+                  mainOpts.optClockSubMode = CLOCK_CTRL_SET;
                else if (strcasecmp("print", argv[argIdx + 1]) == 0)
-                  mainOpts.optDumpSubMode = CLOCK_CTRL_PRINT;
+                  mainOpts.optClockSubMode = CLOCK_CTRL_PRINT;
                else
                   MainOptionError(argv[0], argv[argIdx + 1], "illegal mode keyword for -clock");
                argIdx += 2;
@@ -769,12 +770,12 @@ static char * CmdLine_ConcatPaths( const char * p1, const char * p2, const char 
 
    if (p3 != NULL)
    {
-      pStr = xmalloc(strlen(p1) + 1 + strlen(p2) + 1 + strlen(p3) + 1);
+      pStr = (char*) xmalloc(strlen(p1) + 1 + strlen(p2) + 1 + strlen(p3) + 1);
       sprintf(pStr, "%s/%s/%s", p1, p2, p3);
    }
    else
    {
-      pStr = xmalloc(strlen(p1) + 1 + strlen(p2) + 1);
+      pStr = (char*) xmalloc(strlen(p1) + 1 + strlen(p2) + 1);
       sprintf(pStr, "%s/%s", p1, p2);
    }
    return pStr;
@@ -790,7 +791,7 @@ static void CmdLine_CreateTree( const char * pPath, bool isDir )
 
    if (access(pPath, F_OK) != 0)
    {
-      pTmp = xmalloc(strlen(pPath) + 1);
+      pTmp = (char*) xmalloc(strlen(pPath) + 1);
       if (pPath[0] == '/')
          pPathEnd = strchr(pPath + 1, '/');
       else
@@ -852,7 +853,7 @@ static void CmdLine_SetDefaults( bool daemonOnly )
    mainOpts.rcfile = NULL;
    mainOpts.videoCardIndex = -1;
    mainOpts.disableAcq = FALSE;
-   mainOpts.optDaemonMode = FALSE;
+   mainOpts.optDaemonMode = EPG_GUI_START;
    mainOpts.optDumpMode = EPG_DUMP_NONE;
    mainOpts.pStdOutFileName = NULL;
    mainOpts.optRemCtrl = REM_CTRL_NONE;

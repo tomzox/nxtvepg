@@ -74,11 +74,11 @@ static int SelectThemes( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *
    Tcl_Obj ** pThemes;
    uchar usedClasses;
    int themeCount;
-   int class, theme, idx;
+   int tclass, theme, idx;
    int result; 
    
-   if ( (objc != 3)  || Tcl_GetIntFromObj(interp, objv[1], &class) ||
-        (class == 0) || ((uint)class > THEME_CLASS_COUNT) )
+   if ( (objc != 3)  || Tcl_GetIntFromObj(interp, objv[1], &tclass) ||
+        (tclass == 0) || ((uint)tclass > THEME_CLASS_COUNT) )
    {  // illegal parameter count, format or value
       Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
       result = TCL_ERROR; 
@@ -88,15 +88,15 @@ static int SelectThemes( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *
       result = Tcl_ListObjGetElements(interp, objv[2], &themeCount, &pThemes);
       if (result == TCL_OK)
       {
-         class = 1 << (class - 1);
-         usedClasses = EpgDbFilterInitThemes(pPiFilterContext, class);
+         tclass = 1 << (tclass - 1);
+         usedClasses = EpgDbFilterInitThemes(pPiFilterContext, tclass);
 
          for (idx=0; idx < themeCount; idx++)
          {
             result = Tcl_GetIntFromObj(interp, pThemes[idx], &theme);
             if (result == TCL_OK)
             {
-               EpgDbFilterSetThemes(pPiFilterContext, theme, theme, class);
+               EpgDbFilterSetThemes(pPiFilterContext, theme, theme, tclass);
             }
             else
                break;
@@ -643,7 +643,7 @@ static int PiFilter_Invert( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Ob
    const char * pThisKey;
    Tcl_Obj   ** pKeyList;
    uchar themeClass;
-   uint  mask, class;
+   uint  mask, tclass;
    bool  globalInvert;
    int   filtIndex;
    int   idx, keywordCount;
@@ -675,11 +675,11 @@ static int PiFilter_Invert( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Ob
             pThisKey = Tcl_GetString(pKeyList[idx]);
             if (pThisKey != NULL)
             {
-               if (sscanf(pThisKey, "theme_class%u", &class) == 1)
+               if (sscanf(pThisKey, "theme_class%u", &tclass) == 1)
                {
-                  ifdebug1((class == 0) || (class > 8), "PiFilter-Invert: illegal theme class %d", class);
+                  ifdebug1((tclass == 0) || (tclass > 8), "PiFilter-Invert: illegal theme class %d", tclass);
                   mask          |= FILTER_THEMES;
-                  themeClass    |= (1 << (class - 1));
+                  themeClass    |= (1 << (tclass - 1));
                }
                else if (Tcl_GetIndexFromObj(interp, pKeyList[idx], pKeywords, "keyword", TCL_EXACT, &filtIndex) == TCL_OK)
                {
@@ -869,7 +869,7 @@ static int PiFilter_ContextCacheCtl( ClientData ttp, Tcl_Interp *interp, int obj
             if (index > 0)
             {
                // allocate a new cache: array which will hold references to filter contexts
-               pFilterCache = xmalloc(filterCacheCount * sizeof(*pFilterCache));
+               pFilterCache = (FILTER_CONTEXT**) xmalloc(filterCacheCount * sizeof(*pFilterCache));
                memset(pFilterCache, 0, filterCacheCount * sizeof(*pFilterCache));
             }
             result = TCL_OK;
@@ -1488,7 +1488,7 @@ static int PiFilter_ContextMenuUndoFilter( ClientData ttp, Tcl_Interp *interp, i
          // undo themes filters
          if (EpgDbFilterIsEnabled(pPiFilterContext, FILTER_THEMES))
          {
-            int class, theme, count;
+            int tclass, theme, count;
 
             // check if more than one theme filter is set
             count = theme = 0;
@@ -1511,10 +1511,10 @@ static int PiFilter_ContextMenuUndoFilter( ClientData ttp, Tcl_Interp *interp, i
                else
                   Tcl_ListObjAppendElement(interp, pResultList, Tcl_NewStringObj("Undo themes filter", -1));
                comm[0] = 0;
-               for (class=0; class < THEME_CLASS_COUNT; class++)
+               for (tclass=0; tclass < THEME_CLASS_COUNT; tclass++)
                {
-                  if (pPiFilterContext->act.themeFilterField[theme] & (1 << class))
-                     sprintf(comm + strlen(comm), "C_SelectThemes %d {};", class + 1);
+                  if (pPiFilterContext->act.themeFilterField[theme] & (1 << tclass))
+                     sprintf(comm + strlen(comm), "C_SelectThemes %d {};", tclass + 1);
                }
                strcat(comm, "ResetThemes; C_PiBox_Refresh; CheckShortcutDeselection");
                Tcl_ListObjAppendElement(interp, pResultList, Tcl_NewStringObj(comm, -1));
@@ -1528,11 +1528,11 @@ static int PiFilter_ContextMenuUndoFilter( ClientData ttp, Tcl_Interp *interp, i
                   {
                      Tcl_ListObjAppendElement(interp, pResultList, TranscodeToUtf8(EPG_ENC_XMLTV, "Undo themes filter ", pThemeStr, NULL));
                      comm[0] = 0;
-                     for (class=0; class < THEME_CLASS_COUNT; class++)
+                     for (tclass=0; tclass < THEME_CLASS_COUNT; tclass++)
                      {
                         // only offer to undo this theme if it is in exactly one class
-                        if (pPiFilterContext->act.themeFilterField[idx] == (1 << class))
-                           sprintf(comm + strlen(comm), "DeselectTheme %d %d;", class + 1, idx);
+                        if (pPiFilterContext->act.themeFilterField[idx] == (1 << tclass))
+                           sprintf(comm + strlen(comm), "DeselectTheme %d %d;", tclass + 1, idx);
                      }
                      Tcl_ListObjAppendElement(interp, pResultList, Tcl_NewStringObj(comm, -1));
                   }

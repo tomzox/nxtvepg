@@ -130,11 +130,11 @@ void XmlCdata_Grow( XML_STR_BUF * pBuf, uint len )
    // copy content into the new buffer and free the old one
    if ((pBuf->pStrBuf != NULL) && (pBuf->skip == 0))
    {
-      pNewbuf = xrealloc(pBuf->pStrBuf, newSize);
+      pNewbuf = (char*) xrealloc(pBuf->pStrBuf, newSize);
    }
    else
    {
-      pNewbuf = xmalloc(newSize);
+      pNewbuf = (char*) xmalloc(newSize);
       if (pBuf->pStrBuf != NULL)
       {
          memcpy(pNewbuf, pBuf->pStrBuf + pBuf->skip, pBuf->size - pBuf->skip);

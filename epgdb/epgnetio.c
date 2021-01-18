@@ -312,7 +312,7 @@ void EpgNetIo_SetLogging( int sysloglev, int fileloglev, const char * pLogfileNa
    // make a copy of the new config strings
    if (pLogfileName != NULL)
    {
-      epgNetIoLogCf.pLogfileName = xmalloc(strlen(pLogfileName) + 1);
+      epgNetIoLogCf.pLogfileName = (char*) xmalloc(strlen(pLogfileName) + 1);
       strcpy(epgNetIoLogCf.pLogfileName, pLogfileName);
       epgNetIoLogCf.fileloglev = ((fileloglev > 0) ? (fileloglev + LOG_ERR) : -1);
    }
@@ -457,7 +457,7 @@ bool EpgNetIo_HandleIO( EPGNETIO_STATE * pIO, bool * pBlocked, bool closeOnZeroR
                    (pIO->readLen >= sizeof(EPGNETIO_MSG_HEADER)))
                {  // message size acceptable -> allocate a buffer with the given size
                   if (pIO->readLen > sizeof(EPGNETIO_MSG_HEADER))
-                     pIO->pReadBuf = xmalloc(pIO->readLen - sizeof(EPGNETIO_MSG_HEADER));
+                     pIO->pReadBuf = (char*) xmalloc(pIO->readLen - sizeof(EPGNETIO_MSG_HEADER));
                   // enter the second phase of the read process
                   pIO->waitRead = FALSE;
                }
@@ -711,7 +711,7 @@ static int EpgNetIo_GetLocalSocketAddr( const char * pPathName, const struct add
    assert((pInParams->ai_family == PF_UNIX) && (pPathName != NULL));
 
    // note: use regular malloc instead of xmalloc in case memory is freed by the libc internal freeaddrinfo
-   res = malloc(sizeof(struct addrinfo));
+   res = (struct addrinfo*) malloc(sizeof(struct addrinfo));
    *ppResult = res;
 
    memset(res, 0, sizeof(*res));
@@ -719,7 +719,7 @@ static int EpgNetIo_GetLocalSocketAddr( const char * pPathName, const struct add
    res->ai_family    = pInParams->ai_family;
    res->ai_protocol  = pInParams->ai_protocol;
 
-   saddr = malloc(sizeof(struct sockaddr_un));
+   saddr = (struct sockaddr_un*) malloc(sizeof(struct sockaddr_un));
    res->ai_addr      = (struct sockaddr *) saddr;
    res->ai_addrlen   = sizeof(struct sockaddr_un);
 

@@ -183,6 +183,11 @@ vbi_bit_slice(vbi_bit_slicer *slicer, uint8_t *raw, uint8_t *buf)
  * vbi_raw_decoder_parameters() and vbi_raw_decoder_add_services()
  * for usage.
  */
+struct _vbi_raw_decoder_job {
+       unsigned int		id;
+       int			offset;
+       vbi_bit_slicer		slicer;
+};
 typedef struct vbi_raw_decoder {
 	/* Sampling parameters */
 
@@ -253,11 +258,7 @@ typedef struct vbi_raw_decoder {
 	int			num_jobs;
 
 	int8_t *		pattern;
-	struct _vbi_raw_decoder_job {
-		unsigned int		id;
-		int			offset;
-		vbi_bit_slicer		slicer;
-	}			jobs[8];
+	struct _vbi_raw_decoder_job jobs[8];
 } vbi_raw_decoder;
 
 /**

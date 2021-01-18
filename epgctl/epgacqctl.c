@@ -68,7 +68,7 @@ typedef struct
    EPGACQ_PHASE   stopPhase;
    uint           ttxSrcCount;
    uint           inputSource;
-   uint           currentSlicerType;
+   VBI_SLICER_TYPE currentSlicerType;
    bool           autoSlicerType;
    bool           haveWarnedInpSrc;
    bool           advanceCycle;
@@ -771,7 +771,7 @@ bool EpgAcqCtl_SetInputSource( uint inputIdx, uint slicerType )
    else
    {
       acqCtl.autoSlicerType = FALSE;
-      acqCtl.currentSlicerType = slicerType;
+      acqCtl.currentSlicerType = (VBI_SLICER_TYPE) slicerType;
    }
 
    if ( (acqCtl.acqEnabled) &&
@@ -927,7 +927,7 @@ bool EpgAcqCtl_ProcessPackets( void )
             if (slicerOk == FALSE)
             {
                debug1("EpgAcqCtl: upgrading slicer type to #%d", acqCtl.currentSlicerType + 1);
-               acqCtl.currentSlicerType += 1;
+               acqCtl.currentSlicerType = (VBI_SLICER_TYPE)(acqCtl.currentSlicerType + 1);
                BtDriver_SelectSlicer(acqCtl.currentSlicerType);
             }
 

@@ -48,9 +48,7 @@
 #include "epgctl/epgacqsrv.h"
 #include "epgctl/epgacqclnt.h"
 #include "epgvbi/syserrmsg.h"
-#include "epgui/daemon.h"
 #include "epgui/epgmain.h"
-#include "epgui/daemon.h"
 #include "epgui/pifilter.h"
 #include "epgui/pibox.h"
 #include "epgui/piremind.h"
@@ -60,6 +58,7 @@
 #include "epgui/statswin.h"
 #include "epgui/timescale.h"
 #include "epgui/cmdline.h"
+#include "epgui/daemon.h"
 #include "epgui/rcfile.h"
 #include "xmltv/xmltv_main.h"
 #include "xmltv/xmltv_cni.h"
@@ -623,7 +622,7 @@ void UiControl_ReloadError( ClientData clientData )
 {
    MSG_RELOAD_ERR * pMsg = (MSG_RELOAD_ERR *) clientData;
    const char *pReason, *pHint;
-   char * comm2 = xmalloc(2048);
+   char * comm2 = (char*) xmalloc(2048);
    const char *pXmlPath;
 
    pReason = NULL;
@@ -722,8 +721,9 @@ void UiControl_ReloadError( ClientData clientData )
 // ----------------------------------------------------------------------------
 // Accept message from context control about db reload error
 //
-void UiControlMsg_ReloadError( uint cni, EPGDB_RELOAD_RESULT dberr, CONTEXT_RELOAD_ERR_HAND errHand, bool isNewDb )
+void UiControlMsg_ReloadError( uint cni, EPGDB_RELOAD_RESULT dberr, int errHandInt, bool isNewDb )
 {
+   CONTEXT_RELOAD_ERR_HAND errHand = (CONTEXT_RELOAD_ERR_HAND) errHandInt;  //FIXME CC
    const char * pTmpStr;
    char       * pSavedResult;
    MSG_RELOAD_ERR * pMsg;
@@ -732,7 +732,7 @@ void UiControlMsg_ReloadError( uint cni, EPGDB_RELOAD_RESULT dberr, CONTEXT_RELO
    {
       if (uiControlInitialized)
       {
-         pMsg          = xmalloc(sizeof(MSG_RELOAD_ERR));
+         pMsg          = (MSG_RELOAD_ERR*) xmalloc(sizeof(MSG_RELOAD_ERR));
          pMsg->cni     = cni;
          pMsg->dberr   = dberr;
          pMsg->errHand = errHand;
@@ -745,7 +745,7 @@ void UiControlMsg_ReloadError( uint cni, EPGDB_RELOAD_RESULT dberr, CONTEXT_RELO
             pTmpStr = Tcl_GetStringResult(interp);
             if (pTmpStr != NULL)
             {
-               pSavedResult = xmalloc(strlen(pTmpStr) + 1);
+               pSavedResult = (char*) xmalloc(strlen(pTmpStr) + 1);
                memcpy(pSavedResult, pTmpStr, strlen(pTmpStr) + 1);
             }
             else
@@ -800,7 +800,7 @@ static void UiControl_NetAcqError( ClientData clientData )
    EpgAcqClient_DescribeNetState(&netState);
    if (netState.cause != NULL)
    {
-      comm2 = xmalloc(2048);
+      comm2 = (char*) xmalloc(2048);
       sprintf(comm2, "tk_messageBox -type ok -icon warning -parent . "
                      "-message {An error occurred in the network connection to the acquisition "
                                "server: %s"

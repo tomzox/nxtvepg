@@ -111,7 +111,7 @@ static void netwm_set_icon(Display *dpy, Window wid)
       // note: sizeof(long) shall be used acc. to XChangeProperty() man page
       size = 2 + (NXTV_16X16_WIDTH * NXTV_16X16_HEIGHT) +
              2 + (NXTV_32X32_WIDTH * NXTV_32X32_HEIGHT);
-      pIconArr = xmalloc(size * sizeof(pIconArr[0]));
+      pIconArr = (long*) xmalloc(size * sizeof(pIconArr[0]));
       pCardinal = pIconArr;
 
       // insert first icon: 16x16

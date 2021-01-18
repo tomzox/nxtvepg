@@ -2677,7 +2677,7 @@ static void PiNetBox_RefreshDownwards( const PI_BLOCK * pPiBlock, uint colIdx )
 
    assert(EpgDbIsLocked(dbc));
 
-   pWalk = xmalloc(sizeof(*pWalk) * netbox.col_count);
+   pWalk = (REFRESH_VECT*) xmalloc(sizeof(*pWalk) * netbox.col_count);
    memset(pWalk, 0, sizeof(*pWalk) * netbox.col_count);
    pElem = NULL;
 
@@ -3041,7 +3041,7 @@ static void PiNetBox_RefreshUpwards( const PI_BLOCK * pPiBlock, uint refColIdx, 
 
    assert(EpgDbIsLocked(dbc));
 
-   pWalk = xmalloc(sizeof(*pWalk) * netbox.col_count);
+   pWalk = (REFRESH_VECT*) xmalloc(sizeof(*pWalk) * netbox.col_count);
    memset(pWalk, 0, sizeof(*pWalk) * netbox.col_count);
    pLastElem = NULL;
 
@@ -4996,7 +4996,7 @@ static int PiNetBox_Resize( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Ob
       max_elems = ((height / NETBOX_ELEM_MIN_HEIGHT) * 3) + 3;
       size      = (col_count * sizeof(NETBOX_COL)) +
                   (max_elems * col_count * sizeof(NETBOX_ELEM));
-      netbox.cols = xmalloc(size);
+      netbox.cols = (NETBOX_COL*) xmalloc(size);
 
       memset(netbox.cols, 0, size);
       netbox.height    = height;

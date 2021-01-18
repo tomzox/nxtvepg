@@ -132,7 +132,7 @@ void SystemErrorMessage_Set( char ** ppErrorText, int errCode, const char * pTex
       if (argc > 0)
       {
          // allocate memory for sum of all strings length
-         *ppErrorText = xmalloc(sumlen + 1);
+         *ppErrorText = (char*) xmalloc(sumlen + 1);
 
          // concatenate the strings
          off = 0;

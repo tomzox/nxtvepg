@@ -59,7 +59,7 @@ HINSTANCE  hMainInstance;  // copy of win32 instance handle
 #endif
 EPGDB_CONTEXT * pUiDbContext;
 
-void UiControlMsg_ReloadError( uint cni, EPGDB_RELOAD_RESULT dberr, CONTEXT_RELOAD_ERR_HAND errHand, bool isNewDb )
+void UiControlMsg_ReloadError( uint cni, EPGDB_RELOAD_RESULT dberr, int errHand, bool isNewDb )
 {
    char msgBuf[100];
 
@@ -186,7 +186,7 @@ int main( int argc, char *argv[] )
    }
    else if (mainOpts.optDaemonMode == EPG_CLOCK_CTRL)
    {
-      Daemon_SystemClockCmd(mainOpts.optDumpSubMode);
+      Daemon_SystemClockCmd(mainOpts.optClockSubMode);
    }
    else if ( IS_DUMP_MODE(mainOpts) )
    {

@@ -56,6 +56,14 @@ typedef enum
    REM_CTRL_COUNT
 } EPG_REMCTRL_CMD;
 
+typedef enum
+{
+   CLOCK_CTRL_NONE,
+   CLOCK_CTRL_SET,
+   CLOCK_CTRL_PRINT,
+   CLOCK_CTRL_COUNT
+} EPG_CLOCK_CTRL_MODE;
+
 #define IS_DAEMON(X)          ((X).optDaemonMode == DAEMON_RUN)
 #define IS_CLOCK_MODE(X)      ((X).optDaemonMode == EPG_CLOCK_CTRL)
 #define IS_DUMP_MODE(X)       ((X).optDumpMode != EPG_DUMP_NONE)
@@ -84,7 +92,8 @@ typedef struct
    bool         disableAcq;
    EPG_DAEMON_MODE optDaemonMode;
    EPG_DUMP_MODE optDumpMode;
-   uint          optDumpSubMode;
+   int          optDumpSubMode;
+   EPG_CLOCK_CTRL_MODE optClockSubMode;
    const char * optDumpFilter[OPT_DUMP_FILTER_MAX];
    EPG_REMCTRL_CMD optRemCtrl;
    const char * pStdOutFileName;
@@ -108,8 +117,8 @@ typedef struct
 extern CMDLINE_OPTS mainOpts;
 
 // software version in form of a string
-extern char *epg_version_str;
-extern char epg_rcs_id_str[];
+extern const char *epg_version_str;
+extern const char epg_rcs_id_str[];
 
 
 // ---------------------------------------------------------------------------

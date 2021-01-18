@@ -58,7 +58,8 @@ void UpdateRcFile( bool immediate );
 void LoadRcFile( void );
 
 // Interface to context control
-void UiControlMsg_ReloadError( uint cni, EPGDB_RELOAD_RESULT dberr, CONTEXT_RELOAD_ERR_HAND errHand, bool isNewDb );
+// FIXME CC errHand should be CONTEXT_RELOAD_ERR_HAND
+void UiControlMsg_ReloadError( uint cni, EPGDB_RELOAD_RESULT dberr, int errHand, bool isNewDb );
 
 void UiControl_Init( void );
 

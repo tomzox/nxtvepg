@@ -500,6 +500,8 @@ static void XmltvScan_CheckTablesConsistency( void )
 #define XML_SKIP_ATTRIB       (~0)
 #define XML_MAX_SYNTAX_ERR    10
 
+#define XML_ADD_DETECTED(V,B) ((V) = (XMLTV_DETECTION)((V) | (B)))
+
 typedef struct
 {
    XMLTV_TAG            tagStack[XML_STACK_MAX_DEPTH];
@@ -523,7 +525,7 @@ static XML_PARSER_STATE xps;
 //
 static void XmltvTags_SetLanguage( XML_STR_BUF * pBuf )
 {
-   char * pStr;
+   const char * pStr;
    uint  idx;
    XML_LANG_CODE code;
 
@@ -601,7 +603,7 @@ void XmltvTags_Open( const char * pTagName )
          if ((xps.stackIdx == 0) && (xps.syntaxError == 0))
          {
             Xmltv_SyntaxError("XMLTV toplevel tag is not <tv> - probably not an XMLTV document", pTagName);
-            xps.detected |= XMLTV_DETECTED_NOT_TV;
+            XML_ADD_DETECTED(xps.detected, XMLTV_DETECTED_NOT_TV);
          }
          xps.stackIdx += 1;
          xps.tagStack[xps.stackIdx] = XMLTV_SKIP;
@@ -796,7 +798,7 @@ void XmltvTags_AttribData( XML_STR_BUF * pBuf )
 void XmltvTags_ScanUnsupEncoding( const char * pName )
 {
    Xmltv_SyntaxError("Unsupported encoding", pName);
-   xps.detected |= XMLTV_DETECTED_UNSUP_ENC;
+   XML_ADD_DETECTED(xps.detected, XMLTV_DETECTED_UNSUP_ENC);
 }
 
 // ----------------------------------------------------------------------------
@@ -876,7 +878,7 @@ void XmltvTags_Encoding( const char * pName )
       xps.encoding = XML_ENC_UTF16LE;
    }
 
-   xps.detected |= XMLTV_DETECTED_XML;
+   XML_ADD_DETECTED(xps.detected, XMLTV_DETECTED_XML);
 
    if (xps.encoding != XML_ENC_UNKNOWN)
    {
@@ -884,13 +886,13 @@ void XmltvTags_Encoding( const char * pName )
       if (result == FALSE)
       {
          Xmltv_SyntaxError("Encoding in <?xml?> mismatches auto-detected encoding", pName);
-         xps.detected |= XMLTV_DETECTED_UNSUP_XMLENC;
+         XML_ADD_DETECTED(xps.detected, XMLTV_DETECTED_UNSUP_XMLENC);
       }
    }
    else
    {
       Xmltv_SyntaxError("Unsupported encoding in <?xml?>", pName);
-      xps.detected |= XMLTV_DETECTED_UNSUP_XMLENC;
+      XML_ADD_DETECTED(xps.detected, XMLTV_DETECTED_UNSUP_XMLENC);
       result = FALSE;
    }
 }
@@ -902,7 +904,7 @@ void XmltvTags_XmlVersion( const char * pVersion )
       Xmltv_SyntaxError("Incompatible XML version", pVersion);
    }
    else
-      xps.detected |= XMLTV_DETECTED_XML;
+      XML_ADD_DETECTED(xps.detected, XMLTV_DETECTED_XML);
 }
 
 // ----------------------------------------------------------------------------
@@ -913,9 +915,9 @@ void XmltvTags_DocType( const char * pName )
    if (strcmp(pName, "tv") != 0)
    {
       Xmltv_SyntaxError("XML DOCTYPE name mismatch (probably not an XMLTV document)", pName);
-      xps.detected |= XMLTV_DETECTED_NOT_TV;
+      XML_ADD_DETECTED(xps.detected, XMLTV_DETECTED_NOT_TV);
    }
-   xps.detected |= XMLTV_DETECTED_DOCTYPE;
+   XML_ADD_DETECTED(xps.detected, XMLTV_DETECTED_DOCTYPE);
 }
 
 // ----------------------------------------------------------------------------
@@ -996,7 +998,7 @@ const char * XmltvTags_TranslateErrorCode( XMLTV_DETECTION detection )
 void Xmltv_SyntaxError( const char * pMsg, const char * pStr )
 {
    debug2("Xmltv-SyntaxError: %s: '%.200s'", pMsg, pStr);
-   xps.detected |= XMLTV_DETECTED_SYNTAX;
+   XML_ADD_DETECTED(xps.detected, XMLTV_DETECTED_SYNTAX);
    xps.syntaxError += 1;
 
    if (xps.syntaxError > XML_MAX_SYNTAX_ERR)
@@ -1072,7 +1074,7 @@ void XmltvTags_StartScan( FILE * fp, bool load )
    // push initial state on the element stack
    xps.tagStack[0] = load ? XMLTV5_TOP : XMLTV_DETECT;
    xps.stackIdx = 0;
-   xps.detected = 0;
+   xps.detected = XMLTV_DETECTED_OK;
    xps.encoding = XML_ENC_UNKNOWN;
 
    yyin = fp;

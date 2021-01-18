@@ -37,7 +37,9 @@ typedef struct
 
 #define XML_STR_BUF_GET_LEN(S)     ((S).off)
 #define XML_STR_BUF_GET_STR_LEN(S) ((S).off - (S).skip)
-#define XML_STR_BUF_GET_STR(S)     (((S).pStrBuf != NULL) ? ((S).pStrBuf + (S).skip) : "")
+#define XML_STR_BUF_GET_STR(S)     (((S).pStrBuf != NULL) \
+                                    ? ((S).pStrBuf + (S).skip) \
+                                    : (char*)&((S).pStrBuf))  // hack to obtain non-const nul-string ""
 
 #define XML_STR_BUF_SET_LANG(S,L)  ((S).lang = (L))
 #define XML_STR_BUF_GET_LANG(S)    ((S).lang)

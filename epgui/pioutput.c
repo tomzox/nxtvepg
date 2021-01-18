@@ -87,9 +87,6 @@ typedef enum
 
 static Tcl_Obj * tcl_obj[TCLOBJ_COUNT];
 
-
-static Tcl_Obj * tcl_obj[TCLOBJ_COUNT];
-
 static const char * const pColTypeKeywords[] =
 {
    "day",
@@ -551,12 +548,12 @@ const PIBOX_COL_CFG * PiOutput_CfgColumnsCache( uint colCount, Tcl_Obj ** pColOb
    Tcl_Obj  * pTabObj;
    Tcl_Obj  * pColObj;
    char * pKeyword;
-   uint  type;
+   PIBOX_COL_TYPES type;
    uint  colIdx;
    int   width;
    int   skipNl;
 
-   pColTab = xmalloc((colCount + 1) * sizeof(PIBOX_COL_CFG));
+   pColTab = (PIBOX_COL_CFG*) xmalloc((colCount + 1) * sizeof(PIBOX_COL_CFG));
 
    for (colIdx=0; colIdx < colCount; colIdx++)
    {

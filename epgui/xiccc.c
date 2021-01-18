@@ -251,33 +251,34 @@ void Xiccc_HandleInternalEvent( XICCC_STATE * pXi )
 {
    if (pXi->events & XICCC_FOCUS_CLAIM)
    {
-      pXi->events &= ~XICCC_FOCUS_CLAIM;
+      pXi->events = (XICCC_EVENTS)(pXi->events & ~XICCC_FOCUS_CLAIM);
+
       if ( (pXi->manager_state == XICCC_WAIT_FORCED_CLAIM) ||
            (pXi->manager_state == XICCC_WAIT_CLAIM) )
       {
          Xiccc_ClaimManagementStep2(pXi, pXi->last_time);
          if (pXi->manager_state == XICCC_READY)
          {
-            pXi->events |= XICCC_GOT_MGMT;
+            pXi->events = (XICCC_EVENTS)(pXi->events | XICCC_GOT_MGMT);
          }
       }
    }
    if (pXi->events & XICCC_FOCUS_CLEAR)
    {
-      pXi->events &= ~XICCC_FOCUS_CLEAR;
+      pXi->events = (XICCC_EVENTS)(pXi->events & ~XICCC_FOCUS_CLEAR);
       Xiccc_ReleaseManagementStep2(pXi, pXi->last_time);
-      pXi->events |= XICCC_LOST_MGMT;
+      pXi->events = (XICCC_EVENTS)(pXi->events | XICCC_LOST_MGMT);
    }
    if (pXi->events & XICCC_FOCUS_LOST)
    {
-      pXi->events &= ~XICCC_FOCUS_LOST;
+      pXi->events = (XICCC_EVENTS)(pXi->events & ~XICCC_FOCUS_LOST);
       if (pXi->manager_state == XICCC_OTHER_OWNER)
       {
          // check again for new owner & install event handler to wait for release
          Xiccc_ClaimManagementStep2(pXi, pXi->last_time);
          if (pXi->manager_state != XICCC_READY)
          {
-            pXi->events |= XICCC_LOST_MGMT;
+            pXi->events = (XICCC_EVENTS)(pXi->events | XICCC_LOST_MGMT);
          }
       }
    }
@@ -302,13 +303,13 @@ bool Xiccc_XEvent( XEvent *eventPtr, XICCC_STATE * pXi, bool * pNeedHandler )
            (pXi->manager_state == XICCC_WAIT_CLAIM) )
       {
          pXi->last_time = eventPtr->xproperty.time;
-         pXi->events |= XICCC_FOCUS_CLAIM;
+         pXi->events = (XICCC_EVENTS)(pXi->events | XICCC_FOCUS_CLAIM);
          *pNeedHandler = TRUE;
       }
       else if (pXi->manager_state == XICCC_WAIT_CLEAR)
       {
          pXi->last_time = eventPtr->xproperty.time;
-         pXi->events |= XICCC_FOCUS_CLEAR;
+         pXi->events = (XICCC_EVENTS)(pXi->events | XICCC_FOCUS_CLEAR);
          *pNeedHandler = TRUE;
       }
       // else: can safely be ignored in all other states
@@ -323,7 +324,7 @@ bool Xiccc_XEvent( XEvent *eventPtr, XICCC_STATE * pXi, bool * pNeedHandler )
       if ( (pXi->manager_state == XICCC_READY) /*&&
            (pXi->mgmt_start_time <= eventPtr->xselectionrequest.time)*/ )
       {
-         pReq = xmalloc(sizeof(*pReq));
+         pReq = (XICCC_EV_QUEUE*) xmalloc(sizeof(*pReq));
          memset(pReq, 0, sizeof(*pReq));
          pReq->requestor = eventPtr->xselectionrequest.requestor;
          pReq->property = eventPtr->xselectionrequest.property;
@@ -333,13 +334,13 @@ bool Xiccc_XEvent( XEvent *eventPtr, XICCC_STATE * pXi, bool * pNeedHandler )
          if (eventPtr->xselectionrequest.target == pXi->atoms._NXTVEPG_SETSTATION)
          {
             Xiccc_QueueAddEvent(&pXi->pNewStationQueue, pReq);
-            pXi->events |= XICCC_SETSTATION_REQ;
+            pXi->events = (XICCC_EVENTS)(pXi->events | XICCC_SETSTATION_REQ);
             *pNeedHandler = TRUE;
          }
          else if (eventPtr->xselectionrequest.target == pXi->atoms._NXTVEPG_REMOTE)
          {
             Xiccc_QueueAddEvent(&pXi->pRemoteCmdQueue, pReq);
-            pXi->events |= XICCC_REMOTE_REQ;
+            pXi->events = (XICCC_EVENTS)(pXi->events | XICCC_REMOTE_REQ);
             *pNeedHandler = TRUE;
          }
          else
@@ -362,12 +363,12 @@ bool Xiccc_XEvent( XEvent *eventPtr, XICCC_STATE * pXi, bool * pNeedHandler )
       {
          if (eventPtr->xselection.target == pXi->atoms._NXTVEPG_SETSTATION)
          {
-            pXi->events |= XICCC_SETSTATION_REPLY;
+            pXi->events = (XICCC_EVENTS)(pXi->events | XICCC_SETSTATION_REPLY);
             *pNeedHandler = TRUE;
          }
          else if (eventPtr->xselection.target == pXi->atoms._NXTVEPG_REMOTE)
          {
-            pXi->events |= XICCC_REMOTE_REPLY;
+            pXi->events = (XICCC_EVENTS)(pXi->events | XICCC_REMOTE_REPLY);
             *pNeedHandler = TRUE;
          }
          else
@@ -387,7 +388,7 @@ bool Xiccc_XEvent( XEvent *eventPtr, XICCC_STATE * pXi, bool * pNeedHandler )
          pXi->other_manager_wid = eventPtr->xselectionclear.window;
 
          pXi->last_time = eventPtr->xselectionclear.time;
-         pXi->events |= XICCC_FOCUS_LOST;
+         pXi->events = (XICCC_EVENTS)(pXi->events | XICCC_FOCUS_LOST);
          *pNeedHandler = TRUE;
       }
       result = TRUE;
@@ -415,7 +416,7 @@ bool Xiccc_XEvent( XEvent *eventPtr, XICCC_STATE * pXi, bool * pNeedHandler )
       // immediately reset window ID to prevent further references
       pXi->remote_manager_wid = None;
 
-      pXi->events |= XICCC_LOST_PEER;
+      pXi->events = (XICCC_EVENTS)(pXi->events | XICCC_LOST_PEER);
       *pNeedHandler = TRUE;
       result = TRUE;
    }
@@ -434,7 +435,7 @@ bool Xiccc_XEvent( XEvent *eventPtr, XICCC_STATE * pXi, bool * pNeedHandler )
          // XXX TODO should be done inside error handler
          XSelectInput(pXi->dpy, pXi->remote_manager_wid, StructureNotifyMask);
 
-         pXi->events |= XICCC_NEW_PEER;
+         pXi->events = (XICCC_EVENTS)(pXi->events | XICCC_NEW_PEER);
          *pNeedHandler = TRUE;
       }
       result = TRUE;
@@ -461,7 +462,7 @@ void Xiccc_BuildArgv( char ** ppBuild, uint * pArgLen, ... )
    }
    va_end(argl);
 
-   *ppBuild = xmalloc(*pArgLen);
+   *ppBuild = (char*) xmalloc(*pArgLen);
 
    // second iteration to concatenate strings (with zeros inbetween)
    pArgStr = *ppBuild;
@@ -510,7 +511,7 @@ bool Xiccc_SplitArgv( Display * dpy, Window wid, Atom property, char *** ppArgv,
             argc += 1;
          }
 
-         *ppArgv = xmalloc(argc * sizeof(char *) + nitems + 1);
+         *ppArgv = (char**) xmalloc(argc * sizeof(char *) + nitems + 1);
 
          // copy sub-strings
          pStr = (char *) ((*ppArgv) + argc);
@@ -726,7 +727,7 @@ bool Xiccc_SearchPeer( XICCC_STATE * pXi )
          dprintf2("Xicccm-SearchPeer: found remote manager wid 0x%X for target 0x%X\n", (int)pXi->remote_manager_wid, (int)pXi->remote_manager_atom);
          // select for destroy events
          XSelectInput(pXi->dpy, pXi->remote_manager_wid, StructureNotifyMask);
-         pXi->events |= XICCC_NEW_PEER;
+         pXi->events = (XICCC_EVENTS)(pXi->events | XICCC_NEW_PEER);
       }
       else
       {

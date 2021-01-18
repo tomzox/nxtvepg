@@ -51,14 +51,14 @@ static time_t unixTimeBase1982;         // 1.1.1982 in UNIX time format
 // ----------------------------------------------------------------------------
 // Allocate a new block and initialize the common elements
 //
-EPGDB_BLOCK * EpgBlockCreate( uchar type, uint size, time_t mtime )
+EPGDB_BLOCK * EpgBlockCreate( BLOCK_TYPE type, uint size, time_t mtime )
 {
    EPGDB_BLOCK *pBlock;
 
    pBlock = (EPGDB_BLOCK *) xmalloc(size + BLK_UNION_OFF);
 
    // initialize all pointers to NULL (and alignment gaps in header struct)
-   memset(pBlock, 0, BLK_UNION_OFF);
+   memset((char*)pBlock, 0, BLK_UNION_OFF);
 
    pBlock->type = type;
    pBlock->size = size;

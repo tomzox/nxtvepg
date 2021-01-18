@@ -22,8 +22,9 @@
 #ifndef __XMLTV_MAIN_H
 #define __XMLTV_MAIN_H
 
-uint Xmltv_CheckHeader( const char * pFilename );
+EPGDB_RELOAD_RESULT Xmltv_CheckHeader( const char * pFilename );
 EPGDB_CONTEXT * Xmltv_Load( FILE * fp, uint provCni, const char * pProvName, time_t mtime, bool isPeek );
+// FIXME CC pErrCode should be EPGDB_RELOAD_RESULT*
 EPGDB_CONTEXT * Xmltv_CheckAndLoad( const char * pFilename, uint provCni, bool isPeek, uint * pErrCode, time_t * pMtime );
 const char * Xmltv_TranslateErrorCode( uint detection );
 bool Xmltv_IsXmlDocument( uint detection );

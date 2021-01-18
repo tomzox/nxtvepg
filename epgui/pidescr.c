@@ -358,7 +358,7 @@ static char * PiDescription_UnifyShortLong( const char * pShort, uint shortInfoL
 
    if ((pShort != NULL) && (pLong != NULL))
    {
-      pOut = xmalloc(shortInfoLen + longInfoLen + 1 + 1);
+      pOut = (char*) xmalloc(shortInfoLen + longInfoLen + 1 + 1);
       outlen = 0;
 
       while (shortInfoLen > 0)
@@ -542,7 +542,7 @@ static uint PiDescription_SeparateMergedInfo( const PI_BLOCK * pPiBlock, char **
       }
 
       // only description text available; copy it into the array
-      infoStrTab[count] = xmalloc(descTextLen + 1);
+      infoStrTab[count] = (char*) xmalloc(descTextLen + 1);
       memcpy(infoStrTab[count], ps, descTextLen);
       infoStrTab[count][descTextLen] = 0;
 
@@ -711,7 +711,7 @@ void PiDescription_BufAppend( PI_DESCR_BUF * pBuf, const char * pStr, sint len )
    {
       if (pBuf->off + len + 1 > pBuf->size)
       {
-         pNewbuf = xmalloc(pBuf->size + len + 2048);
+         pNewbuf = (char*) xmalloc(pBuf->size + len + 2048);
          if (pBuf->pStrBuf != NULL)
          {
             memcpy(pNewbuf, pBuf->pStrBuf, pBuf->size);

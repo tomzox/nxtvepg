@@ -24,6 +24,12 @@
 
 
 // ---------------------------------------------------------------------------
+
+#define TV_CHAN_FREQ_DEF(FREQV, NORM) ((FREQV) | ((NORM)<<24))
+#define TV_CHAN_GET_FREQ(FREQ)  ((FREQ) & 0xFFFFFF)
+#define TV_CHAN_GET_NORM(FREQ)  ((EPGACQ_TUNER_NORM)((FREQ) >> 24))
+
+// ---------------------------------------------------------------------------
 // declaration of service interface functions
 //
 bool TvChannels_GetNext( uint *pChan, uint *pFreq );

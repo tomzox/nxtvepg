@@ -86,7 +86,7 @@ static const char * XmltvCni_GetFullPath( const char * pPath )
       else if (*pPath != '/')
       {
          // on UNIX a path is relative exactly if it doesn't start with a slash
-         pBuf = xmalloc(strlen(pXmlCniCwd) + 1 + strlen(pPath) + 1);
+         pBuf = (char*) xmalloc(strlen(pXmlCniCwd) + 1 + strlen(pPath) + 1);
          if (strncmp(pPath, "./", 2) == 0)
             sprintf(pBuf, "%s/%s", pXmlCniCwd, pPath + 2);
          else
@@ -96,7 +96,7 @@ static const char * XmltvCni_GetFullPath( const char * pPath )
 #else
       DWORD retLen;
 
-      pBuf = xmalloc(10*1024 + 2);
+      pBuf = (char*) xmalloc(10*1024 + 2);
       if ((strncmp(pPath, "./", 2) == 0) || (strncmp(pPath, ".\\", 2) == 0))
          retLen = GetFullPathName(pPath + 2, 10*1024, pBuf, NULL);
       else
@@ -227,7 +227,7 @@ static void XmltvCni_LoadEtsiMap( XML_HASH_PTR pNameHash,
             {
                if (skip == FALSE)
                {
-                  pCniVal = XmlHash_CreateEntry(pNameHash, value, &isNew);
+                  pCniVal = (uint*) XmlHash_CreateEntry(pNameHash, value, &isNew);
                   if (isNew)
                   {
                      *pCniVal = cni;
@@ -277,7 +277,7 @@ void XmltvCni_MapInit( XMLTV_CNI_CTX * pCniCtx, uint provCni,
    {
       if (pRc->xmltv_nets[idx].prov_cni == provCni)
       {
-         pCniVal = XmlHash_CreateEntry(pCniCtx->nameHash, pRc->xmltv_nets[idx].chn_id, &isNew);
+         pCniVal = (uint*) XmlHash_CreateEntry(pCniCtx->nameHash, pRc->xmltv_nets[idx].chn_id, &isNew);
          if (isNew)
          {
             dprintf2("XmltvCni-MapInit: CNI 0x%05X '%s'\n", pRc->xmltv_nets[idx].net_cni, pRc->xmltv_nets[idx].chn_id);
@@ -316,7 +316,7 @@ uint XmltvCni_MapNetCni( XMLTV_CNI_CTX * pCniCtx, const char * pChannelId )
 
    assert(IS_XMLTV_CNI(pCniCtx->provCni));
 
-   pCniVal = XmlHash_CreateEntry(pCniCtx->nameHash, pChannelId, &is_new);
+   pCniVal = (uint*) XmlHash_CreateEntry(pCniCtx->nameHash, pChannelId, &is_new);
    if (is_new)
    {
       nscan = sscanf(pChannelId, "CNI%04X%n", &scni, &scan_pos);
@@ -365,7 +365,7 @@ bool XmltvCni_InitMapCni2Ids( XMLTV_CNI_REV_CTX * pCtx )
    if (fp != NULL)
    {
       pCtx->maxMapLen = 100;
-      pCtx->pMap = xmalloc(pCtx->maxMapLen * sizeof(pCtx->pMap[0]));
+      pCtx->pMap = (XMLTV_CNI_REV_MAP*) xmalloc(pCtx->maxMapLen * sizeof(pCtx->pMap[0]));
 
       skip = TRUE;
       while (fgets(line, 255, fp) != NULL)
@@ -401,7 +401,7 @@ bool XmltvCni_InitMapCni2Ids( XMLTV_CNI_REV_CTX * pCtx )
                if (pCtx->mapLen >= pCtx->maxMapLen)
                {
                   pCtx->maxMapLen += 100;
-                  pCtx->pMap = xrealloc(pCtx->pMap, pCtx->maxMapLen * sizeof(pCtx->pMap[0]));
+                  pCtx->pMap = (XMLTV_CNI_REV_MAP*) xrealloc(pCtx->pMap, pCtx->maxMapLen * sizeof(pCtx->pMap[0]));
                }
                pCtx->pMap[pCtx->mapLen].pName = xstrdup(value);
                pCtx->pMap[pCtx->mapLen].cni = cni;
@@ -446,14 +446,14 @@ void XmltvCni_FreeMapCni2Ids( XMLTV_CNI_REV_CTX * pCtx )
 const char * XmltvCni_MapCni2Ids( XMLTV_CNI_REV_CTX * pCtx, uint cni )
 {
    const char * pName = NULL;
-   uint  try;
+   uint  tryIdx;
    uint  idx;
    uint  cmpCni;
    uint  pdcCni;
 
    if (pCtx != NULL)
    {
-      for (try = 0; (try <= 1) && (pName == NULL); try++)
+      for (tryIdx = 0; (tryIdx <= 1) && (pName == NULL); tryIdx++)
       {
          for (idx = 0; idx < pCtx->mapLen; idx++)
          {
@@ -603,10 +603,10 @@ void XmltvCni_Init( void )
 {
 #ifndef WIN32
    // determine path to current directory once for conversions to absolute path
-   pXmlCniCwd = xmalloc(10*1024+2);
+   pXmlCniCwd = (char*) xmalloc(10*1024+2);
    if (getcwd(pXmlCniCwd, 10*1024) == NULL)
       *pXmlCniCwd = 0;
-   pXmlCniCwd = xrealloc(pXmlCniCwd, strlen(pXmlCniCwd) + 1);
+   pXmlCniCwd = (char*) xrealloc(pXmlCniCwd, strlen(pXmlCniCwd) + 1);
    dprintf1("XmltvCni-Init: cwd:%s\n", pXmlCniCwd);
 #endif
 }

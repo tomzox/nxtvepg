@@ -182,7 +182,7 @@ static void EpgContextMergeNormalizeCnis( EPGDB_MERGE_CONTEXT * pMergeContext,
 //
 void EpgContextMergeDestroy( void * pMergeContextPtr )
 {
-   EPGDB_MERGE_CONTEXT * dbmc = pMergeContextPtr;
+   EPGDB_MERGE_CONTEXT * dbmc = (EPGDB_MERGE_CONTEXT*) pMergeContextPtr;
 
    EpgDbMergeCloseDatabases(dbmc);
    xfree(pMergeContextPtr);
@@ -202,7 +202,7 @@ bool EpgContextMergeGetCnis( const EPGDB_CONTEXT * dbc, uint * pCniCount, uint *
    {
       if (dbc->pMergeContext != NULL)
       {
-         dbmc = dbc->pMergeContext;
+         dbmc = (EPGDB_MERGE_CONTEXT*) dbc->pMergeContext;
 
          *pCniCount = dbmc->dbCount;
 
@@ -237,7 +237,7 @@ bool EpgContextMergeCheckForCni( const EPGDB_CONTEXT * dbc, uint cni )
       {
          if (cni != 0)
          {
-            dbmc = dbc->pMergeContext;
+            dbmc = (EPGDB_MERGE_CONTEXT*) dbc->pMergeContext;
 
             // check if the current acq CNI is one of the merged
             for (dbIdx=0; dbIdx < dbmc->dbCount; dbIdx++)
@@ -275,7 +275,7 @@ static bool EpgDbMergeOpenAcqContext( uint cni )
 
    if ( (pUiDbContext != NULL) && (pUiDbContext->pMergeContext != NULL) )
    {
-      dbmc = pUiDbContext->pMergeContext;
+      dbmc = (EPGDB_MERGE_CONTEXT*) pUiDbContext->pMergeContext;
 
       // get the index of the acq db in the merge context
       if ( (dbmc->acqIdx >= dbmc->dbCount) || (cni != dbmc->prov[dbmc->acqIdx].provCni) )
@@ -370,7 +370,7 @@ EPGDB_CONTEXT * EpgContextMerge( uint dbCount, const uint * pCni, MERGE_ATTRIB_V
    dprintf2("EpgContextMerge: Merging %d DBs with %d networks\n", dbCount, netwopCount);
 
    // initialize context
-   pMergeContext = xmalloc(sizeof(EPGDB_MERGE_CONTEXT));
+   pMergeContext = (EPGDB_MERGE_CONTEXT*) xmalloc(sizeof(EPGDB_MERGE_CONTEXT));
    memset(pMergeContext, 0, sizeof(EPGDB_MERGE_CONTEXT));
 
    pMergeContext->dbCount = dbCount;

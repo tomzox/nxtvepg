@@ -26,14 +26,6 @@
 // ---------------------------------------------------------------------------
 // Type definitions
 //
-typedef enum
-{
-   CLOCK_CTRL_NONE,
-   CLOCK_CTRL_SET,
-   CLOCK_CTRL_PRINT,
-   CLOCK_CTRL_COUNT
-} EPG_CLOCK_CTRL_MODE;
-
 #ifdef WIN32
 #ifdef WM_USER
 #define UWM_SYSTRAY     (WM_USER + 1)   // Sent by the systray

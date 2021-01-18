@@ -188,7 +188,7 @@ static EPGDB_BLOCK * EpgDbMergePiBlocks( PDBC dbc, EPGDB_BLOCK **pFoundBlocks )
    uchar version;
    time_t mtime;
 
-   dbmc = dbc->pMergeContext;
+   dbmc = (EPGDB_MERGE_CONTEXT*) dbc->pMergeContext;
    dbCount = dbmc->dbCount;
 
    version = 1;
@@ -570,7 +570,7 @@ static void EpgDbMergeNetworkPi( PDBC dbc, uint netwop, EPGDB_BLOCK **ppFirstNet
    uint dbCount, dbIdx, firstIdx;
    bool conflict;
 
-   dbmc = dbc->pMergeContext;
+   dbmc = (EPGDB_MERGE_CONTEXT*) dbc->pMergeContext;
    dbCount = dbmc->dbCount;
    memset(pFoundBlocks, 0, sizeof(pFoundBlocks));
 
@@ -716,7 +716,7 @@ void EpgDbMergeUpdateNetwork( EPGDB_CONTEXT * pDbContext, uint srcNetwop, EPGDB_
 
    assert(pDbContext->merged);
 
-   dbmc = pDbContext->pMergeContext;
+   dbmc = (EPGDB_MERGE_CONTEXT*) pDbContext->pMergeContext;
    netwop = dbmc->prov[dbmc->acqIdx].netwopMap[pNewBlock->blk.pi.netwop_no];
    if (netwop != 0xff)
    {
@@ -806,7 +806,7 @@ static char * EpgDbMergeAiServiceNames( EPGDB_MERGE_CONTEXT * dbmc )
    concatCnt = dbIdx;
 
    // allocate the memory
-   mergeName = xmalloc(len);
+   mergeName = (char*) xmalloc(len);
    strcpy(mergeName, mergedServiceName);
 
    // concatenate the names
@@ -846,7 +846,7 @@ void EpgDbMergeAiBlocks( PDBC dbc, uint netwopCount, const uint * pNetwopList )
    uint dbCount;
 
    // determine number of netwops in merged db
-   dbmc = dbc->pMergeContext;
+   dbmc = (EPGDB_MERGE_CONTEXT*) dbc->pMergeContext;
    dbCount = dbmc->dbCount;
    nameLen = 0;
    if (netwopCount > MAX_NETWOP_COUNT)

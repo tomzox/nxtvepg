@@ -343,7 +343,7 @@ bool TtxGrab_ProcessPackets( uint bufIdx )
 
          ttxGrabState[bufIdx].stats.ttxPkgStrSum += 40;
          ttxGrabState[bufIdx].stats.ttxPkgParErr +=
-            UnHamParityArray(pVbl->data, (void*)pVbl->data, 40);
+            UnHamParityArray(pVbl->data, (uchar*)pVbl->data, 40);
          // XXX FIXME: using void cast to remove const for target buffer
 
          // skip file output if disabled (note all other processing is intentionally done anyways)
@@ -554,7 +554,7 @@ char * TtxGrab_GetPath( const char * pName )
 {
    char * pXmlTmpFile;
 
-   pXmlTmpFile = xmalloc(strlen(ttxGrabDbDir) + 1 + strlen(pName) + 20);
+   pXmlTmpFile = (char*) xmalloc(strlen(ttxGrabDbDir) + 1 + strlen(pName) + 20);
    sprintf(pXmlTmpFile, "%s/" XML_OUT_FILE_PAT, ttxGrabDbDir, pName);
 
    return pXmlTmpFile;
@@ -572,14 +572,14 @@ void TtxGrab_PostProcess( uint bufIdx, const char * pName, bool reset )
    if (ttxGrabState[bufIdx].keepTtxInp)
    {
       dprintf1("TtxGrab-PostProcess: name:'%s' dump complete database\n", pName);
-      char * pKeptInpFile = xmalloc(strlen(ttxGrabDbDir) + 1 + strlen(pName) + 20);
+      char * pKeptInpFile = (char*) xmalloc(strlen(ttxGrabDbDir) + 1 + strlen(pName) + 20);
       sprintf(pKeptInpFile, "%s/" TTX_CAP_FILE_PAT, ttxGrabDbDir, pName);
       ttx_db_dump(ttxGrabState[bufIdx].ttx_db, pKeptInpFile, 0x100, 0x8FF);
       xfree(pKeptInpFile);
    }
 
    // build output file name (note: includes ".tmp" suffix which is removed later)
-   pXmlTmpFile = xmalloc(strlen(ttxGrabDbDir) + 1 + strlen(pName) + 20);
+   pXmlTmpFile = (char*) xmalloc(strlen(ttxGrabDbDir) + 1 + strlen(pName) + 20);
    sprintf(pXmlTmpFile, "%s/" XML_OUT_FILE_PAT XML_OUT_FILE_TMP, ttxGrabDbDir, pName);
 
    pXmlMergeFile = xstrdup(pXmlTmpFile);

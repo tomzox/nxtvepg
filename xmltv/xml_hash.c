@@ -140,7 +140,7 @@ static uint XmlHash_GetKey( const char * pStr )
 //
 static sint XmlHash_GetFreeBucket( XML_HASH_PTR pHashRef )
 {
-   XML_HASH_STATE * pHash = pHashRef;
+   XML_HASH_STATE * pHash = (XML_HASH_STATE*) pHashRef;
    HASH_BUCKET * pTmp;
 
    if (pHash->bucketUsed >= pHash->bucketCount)
@@ -149,7 +149,7 @@ static sint XmlHash_GetFreeBucket( XML_HASH_PTR pHashRef )
       assert(pHash->bucketUsed == pHash->bucketCount);
 
       // all buckets are used -> allocate larger list
-      pTmp = xmalloc(pHash->bucketCount * 2 * sizeof(HASH_BUCKET));
+      pTmp = (HASH_BUCKET*) xmalloc(pHash->bucketCount * 2 * sizeof(HASH_BUCKET));
       memcpy(pTmp, pHash->pBuckets, pHash->bucketCount * sizeof(HASH_BUCKET));
 
       xfree(pHash->pBuckets);
@@ -169,7 +169,7 @@ static sint XmlHash_GetFreeBucket( XML_HASH_PTR pHashRef )
 //
 const char * XmlHash_Enum( XML_HASH_PTR pHashRef, XML_HASH_ENUM_CB pCb, void * pData )
 {
-   XML_HASH_STATE * pHash = pHashRef;
+   XML_HASH_STATE * pHash = (XML_HASH_STATE*) pHashRef;
    uint  mapIdx;
    sint  walkIdx;
    const char * pStr = NULL;
@@ -205,7 +205,7 @@ stop_enum:
 //
 XML_HASH_PAYLOAD XmlHash_SearchEntry( XML_HASH_PTR pHashRef, const char * pStr )
 {
-   XML_HASH_STATE * pHash = pHashRef;
+   XML_HASH_STATE * pHash = (XML_HASH_STATE*) pHashRef;
    sint  walkIdx;
    uint  key;
 
@@ -232,7 +232,7 @@ XML_HASH_PAYLOAD XmlHash_SearchEntry( XML_HASH_PTR pHashRef, const char * pStr )
 //
 XML_HASH_PAYLOAD XmlHash_CreateEntry( XML_HASH_PTR pHashRef, const char * pStr, bool * pIsNew )
 {
-   XML_HASH_STATE * pHash = pHashRef;
+   XML_HASH_STATE * pHash = (XML_HASH_STATE*) pHashRef;
    sint  walkIdx;
    sint  prevIdx;
    uint  key;
@@ -287,7 +287,7 @@ XML_HASH_PAYLOAD XmlHash_CreateEntry( XML_HASH_PTR pHashRef, const char * pStr, 
 //
 void XmlHash_Destroy( XML_HASH_PTR pHashRef, XML_HASH_FREE_CB pCb )
 {
-   XML_HASH_STATE * pHash = pHashRef;
+   XML_HASH_STATE * pHash = (XML_HASH_STATE*) pHashRef;
    HASH_BUCKET * pWalk;
    uint  idx;
 
@@ -324,11 +324,11 @@ XML_HASH_PTR XmlHash_Init( void )
 {
    XML_HASH_STATE * pHash;
 
-   pHash = xmalloc(sizeof(*pHash));
+   pHash = (XML_HASH_STATE*) xmalloc(sizeof(*pHash));
    memset(pHash, 0, sizeof(*pHash));
 
    pHash->bucketCount = 128;
-   pHash->pBuckets = xmalloc(pHash->bucketCount * sizeof(HASH_BUCKET));
+   pHash->pBuckets = (HASH_BUCKET*) xmalloc(pHash->bucketCount * sizeof(HASH_BUCKET));
 
    memset(pHash->map, HASH_MAP_FREE, sizeof(pHash->map));
 

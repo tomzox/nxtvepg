@@ -167,7 +167,7 @@ static void EpgAcqClient_FreeStats( void )
    pWalk = clientState.pStatsMsg;
    while (pWalk != NULL)
    {
-      pNext = pWalk->stats_ind.p.pNext;
+      pNext = (EPGDBSRV_MSG_BODY*) pWalk->stats_ind.p.pNext;
       xfree(pWalk);
       pWalk = pNext;
    }
@@ -432,7 +432,7 @@ static bool EpgAcqClient_TakeMessage( EPGACQ_EVHAND * pAcqEv, EPGDBSRV_MSG_BODY 
             while (pWalk != NULL)
             {
                pPrev = pWalk;
-               pWalk = pWalk->stats_ind.p.pNext;
+               pWalk = (EPGDBSRV_MSG_BODY*) pWalk->stats_ind.p.pNext;
             }
             if (pPrev != NULL)
                pPrev->stats_ind.p.pNext = pMsg;
@@ -781,7 +781,7 @@ static char * EpgAcqClient_SimpleQuery( const char * pQueryStr, char ** ppErrorM
             {
                // make a null-terminated copy of the response text
                int msgBodyLen = clientState.io.readLen - sizeof(EPGNETIO_MSG_HEADER);
-               pMsgBuf = xmalloc(clientState.io.readLen + 1);
+               pMsgBuf = (char*) xmalloc(clientState.io.readLen + 1);
                memcpy(pMsgBuf, clientState.io.pReadBuf, msgBodyLen);
                pMsgBuf[msgBodyLen] = 0;
             }
@@ -1165,7 +1165,7 @@ static bool EpgAcqClient_ProcessStats( void )
       dprintf3("ProcessStats-ProcessStats: type %d, AI follows=%d, acqstate=%d\n", pUpd->type, pUpd->aiFollows, pUpd->descr.ttxGrabState);
 
       // free the message
-      pNext = clientState.pStatsMsg->stats_ind.p.pNext;
+      pNext = (EPGDBSRV_MSG_BODY*) clientState.pStatsMsg->stats_ind.p.pNext;
       xfree((void *) clientState.pStatsMsg);
       clientState.pStatsMsg = pNext;
    }
@@ -1299,12 +1299,12 @@ bool EpgAcqClient_SetAddress( const char * pHostName, const char * pPort )
       // make a copy of the new config strings
       if (pHostName != NULL)
       {
-         clientState.pSrvHost = xmalloc(strlen(pHostName) + 1);
+         clientState.pSrvHost = (char*) xmalloc(strlen(pHostName) + 1);
          strcpy(clientState.pSrvHost, pHostName);
       }
       if (pPort != NULL)
       {
-         clientState.pSrvPort = xmalloc(strlen(pPort) + 1);
+         clientState.pSrvPort = (char*) xmalloc(strlen(pPort) + 1);
          strcpy(clientState.pSrvPort, pPort);
       }
 

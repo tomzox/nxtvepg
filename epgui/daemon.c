@@ -262,12 +262,12 @@ void Daemon_StartDump( void )
       {
          case EPG_DUMP_XMLTV:
             if (mainOpts.optDumpSubMode != DUMP_XMLTV_ANY)
-               EpgDumpXml_Standalone(pUiDbContext, fc, stdout, mainOpts.optDumpSubMode);
+               EpgDumpXml_Standalone(pUiDbContext, fc, stdout, (DUMP_XML_MODE) mainOpts.optDumpSubMode);
             else
                printf("<!-- XML DTD version must be specified -->\n");
             break;
          case EPG_DUMP_TEXT:
-            EpgDumpText_Standalone(pUiDbContext, fc, stdout, mainOpts.optDumpSubMode);
+            EpgDumpText_Standalone(pUiDbContext, fc, stdout, (DUMP_TEXT_MODE) mainOpts.optDumpSubMode);
             break;
          default:
             break;

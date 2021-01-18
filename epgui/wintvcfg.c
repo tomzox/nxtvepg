@@ -113,16 +113,13 @@ typedef struct
    const char  * pChanTabFile;
 } TVAPP_LIST;
 
-// forward declaration;
-static const TVAPP_LIST tvAppList[TVAPP_COUNT];
-
 // ----------------------------------------------------------------------------
 // Check if a TV app is configured
 //
-uint WintvCfg_GetAppIdx( void )
+TVAPP_NAME WintvCfg_GetAppIdx( void )
 {
    int appIdx;
-   uint result;
+   TVAPP_NAME result;
 
 #ifdef WIN32
    appIdx = RcFile_Query()->tvapp.tvapp_win;
@@ -132,7 +129,7 @@ uint WintvCfg_GetAppIdx( void )
 
    if (appIdx < TVAPP_COUNT)
    {
-      result = appIdx;
+      result = (TVAPP_NAME) appIdx;
    }
    else
    {
@@ -169,7 +166,7 @@ static char * WintvCfg_GetKtv2ChanTabPath( const char * pBase, const char * pFil
    {
       if ((pBase != NULL) && (*pBase != 0))
       {
-         pPath = xmalloc(strlen(pBase) + strlen(pFileName) + 2);
+         pPath = (char*) xmalloc(strlen(pBase) + strlen(pFileName) + 2);
          strcpy(pPath, pBase);
          strcat(pPath, "/");
          strcat(pPath, pFileName);
@@ -202,7 +199,7 @@ static char * WintvCfg_GetKtv2ChanTabPath( const char * pBase, const char * pFil
 
       if (found)
       {
-         pPath = xmalloc(strlen(pBase) + strlen(sbuf) - 26 + 2);
+         pPath = (char*) xmalloc(strlen(pBase) + strlen(sbuf) - 26 + 2);
          strcpy(pPath, pBase);
          strcat(pPath, "/");
          strcat(pPath, sbuf + 26);
@@ -214,48 +211,6 @@ static char * WintvCfg_GetKtv2ChanTabPath( const char * pBase, const char * pFil
    return pPath;
 }
 #endif
-
-// ----------------------------------------------------------------------------
-// Assemble path to the TV app configuration file
-// - the returned string must be freed by the caller!
-//
-char * WintvCfg_GetRcPath( const char * pBase, uint appIdx )
-{
-   char * pPath = NULL;
-   const char * pFileName;
-
-   if ((appIdx != TVAPP_NONE) && (appIdx < TVAPP_COUNT))
-   {
-      // on UNIX config files are usually located in the home directory
-      if ((pBase == NULL) || (*pBase == 0))
-         pBase = getenv("HOME");
-
-      if ((pBase != NULL) && (*pBase != 0))
-      {
-#ifdef WIN32
-         // special case K!TV: the station list file name is read from the main INI file
-         if (appIdx == TVAPP_KTV)
-         {
-            pPath = WintvCfg_GetKtv2ChanTabPath(pBase, KTV2_INI_FILENAME);
-         }
-         // fall back to K!TV v1 if no channel tab found for path2
-         if (pPath == NULL)
-#endif
-         {
-            pFileName = tvAppList[appIdx].pChanTabFile;
-
-            pPath = xmalloc(strlen(pBase) + strlen(pFileName) + 2);
-            strcpy(pPath, pBase);
-            strcat(pPath, "/");
-            strcat(pPath, pFileName);
-         }
-      }
-      else
-         debug0("WintvCfg-GetPath: no path defined for TV app");
-   }
-
-   return pPath;
-}
 
 // ----------------------------------------------------------------------------
 // Initialize a channel table buffer
@@ -291,7 +246,7 @@ static void WintvCfg_ChanTabItemOpen( TV_CHNTAB_BUF * pChanTab )
    {
       pOldData = pChanTab->pData;
       pChanTab->maxItemCount += CHAN_CLUSTER_SIZE;
-      pChanTab->pData = xmalloc(pChanTab->maxItemCount * sizeof(TV_CHNTAB_ITEM));
+      pChanTab->pData = (TV_CHNTAB_ITEM*) xmalloc(pChanTab->maxItemCount * sizeof(TV_CHNTAB_ITEM));
 
       if (pOldData != NULL)
       {
@@ -386,7 +341,7 @@ static void WintvCfg_ChanTabAddName( TV_CHNTAB_BUF * pChanTab, const char * pNam
       // grow string buffer if necessary
       if (pChanTab->strBufOff + len + 1 >= pChanTab->strBufSize)
       {
-         newbuf = xmalloc(pChanTab->strBufSize + len + 2048);
+         newbuf = (char*) xmalloc(pChanTab->strBufSize + len + 2048);
          if (pChanTab->pStrBuf != NULL)
          {
             memcpy(newbuf, pChanTab->pStrBuf, pChanTab->strBufSize);
@@ -450,8 +405,8 @@ static void WintvCfg_ChanTabItemClose( TV_CHNTAB_BUF * pChanTab )
 //
 static int WintvCfg_ChanTabSortCompare( const void * va, const void * vb )
 {
-   const TV_CHNTAB_ITEM * pItem1 = va;
-   const TV_CHNTAB_ITEM * pItem2 = vb;
+   const TV_CHNTAB_ITEM * pItem1 = (const TV_CHNTAB_ITEM *) va;
+   const TV_CHNTAB_ITEM * pItem2 = (const TV_CHNTAB_ITEM *) vb;
    int result;
 
    if (pItem1->sortIdx < pItem2->sortIdx)
@@ -477,7 +432,7 @@ static void WintvCfg_ChanTabSort( TV_CHNTAB_BUF * pChanTab )
              &WintvCfg_ChanTabSortCompare);
 
       // get name table in same order as frequency table
-      pNewStrBuf = xmalloc(pChanTab->strBufSize);
+      pNewStrBuf = (char*) xmalloc(pChanTab->strBufSize);
       pDstStr = pNewStrBuf;
       for (idx = 0; idx < pChanTab->itemCount; idx++)
       {
@@ -1286,7 +1241,7 @@ static int WintvCfg_MplayerPolarization( const char * pName, char ** pError )
 }
 #endif
 
-static int WintvCfg_MplayerInversion( const char * pName, char ** pError )
+static int WintvCfg_MplayerInversion( const char * pName, const char ** pError )
 {
    if (strcmp(pName, "INVERSION_AUTO") == 0)
        return INVERSION_AUTO;
@@ -1298,7 +1253,7 @@ static int WintvCfg_MplayerInversion( const char * pName, char ** pError )
    return 0;
 }
 
-static int WintvCfg_MplayerCoderate( const char * pName, char ** pError )
+static int WintvCfg_MplayerCoderate( const char * pName, const char ** pError )
 {
    if (strcmp(pName, "FEC_AUTO") == 0)
       return FEC_AUTO;
@@ -1330,7 +1285,7 @@ static int WintvCfg_MplayerCoderate( const char * pName, char ** pError )
    return 0;
 }
 
-static int WintvCfg_MplayerModulation( const char * pName, char ** pError )
+static int WintvCfg_MplayerModulation( const char * pName, const char ** pError )
 {
    if (strcmp(pName, "QAM_AUTO") == 0)
        return QAM_AUTO;
@@ -1364,7 +1319,7 @@ static int WintvCfg_MplayerModulation( const char * pName, char ** pError )
    return 0;
 }
 
-static int WintvCfg_MplayerBandwidth( const char * pName, char ** pError )
+static int WintvCfg_MplayerBandwidth( const char * pName, const char ** pError )
 {
    if (strcmp(pName, "BANDWIDTH_AUTO") == 0)
       return BANDWIDTH_AUTO;
@@ -1384,7 +1339,7 @@ static int WintvCfg_MplayerBandwidth( const char * pName, char ** pError )
    return 0;
 }
 
-static int WintvCfg_MplayerTransmissionMode( const char * pName, char ** pError )
+static int WintvCfg_MplayerTransmissionMode( const char * pName, const char ** pError )
 {
    if (strcmp(pName, "TRANSMISSION_MODE_AUTO") == 0)
       return TRANSMISSION_MODE_AUTO;
@@ -1408,7 +1363,7 @@ static int WintvCfg_MplayerTransmissionMode( const char * pName, char ** pError 
    return 0;
 }
 
-static int WintvCfg_MplayerGuardInterval( const char * pName, char ** pError )
+static int WintvCfg_MplayerGuardInterval( const char * pName, const char ** pError )
 {
    if (strcmp(pName, "GUARD_INTERVAL_AUTO") == 0)
       return GUARD_INTERVAL_AUTO;
@@ -1436,7 +1391,7 @@ static int WintvCfg_MplayerGuardInterval( const char * pName, char ** pError )
    return 0;
 }
 
-static int WintvCfg_MplayerHierarchy( const char * pName, char ** pError )
+static int WintvCfg_MplayerHierarchy( const char * pName, const char ** pError )
 {
    if (strcmp(pName, "HIERARCHY_AUTO") == 0)
       return HIERARCHY_AUTO;
@@ -1452,7 +1407,7 @@ static int WintvCfg_MplayerHierarchy( const char * pName, char ** pError )
    return 0;
 }
 
-static int WintvCfg_Atoi( const char * pName, char ** pError )
+static int WintvCfg_Atoi( const char * pName, const char ** pError )
 {
    char * pEnd;
    long longVal = strtol(pName, &pEnd, 0);
@@ -1463,7 +1418,7 @@ static int WintvCfg_Atoi( const char * pName, char ** pError )
    return 0;
 }
 
-static long WintvCfg_Atol( const char * pName, char ** pError )
+static long WintvCfg_Atol( const char * pName, const char ** pError )
 {
    char * pEnd;
    long longVal = strtol(pName, &pEnd, 0);
@@ -1502,7 +1457,7 @@ static bool WintvCfg_GetMplayerChanTab( TV_CHNTAB_BUF * pChanTab, const char * p
       {
          while (feof(fp) == FALSE)
          {
-            char * error = NULL;
+            const char * error = NULL;
             memset(&par, 0, sizeof(par));
             sbuf[0] = '\0';
 
@@ -1742,11 +1697,11 @@ static void WintvCfg_ParseZappingConf( FILE * fp, TV_CHNTAB_BUF * pChanTab )
    uint subTreeLevel;
    sint len;
    long freq;
-   long norm;
+   EPGACQ_TUNER_NORM norm;
 
    subTreeLevel = 0;
    freq = 0;
-   norm = 0;
+   norm = EPGACQ_TUNER_NORM_PAL;
 
    // read all lines of the file (ignoring section structure)
    while (fgets(line, sizeof(line)-1, fp) != NULL)
@@ -1782,7 +1737,7 @@ static void WintvCfg_ParseZappingConf( FILE * fp, TV_CHNTAB_BUF * pChanTab )
                 (sscanf(line," < subtree label = \"%63[^\"]\" %*[^>]>%n", tag, &len) == 1) &&
                 (strcasecmp(tag, "standard") == 0) )
       {
-         norm = strtol(line + len, &endp, 10);
+         norm = (EPGACQ_TUNER_NORM) strtol(line + len, &endp, 10);
       }
       else if ( (subTreeLevel == 2) &&
                 (sscanf(line," < subtree label = \"%63[^\"]\" %*[^>]>%n", tag, &len) == 1) &&
@@ -1805,7 +1760,7 @@ static void WintvCfg_ParseZappingConf( FILE * fp, TV_CHNTAB_BUF * pChanTab )
 
          if ( (subTreeLevel == 1) && (freq != 0) )
          {
-            dprintf2("Zapping channel: freq=%ld norm=%ld\n", freq, norm);
+            dprintf2("Zapping channel: freq=%ld norm=%d\n", freq, norm);
             WintvCfg_ChanTabAddFreq(pChanTab, freq * 16/1000, norm);
             WintvCfg_ChanTabItemClose(pChanTab);
          }
@@ -1899,7 +1854,7 @@ static void WintvCfg_ParseTvtimeStations( FILE * fp, TV_CHNTAB_BUF * pChanTab, c
    char * pAtt;
    uint subTreeLevel;
    sint len;
-   uint defaultNorm;
+   EPGACQ_TUNER_NORM defaultNorm;
    bool isActiveList;
 
    subTreeLevel = 0;
@@ -1953,7 +1908,7 @@ static void WintvCfg_ParseTvtimeStations( FILE * fp, TV_CHNTAB_BUF * pChanTab, c
          char band[64];
          char chan[64];
          int freq = 0;
-         int norm = defaultNorm;
+         EPGACQ_TUNER_NORM norm = defaultNorm;
          int isActive = TRUE;
          int position = 0;
          int fine = 0;
@@ -2067,7 +2022,7 @@ static char * WintvCfg_ParseTvtimeConfig( FILE * fp )
 static bool WintvCfg_GetTvtimeChanTab( TV_CHNTAB_BUF * pChanTab, const char * pChanTabPath, char ** ppErrMsg )
 {
    FILE * fp;
-   char * pBase;
+   const char * pBase;
    char * pMainRc;
    char * pFreqTab;
    bool result = FALSE;
@@ -2075,7 +2030,7 @@ static bool WintvCfg_GetTvtimeChanTab( TV_CHNTAB_BUF * pChanTab, const char * pC
    if (pChanTabPath != NULL)
    {
       // derive path to main config file from path to station list: replace file name (keep dir)
-      pMainRc = xmalloc(strlen(pChanTabPath) + strlen(TVTIME_INI_FILENAME));
+      pMainRc = (char*) xmalloc(strlen(pChanTabPath) + strlen(TVTIME_INI_FILENAME));
       pBase = strrchr(pChanTabPath, '/');
       if (pBase != NULL)
       {
@@ -2156,6 +2111,48 @@ static const TVAPP_LIST tvAppList[TVAPP_COUNT] =
 };
 
 // ----------------------------------------------------------------------------
+// Assemble path to the TV app configuration file
+// - the returned string must be freed by the caller!
+//
+char * WintvCfg_GetRcPath( const char * pBase, uint appIdx )
+{
+   char * pPath = NULL;
+   const char * pFileName;
+
+   if ((appIdx != TVAPP_NONE) && (appIdx < TVAPP_COUNT))
+   {
+      // on UNIX config files are usually located in the home directory
+      if ((pBase == NULL) || (*pBase == 0))
+         pBase = getenv("HOME");
+
+      if ((pBase != NULL) && (*pBase != 0))
+      {
+#ifdef WIN32
+         // special case K!TV: the station list file name is read from the main INI file
+         if (appIdx == TVAPP_KTV)
+         {
+            pPath = WintvCfg_GetKtv2ChanTabPath(pBase, KTV2_INI_FILENAME);
+         }
+         // fall back to K!TV v1 if no channel tab found for path2
+         if (pPath == NULL)
+#endif
+         {
+            pFileName = tvAppList[appIdx].pChanTabFile;
+
+            pPath = (char*) xmalloc(strlen(pBase) + strlen(pFileName) + 2);
+            strcpy(pPath, pBase);
+            strcat(pPath, "/");
+            strcat(pPath, pFileName);
+         }
+      }
+      else
+         debug0("WintvCfg-GetPath: no path defined for TV app");
+   }
+
+   return pPath;
+}
+
+// ----------------------------------------------------------------------------
 // Query TV application parameters
 // - to enumerate supported apps: call with increasing index param until result is FALSE
 //
@@ -2220,7 +2217,7 @@ bool WintvCfg_GetChanTab( uint appIdx, const char * pChanTabPath, char ** ppErrM
 
          if (ppFreqTab != NULL)
          {
-            *ppFreqTab = xmalloc(chanTab.itemCount * sizeof(EPGACQ_TUNER_PAR));
+            *ppFreqTab = (EPGACQ_TUNER_PAR*) xmalloc(chanTab.itemCount * sizeof(EPGACQ_TUNER_PAR));
 
             // copy the frequencies into a scalar array
             for (chanIdx = 0; chanIdx < chanTab.itemCount; chanIdx++)
@@ -2283,7 +2280,7 @@ bool WintvCfg_GetFreqTab( char ** ppNameTab, EPGACQ_TUNER_PAR ** ppFreqTab, uint
 {
    const char * pTvAppPath;
    const char * pChanTabPath;
-   int     appIdx;
+   TVAPP_NAME appIdx;
    bool    result = FALSE;
 
    appIdx = WintvCfg_GetAppIdx();

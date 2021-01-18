@@ -64,7 +64,7 @@ FILTER_CONTEXT * EpgDbFilterCreateContext( void )
 {
    FILTER_CONTEXT * fc;
 
-   fc = (FILTER_CONTEXT *) xmalloc(sizeof(*fc));
+   fc = (FILTER_CONTEXT *) (FILTER_CONTEXT*) xmalloc(sizeof(*fc));
    memset(fc, 0, sizeof(*fc));
    fc->pFocus = &fc->act;
    fc->act.forkCombMode = FILTER_FORK_AND;
@@ -75,13 +75,13 @@ FILTER_CONTEXT * EpgDbFilterCreateContext( void )
 // ---------------------------------------------------------------------------
 // Copy a filter parameter chain: make a linked copy of all linked elements
 //
-static void * EpgDbFilterCopySubContexts( void * pCtx )
+static EPGDB_FILT_SUBSTR * EpgDbFilterCopySubContexts( EPGDB_FILT_SUBSTR * pCtx )
 {
    EPGDB_FILT_SUBCTX_GENERIC   * pFirst;
    EPGDB_FILT_SUBCTX_GENERIC   * pSrcWalk;
    EPGDB_FILT_SUBCTX_GENERIC  ** ppDestWalk;
 
-   pSrcWalk   = pCtx;
+   pSrcWalk   = (EPGDB_FILT_SUBCTX_GENERIC*) pCtx;  //FIXME CC
    pFirst     = NULL;
    ppDestWalk = NULL;
 
@@ -91,19 +91,19 @@ static void * EpgDbFilterCopySubContexts( void * pCtx )
 
       if (ppDestWalk == NULL)
       {  // first copied element
-         pFirst = xmalloc(pSrcWalk->elem_size);
+         pFirst = (EPGDB_FILT_SUBCTX_GENERIC*) xmalloc(pSrcWalk->elem_size);
          memcpy(pFirst, pSrcWalk, pSrcWalk->elem_size);
          ppDestWalk = &(pFirst->pNext);
       }
       else
       {
-         *ppDestWalk = xmalloc(pSrcWalk->elem_size);
+         *ppDestWalk = (EPGDB_FILT_SUBCTX_GENERIC*) xmalloc(pSrcWalk->elem_size);
          memcpy(*ppDestWalk, pSrcWalk, pSrcWalk->elem_size);
          ppDestWalk = &(*ppDestWalk)->pNext;
       }
       pSrcWalk = pSrcWalk->pNext;
    }
-   return pFirst;
+   return (EPGDB_FILT_SUBSTR*) pFirst;  //FIXME CC
 }
 
 // ---------------------------------------------------------------------------
@@ -144,12 +144,12 @@ FILTER_CONTEXT * EpgDbFilterCopyContext( const FILTER_CONTEXT * fc )
 // ---------------------------------------------------------------------------
 // Destroy all elements in a filter parameter chain
 //
-static void EpgDbFilterDestroyParamChain( void * pCtx )
+static void EpgDbFilterDestroyParamChain( EPGDB_FILT_SUBSTR * pCtx )
 {
    EPGDB_FILT_SUBCTX_GENERIC * pWalk;
    EPGDB_FILT_SUBCTX_GENERIC * pNext;
 
-   pWalk = pCtx;
+   pWalk = (EPGDB_FILT_SUBCTX_GENERIC*) pCtx;  //FIXME CC
    while (pWalk != NULL)
    {
       pNext = pWalk->pNext;
@@ -228,7 +228,7 @@ void EpgDbFilterFork( FILTER_CONTEXT * fc, uint combMode, sint tag )
       }
    }
 
-   pNew = xmalloc(sizeof(FILTER_CTX_ACT));
+   pNew = (FILTER_CTX_ACT*) xmalloc(sizeof(FILTER_CTX_ACT));
    memset(pNew, 0, sizeof(*pNew));
    pNew->elem_size    = sizeof(FILTER_CTX_ACT);
    pNew->forkCombMode = combMode;
@@ -826,8 +826,8 @@ void EpgDbFilterSetCustom( FILTER_CONTEXT *fc, CUSTOM_FILTER_MATCH * pMatchCb,
 // ---------------------------------------------------------------------------
 // Set string for sub-string search in title and description text
 //
-                                     //"ÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏÐÑÒÓÔÕÖ×ØÙÚÛÜÝÞß"
-const uchar latin1LowerCaseTable[32] = "àáâãäåæçèéêëìíîïðñòóôõö×øùúûüýþß";
+                                       //"ÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏÐÑÒÓÔÕÖ×ØÙÚÛÜÝÞß"
+const uchar latin1LowerCaseTable[32+1] = "àáâãäåæçèéêëìíîïðñòóôõö×øùúûüýþß";
 
 void EpgDbFilterSetSubStr( FILTER_CONTEXT *fc, const char *pStr,
                            bool scopeTitle, bool scopeDesc, bool matchCase, bool matchFull )
@@ -842,7 +842,7 @@ void EpgDbFilterSetSubStr( FILTER_CONTEXT *fc, const char *pStr,
    if (pStr != NULL)
    {
       size = sizeof(EPGDB_FILT_SUBSTR) + strlen(pStr) + 1 - 1;
-      pSubStrCtx = xmalloc(size);
+      pSubStrCtx = (EPGDB_FILT_SUBSTR*) xmalloc(size);
 
       pSubStrCtx->elem_size    = size;
       pSubStrCtx->scopeTitle   = scopeTitle;
@@ -1132,7 +1132,7 @@ void EpgDbFilterFinishNi( FILTER_CONTEXT *fc, NI_FILTER_STATE *pNiState )
 static bool EpgDbFilterMatchAct( const EPGDB_CONTEXT *dbc, const FILTER_CONTEXT *fc,
                                  const FILTER_CTX_ACT *fc_act, const PI_BLOCK * pPi )
 {
-   uchar class;
+   uchar fclass;
    uint  index;
    bool  fail_buf;
    bool  fail, invert;
@@ -1306,21 +1306,21 @@ static bool EpgDbFilterMatchAct( const EPGDB_CONTEXT *dbc, const FILTER_CONTEXT 
 
    if ((fc_act->enabledFilters & FILTER_THEMES) && (skipThemes == FALSE))
    {
-      for (class=1; class != 0; class <<= 1)
+      for (fclass=1; fclass != 0; fclass <<= 1)
       {  // AND across all classes
-         if (fc_act->usedThemeClasses & class)
+         if (fc_act->usedThemeClasses & fclass)
          {
             fail = TRUE;
             for (index=0; index < pPi->no_themes; index++)
             {  // OR across all themes in a class
-               if (fc_act->themeFilterField[pPi->themes[index]] & class)
+               if (fc_act->themeFilterField[pPi->themes[index]] & fclass)
                {
                   fail = FALSE;
                   break;
                }
             }
 
-            invert = ((fc_act->invertedThemeClasses & class) != FALSE);
+            invert = ((fc_act->invertedThemeClasses & fclass) != FALSE);
             if (fail ^ invert)
                goto failed;
          }
@@ -1332,7 +1332,7 @@ static bool EpgDbFilterMatchAct( const EPGDB_CONTEXT *dbc, const FILTER_CONTEXT 
         (fc_act->pLangDescrTable != NULL) )
    {
       const DESCRIPTOR *pDesc = PI_GET_DESCRIPTORS(pPi);
-      for (class=0; class < pPi->no_descriptors; pPi++)
+      for (fclass=0; fclass < pPi->no_descriptors; pPi++)
       {
          if ( (pDesc->type == LI_DESCR_TYPE) &&
               ((*fc_act->pLangDescrTable)[pPi->netwop_no][pDesc->id / 8] & (1 << (pDesc->id % 8))) )
@@ -1342,7 +1342,7 @@ static bool EpgDbFilterMatchAct( const EPGDB_CONTEXT *dbc, const FILTER_CONTEXT 
          pDesc += 1;
       }
       // failed if none of the searched for IDs is contained in this PI
-      fail   = (class >= pPi->no_descriptors);
+      fail   = (fclass >= pPi->no_descriptors);
 
       invert = ((fc_act->invertedFilters & FILTER_LANGUAGES) != FALSE);
       if (fail ^ invert)
@@ -1352,7 +1352,7 @@ static bool EpgDbFilterMatchAct( const EPGDB_CONTEXT *dbc, const FILTER_CONTEXT 
    if (fc_act->enabledFilters & FILTER_SUBTITLES)
    {
       const DESCRIPTOR *pDesc = PI_GET_DESCRIPTORS(pPi);
-      for (class=0; class < pPi->no_descriptors; pPi++)
+      for (fclass=0; fclass < pPi->no_descriptors; pPi++)
       {
          if ( (pDesc->type == TI_DESCR_TYPE) &&
               ((*fc_act->pSubtDescrTable)[pPi->netwop_no][pDesc->id / 8] & (1 << (pDesc->id % 8))) )
@@ -1361,7 +1361,7 @@ static bool EpgDbFilterMatchAct( const EPGDB_CONTEXT *dbc, const FILTER_CONTEXT 
          }
       }
       // failed if none of the searched for IDs is contained in this PI
-      fail   = (class >= pPi->no_descriptors);
+      fail   = (fclass >= pPi->no_descriptors);
 
       invert = ((fc_act->invertedFilters & FILTER_SUBTITLES) != FALSE);
       if (fail ^ invert)

@@ -45,7 +45,9 @@ typedef DWORD          uint32_t;
 #endif
 
 // required basic types
+#ifndef __cplusplus
 typedef unsigned char  bool;     // >=1 bit unsigned
+#endif
 typedef   signed char  schar;    // 8 bit signed
 typedef unsigned char  uchar;    // 8 bit unsigned
 typedef   signed int   sint;     // >=32 bit signed

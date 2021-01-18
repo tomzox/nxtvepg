@@ -152,7 +152,7 @@ static int vbiCardIndex;
 static int bufLineSize;
 static int bufLines;
 static uint vbiInCount;
-static uint vbiDrvType;
+static BTDRV_SOURCE_TYPE vbiDrvType;
 static bool dvbScanActive;
 static char *pSysErrorText = NULL;
 
@@ -212,19 +212,19 @@ static char * BtDriver_GetDevicePath( BTDRV_DEV_TYPE devType, uint cardIdx, BTDR
    }
    else if (drvType == BTDRV_SOURCE_ANALOG)
    {
-      static char * pLastDevPath = NULL;
-      char * pDevPath;
-      uint try;
+      static const char * pLastDevPath = NULL;
+      const char * pDevPath;
+      uint tryIdx;
 
       switch (devType)
       {
          case DEV_TYPE_VIDEO:
          case DEV_TYPE_VBI:
-            for (try = 0; try < 3; try++)
+            for (tryIdx = 0; tryIdx < 3; tryIdx++)
             {
                if (pLastDevPath != NULL)
                   pDevPath = pLastDevPath;
-               else if (try <= 1)
+               else if (tryIdx <= 1)
                   pDevPath = "/dev";
                else
                   pDevPath = "/dev/v4l";
@@ -286,16 +286,16 @@ static sint BtDriver_SearchDeviceFile( BTDRV_DEV_TYPE devType, uint cardIdx, boo
 {
    DIR    *dir;
    struct dirent *entry;
-   uint   try;
+   uint   tryIdx;
    int    scanLen;
    uint   devIdx;
    sint   result = -1;
 
    if (isDvb == FALSE)
    {
-      for (try = 0; (try <= 1) && (result == -1); try++)
+      for (tryIdx = 0; (tryIdx <= 1) && (result == -1); tryIdx++)
       {
-         if (try == 0)
+         if (tryIdx == 0)
             dir = opendir("/dev");
          else
             dir = opendir("/dev/v4l");
@@ -894,7 +894,7 @@ bool BtDriver_TuneChannel( int inputIdx, const EPGACQ_TUNER_PAR * pFreqPar, bool
           (pVbiBuf->chnPrio != V4L2_PRIORITY_UNSET))
       {
          // this is a v4l2 device
-         enum v4l2_priority prio = pVbiBuf->chnPrio;
+         enum v4l2_priority prio = (enum v4l2_priority) pVbiBuf->chnPrio;
 
          if (IOCTL(video_fd, VIDIOC_S_PRIORITY, &prio) != 0)
             debug4("ioctl VIDIOC_S_PRIORITY=%d failed on %s: %d, %s", pVbiBuf->chnPrio, pDevName, errno, strerror(errno));
@@ -1336,7 +1336,7 @@ BTDRV_SOURCE_TYPE BtDriver_GetDefaultDrvType( void )
 // Query TV card name from a device with the given index
 // - returns NULL if query fails and no devices with higher indices exist
 //
-const char * BtDriver_GetCardName( int drvType, uint cardIdx, bool showDrvErr )
+const char * BtDriver_GetCardName( BTDRV_SOURCE_TYPE drvType, uint cardIdx, bool showDrvErr )
 {
 #if !defined (__NetBSD__) && !defined (__FreeBSD__)
    const char * pName = NULL;
@@ -1413,7 +1413,7 @@ const char * BtDriver_GetCardName( int drvType, uint cardIdx, bool showDrvErr )
 // Return name for given input source index
 // - has to be called repeatedly with incremented indices until NULL is returned
 //
-const char * BtDriver_GetInputName( uint cardIndex, int drvType, uint inputIdx )
+const char * BtDriver_GetInputName( uint cardIndex, BTDRV_SOURCE_TYPE drvType, uint inputIdx )
 {
 #if !defined (__NetBSD__) && !defined (__FreeBSD__)
    char * pDevName = NULL;
@@ -1477,7 +1477,7 @@ const char * BtDriver_GetInputName( uint cardIndex, int drvType, uint inputIdx )
 //   is stopped
 // - priority parameter is unused for Linux
 //
-bool BtDriver_Configure( int cardIndex, int drvType, int prio )
+bool BtDriver_Configure( int cardIndex, BTDRV_SOURCE_TYPE drvType, int prio )
 {
    bool wasEnabled;
    bool result = FALSE;
@@ -1562,7 +1562,7 @@ bool BtDriver_CheckDevice( void )
 // - this function is used to warn the user about parameter mismatch after
 //   hardware or driver configuration changes
 //
-bool BtDriver_CheckCardParams( int drvType, uint cardIdx, uint input )
+bool BtDriver_CheckCardParams( BTDRV_SOURCE_TYPE drvType, uint cardIdx, uint input )
 {
    char * pDevName;
    bool result = FALSE;
@@ -1818,7 +1818,7 @@ static void BtDriver_OpenVbiDataBuf( uint bufIdx )
    }
 
    assert(vbiIn[bufIdx].rawbuf == NULL);
-   vbiIn[bufIdx].rawbuf = xmalloc(bufLines * bufLineSize);
+   vbiIn[bufIdx].rawbuf = (uchar*) xmalloc(bufLines * bufLineSize);
 }
 
 // ---------------------------------------------------------------------------
@@ -2110,6 +2110,7 @@ int BtDriver_StartCapture(void)
 //
 static void * BtDriver_Main( void * foo )
 {
+   struct sigaction sa;
    sigset_t sigmask;
 
    pVbiBuf->vbiSlaveRunning = TRUE;
@@ -2125,7 +2126,8 @@ static void * BtDriver_Main( void * foo )
    sigaddset(&sigmask, SIGUSR1);
    pthread_sigmask(SIG_UNBLOCK, &sigmask, NULL);
 
-   struct sigaction sa = { .sa_handler = BtDriver_SignalWakeUp };
+   memset(&sa, 0, sizeof(sa));
+   sa.sa_handler = BtDriver_SignalWakeUp;
    sigaction(SIGUSR1, &sa, NULL);
 
    // open the VBI device and inform the master about the result (via the hasFailed flag)
@@ -2168,7 +2170,9 @@ static void * BtDriver_Main( void * foo )
 //
 bool BtDriver_Init( void )
 {
-   struct sigaction sa = { .sa_handler = SIG_IGN };
+   struct sigaction sa;
+   memset(&sa, 0, sizeof(sa));
+   sa.sa_handler = SIG_IGN;
    sigaction(SIGUSR1, &sa, NULL);
 
    #if defined(__NetBSD__) || defined(__FreeBSD__)
@@ -2176,7 +2180,7 @@ bool BtDriver_Init( void )
    signal(SIGALRM,  BtDriver_SignalAlarm);
    #endif
 
-   pVbiBuf = xmalloc(sizeof(*pVbiBuf));
+   pVbiBuf = (EPGACQ_BUF*) xmalloc(sizeof(*pVbiBuf));
    memset((void *) pVbiBuf, 0, sizeof(EPGACQ_BUF));
 
    pVbiBuf->vbiSlaveRunning = FALSE;

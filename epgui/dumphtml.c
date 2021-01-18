@@ -229,7 +229,7 @@ static void EpgDumpHtml_Create( const char * pFileName, bool optAppend, FILE ** 
       if (fpSrc != NULL)
       {
          // exists -> rename old file to .bak and then create new output file
-         pBakName = xmalloc(strlen(pFileName) + 10);
+         pBakName = (char*) xmalloc(strlen(pFileName) + 10);
          strcpy(pBakName, pFileName);
          strcat(pBakName, ".bak");
          #ifndef WIN32

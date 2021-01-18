@@ -218,7 +218,7 @@ static CTX_CACHE * EpgContextCtl_CreateNew( void )
 {
    CTX_CACHE * pContext;
 
-   pContext = xmalloc(sizeof(CTX_CACHE));
+   pContext = (CTX_CACHE*) xmalloc(sizeof(CTX_CACHE));
    memset(pContext, 0, sizeof(*pContext));
 
    pContext->state      = CTX_CACHE_DUMMY;
@@ -235,7 +235,7 @@ static CTX_CACHE * EpgContextCtl_AddStat( uint cni, time_t mtime, const char * p
 {
    CTX_CACHE * pContext;
 
-   pContext = xmalloc(sizeof(CTX_CACHE));
+   pContext = (CTX_CACHE*) xmalloc(sizeof(CTX_CACHE));
    memset(pContext, 0, sizeof(*pContext));
 
    dprintf4("EpgContextCtl-AddStat: adding context 0x%04X (0x%lx), mtime %ld, path '%s'\n", cni, (long)pContext, mtime, ((pPath != 0)?pPath:""));
@@ -309,7 +309,7 @@ static EPGDB_RELOAD_RESULT EpgContextCtl_Load( CTX_CACHE * pContext )
    if (pDbPath != NULL)
    {
       dprintf2("EpgContextCtl-Load: load XMLTV for context 0x%04X %s\n", pContext->provCni, pDbPath);
-      pDbContext = Xmltv_CheckAndLoad(pDbPath, pContext->provCni, FALSE, &dberr, &mtime);
+      pDbContext = Xmltv_CheckAndLoad(pDbPath, pContext->provCni, FALSE, (uint*)&dberr, &mtime);
    }
    else
    {  // path vanished from hash table - should never happen
@@ -429,7 +429,7 @@ EPGDB_CONTEXT * EpgContextCtl_Peek( uint cni, int failMsgMode )
          {
             if (EpgContextCtl_CachedErrorValid(pContext) == FALSE)
             {
-               pDbContext = Xmltv_CheckAndLoad(pDbPath, pContext->provCni, TRUE, &dberr, &mtime);
+               pDbContext = Xmltv_CheckAndLoad(pDbPath, pContext->provCni, TRUE, (uint*)&dberr, &mtime);
             }
             else
             {
@@ -878,12 +878,12 @@ static void EpgContextCtl_PushScanCni( uint cni, CTX_SCAN_LIST * pCniBuf )
    if (pCniBuf->pCniList == NULL)
    {
       pCniBuf->listAllocSize = 100;
-      pCniBuf->pCniList = xmalloc(sizeof(*pCniBuf->pCniList) * pCniBuf->listAllocSize);
+      pCniBuf->pCniList = (uint*) xmalloc(sizeof(*pCniBuf->pCniList) * pCniBuf->listAllocSize);
    }
    else if (pCniBuf->listCount >= pCniBuf->listAllocSize)
    {
       pCniBuf->listAllocSize *= 2;
-      pCniBuf->pCniList = xrealloc(pCniBuf->pCniList, sizeof(*pCniBuf->pCniList) * pCniBuf->listAllocSize);
+      pCniBuf->pCniList = (uint*) xrealloc(pCniBuf->pCniList, sizeof(*pCniBuf->pCniList) * pCniBuf->listAllocSize);
    }
    pCniBuf->pCniList[pCniBuf->listCount] = cni;
    pCniBuf->listCount += 1;
@@ -900,7 +900,7 @@ static void EpgContextCtl_DirScanCb( const char * pFilePath, sint mtime, CTX_SCA
    dprintf1("EpgContextCtl-DirScanCb: scanning %s\n", pFilePath);
 
    // TODO skip if already known and mtime unchanged?
-   EPGDB_RELOAD_RESULT errCode = Xmltv_CheckHeader(pFilePath);
+   EPGDB_RELOAD_RESULT errCode = (EPGDB_RELOAD_RESULT) Xmltv_CheckHeader(pFilePath);
    if (errCode == EPGDB_RELOAD_OK)
    {
       cni = XmltvCni_MapProvider(pFilePath);
@@ -962,7 +962,7 @@ static void EpgContextCtl_ScanDbDir( const char * pDirPath, const char * pExtens
                  ( (flen > extlen) &&
                    (strcmp(entry->d_name + flen - strlen(pExtension), pExtension) == 0) ))
             {
-               pFilePath = xmalloc(strlen(pDirPath) + 1 + flen + 1);
+               pFilePath = (char*) xmalloc(strlen(pDirPath) + 1 + flen + 1);
                sprintf(pFilePath, "%s" PATH_SEPARATOR_STR "%s", pDirPath, entry->d_name);
 
                // get file status
@@ -1005,7 +1005,7 @@ static void EpgContextCtl_ScanDbDir( const char * pDirPath, const char * pExtens
       dprintf2("EpgContextCtl-ScanDbDir: %s ext:%s\n", pDirPath, pExtension);
       memset(pCniBuf, 0, sizeof(*pCniBuf));
 
-      pDirPattern = xmalloc(strlen(pDirPath) + 2 + strlen(pExtension) + 1);
+      pDirPattern = (char*) xmalloc(strlen(pDirPath) + 2 + strlen(pExtension) + 1);
       sprintf(pDirPattern, "%s\\*%s", pDirPath, pExtension);
 
       hFind = FindFirstFile(pDirPattern, &finddata);
@@ -1013,7 +1013,7 @@ static void EpgContextCtl_ScanDbDir( const char * pDirPath, const char * pExtens
       while (bMore)
       {
          flen = strlen(finddata.cFileName);
-         pFilePath = xmalloc(strlen(pDirPath) + 1 + flen + 1);
+         pFilePath = (char*) xmalloc(strlen(pDirPath) + 1 + flen + 1);
          sprintf(pFilePath, "%s" PATH_SEPARATOR_STR "%s", pDirPath, finddata.cFileName);
 
          FileTimeToSystemTime(&finddata.ftLastWriteTime, &systime);

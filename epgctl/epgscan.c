@@ -84,7 +84,7 @@ typedef struct
    EPGSCAN_MSGCB  * MsgCallback;      // callback function to print messages
 } EPGSCANCTL_STATE;
 
-static EPGSCANCTL_STATE scanCtl = {SCAN_STATE_OFF};
+static EPGSCANCTL_STATE scanCtl;
 
 // ----------------------------------------------------------------------------
 // Tune the next channel
@@ -109,8 +109,8 @@ static bool EpgScan_NextChannel( EPGACQ_TUNER_PAR * pFreq )
 
       if (TvChannels_GetNext(&scanCtl.channel, &freq))
       {
-         pFreq->freq = EPGDB_TUNER_GET_FREQ(freq);
-         pFreq->norm = EPGDB_TUNER_GET_NORM(freq);
+         pFreq->freq = TV_CHAN_GET_FREQ(freq);
+         pFreq->norm = TV_CHAN_GET_NORM(freq);
 
          scanCtl.channelIdx += 1;
          result = TRUE;

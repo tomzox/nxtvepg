@@ -173,7 +173,7 @@ void AddMainIdleEvent( Tcl_IdleProc *IdleProc, ClientData clientData, bool uniqu
 
    if ((unique == FALSE) || (found == FALSE))
    {
-      pNew = xmalloc(sizeof(MAIN_IDLE_EVENT));
+      pNew = (MAIN_IDLE_EVENT*) xmalloc(sizeof(MAIN_IDLE_EVENT));
       pNew->IdleProc = IdleProc;
       pNew->clientData = clientData;
       pNew->pNext = NULL;
@@ -785,7 +785,7 @@ static int RemoteControl_XEvent( ClientData clientData, XEvent *eventPtr )
    XICCC_STATE * pXi;
    bool needHandler;
 
-   pXi = (void *) clientData;
+   pXi = (XICCC_STATE *) clientData;
 
    return Xiccc_XEvent(eventPtr, pXi, &needHandler);
 }
@@ -840,7 +840,7 @@ static void RemoteControlCmd( void )
             Xiccc_SearchPeer(&xiccc);
             if (xiccc.events & XICCC_NEW_PEER)
             {
-               xiccc.events &= ~XICCC_NEW_PEER;
+               xiccc.events = (XICCC_EVENTS)(xiccc.events & ~XICCC_NEW_PEER);
                Xiccc_SendQuery(&xiccc, pCmdStr, strlen(pCmdStr)+1, xiccc.atoms._NXTVEPG_REMOTE,
                                xiccc.atoms._NXTVEPG_REMOTE_RESULT);
 
@@ -851,7 +851,7 @@ static void RemoteControlCmd( void )
                   if (xiccc.events & XICCC_LOST_PEER)
                   {
                      fprintf(stderr, "Lost connection\n");
-                     xiccc.events &= ~XICCC_LOST_PEER;
+                     xiccc.events = (XICCC_EVENTS)(xiccc.events & ~XICCC_LOST_PEER);
                      break;
                   }
                   if (xiccc.events & XICCC_REMOTE_REPLY)
@@ -859,7 +859,7 @@ static void RemoteControlCmd( void )
                      char ** pArgv;
                      uint  argc;
 
-                     xiccc.events &= ~XICCC_REMOTE_REPLY;
+                     xiccc.events = (XICCC_EVENTS)(xiccc.events & ~XICCC_REMOTE_REPLY);
 
                      if (Xiccc_SplitArgv(dpy, xiccc.manager_wid, xiccc.atoms._NXTVEPG_REMOTE_RESULT, &pArgv, &argc))
                      {
@@ -1094,7 +1094,7 @@ bool EpgMain_StartDaemon( void )
    int     pipe_fd[2];
    pid_t   pid;
    ssize_t wstat;
-   char  * daemonArgv[10];
+   const char * daemonArgv[10];
    int     daemonArgc;
    char    fd_buf[24];
    bool    result = FALSE;
@@ -1107,12 +1107,12 @@ bool EpgMain_StartDaemon( void )
       if (mainOpts.rcfile != NULL)
       {
          daemonArgv[daemonArgc++] = "-rcfile";
-         daemonArgv[daemonArgc++] = (char *) mainOpts.rcfile;
+         daemonArgv[daemonArgc++] = mainOpts.rcfile;
       }
       if (mainOpts.dbdir != NULL)
       {
          daemonArgv[daemonArgc++] = "-dbdir";
-         daemonArgv[daemonArgc++] = (char *) mainOpts.dbdir;
+         daemonArgv[daemonArgc++] = mainOpts.dbdir;
       }
       daemonArgv[daemonArgc++] = "-guipipe";
       daemonArgv[daemonArgc++] = fd_buf;
@@ -1126,8 +1126,8 @@ bool EpgMain_StartDaemon( void )
             close(pipe_fd[0]);
 
             if (mainOpts.pOptArgv0 != NULL)
-               execv(mainOpts.pOptArgv0, daemonArgv);
-            execvp("nxtvepg", daemonArgv);
+               execv(mainOpts.pOptArgv0, (char**) daemonArgv);
+            execvp("nxtvepg", (char**) daemonArgv);
 
             fprintf(stderr, "Failed to execute the daemon: %s\n", strerror(errno));
             // pass error to GUI
@@ -1276,8 +1276,8 @@ bool EpgMain_StartDaemon( void )
    char  * pCmdLineStr;
    bool    result = FALSE;
 
-   pCmdLineStr = xmalloc(100 + ((mainOpts.rcfile != NULL) ? strlen(mainOpts.rcfile) : 0) +
-                               ((mainOpts.dbdir != NULL) ? strlen(mainOpts.dbdir) : 0));
+   pCmdLineStr = (char*) xmalloc(100 + ((mainOpts.rcfile != NULL) ? strlen(mainOpts.rcfile) : 0)
+                                     + ((mainOpts.dbdir != NULL) ? strlen(mainOpts.dbdir) : 0));
    sprintf(pCmdLineStr, "nxtvepg.exe -daemon -guipipe %ld", GetCurrentProcessId());
    pErrMsg = NULL;
    errCode = 0;
@@ -2262,7 +2262,7 @@ int main( int argc, char *argv[] )
       }
       else if (mainOpts.optDaemonMode == EPG_CLOCK_CTRL)
       {
-         Daemon_SystemClockCmd(mainOpts.optDumpSubMode);
+         Daemon_SystemClockCmd(mainOpts.optClockSubMode);
       }
       else
       {
