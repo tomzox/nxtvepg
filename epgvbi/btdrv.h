@@ -41,40 +41,6 @@
 #ifndef __BTDRV_H
 #define __BTDRV_H
 
-
-// ---------------------------------------------------------------------------
-// NetBSD/FreeBSD only: these structs are used by slave and master to keep record
-// of the cards and their input channels.
-//
-// In NetBSD we need to keep the bktr video device open by the slave process
-// all the time while acq is active.  Hence we can only scan the remaining
-// cards; the currently used card is scanned by the slave when acq is started
-// or when the card index is changed.
-
-#if defined(__NetBSD__) || defined(__FreeBSD__)
-
-# define MAX_CARDS    4  // max number of supported cards
-# define MAX_INPUTS   4  // max number of supported inputs
-# define MAX_BSD_CARD_NAME_LEN   20  // max. string length in struct
-
-struct Input
-{
-  char name [MAX_BSD_CARD_NAME_LEN];  // name of the input
-  int inputID;            // id within the bktr-device
-  int isTuner;            // input is a tuner
-  int isAvailable;        // the hardware has this input-type
-};
-
-struct Card
-{
-  char name[MAX_BSD_CARD_NAME_LEN];
-  struct Input inputs[MAX_INPUTS]; // the inputs, bktr currently knows only 4
-  int isAvailable;        // the card is installed
-  int isBusy;             // the device is already open
-  int inUse;              // device is used by the vbi slave
-};
-#endif  //__NetBSD__ || __FreeBSD__
-
 // ---------------------------------------------------------------------------
 
 #define MAX_VBI_DVB_STREAMS  10
@@ -235,9 +201,9 @@ typedef struct
 
 // ---------------------------------------------------------------------------
 // Structure which is put into shared memory
-// - used to pass parameters and commands from the master to the acq slave.
+// - used to pass a few parameters from the master to the acq slave.
 //   Those elements are marked with "In:" in the comments below
-// - used to pass results from the acq slave to the master, e.g. EPG teletext
+// - used to pass results from the acq slave to the master, e.g. teletext
 //   packets, CNIs and PILs and various statistics.
 //   Those elements are marked with "Out:" in the comments below
 //
@@ -265,25 +231,6 @@ typedef struct
       TTX_TIME_BUF   ttxTime;      // Out: teletext time
    } buf[MAX_VBI_DVB_STREAMS];
 
-   VBI_SLICER_TYPE  slicerType;
-
-   #ifndef WIN32
-   bool      vbiSlaveRunning;   // --:  TRUE while slave thread is running
-   int       failureErrno;
-
-   uint      drvCfgReqNo;          // incremented for each change of following params
-   uint      drvCfgCnfNo;
-   BTDRV_SOURCE_TYPE drvType;
-   uint      cardIndex;
-   int       dvbSid[MAX_VBI_DVB_STREAMS];
-   int       dvbPid[MAX_VBI_DVB_STREAMS];
-   int       dvbPidCnt;
-   int       chnPrio;
-   # if defined(__NetBSD__) || defined(__FreeBSD__)
-   uchar     inputIndex;
-   struct Card tv_cards[MAX_CARDS];
-   # endif
-   #endif
 } EPGACQ_BUF;
 
 extern volatile EPGACQ_BUF *pVbiBuf;
@@ -344,9 +291,7 @@ bool BtDriver_QueryChannel( EPGACQ_TUNER_PAR * pFreqPar, uint * pInput, bool * p
 bool BtDriver_TuneChannel( int inputIdx, const EPGACQ_TUNER_PAR * pFreqPar, bool keepOpen, bool * pIsTuner );
 void BtDriver_TuneDvbPid( const int * pidList, const int * sidList, uint pidCount );
 
-#ifndef WIN32
-int BtDriver_GetDeviceOwnerPid( void );
-#else
+#ifdef WIN32
 bool BtDriver_Restart( void );
 bool BtDriver_GetState( bool * pEnabled, bool * pHasDriver, uint * pCardIdx );
 #endif

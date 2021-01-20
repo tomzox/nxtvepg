@@ -30,7 +30,6 @@ Post-Nextview EPG:
 - EPG scan: concurrency
 - xmltv-etsi.map: use .config/nxtvepg instead of "." in xmltv_cni.c
 - caching of WintvCfg_GetFreqTab() results
-- clean-up pVbiBuf: split & move to module-internal storage
 - XMLTV service name: when merging teletext-only use "Merged teletext (%d networks)"
 - DVB TTX stream decoding issues: "Illegal line order", "Unknown data_unit_id"
 - DVB: update channel list in epgacqttx with TTX PIDs returned by PAT/PMT scan

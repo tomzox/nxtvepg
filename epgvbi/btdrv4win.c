@@ -87,6 +87,7 @@ static struct
 
 static BOOL wdmDrvLoaded;
 static BOOL shmSlaveMode = FALSE;
+static VBI_SLICER_TYPE vbiSlicerType;
 
 // ----------------------------------------------------------------------------
 
@@ -270,7 +271,7 @@ static BOOL __stdcall BtDriver_WdmVbiCallback( BYTE * pFieldBuffer, int FrameTyp
 
    if (pVbiBuf != NULL)
    {
-      if (pVbiBuf->slicerType != VBI_SLICER_ZVBI)
+      if (vbiSlicerType != VBI_SLICER_ZVBI)
       {
          if (VbiDecodeStartNewFrame(WdmLastFrameNo))
          {
@@ -834,7 +835,7 @@ void BtDriver_SelectSlicer( VBI_SLICER_TYPE slicerType )
       dprintf1("BtDriver-SelectSlicer: slicer %d\n", slicerType);
 
       if (pVbiBuf != NULL)
-         pVbiBuf->slicerType = slicerType;
+         vbiSlicerType = slicerType;
    }
    else
       debug1("BtDriver-SelectSlicer: invalid slicer type %d", slicerType);

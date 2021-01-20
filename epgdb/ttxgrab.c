@@ -155,7 +155,7 @@ static sint TtxGrab_SearchPageNoPos( const uchar * pHeader, uint pageNo )
 //   blocks, until a new instance of an AI block has been received and
 //   its CNI evaluated
 // - the page header comparison fails if more than 3 characters are
-//   different; we need some tolerance here, sonce the page header
+//   different; we need some tolerance here, since the page header
 //   is only parity protected
 // - XXX could make error limit depending on general parity error rate
 // - XXX ignore page header changes if VPS does not change
