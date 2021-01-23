@@ -53,7 +53,6 @@
 #include "epgui/epgmain.h"
 #include "epgui/uictrl.h"
 #include "epgctl/epgctxctl.h"
-#include "epgvbi/cni_tables.h"
 #include "epgdb/epgdbif.h"
 #include "epgdb/epgdbmgmt.h"
 #include "epgdb/epgdbmerge.h"
@@ -64,8 +63,6 @@
 // internal shortcut
 typedef EPGDB_CONTEXT *PDBC;
 typedef const EPGDB_CONTEXT *CPDBC;
-
-#define NORM_CNI(C)  (IS_NXTV_CNI(C) ? CniConvertUnknownToPdc(C) : (C))
 
 // ---------------------------------------------------------------------------
 // Close all source databases of a merged context
@@ -117,13 +114,11 @@ static bool EpgDbMergeOpenDatabases( EPGDB_MERGE_CONTEXT * pMergeContext, bool i
 }
 
 // ---------------------------------------------------------------------------
-// Normalize CNI table
-// - determine "canonical" CNI for each network
-// - remove duplicate CNIs after normalization
-// - also build netwop mapping and reverse tables for each database
+// Build netwop index mapping and reverse tables for each database
+// - note de-duplication and user-configured suppression already done by caller
 //
-static void EpgContextMergeNormalizeCnis( EPGDB_MERGE_CONTEXT * pMergeContext,
-                                          uint * pCniCount, uint * pCniTab )
+static void EpgContextMergeBuildNetwopMap( EPGDB_MERGE_CONTEXT * pMergeContext,
+                                           uint * pCniCount, uint * pCniTab )
 {
    const AI_BLOCK  * pAi;
    const AI_NETWOP * pNetwops;
@@ -140,12 +135,12 @@ static void EpgContextMergeNormalizeCnis( EPGDB_MERGE_CONTEXT * pMergeContext,
 
       // check if the same CNI already was in the list
       for (netIdx = 0; netIdx < netwopCount; netIdx++)
-         if (NORM_CNI(pCniTab[netIdx]) == NORM_CNI(pCniTab[tabIdx]))
+         if (pCniTab[netIdx] == pCniTab[tabIdx])
             break;
 
       // check if it's a valid CNI
-      if ((netIdx >= netwopCount) && (pCniTab[tabIdx] != 0) && (pCniTab[tabIdx] != 0x00ff) &&
-          (netwopCount < MAX_NETWOP_COUNT))
+      if ((netIdx >= netwopCount) && (netwopCount < MAX_NETWOP_COUNT) &&
+          (pCniTab[tabIdx] != 0) && (pCniTab[tabIdx] != 0x00ff))
       {
          for (dbIdx=0; dbIdx < pMergeContext->dbCount; dbIdx++)
          {
@@ -153,7 +148,7 @@ static void EpgContextMergeNormalizeCnis( EPGDB_MERGE_CONTEXT * pMergeContext,
             pNetwops = AI_GET_NETWOPS(pAi);
 
             for (netIdx = 0; netIdx < pAi->netwopCount; netIdx++, pNetwops++)
-               if (NORM_CNI(AI_GET_NET_CNI(pNetwops)) == NORM_CNI(pCniTab[tabIdx]))
+               if (AI_GET_NET_CNI(pNetwops) == pCniTab[tabIdx])
                   break;
             if (netIdx < pAi->netwopCount)
             {  // found
@@ -168,9 +163,11 @@ static void EpgContextMergeNormalizeCnis( EPGDB_MERGE_CONTEXT * pMergeContext,
          }
          if (found)
             netwopCount += 1;
+         else
+            debug1("EpgContextMerge-BuildNetwopMap: skipping CNI 0x%04X", pCniTab[tabIdx]);
       }
-      // if the CNI is in none of the databases, it's skipped
-      ifdebug1(found == FALSE, "EpgContextMerge-NormalizeCnis: skipping CNI 0x%04X", pCniTab[tabIdx]);
+      else
+         debug1("EpgContextMerge-BuildNetwopMap: dropping invalid CNI 0x%04X", pCniTab[tabIdx]);
    }
    *pCniCount = netwopCount;
 }
@@ -393,7 +390,7 @@ EPGDB_CONTEXT * EpgContextMerge( uint dbCount, const uint * pCni, MERGE_ATTRIB_V
       pDbContext->merged = TRUE;
       pDbContext->pMergeContext = pMergeContext;
 
-      EpgContextMergeNormalizeCnis(pMergeContext, &netwopCount, pNetwopList);
+      EpgContextMergeBuildNetwopMap(pMergeContext, &netwopCount, pNetwopList);
 
       // create AI block
       EpgDbMergeAiBlocks(pDbContext, netwopCount, pNetwopList);

@@ -61,7 +61,6 @@
 #include "epgui/statswin.h"
 #include "epgctl/epgctxctl.h"
 #include "epgvbi/vbidecode.h"
-#include "epgvbi/cni_tables.h"
 #include "epgvbi/tvchan.h"
 #include "epgvbi/btdrv.h"
 #include "epgtcl/dlg_hwcfg.h"
@@ -720,48 +719,6 @@ static int MenuCmd_ChangeProvider( ClientData ttp, Tcl_Interp *interp, int objc,
 }
 
 // ----------------------------------------------------------------------------
-// Return descriptive text for a given 16-bit network code
-//
-static int MenuCmd_GetCniDescription( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
-{
-   const char * const pUsage = "Usage: C_GetCniDescription <cni>";
-   const char * pName, * pCountry;
-   Tcl_Obj * pCniDesc;
-   int cni;
-   int result;
-
-   if (objc != 1+1)
-   {  // parameter count is invalid
-      Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
-      result = TCL_ERROR;
-   }
-   else if ( Tcl_GetIntFromObj(interp, objv[1], &cni) )
-   {  // the parameter is not an integer
-      result = TCL_ERROR;
-   }
-   else
-   {
-      pName = CniGetDescription(cni, &pCountry);
-      if (pName != NULL)
-      {
-         if ((pCountry != NULL) && (strstr(pName, pCountry) == NULL))
-         {
-            pCniDesc = TranscodeToUtf8(EPG_ENC_ISO_8859_1, NULL, pName, " (");
-            AppendToUtf8(EPG_ENC_ISO_8859_1, pCniDesc, pCountry, ")");
-         }
-         else
-         {
-            pCniDesc = TranscodeToUtf8(EPG_ENC_ISO_8859_1, NULL, pName, NULL);
-         }
-         Tcl_SetObjResult(interp, pCniDesc);
-      }
-      result = TCL_OK;
-   }
-
-   return result;
-}
-
-// ----------------------------------------------------------------------------
 // Return service name and list of networks of the given database
 // - used by provider selection popup
 //
@@ -785,7 +742,11 @@ static int MenuCmd_GetProvServiceName( ClientData ttp, Tcl_Interp *interp, int o
    }
    else
    {
-      if (IS_XMLTV_CNI(cni))
+      if (cni == MERGED_PROV_CNI)
+      {
+         Tcl_SetObjResult(interp, Tcl_NewStringObj("merged", -1));
+      }
+      else
       {
          pPeek = EpgContextCtl_Peek(cni, CTX_RELOAD_ERR_ANY);
          if (pPeek != NULL)
@@ -802,15 +763,8 @@ static int MenuCmd_GetProvServiceName( ClientData ttp, Tcl_Interp *interp, int o
 
             EpgContextCtl_ClosePeek(pPeek);
          }
-      }
-      else if (cni == MERGED_PROV_CNI)
-      {
-         Tcl_SetObjResult(interp, Tcl_NewStringObj("merged", -1));
-      }
-      else
-      {
-         fatal1("MenuCmd-GetProvServiceName: CNI neither merged nor XML:0x%X\n", cni);
-         Tcl_SetObjResult(interp, Tcl_NewStringObj("unknown", -1));
+         else
+            Tcl_SetObjResult(interp, Tcl_NewStringObj("unknown", -1));
       }
       result = TCL_OK;
    }
@@ -1131,8 +1085,6 @@ static void MenuCmd_AppendNetwopList( Tcl_Interp *interp, Tcl_Obj * pList,
       for ( netwop = 0; netwop < pAiBlock->netwopCount; netwop++, pNetwop++ ) 
       {
          cni = AI_GET_NET_CNI(pNetwop);
-         //if (IS_NXTV_CNI(cni))
-         //   cni = CniConvertUnknownToPdc(cni);
          sprintf(strbuf, "0x%04X", cni);
 
          // if requested check if the same CNI is already in the result
@@ -1157,12 +1109,6 @@ static void MenuCmd_AppendNetwopList( Tcl_Interp *interp, Tcl_Obj * pList,
                }
                pNetwopObj = TranscodeToUtf8(EPG_ENC_NETNAME(isFromAi), NULL, pCfNetname, NULL);
                Tcl_SetVar2Ex(interp, pArrName, strbuf, pNetwopObj, 0);
-
-               if (unify && IS_NXTV_CNI(cni))
-               {
-                  sprintf(strbuf, "0x%04X", CniConvertUnknownToPdc(cni));
-                  Tcl_SetVar2Ex(interp, pArrName, strbuf, pNetwopObj, 0);
-               }
             }
          }
       }
@@ -1364,41 +1310,6 @@ static int MenuCmd_UpdateNetwopNames( ClientData ttp, Tcl_Interp *interp, int ob
             Tcl_DStringFree(&pDstrList[idx]);
          xfree(pDstrList);
       }
-   }
-   return result;
-}
-
-// ----------------------------------------------------------------------------
-// Normalize and return the given CNI
-//
-static int MenuCmd_NormalizeCni( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
-{
-   const char * const pUsage = "Usage: C_NormalizeCni <cni>";
-   uint cni;
-   char cni_buf[16+2+1];
-   int result;
-
-   if (objc != 1+1)
-   {  // wrong # of parameters for this TCL cmd -> display error msg
-      Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
-      result = TCL_ERROR; 
-   }  
-   else if (Tcl_GetIntFromObj(interp, objv[1], (int*)&cni) != TCL_OK)
-   {
-      result = TCL_ERROR; 
-   }
-   else
-   {
-      if (IS_NXTV_CNI(cni))
-      {
-         sprintf(cni_buf, "0x%04X", CniConvertUnknownToPdc(cni));
-         Tcl_SetObjResult(interp, Tcl_NewStringObj(cni_buf, -1));
-      }
-      else
-      {  // return CNI unchanged
-         Tcl_SetObjResult(interp, objv[1]);
-      }
-      result = TCL_OK; 
    }
    return result;
 }
@@ -2638,7 +2549,6 @@ void MenuCmd_Init( void )
       Tcl_CreateObjCommand(interp, "C_ChangeProvider", MenuCmd_ChangeProvider, (ClientData) NULL, NULL);
 
       Tcl_CreateObjCommand(interp, "C_UpdateLanguage", MenuCmd_UpdateLanguage, (ClientData) NULL, NULL);
-      Tcl_CreateObjCommand(interp, "C_GetCniDescription", MenuCmd_GetCniDescription, (ClientData) NULL, NULL);
       Tcl_CreateObjCommand(interp, "C_GetProvServiceName", MenuCmd_GetProvServiceName, (ClientData) NULL, NULL);
       Tcl_CreateObjCommand(interp, "C_GetProvServiceInfos", MenuCmd_GetProvServiceInfos, (ClientData) NULL, NULL);
       Tcl_CreateObjCommand(interp, "C_GetCurrentDatabaseCni", MenuCmd_GetCurrentDatabaseCni, (ClientData) NULL, NULL);
@@ -2648,7 +2558,6 @@ void MenuCmd_Init( void )
       Tcl_CreateObjCommand(interp, "C_GetAiNetwopList", MenuCmd_GetAiNetwopList, (ClientData) NULL, NULL);
       Tcl_CreateObjCommand(interp, "C_GetNetwopNames", MenuCmd_GetNetwopNames, (ClientData) NULL, NULL);
       Tcl_CreateObjCommand(interp, "C_UpdateNetwopNames", MenuCmd_UpdateNetwopNames, (ClientData) NULL, NULL);
-      Tcl_CreateObjCommand(interp, "C_NormalizeCni", MenuCmd_NormalizeCni, (ClientData) NULL, NULL);
 
       Tcl_CreateObjCommand(interp, "C_GetMergeProviderList", MenuCmd_GetMergeProviderList, (ClientData) NULL, NULL);
       Tcl_CreateObjCommand(interp, "C_GetMergeOptions", MenuCmd_GetMergeOptions, (ClientData) NULL, NULL);

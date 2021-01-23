@@ -173,6 +173,12 @@ B<Tipp:> Anstelle der Option -outfile können Sie die Ausgabe auch mit ">" oder "
 
 Das erste Beispiel schreibt die Sendertabelle der XMLTV Datei "tv.xml" in eine Datei namens I<networks.txt>; das zweite lenkt die Ausgabe zum Programm "more" um, einem Programm zur Textanzeige.
 
+=item B<-epgquery> I<FILTER=option>
+
+Diese Option kann zusammen mit B<-dump> verwendet werden um die Ausgabe von Programminformationen einzuschränken. Die verfügbaren Filter entsprechen denen des Filter Menüs in der grafischen Benutzeroberfläche. Die Option kann mehrfach angegeben werden um mehrere Filter einzuschalten.
+
+Für eine Liste der verfügbaren Filter siehe die englische Version des Manuals.
+
 =item B<-remctrl> I<command>
 
 Mit dieser Option können Sie eine andere, zuvor gestartete GUI-Instanz von nxtvepg fernsteuern, also den jeweiligen Befehl an die andere Instanz senden.
@@ -870,8 +876,6 @@ B<Tipp:> Die Dateien können auch direkt über die Befehlszeile mittels der Schalt
 
 Öffnet einen Dialog, der es erlaubt, alle Programminformationen im XML-Format zu exportieren. Das Format ist durch die B<XmlTV DTD> genau festgelegt (siehe L<http://xmltv.org/>.) Die erzeugte Datei enthält sowohl die Sendertabelle als auch die Programmdaten.  Sie umfasst auch Sender, die Sie möglicherweise in der Auflistung innerhalb nxtvepg abgestellt haben.
 
-Seit nxtvepg Version 2.9.0 werden Senderkennungen ("channel id") im von der XMLTV DTD empfohlenen Format generiert. Anstelle der vorherigen numerischen Kennungen (wie z.B. "CNI0DC1" für ARD) erscheinen daher DNS-ähnliche textuelle Kennungen (wie z.B. "ard.de")  Der Vorteil der Umstellung ist die Kopatibilität mit anderen XMLTV Grabbern, welche das Zusammenführen von Daten aus verschiedenen Quellen erleichtert.  Die Wahl der Kennungen kann mittels der Datei B<xmltv-etsi.map> beeinflußt werden: Zum Tragen kommen dabei die Sektionen C<[GLOBAL]>, C<[EXPORT|GLOBAL]> and C<[EXPORT|*xyz*]> (wobei "xyz" ein Teil des Anbieternamens ist.) Falls die Datei nicht gefunden wird, fällt nxtvepg auf das alte Namensschema zurück. Falls Sie beim alten Scheme bleiben wollen, können sie auch in Datei B<xmltv-etsi.map> Regeln einfügen die numerischen Kennungen auf numerische Kennungen mit dem alten "CNI" Präfix abbilden (z.B. "0DC1 CNI0DC1" in Sektion C<[EXPORT|GLOBAL]>)
-
 B<Tipp:> Sie können die Menge der exportierten Daten einschränken indem Sie eine zusammengeführte Datenbank konfigurieren. Dies ist auch für einen einzelnen Provider möglich. Auf diese Weise können Sie bestimmte Sender oder Attribute ausschließen, z.B. um Themen-Kategorien von der Ausgabe auszuschließen (siehe Untermenü I<Configure> im Dialog der Merge-Konfiguration). Siehe auch unten für Alternativen beim Export über die Komandozeile.
 
 Einige TV-Anwendungen sind dafür bekannt, XMLTV-Timestamps nicht korrekt auszuwerten. Um diese Probleme zu umgehen gibt es eine Option, die erlaubt, Datumsangaben und Uhrzeiten in lokaler Zeit anstatt UTC (auch bekannt als I<Greenwhich Mean Time> oder GMT) zu exportieren. Erscheinen alle Programmdaten um eine oder zwei Stunden verschoben in Ihrer TV-Anwendung, versuchen Sie es mit dieser Option.
@@ -1295,15 +1299,7 @@ Standardpfad für die Konfigurationsdatei in der alle persönlichen Einstellungen 
 
 Verzeichnis, in dem der Teletext EPG Grabber die erzeugten XMLTV Dateien speichert. Ein anderes Verzeichnis kann über die Option B<-dbdir> spezifiziert werden (siehe L<"OPTIONS">).
 
-Dateien in diesem Verzeichnis haben Namen im Format F<ttx-SENDER.xml>, wobei "SENDER" der Name des Senders ist auf dem die EPG Daten empfangen wurden. Das Dateiformat ist XML mit XMLTV Schema. Für jeden Sender wird eine separate Datei erzeugt.
-
-=item B</usr/share/nxtvepg/xmltv-etsi.map>
-
-Diese Datei wird beim Import von EPG Daten aus XMLTV Dateien verwendet um Senderbezeichnungen in numerische Senderkennungsn umzuwandeln, wie sie von nxtvepg verwendet werden. Genauer gesagt, die Datei entählt Zuweisungen von ETSI CNIs (Canonic Network Identification) an Namen die in XML I<E<lt>channel id="..."E<gt>> Tags in importierten XMLTV Datei verwendet werden. Dies sollte dazu verwendet werden, die Kennung mit den im TV-Signal über VPS/PDC empfangenen Kennungen zu syncrhonisieren, so daß einer verbundnen TV-Applikation der passende Sendungstitel zur Verfügung gestellt werden kann.
-
-Der Inhalt der Datei ist in Sektionen eingeteilt: Sektion C<[GLOBAL]> wird für alle XMLTV Dateien gelesen. Weiter Sektionen werden nur gelesen wenn das in den Klammern angegebene Muster zum Anbieternamen paßt, genauer gesagt zum in der Datei in den C<source-info-name> oder C<source-data-url> tags angegebenen Namen. Für weitere Details siehe auch die Kommentare innerhalb der Datei selbst.
-
-Sektionen C<[EXPORT|...]> werden für die umgekehrte Richtung verwendet, d.h. den Export von EPG Daten in XMLTV Dateien. Details dazu siehe L<"CONTROL: Export as XMLTV">.
+Dateien in diesem Verzeichnis haben Namen im Format F<ttx-SID.xml>, wobei "SID" die DVB Service ID des TV-Programms in Datei C<channels.conf> ist. (Es wird hier die SID anstatt des Namens verwendet, damit die Datei auch bei Namensänderungen zugreifbar bleibt. Nur bei analogen Sendern wird anstelle der SID der aktuelle Sendername verwendet.) Das Dateiformat ist XML mit XMLTV Schema. Für jeden TV-Sender wird eine separate Datei erzeugt.
 
 =item B</dev/dvb/adapter0/frontend0>, B</dev/dvb/adapter0/demux0>
 
@@ -1373,17 +1369,13 @@ Schriften müssen als Triplets bestehend aus Familie, Größe (verwenden Sie negati
 
 Konfigurationsdatei, in die alle Konfigurations- und persönliche Einstellungen gespeichert werden. Standardmäßig wird diese im Arbeitsverzeichnis erzeugt, es kann jedoch ein anderer Pfad oder Dateiname mittels der Option B<-rcfile> spezifiziert werden (siehe L<"OPTIONS">).
 
-=item B<xmltv-etsi.map>
-
-Diese Datei wird beim Import von EPG Daten aus XMLTV Dateien verwendet um Senderbezeichnungen in numerische Senderkennungsn umzuwandeln, wie sie von nxtvepg verwendet werden. Genauer gesagt, die Datei entählt Zuweisungen von ETSI CNIs (Canonic Network Identification) an Namen die in XML I<E<lt>channel id="..."E<gt>> Tags in importierten XMLTV Datei verwendet werden.  Für weitere Details siehe die Beschreibung der Datei in der UNIX-Sektion, oder die Kommentare in der Detail selbst.
-
 =item B<Nxtvepg.ad>
 
 Erlaubt die Änderung des Erscheinungsbildes der Anwendung, d.h. Farben oder Schrift des Textes. Das Format und der Inhalt der Datei ist identisch der Datei F<.Xdefaults>, wie in der UNIX-Sektion beschrieben.
 
-=item B<ttx-SENDER.xml>
+=item B<ttx-SID.xml>
 
-Vom Teletext EPG Grabber erzeugte Dateien haben Namen Format F<ttx-SENDER.xml>, wobei "SENDER" der Name des Senders ist auf dem die EPG Daten empfangen wurden. Das Dateiformat ist XML mit XMLTV Schema. Für jeden Sender wird eine separate Datei erzeugt.
+Vom Teletext EPG Grabber erzeugte Dateien haben Namen im Format F<ttx-SID.xml>, wobei "SID" die DVB Service ID des TV-Programms in Datei C<channels.conf> ist. (Es wird hier die SID anstatt des Namens verwendet, damit die Datei auch bei Namensänderungen zugreifbar bleibt. Nur bei analogen Sendern wird anstelle der SID der aktuelle Sendername verwendet.) Das Dateiformat ist XML mit XMLTV Schema. Für jeden TV-Sender wird eine separate Datei erzeugt.
 
 Das Verzeichnis in dem der Teletext EPG Grabber die XMLTV Dateien speichert kann über die Option B<-dbdir> spezifiziert werden (siehe L<"OPTIONS">).
 

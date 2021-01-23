@@ -43,6 +43,7 @@
 #include "epgui/dumptext.h"
 #include "epgui/epgsetup.h"
 #include "epgui/epgquery.h"
+#include "epgui/rcfile.h"
 #include "xmltv/xmltv_themes.h"
 
 
@@ -52,7 +53,7 @@ static const char * const pFilterKeywords[] =
    "NETWOP_PRE",
    "NETIDX",
    "NETNAME",
-   "NETCNI",
+   "CHN_ID",
    "THEME",
    "TITLE",
    "TITLE_WHOLE",
@@ -74,7 +75,7 @@ typedef enum
    FKW_NETWOP_PRE,
    FKW_NETWOP,
    FKW_NETNAME,
-   FKW_NETCNI,
+   FKW_CHN_ID,
    FKW_THEMES,
    FKW_TITLE,
    FKW_TITLE_WHOLE,
@@ -395,7 +396,7 @@ static void EpgQuery_FilterInit( FILTER_CONTEXT * fc, int filtType )
          break;
       case FKW_NETWOP:
       case FKW_NETNAME:
-      case FKW_NETCNI:
+      case FKW_CHN_ID:
          EpgDbFilterInitNetwop(fc);
          break;
       case FKW_THEMES:
@@ -497,34 +498,26 @@ static bool EpgQuery_FilterSet( EPGDB_CONTEXT * pDbContext,
          result = (count > 0);
          break;
 
-      case FKW_NETCNI:
-         argOff = 0;
-         count = 0;
-         while (EpgQuery_PopIntRange(pArg, &argOff, &int1, &int2))
+      case FKW_CHN_ID:
+         if (pAiBlock != NULL)  // cannot access RC yet during syntax check
          {
-            if (pAiBlock != NULL)
+            for (idx = 0; idx < pAiBlock->netwopCount; idx++)
             {
-               for (idx = 0; idx < pAiBlock->netwopCount; idx++)
+               const char * pNetId = RcFile_GetXmltvNetworkId(AI_GET_NET_CNI_N(pAiBlock, idx));
+               if (strcmp(pNetId, pArg) == 0)
                {
-                  if ( (AI_GET_NET_CNI_N(pAiBlock, idx) >= int1) &&
-                       (AI_GET_NET_CNI_N(pAiBlock, idx) <= int2) )
-                  {
-                     dprintf4("EpgQuery-FilterSet: NETCNI '%s': 0x%04X-%04X -> %u\n", pArg, int1, int2, idx);
-                     EpgDbFilterSetNetwop(fc, idx);
-                     count++;
-                     break;
-                  }
+                  dprintf3("EpgQuery-FilterSet: NETNAME '%s': -> idx %u CNI:0x%04X\n", pArg, idx, AI_GET_NET_CNI_N(pAiBlock, idx));
+                  EpgDbFilterSetNetwop(fc, idx);
+                  result = TRUE;
                }
-               ifdebug3(idx >= pAiBlock->netwopCount, "EpgQuery-FilterSet: unknown NETCNI '%s': 0x%04X-%04X", pArg, int1, int2);
             }
-            else
-               count++;
+            ifdebug1(idx >= pAiBlock->netwopCount, "EpgQuery-FilterSet: chn_id:%s not found in AI", pArg);
          }
-         if ((count == 0) && (ppErrStr != NULL))
-         {  // note: never reached: err msg is only used for syntax check
-            SystemErrorMessage_Set(ppErrStr, 0, "no matching CNIs for ", pArg, NULL);
+         else
+         {  // syntax check only
+            result = TRUE;
          }
-         result = (count > 0);
+         argOff = strlen(pArg);
          break;
 
       case FKW_NETNAME:

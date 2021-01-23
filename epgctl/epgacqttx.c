@@ -579,8 +579,10 @@ void EpgAcqTtx_ChannelChange( void )
          {
             for (uint idx = 0; idx < acqCtl.ttxActiveCount; ++idx)
             {
-               dprintf2("EpgAcqTtx-ChannelChange: post-processing %d (%s)\n", acqCtl.ttxSrcIdx[idx], EpgAcqTtx_GetChannelName(acqCtl.ttxSrcIdx[idx]));
-               TtxGrab_PostProcess(idx, EpgAcqTtx_GetChannelName(acqCtl.ttxSrcIdx[idx]), TRUE);
+               uint srcIdx = acqCtl.ttxSrcIdx[idx];
+               dprintf2("EpgAcqTtx-ChannelChange: post-processing %d (%s)\n", srcIdx, EpgAcqTtx_GetChannelName(srcIdx));
+               TtxGrab_PostProcess(idx, (EPGACQ_TUNER_NORM_IS_DVB(acqCtl.pSources[srcIdx].freq.norm) ? acqCtl.pSources[srcIdx].freq.serviceId : 0),
+                                   EpgAcqTtx_GetChannelName(srcIdx), TRUE);
             }
          }
       }
@@ -817,7 +819,8 @@ bool EpgAcqTtx_MonitorSources( void )
          {
             uint srcIdx = acqCtl.ttxSrcIdx[idx];
             dprintf2("EpgAcqTtx-MonitorSources: post-processing %d (%s)\n", srcIdx, EpgAcqTtx_GetChannelName(srcIdx));
-            TtxGrab_PostProcess(idx, EpgAcqTtx_GetChannelName(srcIdx), TRUE);
+            TtxGrab_PostProcess(idx, (EPGACQ_TUNER_NORM_IS_DVB(acqCtl.pSources[srcIdx].freq.norm) ? acqCtl.pSources[srcIdx].freq.serviceId : 0),
+                                EpgAcqTtx_GetChannelName(srcIdx), TRUE);
             acqCtl.pSources[srcIdx].srcDone = TRUE;
             acqCtl.lastDoneSrc = srcIdx;
          }

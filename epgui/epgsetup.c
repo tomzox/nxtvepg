@@ -49,7 +49,6 @@
 #include "epgctl/epgctxmerge.h"
 #include "epgctl/epgctxctl.h"
 #include "epgvbi/vbidecode.h"
-#include "epgvbi/cni_tables.h"
 #include "epgvbi/btdrv.h"
 #include "epgtcl/dlg_hwcfg.h"
 #include "epgui/epgmain.h"
@@ -59,8 +58,6 @@
 #include "epgui/wintvcfg.h"
 #include "epgui/epgsetup.h"
 #include "xmltv/xmltv_cni.h"
-
-#define NORM_CNI(C)  (IS_NXTV_CNI(C) ? CniConvertUnknownToPdc(C) : (C))
 
 // ----------------------------------------------------------------------------
 // Determine a network's name
@@ -174,18 +171,9 @@ void EpgSetup_UpdateProvCniTable( void )
          {
             cni = pOrdList->net_cnis[netIdx];
             for (aiIdx = 0; aiIdx < pAiBlock->netwopCount; aiIdx++)
-            {
                if (pAiCni[aiIdx] == cni)
-               {
                   break;
-               }
-               else if (NORM_CNI(pAiCni[aiIdx]) == NORM_CNI(cni))
-               {
-                  cni = pAiCni[aiIdx];
-                  update = TRUE;
-                  break;
-               }
-            }
+
             if (aiIdx < pAiBlock->netwopCount)
             {
                pAiCni[aiIdx] = ~0u;
@@ -210,7 +198,7 @@ void EpgSetup_UpdateProvCniTable( void )
             {
                cni = pSupList->net_cnis[netIdx];
                for (aiIdx = 0; aiIdx < pAiBlock->netwopCount; aiIdx++)
-                  if (NORM_CNI(pAiCni[aiIdx]) == NORM_CNI(cni))
+                  if (pAiCni[aiIdx] == cni)
                      break;
                if (aiIdx < pAiBlock->netwopCount)
                {
@@ -458,10 +446,7 @@ EPGDB_CONTEXT * EpgSetup_MergeDatabases( void )
          now = time(NULL);
          for (idx = 0; idx < provCount; idx++)
          {
-            if (IS_XMLTV_CNI(pProvCniTab[idx]))
-            {
-               RcFile_UpdateXmltvProvAtime(pProvCniTab[idx], now, TRUE);
-            }
+            RcFile_UpdateXmltvProvAtime(pProvCniTab[idx], now, TRUE);
          }
       }
    }
@@ -557,8 +542,6 @@ void EpgSetup_OpenUiDb( void )
 static bool EpgSetup_GetTtxConfig( uint * pCount, char ** ppNames, EPGACQ_TUNER_PAR ** ppFreq )
 {
    const RCFILE * pRc;
-   char * ps;
-   uint chnIdx;
    bool result = FALSE;
 
    *pCount = 0;
@@ -578,29 +561,6 @@ static bool EpgSetup_GetTtxConfig( uint * pCount, char ** ppNames, EPGACQ_TUNER_
                *pCount = pRc->ttx.ttx_chn_count;
             }
             dprintf1("EpgSetup-GetTtxConfig: TTX acq config on %d channels\n", *pCount);
-
-            ps = *ppNames;
-            for (chnIdx = 0; chnIdx < *pCount; chnIdx++)
-            {
-               //dprintf3("TTX channel #%d: '%s' freq:%d\n", chnIdx, ps, (*ppFreq)[chnIdx]);
-
-               while (*ps != 0)
-               {
-                  if ( ((*ps >= 'A') && (*ps <= 'Z')) ||
-                       ((*ps >= 'a') && (*ps <= 'z')) ||
-                       ((*ps >= '0') && (*ps <= '9')) )
-                  {
-                     // keep character
-                     ps++;
-                  }
-                  else
-                  {  // replace illegal character
-                     *(ps++) = '_';
-                  }
-               }
-               // skip terminating zero (strings in table are zero-separated)
-               ps++;
-            }
             result = TRUE;
          }
          else
@@ -923,13 +883,14 @@ bool EpgSetup_IsAcqWorkingForUiDb( void )
             for (idx = 0; (idx < ttxFreqCount) && !acqWorksOnUi; idx++)
             {
                // note the path returned here is already normalized
-               char * pTtxPath = TtxGrab_GetPath(pNames);
+               char * pTtxPath = TtxGrab_GetPath(pTtxFreqs[idx].serviceId, pNames);
                if (pTtxPath != NULL)
                   if ((strcmp(pTtxPath, pXmlPath) == 0))  // no "break": need xfree()
                      acqWorksOnUi = TRUE;
 
                while(*(pNames++) != 0)
                   ;
+
                xfree(pTtxPath);
             }
          }

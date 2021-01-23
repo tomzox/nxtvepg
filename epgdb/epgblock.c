@@ -32,7 +32,6 @@
 
 #include "epgctl/mytypes.h"
 #include "epgctl/debug.h"
-#include "epgvbi/cni_tables.h"
 #include "epgdb/epgblock.h"
 #include "epgdb/epgswap.h"
 
@@ -205,7 +204,8 @@ static bool EpgBlockCheckAi( EPGDB_BLOCK * pBlock )
    {
       debug1("EpgBlock-CheckAi: illegal netwop count %d", pAi->netwopCount);
    }
-   else if (pAi->off_netwops != sizeof(AI_BLOCK))
+   else if ((pAi->off_netwops != sizeof(AI_BLOCK)) ||
+            ((pAi->off_netwops & (sizeof(uint32_t) - 1)) != 0))
    {
       debug1("EpgBlock-CheckAi: off_netwops=%d illegal", pAi->off_netwops);
    }

@@ -7,8 +7,6 @@ you have ideas for additional features.
 Mandatory fixes for release 3.0.0:
 - New DB type: "Load Teletext EPG...": automatically follow TTX acq, even if DB not exist yet
 - ttx grabber config: add channels.conf selection & auto-detect location
-- teletext: use TV channel name as XMLTV display name
-- XMLTV CNI mapping fundamentally broken
 - manual: move general description of TTX grabber from CONFIGURATION chapter
   to an initial chapter; add description of config parameters
 
@@ -24,11 +22,13 @@ Post-Nextview EPG:
 - merge & load dialog: directory drop-down: add history
 - merge dialog, "configure" sub-menu: simplify to single list with
   "extended" selection (i.e. allow multiple selections)
+- merge dialog: use multi-col table & display networks
+- netname dialog: add warning that names should be changed in channels.conf?
 - remove use of PDC theme table: create table from themes found in XMLTV
 - change AI/OI/PI to hold original XMLTV info elements (i.e. reduce conversion)
+- allow merge of different channel ID from different providers
 - EPG scan: print if Teletext was found instead of "no network ID"; print NoF TTX in summary
 - EPG scan: concurrency
-- xmltv-etsi.map: use .config/nxtvepg instead of "." in xmltv_cni.c
 - caching of WintvCfg_GetFreqTab() results
 - XMLTV service name: when merging teletext-only use "Merged teletext (%d networks)"
 - DVB TTX stream decoding issues: "Illegal line order", "Unknown data_unit_id"
@@ -46,6 +46,7 @@ Post-Nextview EPG:
 Missing documentation:
 - TV Tune config in context menu dialog
 - WDM and source "none" in Win32 TV card config dialog
+- german manual lacks filter list for -epgquery
 
 Teletext grabber:
 - improve TTX parser (-> failing parsertest pages)

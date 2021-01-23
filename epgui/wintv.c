@@ -46,7 +46,6 @@
 #include "epgvbi/tvchan.h"
 #include "epgvbi/btdrv.h"
 #include "epgvbi/ttxdecode.h"
-#include "epgvbi/cni_tables.h"
 #include "epgvbi/winshmsrv.h"
 #include "epgvbi/winshm.h"
 #include "epgdb/epgblock.h"
@@ -157,16 +156,6 @@ static const PI_BLOCK * Wintv_SearchCurrentPi( uint cni, uint pil )
       for ( netwop = 0; netwop < pAiBlock->netwopCount; netwop++, pNetwop++ ) 
          if (cni == AI_GET_NET_CNI(pNetwop))
             break;
-
-      // if not found: try 2nd time with conversion to PDC
-      if (netwop >= pAiBlock->netwopCount)
-      {
-         pNetwop = AI_GET_NETWOPS(pAiBlock);
-         for ( netwop = 0; netwop < pAiBlock->netwopCount; netwop++, pNetwop++ ) 
-            if ( IS_NXTV_CNI(AI_GET_NET_CNI(pNetwop)) &&
-                 (cni == CniConvertUnknownToPdc(AI_GET_NET_CNI(pNetwop))) )
-               break;
-      }
 
       if (netwop < pAiBlock->netwopCount)
       {

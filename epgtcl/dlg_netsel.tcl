@@ -46,9 +46,6 @@ proc UpdateProvCniTable {prov} {
    set index 0
    foreach cni $ailist {
       set order($cni) $index
-      if {$prov == 0xFF} {
-         set order([C_NormalizeCni $cni]) $index
-      }
       incr index
    }
 
@@ -87,24 +84,6 @@ proc RemoveObsoleteCnisFromList {alist ref_list} {
    }
 }
 
-##  --------------------------------------------------------------------------
-##  Normalize a list of CNIs
-##
-proc NormalizeCnis {cnis} {
-   set result {}
-   foreach cni $cnis {
-      if {![info exists h($cni)]} {
-         set norm [C_NormalizeCni $cni]
-         if {![info exists h($norm)]} {
-            set h($cni) 1
-            set h($norm) 1
-            lappend result $cni
-         }
-      }
-   }
-   return $result
-}
-
 
 #=LOAD=PopupNetwopSelection
 #=LOAD=SelBoxCreate
@@ -131,12 +110,6 @@ proc PopupNetwopSelection {} {
          # as a side effect this function stores all netwop names into the array netsel_names
          set netsel_ailist [C_GetAiNetwopList 0 netsel_names allmerged]
 
-         # remove duplicate networks from merged database
-         # (i.e. networks which have different CNIs, but are considered equal anyway)
-         if {$netsel_prov == 0x00FF} {
-            set netsel_ailist [NormalizeCnis $netsel_ailist]
-         }
-
          # initialize list of user-selected CNIs
          set tmpl [C_GetProvCniConfig $netsel_prov]
          if {([llength [lindex $tmpl 0]] == 0) && ([llength [lindex $tmpl 1]] == 0)} {
@@ -155,14 +128,9 @@ proc PopupNetwopSelection {} {
          SelBoxCreate .netsel.lb netsel_ailist netsel_selist netsel_names 20 1
          pack  .netsel.lb -side top -fill both -expand 1
 
-         global netsel_off_name
          global cfnettimes netsel_times netsel_start netsel_stop netsel_cni
          global font_fixed
-         labelframe .netsel.bottom -text "Network identification"
-         label .netsel.bottom.lab_offi -text "Official name:"
-         grid  .netsel.bottom.lab_offi -row 0 -column 0 -sticky w -padx 5
-         entry .netsel.bottom.ent_offi -relief flat -textvariable netsel_off_name -state disabled $entry_disabledforeground black
-         grid  .netsel.bottom.ent_offi -row 0 -column 1 -sticky we -padx 1 -pady 1
+         labelframe .netsel.bottom -text "Configuration"
          label .netsel.bottom.lab_time -text "Air times:"
          grid  .netsel.bottom.lab_time -row 1 -column 0 -sticky w -padx 5
          frame .netsel.bottom.frm_time
@@ -254,7 +222,6 @@ proc SaveSelectedNetwopList {} {
 
 # callback for selection in left or right list -> update description at the dialog bottom
 proc NetselUpdateCni {which} {
-   global netsel_off_name
    global netsel_times netsel_start netsel_stop netsel_cni
    global netsel_ailist netsel_selist 
 
@@ -277,7 +244,6 @@ proc NetselUpdateCni {which} {
    set netsel_cni $cni
 
    if {$cni != 0} {
-      set netsel_off_name [C_GetCniDescription $cni]
       if [info exists netsel_times($cni)] {
          scan $netsel_times($cni) "%d,%d" start stop
          set netsel_start [format "%02d:%02d" [expr int($start / 60)] [expr $start % 60]]
@@ -287,7 +253,6 @@ proc NetselUpdateCni {which} {
          set netsel_stop  "00:00"
       }
    } else {
-      set netsel_off_name {}
       set netsel_start {}
       set netsel_stop {}
    }

@@ -1267,33 +1267,3 @@ uint CniConvertPdcToVps( uint cni )
    }
    return cni;
 }
-
-// ---------------------------------------------------------------------------
-// Convert a CNI of unknown type into PDC
-// - CNIs which originate from AI blocks may have any type
-//   for comparison with "live" CNIs they need to be converted into PDC
-//
-uint CniConvertUnknownToPdc( uint cni )
-{
-   uint pdcCni;
-
-   pdcCni = CniConvertP8301ToVps(cni);
-   if (pdcCni == cni)
-   {
-      //pdcCni = CniConvertPdcToVps(cni);
-      switch (pdcCni >> 8)
-      {
-         case 0x1D:  // country code for Germany
-         case 0x1A:  // country code for Autria
-         case 0x24:  // country code for Switzerland
-         case 0x77:  // country code for Ukraine
-            // discard the upper 4 bits of the country code
-            pdcCni &= 0x0fff;
-            break;
-
-         default:
-            break;
-      }
-   }
-   return pdcCni;
-}

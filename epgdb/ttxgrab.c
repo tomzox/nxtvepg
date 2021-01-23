@@ -45,9 +45,10 @@
 
 #ifdef USE_TTX_GRABBER
 
-#define XML_OUT_FILE_PAT   "ttx-%s.xml"
-#define XML_OUT_FILE_TMP   ".tmp"
-#define TTX_CAP_FILE_PAT   "ttx-%s.dat"
+#define XML_OUT_FILE_PREFIX   "ttx-"
+#define XML_OUT_FILE_EXT      ".xml"
+#define XML_TMP_FILE_EXT      ".tmp"  // appended after .xml
+#define TTX_CAP_FILE_EXT      ".dat"
 
 #ifndef O_BINARY
 #define O_BINARY       0          // for M$-Windows only
@@ -547,81 +548,138 @@ bool TtxGrab_CheckPostProcess( uint bufIdx )
 }
 
 // ---------------------------------------------------------------------------
+// Helper functions for copying a channel name with special chars replaced
+//
+static char * TtxGrab_CopyNameEscaped( char * pDst, const char * pSrc )
+{
+   while (*pSrc != 0)
+   {
+      if ( ((*pSrc >= 'A') && (*pSrc <= 'Z')) ||
+           ((*pSrc >= 'a') && (*pSrc <= 'z')) ||
+           ((*pSrc >= '0') && (*pSrc <= '9')) )
+      {
+         // copy character
+         *(pDst++) = *(pSrc++);
+      }
+      else
+      {  // replace illegal character
+         *(pDst++) = '_';
+         pSrc += 1;
+      }
+   }
+   *pDst = 0;
+
+   return pDst;
+}
+
+// ---------------------------------------------------------------------------
 // Returns the XMLTV output file path for the given channel
 // - note the returned path is normalized
+// - caller needs to free the allocated memory
 //
-char * TtxGrab_GetPath( const char * pName )
+static char * TtxGrab_GetPathExt( uint serviceId, const char * pName, const char * pExt )
 {
-   char * pXmlTmpFile;
+   char * pXmlOutFile;
+   char * ps;
+   int off;
 
-   pXmlTmpFile = (char*) xmalloc(strlen(ttxGrabDbDir) + 1 + strlen(pName) + 20);
-   sprintf(pXmlTmpFile, "%s/" XML_OUT_FILE_PAT, ttxGrabDbDir, pName);
+   if (serviceId != 0)
+   {
+      pXmlOutFile = (char*) xmalloc(strlen(ttxGrabDbDir) + 1 +
+				     + strlen(XML_OUT_FILE_PREFIX)
+				     + 20 + strlen(pExt) + 1);
 
-   return pXmlTmpFile;
+      sprintf(pXmlOutFile, "%s/" XML_OUT_FILE_PREFIX "%u%s", ttxGrabDbDir, serviceId, pExt);
+   }
+   else
+   {
+      pXmlOutFile = (char*) xmalloc(strlen(ttxGrabDbDir) + 1 +
+				     + strlen(XML_OUT_FILE_PREFIX)
+				     + strlen(pName)
+				     + strlen(pExt) + 1);
+      off = sprintf(pXmlOutFile, "%s/" XML_OUT_FILE_PREFIX, ttxGrabDbDir);
+      ps = TtxGrab_CopyNameEscaped(pXmlOutFile + off, pName);
+      strcpy(ps, pExt);
+   }
+   return pXmlOutFile;
+}
+
+// ---------------------------------------------------------------------------
+// Returns the XMLTV output file path for the given channel name
+//
+char * TtxGrab_GetPath( uint serviceId, const char * pName )
+{
+   return TtxGrab_GetPathExt(serviceId, pName, XML_OUT_FILE_EXT);
 }
 
 // ---------------------------------------------------------------------------
 // Stop acquisition and start post-processing
 //
-void TtxGrab_PostProcess( uint bufIdx, const char * pName, bool reset )
+void TtxGrab_PostProcess( uint bufIdx, uint serviceId, const char * pName, bool reset )
 {
-   char * pXmlTmpFile;
    char * pXmlMergeFile;
    char * pXmlOutFile;
+   char * pXmlTmpFile;
+   char * pXmlChnId;
+   char xmltvChnId[30];
 
    if (ttxGrabState[bufIdx].keepTtxInp)
    {
-      dprintf1("TtxGrab-PostProcess: name:'%s' dump complete database\n", pName);
-      char * pKeptInpFile = (char*) xmalloc(strlen(ttxGrabDbDir) + 1 + strlen(pName) + 20);
-      sprintf(pKeptInpFile, "%s/" TTX_CAP_FILE_PAT, ttxGrabDbDir, pName);
+      char * pKeptInpFile = TtxGrab_GetPathExt(serviceId, pName, TTX_CAP_FILE_EXT);
+      dprintf1("TtxGrab-PostProcess: dump complete database to '%s'\n", pKeptInpFile);
+
       ttx_db_dump(ttxGrabState[bufIdx].ttx_db, pKeptInpFile, 0x100, 0x8FF);
       xfree(pKeptInpFile);
    }
 
-   // build output file name (note: includes ".tmp" suffix which is removed later)
-   pXmlTmpFile = (char*) xmalloc(strlen(ttxGrabDbDir) + 1 + strlen(pName) + 20);
-   sprintf(pXmlTmpFile, "%s/" XML_OUT_FILE_PAT XML_OUT_FILE_TMP, ttxGrabDbDir, pName);
+   // build target file name
+   pXmlOutFile = TtxGrab_GetPathExt(serviceId, pName, XML_OUT_FILE_EXT);
 
-   pXmlMergeFile = xstrdup(pXmlTmpFile);
-   pXmlMergeFile[strlen(pXmlMergeFile) - 4] = 0;
-   if (TtxGrab_CheckFileExists(pXmlMergeFile) == FALSE)
+   // build temporary file name: append ".tmp" suffix
+   pXmlTmpFile = (char*) xmalloc(strlen(pXmlOutFile) + strlen(XML_TMP_FILE_EXT) + 1);
+   sprintf(pXmlTmpFile, "%s" XML_TMP_FILE_EXT, pXmlOutFile);
+
+   // build XMLTV channel ID based on service ID, or channel name
+   if (serviceId != 0)
    {
-      xfree(pXmlMergeFile);
-      pXmlMergeFile = NULL;
+      snprintf(xmltvChnId, sizeof(xmltvChnId) - 1, "SID_%d", serviceId);
+      xmltvChnId[sizeof(xmltvChnId) - 1] = 0;
+      pXmlChnId = xmltvChnId;
    }
-   dprintf4("TtxGrab-PostProcess: name:'%s' expire:%d merge:'%s' out:'%s'\n",
-            pName, ttxGrabState[bufIdx].expireMin, (pXmlMergeFile != NULL) ? pXmlMergeFile : "", pXmlTmpFile);
+   else
+   {  // analog source: use channel name as ID, just with blank et.al. replaced by "_"
+      pXmlChnId = (char*) xmalloc(strlen(pName) + 1);
+      TtxGrab_CopyNameEscaped(pXmlChnId, pName);
+   }
+
+   // merge with pre-existing output file, if existing
+   pXmlMergeFile = TtxGrab_CheckFileExists(pXmlOutFile) ? pXmlOutFile : NULL;
+
+   dprintf4("TtxGrab-PostProcess: name:'%s' expire:%d merge?:%d out:'%s'\n",
+            pName, ttxGrabState[bufIdx].expireMin, (pXmlMergeFile != NULL), pXmlTmpFile);
 
    if (ttx_db_parse(ttxGrabState[bufIdx].ttx_db,
                     ttxGrabState[bufIdx].startPage, ttxGrabState[bufIdx].stopPage,
                     ttxGrabState[bufIdx].expireMin,
-                    pXmlMergeFile, pXmlTmpFile, 0, 0) == 0)
+                    pXmlMergeFile, pXmlTmpFile,
+                    pName, xmltvChnId) == 0)
    {
-      // replace XML file with temporary output: XML_OUT_FILE_PAT
-      pXmlOutFile = xstrdup(pXmlTmpFile);
-
-      // remove ".tmp" suffix from output file name
-      pXmlOutFile[strlen(pXmlOutFile) - strlen(XML_OUT_FILE_TMP)] = 0;
-
       if (rename(pXmlTmpFile, pXmlOutFile) != 0)
       {
          debug3("TtxGrab-CheckPostProcess: failed to rename '%s' into '%s': %d", pXmlTmpFile, pXmlOutFile, errno);
          unlink(pXmlTmpFile);
       }
-      xfree(pXmlOutFile);
       ttxGrabState[bufIdx].postProcDone = TRUE;
    }
    xfree(pXmlTmpFile);
+   xfree(pXmlOutFile);
+   if (pXmlChnId != xmltvChnId)
+      xfree(pXmlChnId);
 
    if (reset)
    {
       ttx_db_destroy(ttxGrabState[bufIdx].ttx_db);
       ttxGrabState[bufIdx].ttx_db = NULL;
-   }
-
-   if (pXmlMergeFile != NULL)
-   {
-      xfree(pXmlMergeFile);
    }
 }
 

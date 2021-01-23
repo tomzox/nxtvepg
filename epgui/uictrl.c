@@ -642,8 +642,6 @@ void UiControl_ReloadError( ClientData clientData )
          break;
       case EPGDB_RELOAD_EXIST:
          pReason = "the database file does not exist";
-         if (IS_XMLTV_CNI(pMsg->cni) == FALSE)
-            pHint = "You should start an EPG scan from the Configure menu. ";
          break;
       case EPGDB_RELOAD_MERGE:
          pReason = "databases could not be merged";
@@ -677,15 +675,15 @@ void UiControl_ReloadError( ClientData clientData )
             break;
 
          case CTX_RELOAD_ERR_ACQ:
-            if ( IS_XMLTV_CNI(pMsg->cni) &&
-                 ((pXmlPath = XmltvCni_LookupProviderPath(pMsg->cni)) != NULL) )
+            if ((pXmlPath = XmltvCni_LookupProviderPath(pMsg->cni)) != NULL)
                sprintf(comm2, "tk_messageBox -type ok -icon warning -message {"
                                 "Failed to update merged database with "
                                 "XMLTV file \"%s\" because %s. "
                                 "%s}\n", pXmlPath, pReason, pHint);
             else
                sprintf(comm2, "tk_messageBox -type ok -icon warning -message {"
-                                "Failed to update merged database with provider %X because %s. "
+                                "Failed to update merged database with provider "
+                                "with unknown identifier %X: %s. "
                                 "%s}\n", pMsg->cni, pReason, pHint);
             eval_check(interp, comm2);
             break;
@@ -702,7 +700,8 @@ void UiControl_ReloadError( ClientData clientData )
                                 "}\n", pXmlPath, pMsg->cni, pReason, pHint);
             else  // should never be reached
                sprintf(comm2, "tk_messageBox -type ok -icon error -message {"
-                                "Failed to load the database of provider %X because %s. "
+                                "Failed to load the database of provider "
+                                "with unknown identifier %X: %s. "
                                 "%s"
                                 "}\n", pMsg->cni, pReason, pHint);
             eval_check(interp, comm2);

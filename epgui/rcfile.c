@@ -66,7 +66,6 @@
 #include "epgctl/epgacqsrv.h"
 #include "epgctl/epgacqclnt.h"
 #include "epgvbi/syserrmsg.h"
-#include "epgvbi/cni_tables.h"
 #include "epgui/uictrl.h"
 #include "epgctl/epgctxctl.h"
 #include "epgtcl/dlg_hwcfg.h"
@@ -1306,12 +1305,6 @@ const char * RcFile_GetNetworkName( uint cni )
       {
          pResult = pNetNames->name;
          break;
-      }
-      else if ((pResult == NULL) && IS_NXTV_CNI(cni) &&
-               (CniConvertUnknownToPdc(cni) == pNetNames->net_cni))
-      {
-         pResult = pNetNames->name;
-         // no break - keep searching for exact match
       }
    }
    return pResult;

@@ -46,10 +46,10 @@ void TtxGrab_Stop( void );
 bool TtxGrab_ProcessPackets( uint bufIdx );
 bool TtxGrab_CheckSlicerQuality( uint bufIdx );
 void TtxGrab_GetStatistics( uint bufIdx, TTX_GRAB_STATS * pStats );
-void TtxGrab_PostProcess( uint bufIdx, const char * pName, bool reset );
+void TtxGrab_PostProcess( uint bufIdx, uint serviceId, const char * pName, bool reset );
 bool TtxGrab_CheckPostProcess( uint bufIdx );
 void TtxGrab_GetPageStats( uint bufIdx, bool * pInRange, bool * pRangeDone, bool * pSourceLock, uint * pPredictDelay );
-char * TtxGrab_GetPath( const char * pName );
+char * TtxGrab_GetPath( uint serviceId, const char * pName );
 
 void TtxGrab_Init( void );
 void TtxGrab_Exit( void );

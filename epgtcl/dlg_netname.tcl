@@ -88,18 +88,12 @@ proc NetworkNamingPopup {} {
          set cnilist [C_GetAiNetwopList $prov tmparr ai_names]
          foreach cni $cnilist {
             set netname_provnets($prov,$cni) $tmparr($cni)
-            set netname_provnets($prov,[C_NormalizeCni $cni]) $tmparr($cni)
          }
       }
       array unset tmparr
 
       # retrieve list of all networks of the current provider
       set netname_ailist [eval concat [C_GetProvCniConfig $cur_prov_cni]]
-
-      # remove duplicate networks from merged database
-      if {$cur_prov_cni == 0x00FF} {
-         set netname_ailist [NormalizeCnis $netname_ailist]
-      }
 
       if {[llength $netname_ailist] == 0} {
          # network selection dialog was not used yet
@@ -118,17 +112,11 @@ proc NetworkNamingPopup {} {
          if [info exists cfnetnames($cni)] {
             # network name is already configured by the user
             set netname_names($cni) $cfnetnames($cni)
-         } elseif [info exists cfnetnames([C_NormalizeCni $cni])] {
-            set netname_names($cni) $cfnetnames([C_NormalizeCni $cni])
-            lappend netname_automatch $cni
          } else {
             # no name yet configured -> search best among all providers
             lappend netname_automatch $cni
             foreach prov $netname_prov_cnis {
                set key "$prov,$cni"
-               if {![info exists netname_provnets($key)]} {
-                  set key "$prov,[C_NormalizeCni $cni]"
-               }
                if [info exists netname_provnets($key)] {
                   # remove non-alphanumeric ASCII characters from the name
                   regsub -all -- {[\0-\/\:-\?\[\\\]\^\_\{\|\}\~]*} $netname_provnets($key) {} name
@@ -209,24 +197,8 @@ proc NetworkNamingPopup {} {
       bind .netname.ctrl.tv.tvl.ailist <Double-Button-1> NetworkNameXawtvSelection
       pack .netname.ctrl.tv -side top -fill both -expand 1 -pady 5
 
-      # third row: network description
+      # third row: provider name selection
       labelframe .netname.ctrl.id -text "Network identification"
-      checkbutton .netname.ctrl.id.chk_netdesc -text "Official network description" -onvalue 0 \
-                                  -disabledforeground black -takefocus 0 -font $::font_normal
-      pack .netname.ctrl.id.chk_netdesc -side top -anchor nw
-      bindtags .netname.ctrl.id.chk_netdesc {.netname .}
-      entry .netname.ctrl.id.enetdesc $entry_disabledforeground black
-      pack  .netname.ctrl.id.enetdesc -side top -anchor nw -fill x
-      # copy event bindings which are required for selection (outbound copy&paste)
-      #foreach event {<Control-Key-backslash> <Control-Key-slash> <Shift-Key-Select> \
-      #               <Key-Select> <Key-End> <Key-Home> <Control-Button-1> <ButtonRelease-1> \
-      #               <Triple-Button-1> <Double-Button-1> <B1-Motion> <Button-1> <Key-Tab> \
-      #               <Key-Left> <Key-Right> <Shift-Key-Left> <Shift-Key-Right> <<Copy>>} {
-      #   bind EntryReadOnly $event [bind Entry $event]
-      #}
-      #bindtags .netname.ctrl.id.enetdesc {.netname.ctrl.id.enetdesc EntryReadOnly .netname}
-
-      # fourth row: provider name selection
       label .netname.ctrl.id.lprovnams -text "Original names for this network:" -font $::font_normal -justify left
       pack .netname.ctrl.id.lprovnams -side top -anchor nw
       frame .netname.ctrl.id.provnams
@@ -506,29 +478,13 @@ proc NetworkNameSelection {} {
       # note: trace on the assigned variable causes update of "similar" list
       set cni [lindex $netname_ailist $netname_idx]
       set netname_entry $netname_names($cni)
-      set cni_desc [C_GetCniDescription $cni]
       .netname.ctrl.myname icursor end
-
-      # display description of the network if available
-      .netname.ctrl.id.enetdesc configure -state normal
-      .netname.ctrl.id.enetdesc delete 0 end
-      .netname.ctrl.id.enetdesc insert 0 $cni_desc
-      .netname.ctrl.id.enetdesc configure -state disabled
-
-      if {($cni_desc ne "") && ($cni != 0)} {
-         .netname.ctrl.id.chk_netdesc configure -selectcolor green -text "Unique VPS/PDC identifier - Official name:"
-      } else {
-         .netname.ctrl.id.chk_netdesc configure -selectcolor red -text "Can only be identified by TV channel name"
-      }
 
       # rebuild the list of provider's network names
       set netname_provlist {}
       .netname.ctrl.id.provnams.lbox delete 0 end
       foreach prov $netname_prov_cnis {
          set key "$prov,$cni"
-         if {![info exists netname_provnets($key)]} {
-            set key "$prov,[C_NormalizeCni $cni]"
-         }
          if [info exists netname_provnets($key)] {
             # the netname_provlist keeps track which providers are listed in the box
             lappend netname_provlist $prov
@@ -549,10 +505,6 @@ proc NetworkNameProvSelection {} {
    if {([string length $sel] > 0) && ($sel < [llength $netname_provlist])} {
       set prov [lindex $netname_provlist $sel]
       set key "$prov,$cni"
-      if {![info exists netname_provnets($key)]} {
-         set cni [C_NormalizeCni $cni]
-         set key "$prov,$cni"
-      }
       if [info exists netname_provnets($key)] {
          set netname_entry $netname_provnets($key)
       }

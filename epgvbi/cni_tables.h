@@ -26,6 +26,5 @@ const char * CniGetDescription( uint cni, const char ** ppCountry );
 bool CniGetProviderLto( uint cni, sint * pLto );
 uint CniConvertP8301ToVps( uint cni );
 uint CniConvertPdcToVps( uint cni );
-uint CniConvertUnknownToPdc( uint cni );
 
 #endif  //__CNI_TABLES_H

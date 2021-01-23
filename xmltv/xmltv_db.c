@@ -148,8 +148,6 @@ typedef struct
    XML_STR_BUF  source_data_url;
    XML_STR_BUF  gen_info_name;
    XML_STR_BUF  gen_info_url;
-   XML_STR_BUF  * link_text_dest;
-   XML_STR_BUF  * link_href_dest;
 
    XML_HASH_PTR pThemeHash;
    PI_BLOCK     pi;
@@ -158,7 +156,6 @@ typedef struct
    XML_STR_BUF  pi_credits;
    XML_STR_BUF  pi_actors;
 
-   uint         audio_cnt;
    uint         pi_aspect_x;
    uint         pi_aspect_y;
    uint         pi_star_rating_val;
@@ -464,8 +461,7 @@ static EPGDB_BLOCK * XmltvDb_BuildAi( const char * pProvName )
 
    for (idx = 0; idx < xds.chn_count; idx++, pNetwops++)
    {
-      pNetwops->netCni = xds.p_chn_table[idx].cni & XMLTV_NET_CNI_MASK;
-      pNetwops->netCniMSB = xds.p_chn_table[idx].cni >> 16;
+      pNetwops->netCni = xds.p_chn_table[idx].cni;
       pNetwops->lto = 120; // TODO
       pNetwops->dayCount = (xds.p_chn_table[idx].pi_max_time -
                             xds.p_chn_table[idx].pi_min_time + 23*60*60) / (24*60*60);
@@ -612,30 +608,6 @@ void Xmltv_AboutSetSourceDataUrl( XML_STR_BUF * pBuf )
    XmlCdata_AssignOrAppend(&xds.source_data_url, pBuf);
 }
 
-void Xmltv_SourceInfoOpen( void )
-{
-   xds.link_text_dest = &xds.source_info_name;
-   xds.link_href_dest = &xds.source_info_url;
-}
-
-void Xmltv_SourceInfoClose( void )
-{
-   xds.link_text_dest = NULL;
-   xds.link_href_dest = NULL;
-}
-
-void Xmltv_GenInfoOpen( void )
-{
-   xds.link_text_dest = &xds.gen_info_name;
-   xds.link_href_dest = &xds.gen_info_url;
-}
-
-void Xmltv_GenInfoClose( void )
-{
-   xds.link_text_dest = NULL;
-   xds.link_href_dest = NULL;
-}
-
 void Xmltv_AboutSetGenInfoName( XML_STR_BUF * pBuf )
 {
    XmlCdata_AssignOrAppend(&xds.gen_info_name, pBuf);
@@ -644,31 +616,6 @@ void Xmltv_AboutSetGenInfoName( XML_STR_BUF * pBuf )
 void Xmltv_AboutSetGenInfoUrl( XML_STR_BUF * pBuf )
 {
    XmlCdata_AssignOrAppend(&xds.gen_info_url, pBuf);
-}
-
-void Xmltv_LinkAddText( XML_STR_BUF * pBuf )
-{
-   if (xds.link_text_dest != NULL)
-   {
-      XmlCdata_AssignOrAppend(xds.link_text_dest, pBuf);
-   }
-}
-
-void Xmltv_LinkHrefSet( XML_STR_BUF * pBuf )
-{
-   if (xds.link_href_dest != NULL)
-   {
-      XmlCdata_AssignOrAppend(xds.link_href_dest, pBuf);
-   }
-}
-
-void Xmltv_LinkBlurbAddText( XML_STR_BUF * pBuf )
-{
-   if (xds.link_text_dest != NULL)
-   {
-      XmlCdata_AppendParagraph(xds.link_text_dest, TRUE);
-      XmlCdata_AssignOrAppend(xds.link_text_dest, pBuf);
-   }
 }
 
 // ----------------------------------------------------------------------------
@@ -807,7 +754,6 @@ void Xmltv_TsOpen( void )
    memset(&xds.pi, 0, sizeof(xds.pi));
    xds.pi.netwop_no = xds.chn_count;
    xds.pi.pil = VPS_PIL_CODE_SYSTEM;
-   xds.audio_cnt = 0;
    xds.pi_cat_count = 0;
 
    XmlCdata_Reset(&xds.pi_title);
@@ -1067,39 +1013,6 @@ void Xmltv_PiCatClose( void )
    }
 }
 
-void Xmltv_PiCatSetType( XML_STR_BUF * pBuf )
-{
-   // ignored
-}
-
-void Xmltv_PiCatSetSystem( XML_STR_BUF * pBuf )
-{
-   const char * pStr = XML_STR_BUF_GET_STR(*pBuf);
-
-   if (strcasecmp(pStr, "pdc") == 0)
-   {
-      xds.pi_cat_system = XMLTV_CAT_SYS_PDC;
-   }
-   else
-      debug1("Xmltv-PiCatSetSystem: unknown system: %s", pStr);
-}
-
-void Xmltv_PiCatSetCode( XML_STR_BUF * pBuf )
-{
-   const char * pStr = XML_STR_BUF_GET_STR(*pBuf);
-   char  *p;
-   long  code;
-
-   code = strtol(pStr, &p, 0);
-   if ((*pStr != 0) && (*p == 0))
-   {
-      xds.pi_cat_code = code;
-   }
-   // no warning - some standards may have non-numerical codes (e.g. "A410" example in the XMLTV DTD)
-   //else
-   //   debug1("Xmltv-PiCatSetCode: parse error '%s'", pStr);
-}
-
 // DTD 0.5: themes given as free text
 void Xmltv_PiCatAddText( XML_STR_BUF * pBuf )
 {
@@ -1126,20 +1039,6 @@ void Xmltv_PiVideoAspectClose( void )
    {
       xds.pi.feature_flags |= PI_FEATURE_FMT_WIDE;
    }
-}
-
-void Xmltv_PiVideoAspectSetX( XML_STR_BUF * pBuf )
-{
-   const char * pStr = XML_STR_BUF_GET_STR(*pBuf);
-
-   xds.pi_aspect_x = atoi(pStr);
-}
-
-void Xmltv_PiVideoAspectSetY( XML_STR_BUF * pBuf )
-{
-   const char * pStr = XML_STR_BUF_GET_STR(*pBuf);
-
-   xds.pi_aspect_y = atoi(pStr);
 }
 
 // DTD 0.5: aspect specified as PCDATA
@@ -1190,23 +1089,6 @@ void Xmltv_PiVideoQualityAdd( XML_STR_BUF * pBuf )
    else if (strncasecmp(pStr, "HD", 2) == 0)
    {
       xds.pi.feature_flags |= PI_FEATURE_VIDEO_HD;
-   }
-}
-
-void Xmltv_PiAudioOpen( void )
-{
-}
-
-void Xmltv_PiAudioClose( void )
-{
-   xds.audio_cnt += 1;
-
-   // two mono channels -> so-called "2-channel" (usually different languages)
-   if ( (xds.audio_cnt > 1) &&
-        ((xds.pi.feature_flags & PI_FEATURE_SOUND_MASK) == PI_FEATURE_SOUND_MONO) )
-   {
-      xds.pi.feature_flags &= ~PI_FEATURE_SOUND_MASK;
-      xds.pi.feature_flags |= PI_FEATURE_SOUND_2CHAN;
    }
 }
 
@@ -1408,34 +1290,11 @@ void Xmltv_PiStarRatingClose( void )
    Xmltv_PiStarRatingSet(xds.pi_star_rating_val, xds.pi_star_rating_max);
 }
 
-void Xmltv_PiStarRatingSetMax( XML_STR_BUF * pBuf )
-{
-   const char * pStr = XML_STR_BUF_GET_STR(*pBuf);
-   char * p;
-   long val;
-
-   val = strtol(pStr, &p, 0);
-   if ((*pStr != 0) && (*p == 0))
-   {
-      xds.pi_star_rating_max = val;
-   }
-   else
-      debug1("Xmltv-PiStarRatingSetMax: parse error '%s'", pStr);
-}
-
 void Xmltv_PiDescOpen( void )
 {
 }
 
 void Xmltv_PiDescClose( void )
-{
-}
-
-void Xmltv_ParagraphCreate( void )
-{
-}
-
-void Xmltv_ParagraphClose( void )
 {
 }
 
@@ -1528,6 +1387,7 @@ void Xmltv_PiCreditsAddGuest( XML_STR_BUF * pBuf )
    Xmltv_PiCreditsAppend("guest: ", pBuf);
 }
 
+// date when the programme originally was produced (not air date)
 void Xmltv_PiDateAdd( XML_STR_BUF * pBuf )
 {
 }

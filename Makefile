@@ -91,9 +91,6 @@ ACQLIBS += -lpthread
 # XMLTV parser needs to emit UTF-8 to match internal encoding
 DEFS   += -DXMLTV_OUTPUT_UTF8
 
-# path to default version of xmltv-etsi.map
-DEFS   += -DXMLTV_CNI_MAP_PATH=\"$(cfgdir)\"
-
 # enable support for teletext EPG grabber
 DEFS   += -DUSE_TTX_GRABBER
 

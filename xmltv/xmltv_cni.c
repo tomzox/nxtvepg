@@ -43,23 +43,11 @@
 
 #include "epgctl/mytypes.h"
 #include "epgctl/debug.h"
-#include "epgvbi/cni_tables.h"
 #include "epgui/rcfile.h"
 
 #include "xmltv/xml_cdata.h"
 #include "xmltv/xml_hash.h"
 #include "xmltv/xmltv_cni.h"
-
-#if !defined (XMLTV_CNI_MAP_PATH)  // should be defined in makefile
-#define XMLTV_CNI_MAP_PATH "."
-#endif
-#define XMLTV_CNI_MAP_NAME "xmltv-etsi.map"
-
-#ifndef WIN32
-#define XMLTV_CNI_MAP_FULL_PATH XMLTV_CNI_MAP_PATH "/" XMLTV_CNI_MAP_NAME
-#else
-#define XMLTV_CNI_MAP_FULL_PATH XMLTV_CNI_MAP_PATH "\\" XMLTV_CNI_MAP_NAME
-#endif
 
 #ifndef WIN32
 static char * pXmlCniCwd;
@@ -117,140 +105,6 @@ static const char * XmltvCni_GetFullPath( const char * pPath )
 }
 
 // ----------------------------------------------------------------------------
-// Match source name against pattern in section header of map file
-// - pattern may contain wildcard "*" at the start and end;
-//   other reg-exp currently not supported
-// - the pattern may be modified
-//
-static bool XmltvCni_MatchSectionName( char * pPattern, const char * pName )
-{
-   bool wildStart;
-   bool wildEnd;
-   uint patLen;
-   uint namLen;
-   bool match = FALSE;
-
-   if ((pPattern != NULL) && (pName != NULL))
-   {
-      wildStart = wildEnd = FALSE;
-      patLen = strlen(pPattern);
-      namLen = strlen(pName);
-
-      if (pPattern[0] == '*')
-      {
-         wildStart = TRUE;
-         pPattern += 1;
-         patLen -= 1;
-      }
-      if ((patLen > 1) && (pPattern[patLen - 1] == '*'))
-      {
-         wildEnd = TRUE;
-         patLen -= 1;
-         pPattern[patLen] = 0;
-      }
-
-      if (wildStart)
-      {
-         if (wildEnd)
-         {
-            match = (strstr(pName, pPattern) != NULL);
-         }
-         else
-         {
-            match = ((namLen >= patLen) &&
-                     (strncmp(pName + namLen - patLen, pPattern, patLen) == 0));
-         }
-      }
-      else
-      {
-         if (wildEnd)
-         {
-            match = (strncmp(pName, pPattern, patLen) == 0);
-         }
-         else
-         {
-            match = (strncmp(pName, pPattern, patLen) == 0) && (namLen == patLen);
-         }
-      }
-      dprintf5("MATCH PAT '%s' in '%s': %d (wild:%d/%d)\n", pPattern, pName, match, wildStart, wildEnd);
-
-   }
-   return match;
-}
-
-// ----------------------------------------------------------------------------
-// Read file which maps XMLTV channel IDs to ETSI CNIs
-//
-static void XmltvCni_LoadEtsiMap( XML_HASH_PTR pNameHash,
-                                  const char * pSourceName, const char * pSourceUrl )
-{
-   const char * pFileName;
-   char line[256], value[256];
-   FILE * fp;
-   uint * pCniVal;
-   char * pl;
-   sint cni;
-   bool skip;
-   bool isNew;
-
-   fp = fopen((pFileName = XMLTV_CNI_MAP_NAME), "r");
-   if (fp == NULL)
-      fp = fopen((pFileName = XMLTV_CNI_MAP_FULL_PATH), "r");
-
-   if (fp != NULL)
-   {
-      skip = TRUE;
-      while (fgets(line, 255, fp) != NULL)
-      {
-         // skip empty lines and comments
-         pl = line;
-         while (*pl == ' ')
-            pl++;
-         if ((*pl == '\n') || (*pl == '\r') || (*pl == '#'))
-            continue;
-
-         if (sscanf(line,"[%99[^]]]", value) == 1)
-         {
-            if (strcmp(value, "GLOBAL") == 0)
-            {
-               skip = FALSE;
-            }
-            else
-            {
-               skip = !XmltvCni_MatchSectionName(value, pSourceName) &&
-                      !XmltvCni_MatchSectionName(value, pSourceUrl);
-            }
-         }
-         else if (sscanf(line," %x %250[^\n\r]", &cni, value) == 2)
-         {
-            if (cni != 0)
-            {
-               if (skip == FALSE)
-               {
-                  pCniVal = (uint*) XmlHash_CreateEntry(pNameHash, value, &isNew);
-                  if (isNew)
-                  {
-                     *pCniVal = cni;
-                  }
-                  else
-                  {
-                     debug2("XmltvCni-LoadEtsiMap: duplicate CNI 0x%04X for %s", cni, value);
-                     fprintf(stderr, "%s: duplicate CNI '%04X' for %s\n", pFileName, cni, value);
-                  }
-               }
-            }
-            else
-               debug0("XmltvCni-LoadEtsiMap: illegal CNI value 0 - skipping line");
-         }
-         else
-            debug1("XmltvCni-LoadEtsiMap: skipping malformed line: %s", line);
-      }
-
-      fclose(fp);
-   }
-}
-
-// ----------------------------------------------------------------------------
 // Initialize the context struct for a provider network CNI table
 // - must be called once before a database is loaded
 //
@@ -262,14 +116,11 @@ void XmltvCni_MapInit( XMLTV_CNI_CTX * pCniCtx, uint provCni,
    bool isNew;
    uint idx;
 
-   assert(IS_XMLTV_CNI(provCni));
    assert((provCni & XMLTV_NET_CNI_MASK) == 0);
 
    pCniCtx->provCni = provCni;
    pCniCtx->freeCni = provCni + 1;
    pCniCtx->nameHash = XmlHash_Init();
-
-   XmltvCni_LoadEtsiMap(pCniCtx->nameHash, pSourceName, pSourceUrl);
 
    // load channel IDs for this provider into an hash array
    pRc = RcFile_Query();
@@ -309,189 +160,19 @@ void XmltvCni_MapDestroy( XMLTV_CNI_CTX * pCniCtx )
 uint XmltvCni_MapNetCni( XMLTV_CNI_CTX * pCniCtx, const char * pChannelId )
 {
    uint  * pCniVal;
-   sint  scni;
-   int   scan_pos;
-   int   nscan;
    bool  is_new;
-
-   assert(IS_XMLTV_CNI(pCniCtx->provCni));
 
    pCniVal = (uint*) XmlHash_CreateEntry(pCniCtx->nameHash, pChannelId, &is_new);
    if (is_new)
    {
-      nscan = sscanf(pChannelId, "CNI%04X%n", &scni, &scan_pos);
-      if ( (nscan >= 1) && (scan_pos == 3+4) && (pChannelId[3+4] == 0) &&
-           (scni != 0) && IS_NXTV_CNI(scni) )
-      {
-         // ID is already a CNI
-         *pCniVal = (uint) scni;
-      }
-      else
-      {
-         // TODO check for overflow in "++" modulo XMLTV_NET_CNI_MASK
-         *pCniVal = pCniCtx->freeCni++;
+      // TODO check for overflow in "++" modulo XMLTV_NET_CNI_MASK
+      *pCniVal = pCniCtx->freeCni++;
 
-         RcFile_AddXmltvNetwork(pCniCtx->provCni, *pCniVal, pChannelId);
-      }
+      RcFile_AddXmltvNetwork(pCniCtx->provCni, *pCniVal, pChannelId);
+
       dprintf2("XmltvCni-MapNetCni: NEW %s -> CNI 0x%05X\n", pChannelId, *pCniVal);
    }
    return *pCniVal;
-}
-
-// ----------------------------------------------------------------------------
-// Creates a table for mapping CNIs to XMLTV channel IDs during XMLTV export
-// - uses the GLOBAL section of the XMLTV->CNI mapping table;
-//   in case of duplicate CNIs the last definition is used
-// - the caller must call the "free" function when done
-//
-bool XmltvCni_InitMapCni2Ids( XMLTV_CNI_REV_CTX * pCtx )
-{
-   const char * pFileName;
-   char line[256], value[256];
-   FILE * fp;
-   char * pl;
-   sint cni;
-   bool skip;
-   uint idx;
-
-   pCtx->pMap = NULL;
-   pCtx->maxMapLen = 0;
-   pCtx->mapLen = 0;
-
-   fp = fopen((pFileName = XMLTV_CNI_MAP_NAME), "r");
-   if (fp == NULL)
-      fp = fopen((pFileName = XMLTV_CNI_MAP_FULL_PATH), "r");
-
-   if (fp != NULL)
-   {
-      pCtx->maxMapLen = 100;
-      pCtx->pMap = (XMLTV_CNI_REV_MAP*) xmalloc(pCtx->maxMapLen * sizeof(pCtx->pMap[0]));
-
-      skip = TRUE;
-      while (fgets(line, 255, fp) != NULL)
-      {
-         // skip empty lines and comments
-         pl = line;
-         while (*pl == ' ')
-            pl++;
-         if ((*pl == '\n') || (*pl == '\r') || (*pl == '#'))
-            continue;
-
-         if (sscanf(line,"[%99[^]]]", value) == 1)
-         {
-            skip = (strcmp(value, "GLOBAL") != 0) &&
-                   (strcmp(value, "EXPORT|GLOBAL") != 0);
-         }
-         else if ( (sscanf(line," %x %250[^\n\r]", &cni, value) == 2) &&
-                   (skip == FALSE) )
-         {
-            for (idx = 0; idx < pCtx->mapLen; idx++)
-               if (pCtx->pMap[idx].cni == cni)
-                  break;
-
-            if (idx < pCtx->mapLen)
-            {
-               // duplicate name for this CNI - use the latter one
-               debug3("XmltvCni-InitMapCni2Ids: duplicate CNI 0x%04X: have '%s' and '%s'", cni, pCtx->pMap[idx].pName, value);
-               xfree(pCtx->pMap[idx].pName);
-               pCtx->pMap[idx].pName = xstrdup(value);
-            }
-            else
-            {
-               if (pCtx->mapLen >= pCtx->maxMapLen)
-               {
-                  pCtx->maxMapLen += 100;
-                  pCtx->pMap = (XMLTV_CNI_REV_MAP*) xrealloc(pCtx->pMap, pCtx->maxMapLen * sizeof(pCtx->pMap[0]));
-               }
-               pCtx->pMap[pCtx->mapLen].pName = xstrdup(value);
-               pCtx->pMap[pCtx->mapLen].cni = cni;
-               pCtx->mapLen += 1;
-            }
-         }
-      }
-
-      fclose(fp);
-   }
-
-   return (pCtx->pMap != NULL);
-}
-
-// ----------------------------------------------------------------------------
-// Frees the table for mapping CNIs to XMLTV channel IDs
-//
-void XmltvCni_FreeMapCni2Ids( XMLTV_CNI_REV_CTX * pCtx )
-{
-   uint idx;
-
-   if (pCtx != NULL)
-   {
-      if (pCtx->pMap != NULL)
-      {
-         for (idx = 0; idx < pCtx->mapLen; idx++)
-         {
-            xfree(pCtx->pMap[idx].pName);
-         }
-         xfree(pCtx->pMap);
-         pCtx->pMap = NULL;
-      }
-      pCtx->maxMapLen = 0;
-      pCtx->mapLen = 0;
-   }
-}
-
-// ----------------------------------------------------------------------------
-// Map the given CNI value to a known XMLTV channel identifier string
-// - returns NULL if there's no pre-defined ID for this CNI
-//
-const char * XmltvCni_MapCni2Ids( XMLTV_CNI_REV_CTX * pCtx, uint cni )
-{
-   const char * pName = NULL;
-   uint  tryIdx;
-   uint  idx;
-   uint  cmpCni;
-   uint  pdcCni;
-
-   if (pCtx != NULL)
-   {
-      for (tryIdx = 0; (tryIdx <= 1) && (pName == NULL); tryIdx++)
-      {
-         for (idx = 0; idx < pCtx->mapLen; idx++)
-         {
-            cmpCni = pCtx->pMap[idx].cni;
-            if (cmpCni == cni)
-            {
-               pName = pCtx->pMap[idx].pName;
-               goto found;
-            }
-
-            if ((0xF0000 & cni) == 0)
-            {
-               switch (cmpCni >> 8)
-               {
-                  case 0x1D:  // country code for Germany
-                  case 0x1A:  // country code for Autria
-                  case 0x24:  // country code for Switzerland
-                  case 0x77:  // country code for Ukraine
-                     // discard the upper 4 bits of the country code
-                     if ((cmpCni & 0x0FFF) == cni)
-                     {
-                        pName = pCtx->pMap[idx].pName;
-                        goto found;
-                     }
-                     break;
-                  default:
-                     break;
-               }
-            }
-         }
-         pdcCni = CniConvertUnknownToPdc(cni);
-         if (pdcCni == cni)
-            break;
-         cni = pdcCni;
-      }
-   }
-found: ;
-   return pName;
 }
 
 // ----------------------------------------------------------------------------

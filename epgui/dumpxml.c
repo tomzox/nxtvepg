@@ -404,9 +404,6 @@ void EpgDumpXml_Standalone( EPGDB_CONTEXT * pDbContext, FILTER_CONTEXT * fc,
       pAiBlock = EpgDbGetAi(pDbContext);
       if (pAiBlock != NULL)
       {
-         XMLTV_CNI_REV_CTX xmlIdMap;
-         XmltvCni_InitMapCni2Ids(&xmlIdMap);
-
          // get "OSD information" with service name and message
          pOiBlock = EpgDbGetOi(pDbContext);
 
@@ -422,17 +419,12 @@ void EpgDumpXml_Standalone( EPGDB_CONTEXT * pDbContext, FILTER_CONTEXT * fc,
          for (netwopIdx = 0; netwopIdx < pAiBlock->netwopCount; netwopIdx++)
          {
             // determine the XMLTV channel ID
-            const char * pChnId;
             uint cni = AI_GET_NET_CNI_N(pAiBlock, netwopIdx);
-            pChnId = XmltvCni_MapCni2Ids(&xmlIdMap, cni);
+            const char * pChnId = RcFile_GetXmltvNetworkId(cni);
+
             if (pChnId != NULL)
             {
-               pChnIds[netwopIdx] = xstrdup(pChnId);
-            }
-            else if ( IS_XMLTV_CNI(cni) &&
-                      ((pChnId = RcFile_GetXmltvNetworkId(cni)) != NULL) )
-            {
-               // for imported XMLTV files: keep the original channel ID
+               // keep the original channel ID from XMLTV <channel> tag
                // XXX FIXME: this is not the original one if overriden by xmltv-etsi.map
                pChnIds[netwopIdx] = xstrdup(pChnId);
             }
@@ -465,8 +457,6 @@ void EpgDumpXml_Standalone( EPGDB_CONTEXT * pDbContext, FILTER_CONTEXT * fc,
 
          // footer
          fprintf(fp, "</tv>\n");
-
-         XmltvCni_FreeMapCni2Ids(&xmlIdMap);
       }
       EpgDbLockDatabase(pDbContext, FALSE);
    }

@@ -34,8 +34,7 @@
 
 typedef struct
 {
-   uint16_t  netCni;
-   uint16_t  netCniMSB;
+   uint32_t  netCni;
    int8_t    lto;          // TODO: always 120 for XMLTV
    uint8_t   language;     // TODO: always 1 for XMLTV
    uint8_t   dayCount;
@@ -50,6 +49,8 @@ typedef struct
 
    uint16_t  off_serviceNameStr;
    uint16_t  off_netwops;
+
+   uint16_t  reserved_0;  // padding to align following AI_NETWOP to 32-bit boundary
 } AI_BLOCK;
 
 #define AI_GET_NETWOPS(X)       ((const AI_NETWOP *)((uint16_t *)(X)+(X)->off_netwops/sizeof(uint16_t)))
@@ -57,7 +58,7 @@ typedef struct
 #define AI_GET_SERVICENAME(X)   ((const char *)(X)+(X)->off_serviceNameStr)
 #define AI_GET_STR_BY_OFF(X,O)  ((const char *)(X)+(O))
 #define AI_GET_NETWOP_NAME(X,N) ((const char *)(X)+AI_GET_NETWOPS(X)[N].off_name)
-#define AI_GET_NET_CNI(N)       ((uint)((N)->netCni) | ((uint)((N)->netCniMSB)<<16))
+#define AI_GET_NET_CNI(N)       ((uint)((N)->netCni))
 #define AI_GET_NET_CNI_N(X,N)   AI_GET_NET_CNI(AI_GET_NETWOP_N((X),(N)))
 
 
@@ -115,8 +116,6 @@ typedef struct
 //    OI Block
 // ---------------------------------------------------------------------------
 
-#define MSG_ATTRIB_VAL_USE_SHORT_INFO   0
-
 typedef struct
 {
    uint16_t  off_header;
@@ -142,8 +141,6 @@ typedef enum
    BLOCK_TYPE_OI,
    BLOCK_TYPE_AI,
    BLOCK_TYPE_PI,
-#define BLOCK_TYPE_COUNT          (BLOCK_TYPE_PI + 1)
-#define BLOCK_TYPE_INVALID        0xff
 } BLOCK_TYPE;
 
 typedef union
@@ -230,12 +227,8 @@ typedef struct EPGDB_CONTEXT_STRUCT
 
 #define XMLTV_PROV_CNI_BASE    0x00010000
 #define XMLTV_PROV_CNI_DELTA   0x00010000
-#define XMLTV_PROV_CNI_MAX     0x0FFFFFFF
 #define XMLTV_NET_CNI_MASK     (XMLTV_PROV_CNI_DELTA - 1)
-#define XMLTV_NET_CNI_MSBS     16
 
-#define IS_NXTV_CNI(CNI)       ((((CNI) & ~0xFFFF) == 0) && ((CNI) != MERGED_PROV_CNI))
-#define IS_XMLTV_CNI(CNI)      (((CNI)>=XMLTV_PROV_CNI_BASE) && (((CNI)<=XMLTV_PROV_CNI_MAX)))
 #define IS_PSEUDO_CNI(CNI)     ((CNI)==MERGED_PROV_CNI)
 
 // ----------------------------------------------------------------------------

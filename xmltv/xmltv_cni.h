@@ -55,10 +55,6 @@ void XmltvCni_MapInit( XMLTV_CNI_CTX * pCniCtx, uint provCni,
 void XmltvCni_MapDestroy( XMLTV_CNI_CTX * pCniCtx );
 uint XmltvCni_MapNetCni( XMLTV_CNI_CTX * pCniCtx, const char * pChannelId );
 
-bool XmltvCni_InitMapCni2Ids( XMLTV_CNI_REV_CTX * pCtx );
-void XmltvCni_FreeMapCni2Ids( XMLTV_CNI_REV_CTX * pCtx );
-const char * XmltvCni_MapCni2Ids( XMLTV_CNI_REV_CTX * pCtx, uint cni );
-
 uint XmltvCni_MapProvider( const char * pXmlPath );
 const char * XmltvCni_LookupProviderPath( uint provCni );
 
