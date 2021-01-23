@@ -28,6 +28,7 @@
 void Xmltv_AboutSetSourceInfoUrl( XML_STR_BUF * pBuf );
 void Xmltv_AboutSetSourceInfoName( XML_STR_BUF * pBuf );
 void Xmltv_AboutSetSourceDataUrl( XML_STR_BUF * pBuf );
+void Xmltv_AboutSetDate( XML_STR_BUF * pBuf );
 void Xmltv_SourceInfoOpen( void );
 void Xmltv_SourceInfoClose( void );
 void Xmltv_AboutSetGenInfoName( XML_STR_BUF * pBuf );

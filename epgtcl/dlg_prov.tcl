@@ -118,7 +118,7 @@ proc ProvWin_Create {} {
       if {[info exists provwin_servicename]} {unset provwin_servicename}
       frame .provwin.n.info
       frame .provwin.n.info.service
-      label .provwin.n.info.service.header -text "Name of service"
+      label .provwin.n.info.service.header -text "Provider name"
       pack  .provwin.n.info.service.header -side top -anchor nw
       entry .provwin.n.info.service.name -state disabled $entry_disabledforeground black \
                                          -textvariable provwin_servicename -width 40
@@ -126,7 +126,7 @@ proc ProvWin_Create {} {
       pack  .provwin.n.info.service -side top -anchor nw -fill x
 
       frame .provwin.n.info.net
-      label .provwin.n.info.net.header -text "List of networks"
+      label .provwin.n.info.net.header -text "Covered networks"
       pack .provwin.n.info.net.header -side top -anchor nw
       text .provwin.n.info.net.list -width 45 -height 5 -wrap word -font $font_normal -insertofftime 0
       bindtags .provwin.n.info.net.list {TextReadOnly . all}
@@ -134,7 +134,7 @@ proc ProvWin_Create {} {
       pack .provwin.n.info.net -side top -anchor nw -fill both -expand 1
 
       # OI block header and message
-      label .provwin.n.info.oiheader -text "OSD header and message"
+      label .provwin.n.info.oiheader -text "Source and generator information"
       pack .provwin.n.info.oiheader -side top -anchor nw
       text .provwin.n.info.oimsg -width 45 -height 6 -wrap word -font $font_normal -insertofftime 0
       bindtags .provwin.n.info.oimsg {TextReadOnly . all}
@@ -251,12 +251,12 @@ proc ProvWin_Select {} {
       # display service name in entry widget
       set provwin_servicename [lindex $names 0]
       # display OI strings in text widget
-      .provwin.n.info.oimsg insert end "[lindex $names 1]\n[lindex $names 2]"
+      .provwin.n.info.oimsg insert end [lindex $names 1]
 
       # display all netwops from the AI, separated by commas
-      .provwin.n.info.net.list insert end [lindex $names 3]
-      if {[llength $names] > 4} {
-         foreach netwop [lrange $names 4 end] {
+      .provwin.n.info.net.list insert end [lindex $names 2]
+      if {[llength $names] > 3} {
+         foreach netwop [lrange $names 3 end] {
             .provwin.n.info.net.list insert end ", $netwop"
          }
       }

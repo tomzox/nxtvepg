@@ -512,9 +512,7 @@ static void UiControl_LoadAcqDb( ClientData clientData )
             cni = 0;
             for (dbIdx=0; dbIdx < provCount; dbIdx++)
             {
-               if ( IS_XMLTV_CNI(provCniTab[dbIdx]) &&
-                    (EpgContextCtl_GetAiUpdateTime(provCniTab[dbIdx], FALSE) <
-                       EpgContextCtl_GetAiUpdateTime(provCniTab[dbIdx], TRUE)) )
+               if ( EpgContextCtl_CheckFileModified(provCniTab[dbIdx])  )
                {
                   if (count == 0)
                      cni = provCniTab[dbIdx];
@@ -557,8 +555,7 @@ static void UiControl_LoadAcqDb( ClientData clientData )
 
          dprintf1("UiControl-LoadAcqDb: XMLTV DB 0x%04X\n", cni);
 
-         if ( EpgContextCtl_GetAiUpdateTime(cni, FALSE) <
-                EpgContextCtl_GetAiUpdateTime(cni, TRUE) )
+         if ( EpgContextCtl_CheckFileModified(cni) )
          {
             pDbContext = EpgContextCtl_Open(cni, TRUE, CTX_RELOAD_ERR_NONE);
             if (pDbContext != NULL)

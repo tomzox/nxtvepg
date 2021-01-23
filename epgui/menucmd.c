@@ -809,11 +809,7 @@ static int MenuCmd_GetProvServiceInfos( ClientData ttp, Tcl_Interp *interp, int 
          {
             pResultList = Tcl_NewListObj(0, NULL);
 
-            // first element in return list is the service name
-            pStr = AI_GET_SERVICENAME(pAi);
-            Tcl_ListObjAppendElement(interp, pResultList, TranscodeToUtf8(EPG_ENC_XMLTV, NULL, pStr, NULL));
-
-            // second element is OI header
+            // first element is OI header
             if ((pOi != NULL) && OI_HAS_HEADER(pOi))
             {
                pStr = OI_GET_HEADER(pOi);
@@ -822,7 +818,7 @@ static int MenuCmd_GetProvServiceInfos( ClientData ttp, Tcl_Interp *interp, int 
             else
                Tcl_ListObjAppendElement(interp, pResultList, Tcl_NewStringObj("", 0));
 
-            // third element is OI message
+            // second element is OI message
             if ((pOi != NULL) && OI_HAS_MESSAGE(pOi))
             {
                pStr = OI_GET_MESSAGE(pOi);

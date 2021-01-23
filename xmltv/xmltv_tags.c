@@ -200,7 +200,7 @@ static const XMLTV_ATTS xmltv5_attr_tv[] =
    { "source-data-url", Xmltv_AboutSetSourceDataUrl, FALSE },
    { "generator-info-name", Xmltv_AboutSetGenInfoName, FALSE },
    { "generator-info-url", Xmltv_AboutSetGenInfoUrl, FALSE },
-   { "date", NULL, FALSE }
+   { "date", Xmltv_AboutSetDate, FALSE }
 };
 static const XMLTV_ATTS xmltv5_attr_channel[] =
 {

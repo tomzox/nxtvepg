@@ -136,7 +136,7 @@ proc NetworkNamingPopup {} {
                }
             }
             if {![info exists netname_names($cni)]} {
-               set netname_names($cni) "??"
+               set netname_names($cni) "?? ($cni)"
             }
          }
       }

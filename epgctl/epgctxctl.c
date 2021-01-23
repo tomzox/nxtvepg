@@ -772,39 +772,36 @@ static time_t EpgContextCtl_GetMtime( const char * pFilename )
 }
 
 // ---------------------------------------------------------------------------
-// Query database for a modification timestamp
-// - XMLTV: capture time is equivalent with the file modification time
-//   XXX this is not correct for TTX grabber on channels with multiple networks (e.g. Arte/Kika)
+// Query if the provider's source file was modified since loading it
+// - only checks file modification timestamp, not acq date given in the file
+// - MUST NOT compare mtime with acqTimestamp from within the DB (i.e. AI)
+//   as these may still mismatch even after reload
 //
-time_t EpgContextCtl_GetAiUpdateTime( uint cni, bool reload )
+bool EpgContextCtl_CheckFileModified( uint cni )
 {
    CTX_CACHE * pContext;
-   time_t lastAiUpdate;
+   const char * pXmlPath;
+   time_t mtime;
+   bool result = FALSE;
 
-   pContext = EpgContextCtl_SearchCni(cni);
-   if ( (pContext != NULL) &&
-         (reload == FALSE) &&
-        ( (pContext->state == CTX_CACHE_OPEN) ||
-          (pContext->state == CTX_CACHE_PEEK) ))
+   pXmlPath = XmltvCni_LookupProviderPath(cni);
+   if (pXmlPath != NULL)
    {
-      lastAiUpdate = EpgDbGetAiUpdateTime(pContext->pDbContext);
-      dprintf3("EpgContextCtl-GetAiUpdateTime: CNI 0x%04X: use context timestamp %ld = %s", cni, lastAiUpdate, ctime(&lastAiUpdate));
+      mtime = EpgContextCtl_GetMtime(pXmlPath);
+
+      pContext = EpgContextCtl_SearchCni(cni);
+      if (pContext != NULL)
+      {
+         dprintf4("EpgContextCtl-CheckFileModified: CNI 0x%04X: tsLoaded:%ld tsFile:%d delta:%d", cni, pContext->mtime, mtime, mtime - pContext->mtime);
+         result = (mtime != pContext->mtime);
+      }
+      else
+         debug1("EpgContextCtl-CheckFileModified: CNI 0x%04X: DB not loaded", cni);
    }
    else
-   {
-      // XMLTV: get file modification time (if the CNI can be mapped to a file)
-      const char * pXmlPath;
+      debug1("EpgContextCtl-CheckFileModified: CNI 0x%04X unknown", cni);
 
-      pXmlPath = XmltvCni_LookupProviderPath(cni);
-      if (pXmlPath != NULL)
-         lastAiUpdate = EpgContextCtl_GetMtime(pXmlPath);
-      else
-         lastAiUpdate = 0;
-
-      dprintf3("EpgContextCtl-GetAiUpdateTime: CNI 0x%04X: read file mtime %ld = %s", cni, lastAiUpdate, ctime(&lastAiUpdate));
-   }
-
-   return lastAiUpdate;
+   return result;
 }
 
 // ---------------------------------------------------------------------------

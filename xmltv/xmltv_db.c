@@ -353,6 +353,9 @@ static void XmlTv_BuildAiServiceName( XML_STR_BUF * pServiceName, const char * p
 //
 static void XmlTv_BuildOiMessages( XML_STR_BUF * pHeader, XML_STR_BUF * pMessage )
 {
+   char datestr[99];
+   int len;
+
    memset(pHeader, 0, sizeof(*pHeader));
    memset(pMessage, 0, sizeof(*pMessage));
 
@@ -377,6 +380,12 @@ static void XmlTv_BuildOiMessages( XML_STR_BUF * pHeader, XML_STR_BUF * pMessage
       XmlCdata_AppendParagraph(pMessage, FALSE);
       XmlCdata_AppendRaw(pMessage, XML_STR_BUF_GET_STR(xds.gen_info_url), XML_STR_BUF_GET_STR_LEN(xds.gen_info_url));
    }
+
+   // producer date
+   XmlCdata_AppendParagraph(pMessage, TRUE);
+   XmlCdata_AppendString(pMessage, "Last update: ");
+   len = strftime(datestr, sizeof(datestr), "%a %d.%m.%Y %H:%M:%S", localtime(&xds.mtime));
+   XmlCdata_AppendRaw(pMessage, datestr, len);
 }
 
 // ----------------------------------------------------------------------------
@@ -616,6 +625,16 @@ void Xmltv_AboutSetGenInfoName( XML_STR_BUF * pBuf )
 void Xmltv_AboutSetGenInfoUrl( XML_STR_BUF * pBuf )
 {
    XmlCdata_AssignOrAppend(&xds.gen_info_url, pBuf);
+}
+
+void Xmltv_AboutSetDate( XML_STR_BUF * pBuf )
+{
+   const char * pStr = XML_STR_BUF_GET_STR(*pBuf);
+   uint len = XML_STR_BUF_GET_STR_LEN(*pBuf);
+
+   time_t mtime = XmltvDb_ParseTimestamp(pStr, len);
+   if (mtime != 0)
+      xds.mtime = mtime;
 }
 
 // ----------------------------------------------------------------------------
