@@ -14,7 +14,7 @@
  *   You should have received a copy of the GNU General Public License
  *   along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * Copyright 2006-2011,2020 by T. Zoerner (tomzo at users.sf.net)
+ * Copyright 2006-2011,2020-2021 by T. Zoerner (tomzo at users.sf.net)
  */
 
 #include <stdio.h>
@@ -173,6 +173,8 @@ const T_DATE_NAME RelDateNames[] =
    {"morgen", (1<<1),1, DATE_NAME_FULL},
    {"übermorgen", (1<<1),2, DATE_NAME_FULL},
    {"Übermorgen", (1<<1),2, DATE_NAME_FULL},  // hack to work around mismatching locale
+   {"uebermorgen", (1<<1),2, DATE_NAME_FULL},
+   {"Uebermorgen", (1<<1),2, DATE_NAME_FULL},
    {"aujourd'hui", (1<<4),0, DATE_NAME_FULL},
    {"demain", (1<<4),1, DATE_NAME_FULL},
    {"aprés-demain", (1<<4),2, DATE_NAME_FULL},

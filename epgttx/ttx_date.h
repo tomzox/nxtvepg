@@ -14,7 +14,7 @@
  *   You should have received a copy of the GNU General Public License
  *   along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * Copyright 2006-2011,2020 by T. Zoerner (tomzo at users.sf.net)
+ * Copyright 2006-2011,2020-2021 by T. Zoerner (tomzo at users.sf.net)
  */
 #if !defined (__TTX_DATE_H)
 #define __TTX_DATE_H
@@ -40,6 +40,7 @@ public:
    bool is_valid() const { return m_year != -1; }
    void invalidate() { m_year = -1; }
    void add_offset(int date_off) { m_date_off += date_off; }
+   int get_offset() const { return m_date_off; }
    const char * trace_str() const;
 
    bool ParseOvDate(int page, int sub, int head);

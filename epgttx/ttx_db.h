@@ -14,7 +14,7 @@
  *   You should have received a copy of the GNU General Public License
  *   along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * Copyright 2006-2011,2020 by T. Zoerner (tomzo at users.sf.net)
+ * Copyright 2006-2011,2020-2021 by T. Zoerner (tomzo at users.sf.net)
  */
 #if !defined (__TTX_DB_H)
 #define __TTX_DB_H
@@ -114,6 +114,8 @@ public:
    typedef std::map<TTX_PG_HANDLE, TTX_DB_PAGE*>::iterator iterator;
    typedef std::map<TTX_PG_HANDLE, TTX_DB_PAGE*>::const_iterator const_iterator;
 
+   bool is_empty() const;
+   time_t get_acq_timestamp() const;
    bool sub_page_exists(unsigned page, unsigned sub) const;
    const TTX_DB_PAGE* get_sub_page(unsigned page, unsigned sub) const;
    const_iterator begin() const { return m_db.begin(); }
@@ -165,7 +167,7 @@ struct TTX_DB
 };
 
 bool ImportRawDump(TTX_DB * db, const char * p_name);
-void DumpTextPages(TTX_DB * db, const char * p_name);
-void DumpRawTeletext(TTX_DB * db, const char * p_name, int pg_start, int pg_end);
+bool DumpTextPages(TTX_DB * db, const char * p_name);
+bool DumpRawTeletext(TTX_DB * db, const char * p_name, int pg_start, int pg_end);
 
 #endif // __TTX_DB_H

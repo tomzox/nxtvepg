@@ -14,7 +14,7 @@
  *   You should have received a copy of the GNU General Public License
  *   along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * Copyright 2006-2011,2020 by T. Zoerner (tomzo at users.sf.net)
+ * Copyright 2006-2011,2020-2021 by T. Zoerner (tomzo at users.sf.net)
  */
 
 #include <stdio.h>
@@ -136,8 +136,9 @@ int ttx_db_parse( void * db, int pg_start, int pg_end, int expire_min,
          xmltv.ImportXmltvFile(p_xml_in);
       }
 
-      xmltv.ExportXmltv(NewSlots, p_xml_out,
-                        "nxtvepg/" EPG_VERSION_STR, NXTVEPG_URL);
+      if ( !xmltv.ExportXmltv(NewSlots, p_xml_out,
+                              "nxtvepg/" EPG_VERSION_STR, NXTVEPG_URL) )
+         result = 1;
    }
    else {
       // return error code to signal abormal termination
@@ -159,5 +160,7 @@ void ttx_db_dump(void * db, const char * p_name, int pg_start, int pg_end)
 {
    TTX_DB * const ttx_db = (TTX_DB*) db;
 
-   DumpRawTeletext(ttx_db, p_name, pg_start, pg_end);
+   if (!ttx_db->page_db.is_empty()) {
+      DumpRawTeletext(ttx_db, p_name, pg_start, pg_end);
+   }
 }

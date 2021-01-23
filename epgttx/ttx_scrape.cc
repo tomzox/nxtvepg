@@ -14,7 +14,7 @@
  *   You should have received a copy of the GNU General Public License
  *   along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * Copyright 2006-2011,2020 by T. Zoerner (tomzo at users.sf.net)
+ * Copyright 2006-2011,2020-2021 by T. Zoerner (tomzo at users.sf.net)
  */
 
 #include <stdio.h>
@@ -1326,9 +1326,14 @@ bool OV_PAGE::calc_date_off(const OV_PAGE * prev, const OV_PAGE * first)
                date_off = 1;
             }
          }
+         else if ((prev_delta == -1) && (prev->m_date.get_offset() == 1)) {
+            // current page has the same date when not considering offset.
+            // note calc_date_delta() internally considers the date offset of the preceding page
+            date_off = 1;
+         }
          else {
-            if (opt_debug) printf("OV DATE %03X.%d: prev page %03X.%04X date cleared\n",
-                                  m_page, m_sub, prev->m_page, prev->m_sub);
+            if (opt_debug) printf("OV DATE %03X.%d: prev page %03X.%04X, delta:%d date cleared\n",
+                                  m_page, m_sub, prev->m_page, prev->m_sub, prev_delta);
             prev = 0;
          }
          // TODO: date may also be wrong by +1 (e.g. when starting at 23:55 with date for 00:00)
