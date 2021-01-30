@@ -59,6 +59,10 @@
 #include "epgui/epgsetup.h"
 #include "xmltv/xmltv_cni.h"
 
+#ifdef USE_TTX_GRABBER
+static bool EpgSetup_GetTtxConfig( uint * pCount, char ** ppNames, EPGACQ_TUNER_PAR ** ppFreq );
+#endif
+
 // ----------------------------------------------------------------------------
 // Determine a network's name
 // 
@@ -361,6 +365,48 @@ static bool EpgSetup_GetMergeDbNetwops( uint provCniCount, const uint * pProvCni
 }
 
 // ----------------------------------------------------------------------------
+// Append teletext providers to the given CNI list
+// - returns all providers in TTX config for which an XMLTV file exists
+//   and which are not already in the list
+//
+void EpgSetup_AppendTtxProviders( uint *pCniCount, uint * pCniTab )
+{
+   EPGACQ_TUNER_PAR * pTtxFreqs = NULL;
+   char * pTtxNames = NULL;
+   uint ttxFreqCount = 0;
+   uint idx2;
+
+   if (EpgSetup_GetTtxConfig(&ttxFreqCount, &pTtxNames, &pTtxFreqs))
+   {
+      const char * pNames = pTtxNames;
+      for (uint idx = 0; (idx < ttxFreqCount) && (*pCniCount < MAX_MERGED_DB_COUNT); ++idx)
+      {
+         char * pTtxPath = TtxGrab_GetPath(pTtxFreqs[idx].serviceId, pNames);
+         uint provCni = EpgContextCtl_StatProvider(pTtxPath);
+         if (provCni != 0)
+         {
+            for (idx2 = 0; idx2 < *pCniCount; ++idx2)
+               if (pCniTab[idx2] == provCni)
+                  break;
+            if (idx2 >= *pCniCount)
+            {
+               pCniTab[*pCniCount] = provCni;
+               *pCniCount += 1;
+            }
+         }
+
+         while(*(pNames++) != 0)
+            ;
+         xfree(pTtxPath);
+      }
+   }
+   if (pTtxNames != NULL)
+      xfree(pTtxNames);
+   if (pTtxFreqs != NULL)
+      xfree(pTtxFreqs);
+}
+
+// ----------------------------------------------------------------------------
 // Convert merge options in rc file into attribute matrix
 // - for each datatype the user can configure an ordered list of providers
 //   from which the data is taken during the merge
@@ -377,6 +423,14 @@ EpgSetup_GetMergeProviders( uint *pCniCount, uint * pCniTab, MERGE_ATTRIB_VECTOR
 
    *pCniCount = pRc->db.prov_merge_count;
    memcpy(pCniTab, pRc->db.prov_merge_cnis, pRc->db.prov_merge_count * sizeof(uint));
+
+   if (pRc->db.auto_merge_ttx)
+   {
+      // append XMLTV files produced by teletext grabber
+      EpgSetup_AppendTtxProviders(pCniCount, pCniTab);
+   }
+
+   memset(pMax, 0xff, MERGE_TYPE_COUNT * sizeof(MERGE_ATTRIB_VECTOR));
 
    for (ati=0; ati < MERGE_TYPE_COUNT; ati++)
    {
@@ -420,7 +474,7 @@ EpgSetup_GetMergeProviders( uint *pCniCount, uint * pCniTab, MERGE_ATTRIB_VECTOR
 // Merge EPG data in one or more databases into a new database
 // - list of providers and networks is read from the config storage
 //
-EPGDB_CONTEXT * EpgSetup_MergeDatabases( void )
+EPGDB_CONTEXT * EpgSetup_MergeDatabases( int errHand )
 {
    EPGDB_CONTEXT * pDbContext;
    MERGE_ATTRIB_MATRIX max;
@@ -434,7 +488,7 @@ EPGDB_CONTEXT * EpgSetup_MergeDatabases( void )
    if ( EpgSetup_GetMergeProviders(&provCount, pProvCniTab, &max[0]) &&
         EpgSetup_GetMergeDbNetwops(provCount, pProvCniTab, &netwopCount, netwopCniTab) )
    {
-      pDbContext = EpgContextMerge(provCount, pProvCniTab, max, netwopCount, netwopCniTab);
+      pDbContext = EpgContextMerge(provCount, pProvCniTab, max, netwopCount, netwopCniTab, errHand);
 
       if (pDbContext != NULL)
       {
@@ -452,7 +506,7 @@ EPGDB_CONTEXT * EpgSetup_MergeDatabases( void )
    }
    else
    {
-      UiControlMsg_ReloadError(MERGED_PROV_CNI, EPGDB_RELOAD_MERGE, CTX_RELOAD_ERR_REQ, FALSE);
+      UiControlMsg_ReloadError(MERGED_PROV_CNI, EPGDB_RELOAD_MERGE, errHand, FALSE);
       pDbContext = NULL;
    }
    return pDbContext;
@@ -460,16 +514,17 @@ EPGDB_CONTEXT * EpgSetup_MergeDatabases( void )
 
 // ----------------------------------------------------------------------------
 // Open the initial database after program start
-// - files can be chosen on the command line
-// - else try all dbs in list list of previously opened ones (saved in rc/ini file)
-// - else scan the db directory or create an empty database
+// - one or more XMLTV files can be specified on the command line
+// - else try the last opened one (saved in rc/ini file)
+// - else start with an empty database
 //
 void EpgSetup_OpenUiDb( void )
 {
    const RCFILE * pRc;
    const char * const * pXmlFiles;
+   CONTEXT_RELOAD_ERR_HAND errHand;
    uint provCnt;
-   uint cni;
+   uint provCni;
 
    // prepare list of previously opened databases
    pRc = RcFile_Query();
@@ -487,42 +542,43 @@ void EpgSetup_OpenUiDb( void )
          cniList[idx] = XmltvCni_MapProvider(pXmlFiles[idx]);
       }
       RcFile_UpdateDbMergeCnis(cniList, provCnt);
-      cni = MERGED_PROV_CNI;
+      provCni = MERGED_PROV_CNI;
+      errHand = CTX_RELOAD_ERR_REQ;
    }
    else if (provCnt > 0)
-   {
-      cni = XmltvCni_MapProvider(pXmlFiles[0]);
+   {  // load single file given on the command line
+      provCni = XmltvCni_MapProvider(pXmlFiles[0]);
+      errHand = CTX_RELOAD_ERR_REQ;
    }
-   else  // use previously selected provider
-   {
-      if (pRc->db.prov_sel_count > 0)
-      {  // try the last used provider
-         cni = pRc->db.prov_selection[0];
-      }
-      else
-      {  // create an empty dummy database
-         // (CNI value 0 has a special handling in the context open function)
-         cni = 0;
-      }
+   else if (pRc->db.prov_sel_count > 0)
+   {  // try the last used provider (may be merged or single db)
+      provCni = pRc->db.prov_selection[0];
+      errHand = CTX_RELOAD_ERR_DFLT;
+   }
+   else
+   {  // create an empty dummy database
+      // (CNI value 0 has a special handling in the context open function)
+      errHand = CTX_RELOAD_ERR_NONE;
+      provCni = 0;
    }
 
-   if (cni == MERGED_PROV_CNI)
+   if (provCni == MERGED_PROV_CNI)
    {  // special case: merged db
-      pUiDbContext = EpgSetup_MergeDatabases();
+      pUiDbContext = EpgSetup_MergeDatabases(errHand);
       if (pUiDbContext == NULL)
          pUiDbContext = EpgContextCtl_OpenDummy();
    }
-   else if (cni != 0)
+   else if (provCni != 0)
    {  // regular database
-      pUiDbContext = EpgContextCtl_Open(cni, FALSE, CTX_RELOAD_ERR_REQ);
+      pUiDbContext = EpgContextCtl_Open(provCni, FALSE, errHand);
 
       if (pUiDbContext == NULL)
       {
          pUiDbContext = EpgContextCtl_OpenDummy();
       }
-      else if (EpgDbContextGetCni(pUiDbContext) == cni)
+      else if (EpgDbContextGetCni(pUiDbContext) == provCni)
       {
-         RcFile_UpdateXmltvProvAtime(cni, time(NULL), TRUE);
+         RcFile_UpdateXmltvProvAtime(provCni, time(NULL), TRUE);
       }
    }
    else

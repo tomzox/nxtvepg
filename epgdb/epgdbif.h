@@ -52,9 +52,6 @@ bool  EpgDbIsLocked( const EPGDB_CONTEXT * dbc );
 const AI_BLOCK * EpgDbGetAi( const EPGDB_CONTEXT * dbc );
 const OI_BLOCK * EpgDbGetOi( const EPGDB_CONTEXT * dbc );
 
-const PI_BLOCK * EpgDbGetFirstObsoletePi( const EPGDB_CONTEXT * dbc );
-const PI_BLOCK * EpgDbGetNextObsoletePi( const EPGDB_CONTEXT * dbc, const PI_BLOCK * pPiBlock );
-const PI_BLOCK * EpgDbSearchObsoletePi( const EPGDB_CONTEXT * dbc, uchar netwop_no, time_t start_time, time_t stop_time );
 const PI_BLOCK * EpgDbSearchPiByPil( const EPGDB_CONTEXT * dbc, uchar netwop_no, uint pil );
 
 #ifdef __EPGDBFIL_H

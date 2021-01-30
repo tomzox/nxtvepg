@@ -28,7 +28,7 @@ void TimeScale_Create( void );
 
 // Interface to acq control and provider selection menu
 void TimeScale_ProvChange( void );
-void TimeScale_VersionChange( uint acqCni );
+void TimeScale_VersionChange( void );
 void TimeScale_AcqStatsUpdate( void );
 
 

@@ -722,6 +722,9 @@ proc CreateMenubar {} {
    menu .menubar.ctrl -tearoff 0 -postcommand C_SetControlMenuStates
    .menubar.ctrl add command -label "Load XMLTV file..." -command ProvWin_Create
    .menubar.ctrl add command -label "Merge XMLTV files..." -command PopupProviderMerge
+#=IF=defined(USE_TTX_GRABBER)
+   .menubar.ctrl add command -label "Load Teletext EPG" -command ProvLoadTeletext
+#=ENDIF=
    .menubar.ctrl add separator
    .menubar.ctrl add checkbutton -label "Enable acquisition" -variable menuStatusStartAcq -command {C_ToggleAcq $menuStatusStartAcq $menuStatusDaemon}
    .menubar.ctrl add checkbutton -label "Connect to acq. daemon" -variable menuStatusDaemon -command {C_ToggleAcq $menuStatusStartAcq $menuStatusDaemon}

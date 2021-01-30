@@ -1147,23 +1147,28 @@ You should put the most reliable provider in the first position, because
 conflicting programmes from providers further down will be rejected,
 i.e. not added to the merged database.
 
+When enabling option B<Automatically include Teletext EPG>, all XMLTV
+files created by the Teletext EPG grabber are automatically included.
+Even new files created by the Teletext EPG grabber after initiating the
+merge will be added automatically. The order of files is undefined when
+using this option, but this is normally not an issue as each file contains
+only one network, so that there will be no conflicts in-between Teletext
+EPG. If you want to add the files manually, switch the XMLTV list on the
+left to show the grabber's cache directory by selecting
+I<Teletext grabber XMLTV directory> fro the drop-down menu that opens
+when clicking the little down arrow next to the directory entry field.
+After that select all files in the left list and add them to the list on
+the right by clicking the "add" button.
+
 The B<Configure> button in the dialog gives you fine-control over the
 priority of providers during the merge of all distinct programme
-attributes. You can even completely remove a provider for an attribute,
-e.g. if they transmit false data. An exception is the title, where you must
-not delete any providers.
+attributes. You can even completely remove a provider as source for an
+attribute (e.g. if they transmit false data). An exception is the title,
+where you must not delete any providers.
 
 Attributes that cannot be merged, e.g. editorial rating, are fetched from
 the first database in the list that contains the attribute for a given
 programme (see also L<"FILTERING">).
-
-Note: If you use a manual or cyclic acquisition mode, you should take care
-to include all providers of your merged database in the same order. Else,
-program changes will not appear in your database until the provider with
-highest priority is loaded. If you stay with the default B<Follow-UI>,
-acquisition control will automatically cycle across all merged providers
-in the correct order.
-
 
 
 =head1 NAVIGATE
@@ -1905,11 +1910,30 @@ Open a dialog that allows to merge several databases into one.
 See L<"MERGED DATABASES"> for details.
 
 
+=head2 Load Teletext EPG
+
+Merges and loads XMLTV files created by the Teletext EPG grabber into the
+browser. The networks which are covered are determined by the channel
+selection in the Teletext grabber configuration. This mode is the default
+where there is no data and the Teletext grabber is enabled.
+
+This option can be selected even when the Teletext grabber has not yet
+generated any output. In this case you'll see a screen with the nxtvepg
+logo and a note to wait for data acquisition. As soon as any EPG
+information could be extracted, it is shown in the display. You can
+check on state of acquisition using the "statistics" popup windows
+also available via the Control menu.
+
+This option is equivalent to manually merging XMLTV files and checking the
+"Add all Teletext EPG data" option, except that you can't use that way
+until there is at least one XMLTV file.
+
+
 =head2 Enable acquisition
 
 Toggles EPG acquisition via the TV card on or off temporarily. This
-option is enabled only if you have a TV capture card and the teletext
-grabber is configured (see L<"CONFIGURATION"> section "Teletext grabber").
+option is grayed out if you do not have a TV capture card or if the teletext
+grabber is disabled (see L<"CONFIGURATION"> section "Teletext grabber").
 
 When starting the browser, acquisition is enabled automatically while the
 respective option in the teletext grabber configuration is enabled.
@@ -2180,6 +2204,11 @@ references to other teletext pages, the grabber loads these pages
 too and extracts descriptions from them.  Finally the grabber's
 output is written into separate files in XMLTV format.
 
+To show the EPG data collected by the Teletext grabber in the browser,
+use command "Load Teletext EPG" from the Control menu, or use the
+"Merge" command and include the grabber's files directly or via the
+"automatic" option below the selection lists.
+
 A disadvantage of teletext is the long time it takes to grab the data.
 The cause for
 the long duration is that most TV networks use sub-pages in their
@@ -2213,14 +2242,6 @@ by default that's 90 seconds (such a large value is required
 because programme descriptions are often transmitted on
 so-called "sub-pages" which are not included in every teletext
 cycle.)
-
-To use the grabbed data you have to wait until each channel has
-been visited at least once. After that you should see an XML
-file for each TV channel in the nxtvepg directory (named
-"ttx-XXX.xml" where XXX is the DVB service ID, or TV channel name
-for analog TV channels.) These files
-will appear in the XMLTV file selection dialogs and can be
-loaded like any other XMLTV file.
 
 
 =head2 TV channel scan
@@ -3284,32 +3305,15 @@ L<"CONFIGURATION">, section "TV application interaction").
 =back
 
 
-=head1 KNOWN BUGS
-
-Under Windows there's a risk of system crash ("blue screen") when the
-application is terminated by force, e.g. via the task manager. This
-is unavoidable because in this case there's no chance to stop the
-driver and hence the TV card continues to capure data into RAM.
-In normal operation this should be very unlikely because all software
-exceptions (e.g. page faults) and shutdown messages are caught and the
-driver then stopped before the exit.
-
-=head1 REPORTING BUGS
-
-Feel free to mail any bug reports to me, but please make sure that
-(a) you have the latest version of this software, (b) it's not already
-in the TODO file and (c) it's not just an error in your provider's EPG
-transmission. And note that I've got no telepathic capabilities, so
-please be comprehensive in describing your problem. See the README file
-for instructions on which information must be included in a bug report.
-
 =head1 AUTHOR
 
 T. Zoerner
 C<tomzo (at) users (dot) sourceforge (dot) net>
 
 The best way to provide feedback is via the discussion forum at the
-nxtvepg homepage.
+nxtvepg homepage. Please see the README file for instructions about the
+information that must be included in a bug report (for example, a bug
+reporting only "feature does not work" will not suffice.)
 
 Many thanks
 to NE<eacute>o for providing the MS windows installer, the K!TV instruction

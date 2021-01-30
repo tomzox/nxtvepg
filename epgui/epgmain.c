@@ -394,7 +394,7 @@ static void MainStartDump( void )
       }
       RcFile_UpdateDbMergeCnis(cniList, provCnt);
 
-      pUiDbContext = EpgSetup_MergeDatabases();
+      pUiDbContext = EpgSetup_MergeDatabases(CTX_RELOAD_ERR_REQ);
       if (pUiDbContext == NULL)
          printf("<!-- nxtvepg database merge failed: check merge configuration -->\n");
    }
@@ -2281,7 +2281,11 @@ int main( int argc, char *argv[] )
 
       UiControl_Init();
 
-      // open the database given by -prov or the last one used
+      #ifdef USE_TTX_GRABBER
+      EpgSetup_TtxGrabber();
+      #endif
+
+      // open the database(s) given on the command line, or the last one used
       EpgSetup_OpenUiDb();
 
       #ifdef USE_DAEMON
@@ -2290,9 +2294,6 @@ int main( int argc, char *argv[] )
       #endif
       // pass TV card hardware parameters to the driver
       EpgSetup_CardDriver(mainOpts.videoCardIndex);
-      #ifdef USE_TTX_GRABBER
-      EpgSetup_TtxGrabber();
-      #endif
       SetUserLanguage(interp);
       uiMinuteTime  = time(NULL);
       uiMinuteTime -= uiMinuteTime % 60;

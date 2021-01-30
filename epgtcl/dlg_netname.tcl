@@ -70,7 +70,7 @@ proc NetworkNamingPopup {} {
 
       # build list of currently used providers
       if {$cur_prov_cni == 0x00FF} {
-         set netname_prov_cnis [C_GetMergeProviderList]
+         set netname_prov_cnis [C_GetMergeProviderList with_auto_ttx]
       } else {
          set netname_prov_cnis [list $cur_prov_cni]
       }

@@ -792,16 +792,40 @@ bool EpgContextCtl_CheckFileModified( uint cni )
       pContext = EpgContextCtl_SearchCni(cni);
       if (pContext != NULL)
       {
-         dprintf4("EpgContextCtl-CheckFileModified: CNI 0x%04X: tsLoaded:%ld tsFile:%d delta:%d", cni, pContext->mtime, mtime, mtime - pContext->mtime);
+         dprintf4("EpgContextCtl-CheckFileModified: CNI 0x%04X: tsLoaded:%ld tsFile:%ld delta:%ld\n", cni, pContext->mtime, mtime, mtime - pContext->mtime);
          result = (mtime != pContext->mtime);
       }
       else
-         debug1("EpgContextCtl-CheckFileModified: CNI 0x%04X: DB not loaded", cni);
+      {
+         dprintf1("EpgContextCtl-CheckFileModified: CNI 0x%04X: DB not loaded\n", cni);
+         result = TRUE;
+      }
    }
    else
       debug1("EpgContextCtl-CheckFileModified: CNI 0x%04X unknown", cni);
 
    return result;
+}
+
+// ---------------------------------------------------------------------------
+// Check if the given file exists and map it to a CNI
+//
+uint EpgContextCtl_StatProvider( const char * pXmlPath )
+{
+   time_t mtime;
+   uint cni = 0;
+
+   mtime = EpgContextCtl_GetMtime(pXmlPath);
+   if (mtime != 0)
+   {
+      cni = XmltvCni_MapProvider(pXmlPath);
+      if ( EpgContextCtl_SearchCni(cni) == NULL )
+      {
+         EpgContextCtl_AddStat(cni, mtime, pXmlPath);
+      }
+   }
+
+   return cni;
 }
 
 // ---------------------------------------------------------------------------

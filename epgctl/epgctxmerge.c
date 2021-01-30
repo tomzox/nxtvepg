@@ -79,14 +79,12 @@ static void EpgDbMergeCloseDatabases( EPGDB_MERGE_CONTEXT * pMergeContext )
          pMergeContext->prov[dbIdx].pDbContext = NULL;
       }
    }
-
-   pMergeContext->acqIdx = 0xff;
 }
 
 // ---------------------------------------------------------------------------
 // Open all source databases for complete merge or acquisition
 //
-static bool EpgDbMergeOpenDatabases( EPGDB_MERGE_CONTEXT * pMergeContext, bool isForAcq )
+static bool EpgDbMergeOpenDatabases( EPGDB_MERGE_CONTEXT * pMergeContext, CONTEXT_RELOAD_ERR_HAND errHand )
 {
    uint dbIdx, cni;
    bool result = TRUE;
@@ -96,7 +94,7 @@ static bool EpgDbMergeOpenDatabases( EPGDB_MERGE_CONTEXT * pMergeContext, bool i
       if (pMergeContext->prov[dbIdx].pDbContext == NULL)
       {
          cni = pMergeContext->prov[dbIdx].provCni;
-         pMergeContext->prov[dbIdx].pDbContext = EpgContextCtl_Open(cni, FALSE, (isForAcq ? CTX_RELOAD_ERR_ACQ : CTX_RELOAD_ERR_REQ));
+         pMergeContext->prov[dbIdx].pDbContext = EpgContextCtl_Open(cni, FALSE, errHand);
 
          if (EpgDbContextGetCni(pMergeContext->prov[dbIdx].pDbContext) != cni)
          {  // one database could not be loaded -> abort merge
@@ -259,92 +257,111 @@ bool EpgContextMergeCheckForCni( const EPGDB_CONTEXT * dbc, uint cni )
 }
 
 // ---------------------------------------------------------------------------
-// Determine the index of a given CNI (i.e. source db) in the merged context
-// - the determined index is cached in the context
-// - Note: if there's more than one acq process this will get VERY inefficient
-//   particularily if one of the acq processes works on a db that's not merged
+// Add new providers to a pre-existing merge context
 //
-static bool EpgDbMergeOpenAcqContext( uint cni )
+static void EpgContextMergeExtendProvList( uint addCount, const uint * pProvCni, int errHand )
+{
+   EPGDB_MERGE_CONTEXT * dbmc = (EPGDB_MERGE_CONTEXT*) pUiDbContext->pMergeContext;
+   const AI_BLOCK * pOldAi = &pUiDbContext->pAiBlock->blk.ai;
+   uint netwopCount = pOldAi->netwopCount;
+   uint netCnis[MAX_NETWOP_COUNT];
+   uint maxIdx;
+   uint dbIdx;
+   uint idx;
+
+   for (idx = 0; idx < pOldAi->netwopCount; ++idx)
+      netCnis[idx] = AI_GET_NET_CNI_N(pOldAi, idx);
+
+   for (dbIdx = 0; (dbIdx < addCount) && (dbmc->dbCount < MAX_MERGED_DB_COUNT); ++dbIdx)
+   {
+      // open the new database
+      dbmc->prov[dbmc->dbCount].pDbContext = EpgContextCtl_Open(pProvCni[dbIdx], FALSE, errHand);
+      if (dbmc->prov[dbmc->dbCount].pDbContext != NULL)
+      {
+         // append all CNIs of this provider to merged network table;
+         // omitting check for duplicates, as this is done already during the function called below
+         const AI_BLOCK * pTmpAi = &dbmc->prov[dbmc->dbCount].pDbContext->pAiBlock->blk.ai;
+         for (idx = 0; (idx < pTmpAi->netwopCount) && (netwopCount < MAX_NETWOP_COUNT); ++idx)
+            netCnis[netwopCount++] = AI_GET_NET_CNI_N(pTmpAi, idx);
+
+         // append new provider to attribute tables
+         for (maxIdx = 0; maxIdx < MERGE_TYPE_COUNT; ++maxIdx)
+         {
+            for (idx = 0; idx < dbmc->dbCount; ++idx)
+               if (dbmc->max[maxIdx][idx] == 0xff)
+                  break;
+            dbmc->max[maxIdx][idx] = dbmc->dbCount;
+         }
+
+         // initialize netwop mapping tables for the new provider
+         memset(dbmc->prov[dbmc->dbCount].revNetwopMap, 0xff, sizeof(dbmc->prov[0].revNetwopMap));
+         memset(dbmc->prov[dbmc->dbCount].netwopMap, 0xff, sizeof(dbmc->prov[0].netwopMap));
+
+         dbmc->prov[dbmc->dbCount].provCni = pProvCni[dbIdx];
+         dbmc->dbCount += 1;
+      }
+   }
+
+   // rebuild netwop mapping tables for all providers, so that new networks are included
+   EpgContextMergeBuildNetwopMap(dbmc, &netwopCount, netCnis);
+
+   // discard old AI block and merge a new one
+   xfree(pUiDbContext->pAiBlock);
+   pUiDbContext->pAiBlock = NULL;
+   EpgDbMergeAiBlocks(pUiDbContext, netwopCount, netCnis);
+}
+
+// ---------------------------------------------------------------------------
+// Update all PI in one of the merged databases, or add new providers
+// - only PI of networks that originate from updated/new providers are merged
+// - optimization for the special case where each DB covers only few networks
+// - updCount: number of CNIs in array pProvCni;
+//   addCount: number of new providers included in updCount
+// - CNIs of new providers are expected at the end of the CNI list
+//
+bool EpgContextMergeUpdateDb( uint updCount, uint addCount, const uint * pProvCni, int errHand )
 {
    EPGDB_MERGE_CONTEXT * dbmc;
-   uint dbIdx;
    bool result = FALSE;
 
+   // open databases of pre-existing providers
    if ( (pUiDbContext != NULL) && (pUiDbContext->pMergeContext != NULL) )
    {
       dbmc = (EPGDB_MERGE_CONTEXT*) pUiDbContext->pMergeContext;
 
-      // get the index of the acq db in the merge context
-      if ( (dbmc->acqIdx >= dbmc->dbCount) || (cni != dbmc->prov[dbmc->acqIdx].provCni) )
-      {  // no index cached or wrong CNI -> search CNI in list
-         dbmc->acqIdx = 0xff;
-         for (dbIdx=0; dbIdx < dbmc->dbCount; dbIdx++)
+      // open the db contexts of all dbs in the merge context
+      // assume that if one db is open, then all are
+      if ( (dbmc->prov[0].pDbContext != NULL) ||
+           EpgDbMergeOpenDatabases(dbmc, errHand) )
+      {
+         if (addCount > 0)
          {
-            if (dbmc->prov[dbIdx].provCni == cni)
-            {
-               dbmc->acqIdx = dbIdx;
-               result = TRUE;
-               break;
-            }
+            dprintf1("EpgContextMerge-UpdateDb: adding %d DBs\n", addCount);
+            // extend merge context parameters to new providers
+            EpgContextMergeExtendProvList(addCount, pProvCni + updCount - addCount, errHand);
          }
-      }
-      else
-         result = TRUE;
 
-      if (result)
-      {  // open the db contexts of all dbs in the merge context
-         // assume that if one db is open, then all are
-         if (dbmc->prov[0].pDbContext == NULL)
+         // merge PI of all updated or added networks
+         EpgDbMergeUpdateNetworks(pUiDbContext, updCount, pProvCni);
+
+         // update modification time of merged AI
+         time_t mergeAcqTime = EpgDbGetAiUpdateTime(pUiDbContext);
+         for (uint dbIdx = 0; dbIdx < dbmc->dbCount; ++dbIdx)
          {
-            if (EpgDbMergeOpenDatabases(dbmc, TRUE) == FALSE)
-            {  // open failed -> cannot insert
-               dbmc->acqIdx = 0xff;
-               result = FALSE;
-            }
+            time_t acqTime = EpgDbGetAiUpdateTime(dbmc->prov[dbIdx].pDbContext);
+            if (acqTime > mergeAcqTime)
+               mergeAcqTime = acqTime;
          }
-      }
-      else
-      {  // unknown cni -> close db contexts, if neccessary
+         EpgDbSetAiUpdateTime(pUiDbContext, mergeAcqTime);
+
          EpgDbMergeCloseDatabases(dbmc);
+
+         result = TRUE;
       }
    }
-   return result;
-}
+   else
+      fatal2("EpgContextMerge-UpdateDb: invalid NULL ptr params %p,%p", pUiDbContext, pUiDbContext->pMergeContext);
 
-// ---------------------------------------------------------------------------
-// Update all PI in one of the merged databases
-// - optimization for the special case where each DB covers only one (or few) networks
-// 
-bool EpgContextMergeUpdateDb( CPDBC pAcqContext )
-{
-   EPGDB_BLOCK * pPiBlock;
-   uint netwopCount;
-   uint idx;
-   bool result = FALSE;
-
-   if (EpgDbMergeOpenAcqContext( EpgDbContextGetCni(pAcqContext)) )
-   {
-      netwopCount = pAcqContext->pAiBlock->blk.ai.netwopCount;
-      dprintf1("EpgContextMerge-UpdateDb: merge all PI of %d netwops\n", netwopCount);
-
-      for (idx = 0; idx < netwopCount; idx++)
-      {
-         pPiBlock = pAcqContext->pFirstNetwopPi[idx];
-         if (pPiBlock != NULL)
-         {
-            EpgDbMergeUpdateNetwork(pUiDbContext, idx, pPiBlock);
-         }
-      }
-
-      // update modification time of merged AI
-      time_t acqTime = EpgDbGetAiUpdateTime(pAcqContext);
-      if (EpgDbGetAiUpdateTime(pUiDbContext) < acqTime)
-      {
-         EpgDbSetAiUpdateTime(pUiDbContext, acqTime);
-      }
-
-      result = TRUE;
-   }
    return result;
 }
 
@@ -352,7 +369,7 @@ bool EpgContextMergeUpdateDb( CPDBC pAcqContext )
 // Start complete merge
 //
 EPGDB_CONTEXT * EpgContextMerge( uint dbCount, const uint * pCni, MERGE_ATTRIB_VECTOR_PTR pMax,
-                                 uint netwopCount, uint * pNetwopList )
+                                 uint netwopCount, uint * pNetwopList, int errHand )
 {
    EPGDB_CONTEXT * pDbContext;
    EPGDB_MERGE_CONTEXT * pMergeContext;
@@ -371,7 +388,6 @@ EPGDB_CONTEXT * EpgContextMerge( uint dbCount, const uint * pCni, MERGE_ATTRIB_V
    memset(pMergeContext, 0, sizeof(EPGDB_MERGE_CONTEXT));
 
    pMergeContext->dbCount = dbCount;
-   pMergeContext->acqIdx  = 0xff;
    memcpy(pMergeContext->max, pMax, sizeof(MERGE_ATTRIB_MATRIX));
 
    for (dbIdx=0; dbIdx < pMergeContext->dbCount; dbIdx++)
@@ -381,7 +397,7 @@ EPGDB_CONTEXT * EpgContextMerge( uint dbCount, const uint * pCni, MERGE_ATTRIB_V
       memset(pMergeContext->prov[dbIdx].netwopMap, 0xff, sizeof(pMergeContext->prov[0].netwopMap));
    }
 
-   if ( EpgDbMergeOpenDatabases(pMergeContext, FALSE) )
+   if ( EpgDbMergeOpenDatabases(pMergeContext, errHand) )
    {
       // create target database
       pDbContext = EpgDbCreate();
@@ -409,4 +425,3 @@ EPGDB_CONTEXT * EpgContextMerge( uint dbCount, const uint * pCni, MERGE_ATTRIB_V
 
    return pDbContext;
 }
-

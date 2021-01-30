@@ -23,9 +23,6 @@
 #define __EPGDBMERGE_H
 
 
-// descriptor type for dbIdx info which is inserted into merged PI blocks
-#define MERGE_DESCR_TYPE     0x3c
-
 // separator character between description texts: ASCII "form feed"
 #define EPG_DB_MERGE_DESC_TEXT_SEP  12
 
@@ -63,7 +60,6 @@ typedef struct
 typedef struct
 {
    uint            dbCount;
-   uint            acqIdx;
 
    EPGDB_MERGE_PROV_CTX prov[MAX_MERGED_DB_COUNT];
    MERGE_ATTRIB_VECTOR max[MERGE_TYPE_COUNT];
@@ -74,7 +70,7 @@ typedef struct
 // Declaration of interface functions
 //
 void EpgDbMergeInsertPi( EPGDB_CONTEXT * pDbContext, EPGDB_BLOCK * pNewBlock );
-void EpgDbMergeUpdateNetwork( EPGDB_CONTEXT * pDbContext, uint srcNetwop, EPGDB_BLOCK * pNewBlock );
+void EpgDbMergeUpdateNetworks( EPGDB_CONTEXT * pDbContext, uint provCount, const uint * pProvCni );
 void EpgDbMergeAiBlocks( EPGDB_CONTEXT * dbc, uint netwopCount, const uint * pNetwopList );
 void EpgDbMergeAllPiBlocks( EPGDB_CONTEXT * dbc );
 void EpgDbMerge_ResetPiVersion( EPGDB_CONTEXT * dbc, uint dbIdx );

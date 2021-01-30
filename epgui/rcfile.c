@@ -177,6 +177,7 @@ static const RCPARSE_CFG rcParseCfg_acq[] =
 static const RCPARSE_CFG rcParseCfg_db[] =
 {
    { RC_TYPE_INT,  RC_OFF(db.piexpire_cutoff), "piexpire_cutoff", RC_OFF_NONE(), 0, NULL },
+   { RC_TYPE_INT,  RC_OFF(db.auto_merge_ttx), "auto_merge_ttx", RC_OFF_NONE(), 0, NULL },
    { RC_TYPE_HEX,  RC_OFF(db.prov_selection), "prov_selection", RC_OFF(db.prov_sel_count), RC_CNT(db.prov_selection), NULL },
 
    { RC_TYPE_HEX,  RC_OFF(db.prov_merge_cnis), "prov_merge_cnis", RC_OFF(db.prov_merge_count), RC_CNT(db.prov_merge_cnis), NULL },
@@ -1213,6 +1214,11 @@ void RcFile_SetDbExpireDelay( uint delay )
    mainRc.db.piexpire_cutoff = delay;
 }
 
+void RcFile_SetAutoMergeTtx( int enable )
+{
+   mainRc.db.auto_merge_ttx = enable;
+}
+
 void RcFile_SetTtxGrabOpt( const RCFILE_TTX * pRcTtxGrab )
 {
    RcFile_FreeSectionMemory( RcFile_SearchSectionName("TELETEXT GRABBER") );
@@ -1775,5 +1781,6 @@ void RcFile_Init( void )
    mainRc.tvcard.wdm_stop = TRUE;
 
    mainRc.db.piexpire_cutoff = EPGDB_DFLT_EXPIRE_TIME;
+   mainRc.db.auto_merge_ttx = TRUE;
 }
 

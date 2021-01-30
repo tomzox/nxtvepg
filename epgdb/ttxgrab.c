@@ -535,14 +535,19 @@ static bool TtxGrab_CheckFileExists( const char * pPath )
 // ---------------------------------------------------------------------------
 // Check if post-processing is done: poll child process status
 //
-bool TtxGrab_CheckPostProcess( uint bufIdx )
+bool TtxGrab_CheckPostProcess( void )
 {
+   uint bufIdx;
    bool result = FALSE;
-   if (ttxGrabState[bufIdx].postProcDone)
+
+   for (bufIdx = 0; bufIdx < MAX_VBI_DVB_STREAMS; ++bufIdx)
    {
-      dprintf0("TtxGrab-CheckPostProcess: DONE\n");
-      ttxGrabState[bufIdx].postProcDone = FALSE;
-      result = TRUE;
+      if (ttxGrabState[bufIdx].postProcDone)
+      {
+         dprintf1("TtxGrab-CheckPostProcess: bufIdx:%d DONE\n", bufIdx);
+         ttxGrabState[bufIdx].postProcDone = FALSE;
+         result = TRUE;
+      }
    }
    return result;
 }

@@ -5,7 +5,6 @@ boost any item's priority, find more points that need to be fixed or if
 you have ideas for additional features.
 
 Mandatory fixes for release 3.0.0:
-- New DB type: "Load Teletext EPG...": automatically follow TTX acq, even if DB not exist yet
 - ttx grabber config: add channels.conf selection & auto-detect location
 - manual: move general description of TTX grabber from CONFIGURATION chapter
   to an initial chapter; add description of config parameters
@@ -33,6 +32,7 @@ Post-Nextview EPG:
 - XMLTV service name: when merging teletext-only use "Merged teletext (%d networks)"
 - DVB TTX stream decoding issues: "Illegal line order", "Unknown data_unit_id"
 - DVB: update channel list in epgacqttx with TTX PIDs returned by PAT/PMT scan
+- replace "now" acq phase with DVB EPG (EIT) except for analog TV cards
 - mplayer, VLC & VDR plugin for EPG display
 - teletext: use separate thread for post-processing (takes long time for 10 DBs)
 - teletext: ? move TTX packet decoding into acq thread?

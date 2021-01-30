@@ -108,6 +108,7 @@ typedef struct
 typedef struct
 {
    uint         piexpire_cutoff;
+   uint         auto_merge_ttx;
    uint         prov_sel_count;
    uint         prov_selection[RC_MAX_ACQ_CNI_PROV];
 
@@ -237,6 +238,7 @@ void RcFile_SetAcqMode( const char * pAcqModeStr );
 void RcFile_SetAcqAutoStart( int autoStart );
 void RcFile_SetAcqScanOpt( uint optFtable );
 void RcFile_SetDbExpireDelay( uint delay );
+void RcFile_SetAutoMergeTtx( int enable );
 void RcFile_SetTtxGrabOpt( const RCFILE_TTX * pRcTtxGrab );
 void RcFile_SetTvApp( uint appIdx, const char * pPath );
 

@@ -281,7 +281,7 @@ proc ProvWin_Exit {} {
 proc PopupProviderMerge {} {
    global provmerge_popup
    global provmerge_ailist provmerge_selist provwin_names provmerge_cf
-   global provwin_dir
+   global provwin_dir provmerge_ttx
    global ProvmergeOptLabels
 
    if {$provmerge_popup == 0} {
@@ -292,7 +292,7 @@ proc PopupProviderMerge {} {
       set provmerge_ailist {}
       set provmerge_selist {}
       set dropped {}
-      foreach cni [C_GetMergeProviderList] {
+      foreach cni [C_GetMergeProviderList rc_only] {
          set name [C_GetProvServiceName $cni]
          if {$name ne ""} {
             lappend provmerge_selist $cni
@@ -303,6 +303,15 @@ proc PopupProviderMerge {} {
          }
       }
       catch {array set provmerge_cf [C_GetMergeOptions]}
+
+      C_GetTtxConfig ttxgrab_tmpcf
+      if {$ttxgrab_tmpcf(enable)} {
+         set provmerge_ttx [C_GetAutoMergeTtx]
+         set state_auto_ttx "normal"
+      } else {
+         set provmerge_ttx 0
+         set state_auto_ttx "disabled"
+      }
 
       # create the popup window
       CreateTransientPopup .provmerge "Merge XMLTV files"
@@ -361,23 +370,30 @@ proc PopupProviderMerge {} {
          cfmisc "misc. feature flags"
          cfvps "VPS/PDC label"
       }
-      menubutton .provmerge.mb -menu .provmerge.mb.men -text "Configure" -underline 0
-      config_menubutton .provmerge.mb
-      pack .provmerge.mb -side top
-      menu .provmerge.mb.men -tearoff 0
-      .provmerge.mb.men add command -command {PopupProviderMergeOpt cftitle} -label $ProvmergeOptLabels(cftitle)
-      .provmerge.mb.men add command -command {PopupProviderMergeOpt cfdescr} -label $ProvmergeOptLabels(cfdescr)
-      .provmerge.mb.men add command -command {PopupProviderMergeOpt cfthemes} -label $ProvmergeOptLabels(cfthemes)
-      .provmerge.mb.men add command -command {PopupProviderMergeOpt cfeditorial} -label $ProvmergeOptLabels(cfeditorial)
-      .provmerge.mb.men add command -command {PopupProviderMergeOpt cfparental} -label $ProvmergeOptLabels(cfparental)
-      .provmerge.mb.men add command -command {PopupProviderMergeOpt cfsound} -label $ProvmergeOptLabels(cfsound)
-      .provmerge.mb.men add command -command {PopupProviderMergeOpt cfformat} -label $ProvmergeOptLabels(cfformat)
-      .provmerge.mb.men add command -command {PopupProviderMergeOpt cfrepeat} -label $ProvmergeOptLabels(cfrepeat)
-      .provmerge.mb.men add command -command {PopupProviderMergeOpt cfsubt} -label $ProvmergeOptLabels(cfsubt)
-      .provmerge.mb.men add command -command {PopupProviderMergeOpt cfmisc} -label $ProvmergeOptLabels(cfmisc)
-      .provmerge.mb.men add command -command {PopupProviderMergeOpt cfvps} -label $ProvmergeOptLabels(cfvps)
-      .provmerge.mb.men add separator
-      .provmerge.mb.men add command -command {ProvMerge_Reset} -label "Reset"
+      frame .provmerge.mfrm
+#=IF=defined(USE_TTX_GRABBER)
+      checkbutton .provmerge.mfrm.auto_ttx -text "Automatically include Teletext EPG" \
+                                           -variable provmerge_ttx -state $state_auto_ttx
+      pack .provmerge.mfrm.auto_ttx -side left -anchor w -fill x -expand 1
+#=ENDIF=
+      menubutton .provmerge.mfrm.mb -menu .provmerge.mfrm.mb.men -text "Configure" -underline 0
+      config_menubutton .provmerge.mfrm.mb
+      pack .provmerge.mfrm.mb -side left -padx 5
+      menu .provmerge.mfrm.mb.men -tearoff 0
+      .provmerge.mfrm.mb.men add command -command {PopupProviderMergeOpt cftitle} -label $ProvmergeOptLabels(cftitle)
+      .provmerge.mfrm.mb.men add command -command {PopupProviderMergeOpt cfdescr} -label $ProvmergeOptLabels(cfdescr)
+      .provmerge.mfrm.mb.men add command -command {PopupProviderMergeOpt cfthemes} -label $ProvmergeOptLabels(cfthemes)
+      .provmerge.mfrm.mb.men add command -command {PopupProviderMergeOpt cfeditorial} -label $ProvmergeOptLabels(cfeditorial)
+      .provmerge.mfrm.mb.men add command -command {PopupProviderMergeOpt cfparental} -label $ProvmergeOptLabels(cfparental)
+      .provmerge.mfrm.mb.men add command -command {PopupProviderMergeOpt cfsound} -label $ProvmergeOptLabels(cfsound)
+      .provmerge.mfrm.mb.men add command -command {PopupProviderMergeOpt cfformat} -label $ProvmergeOptLabels(cfformat)
+      .provmerge.mfrm.mb.men add command -command {PopupProviderMergeOpt cfrepeat} -label $ProvmergeOptLabels(cfrepeat)
+      .provmerge.mfrm.mb.men add command -command {PopupProviderMergeOpt cfsubt} -label $ProvmergeOptLabels(cfsubt)
+      .provmerge.mfrm.mb.men add command -command {PopupProviderMergeOpt cfmisc} -label $ProvmergeOptLabels(cfmisc)
+      .provmerge.mfrm.mb.men add command -command {PopupProviderMergeOpt cfvps} -label $ProvmergeOptLabels(cfvps)
+      .provmerge.mfrm.mb.men add separator
+      .provmerge.mfrm.mb.men add command -command {ProvMerge_Reset} -label "Reset"
+      pack .provmerge.mfrm -side top -fill x -expand 1
 
       # create cmd buttons at bottom
       frame .provmerge.cmd
@@ -508,7 +524,7 @@ proc ProvMerge_Reset {} {
 # close the provider merge popups and free the state variables
 proc ProvMerge_Quit {cause} {
    global provmerge_popup provmergeopt_popup
-   global provmerge_selist provmerge_cf
+   global provmerge_selist provmerge_cf provmerge_ttx
    global provwin_names ProvmergeOptLabels
 
    # check the configuration parameters for consistancy
@@ -562,7 +578,7 @@ proc ProvMerge_Quit {cause} {
    if {[string compare $cause "Ok"] == 0} {
 
       # perform the merge and load the new database into the browser
-      C_ProvMerge_Start $provmerge_selist $tmp_cf
+      C_ProvMerge_Start $provmerge_ttx $provmerge_selist $tmp_cf
    }
 }
 
@@ -591,7 +607,7 @@ proc PopupEpgScan {} {
          return
       }
 
-      CreateTransientPopup .epgscan "Scan for Nextview EPG providers"
+      CreateTransientPopup .epgscan "Scan TV channels for teletext reception"
       set epgscan_popup 1
 
       frame  .epgscan.cmd

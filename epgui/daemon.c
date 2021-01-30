@@ -229,7 +229,7 @@ void Daemon_StartDump( void )
       }
       RcFile_UpdateDbMergeCnis(cniList, provCnt);
 
-      pUiDbContext = EpgSetup_MergeDatabases();
+      pUiDbContext = EpgSetup_MergeDatabases(CTX_RELOAD_ERR_REQ);
       if (pUiDbContext == NULL)
          printf("<!-- nxtvepg database merge failed: check merge configuration -->\n");
    }

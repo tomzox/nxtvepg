@@ -484,11 +484,11 @@ Das rechte Liste stellt die Dateien dar, die Sie zusammenführen wollen. Bei der 
 
 Durch das Anordnen der Provider in Ihrer Auswahl, weisen Sie ihnen Prioritäten zu, die für eine Konfliktlösung sehr wichtig sind. Ein Konflikt tritt dann auf, wenn Start- und Stopzeiten der Sendung bei den Providern verschieden sind. Die Wahrscheinlichkeit solch eines Konfliktes hängt von der Qualität Ihrer Provider ab; theoretisch sollten sie nie auftreten, außer wenn kurzfristige Programmänderungen erfolgen. In der Realität sind solche Konflikte gar nicht so unwahrscheinlich, speziell bei Sendungen, die früh am Morgen ausgestrahlt werden. Sie sollten den verlässlichsten Provider an die erste Stelle setzen, da widersprüchliche Sendungen von darunter stehenden Providern abgelehnt werden, d.h. nicht mit in die zusammengeführte Datenbank aufgenommen werden.
 
+Durch Anwählen der Option B<Automatically include Teletext EPG> werden alle durch den Teletext EPG Grabber erzeugten XMLTV Dateien mit eingebunden. Auch erst später neu angelegte Dateien werden dynamisch hinzugefügt. Bei Verwendung der Option ist die Reihenfolge der Dateien beim Zusammenführen nicht festgelegt; Dies ist jedoch in dem Fall nicht entscheidend, da zwischen den Dateien des Grabbers keine Konflikte bestehen da jede Datei ein separates Netzwerk abdeckt. Falls Sie dennoch das Zusammenführen genauer konfigurieren wollen, können Sie die Dateien des Teletext Grabbers auch manuell angeben. Das geht am schnellsten indem Sie im über den kleinen Pfeil neben dem Pfadeingabefeld erreichbaren Menü den Eintrag I<Teletext grabber XMLTV directory> anclicken. Danach können Sie alle Einträge in der Linken liste selektieren und mit dem "add" Knopf in die Liste der zusammenzuführenden Dateien übernehmen.
+
 Der Button B<Configure> im Dialog ermöglicht Ihnen die Feinkontrolle über die Priorität der Provider während des Zusammenführens aller sich unterscheidenden Attribute der Sendungen. Sie können einen Provider sogar für ein Attribut komplett entfernen, z.B. falls dieser falsche Daten übermittelt. Eine Ausnahme stellt hierbei der Titel dar, den Sie von keinem Provider löschen können.
 
 Attribute, die nicht zusammengeführt werden können, z.B. das Editorial Rating, werden aus der ersten Datenbank in die Liste aufgenommen, die das Attribut für eine vorgegebene Sendung enthält (siehe auch L<"FILTERING">).
-
-Beachten Sie: Wenn Sie einen manuellen oder zyklischen Akquisitionsmodus verwenden, sollten Sie darauf achten, alle zusammengeführten Provider Ihrer Datenbank in der gleichen Reihenfolge einzufügen. Andernfalls werden Programmänderungen so lange nicht in Ihrer Datenbank auftauchen, bis der Provider mit der höchsten Priorität geladen wird. Falls Sie beim als Standard festgelegten B<Follow-UI> bleiben, wird die Akquisitionskontrolle automatisch zwischen allen zusammengeführten Providern in korrekter Reihenfolge periodisch wechseln.
 
 =head1 NAVIGATE
 
@@ -776,6 +776,14 @@ Wurde die Datenbank über längere Zeit nicht aufgefrischt, kann die Programmliste
 
 Öffnet einen Dialog, der erlaubt, mehrere Datenbanken in eine zusammenzuführen. Siehe L<"MERGED DATABASES"> für Details.
 
+=head2 Load Teletext EPG
+
+Führt alle vom Teletext EPG Grabber erzeugten XMLTV Dateien zusammen und zeigt diese an. Welche Programme abgedeckt sind, wird über die Programmwahl in der Teletext Grabber Konfiguration bestimmt. Diese Option ist vorausgewählt wenn beim Start keine XMLTV Daten geladen wurden.
+
+Diese Option kann schon ausgeählt werden wenn der Teletext Grabber noch keine Daten geladen hat. In dem Fall wird nur das nxtvepg Logo und ein entsprechender Hinweis angezeigt. Sobald Daten von einem Sender geladen wurden, werden diese automatisch angezeigt. Während der Wartezeit können Sie den Fortschritt über die im Control Menü verfügbaren "Statistik" Fenster verfolgen.
+
+Diese Option ist äquivalent zum manuellen Zusammenführen der vom Teletext EPG Grabber erzeugten Dateien über "Merge XMLTV files", wenn in diesem Dialog die Option "Add all Teletext EPG data" gewählt wird, außer daß dies nicht möglich ist bevor wenigstens eine Datei erzeugt wurde.
+
 =head2 Enable acquisition
 
 Schaltet die Teletext-EPG Datenakquisition temporär an oder aus. Diese Option ist nur wählbar wenn der Teletext EPG grabber konfiguriert wurde (siehe L<"CONFIGURATION">, Kapitel "Teletext grabber") und eine TV-Karte verfügbar ist.
@@ -914,13 +922,13 @@ Schließt alle Fenster und beendet die Anwendung. Wurde die Akquisition als Daemo
 
 Öffnet einen Dialog, mit dem der Teletext EPG Grabber eingeschaltet und konfiguriert werden kann.  Um EPG Daten aus dem Teletext zu laden, werden reihum alle TV-Kanäle eingestellt, die TV-Übersichtsseiten gelesen (für deutsche Sender meist 301-399) und daraus eine Programmliste erstellt. Falls für einzelne Programme Referenzen auf weitere Teletext-Seiten angegeben sind, wird versucht von dort Beschreibungstexte zu laden.  Die Ausgabe des Teletext-Grabbers erfolgt in einzelne Dateien im XMLTV-Format. Für jeden TV-Sender wird eine getrennte XML Datei angelegt.
 
+Um die vom Grabber gesammelten Daten anzuzeigen, wählen Sie am einfachsten den "Load Teletext EPG" Eintrag im "Control" Menü. Alternative können Sie die vom Grabber erzeugten XMLTV Dateien manuell oder automatisch über den "Merge" Dialog im selben Menü einbinden.
+
 Ein Nachteil dieses Grabbers ist die lange Ladezeit. Diese kommt hauptsächlich dadurch zustande, dass die TV-Übersicht auf mehrere Unterseiten einzelner Teletext-Seiten verteilt sind. Dadurch werden mehrere Teletext-Zyklen für jeden TV-Sender benötigt um alle relevanten Seiten zu laden, meist mindestens 90 - 120 Sekunden. Bei Empfang via DVB ist jedoch paralleler Empfang von Sendern auf demselbem Transponder möglich, was die Ladezeit um Faktor 5 bis 8 beschleunigen kann.  Ein weiteres zentrales Problem besteht darin dass die TV-Übersicht kein einheitliches Format hat, so dass die Erkennung nicht immer zuverlässig arbeiten kann. Insbesondere können aktuell keine Themenkategorien erkannt werden.  Dieser Nachteil kann jedoch überwunden werden, indem die aus dem Teletext gewonnenen Daten anderer Quellen vereinigt werden (siehe L<"MERGED DATABASES">)
 
 Falls Sie noch keine TV-Applikation konfiguriert haben wird beim Start des Grabbers eine diesbezügliche Fehlermeldung erscheinen, denn der Grabber benötigt eine TV-Kanaltabelle. Der Grabber liest EPG Daten ab dem ersten in der Tabelle gelisteten Sender und danach der Reihe nach die folgenden Sender. Diese Reihenfolge läßt sich momentan noch nicht ändern, jedoch können Sie die Anzahl der Sender begrenzen.
 
 Tipp: Wenn der Akquisitionsmodus "Cyclic: Now - All" selektiert ist (siehe auch L<"DATA ACQUISITION">) wird während der "Now" Phase eine optimierte Strategie verwendet bei der die Reihenfolge der Sender so gelegt wird dass Wartezeiten minimiert werden. Damit kann ein Schnitt von 15-20 Sekunden pro Sender erreicht werden.  In der "Full" Phase werden dann immer für die bei I<capture duration> angegebene Zeit Teletext-Daten gelesen; normalerweise sind dies 90 Sekunden (solch eine lange Zeit ist nötig da viele Sender die Programminfos auf Unterseiten legen, die nicht in jedem Teletextzyklus enthalten sind.)
-
-Um die vom Teletext gelesenen EPG Daten zu verwenden, müssen Sie zuerst warten bis der grabber alle Sender einmal ausgelesen hat. Danach sollten Sie für jeden Sender eine XML Datei im nxtvepg Verzeichnis vorfinden (mit Namen im Muster "ttx-SENDER.xml" wobei SENDER die jeweiligen Sendernamen sind.) Diese Dateien tauchen dann in der Liste des "Load XMLTV file" Dialogs auf und können wie anderen XMLTV Dateien verwendet werden, insbesondere auch für die Zusammenführung via "Merge" (siehe L<"MERGED DATABASES">)
 
 
 =head2 TV channel scan
@@ -1385,20 +1393,12 @@ Diese versteckte Datei wird verwendet, um gemeinsam genutzten Arbeitsspeicher ei
 
 =back
 
-=head1 KNOWN BUGS
-
-Unter Windows besteht das Risiko eines Systemabsturzes ("blue screen"), wenn die Anwendung mit Gewalt beendet wird, z.B. über den Task-Manager. Dies ist unvermeidbar, weil in diesem Fall keine Chance besteht, den Treiber zu stoppen und die TV-Karte daher fortfährt, Daten in den RAM einzulesen. Bei normalem Arbeitsablauf sollte dies sehr unwahrscheinlich sein, da alle Software-Ausnahmefehler (z.B. page faults) und Meldungen beim Herunterfahren aufgefangen werden und der Treiber vor dem Beenden gestoppt wird.
-
-=head1 REPORTING BUGS
-
-Sie können gerne Bug-Reports einsenden wenn Sie glauben einen Fehler gefunden zu haben. Stellen Sie jedoch bitte sicher, dass Sie erstens die neueste Version der Software verwenden, zweitens der Bug nicht bereits in der TODO-Liste steht und drittens es nicht nur ein Fehler in der EPG-Übermittlung Ihres Providers ist.  Sehen Sie in der README-Datei nach Instruktionen darüber, welche Informationen im Bug-Report stehen sollten; ein einfaches "geht nicht" reicht in den seltensten Fällen.
-
 =head1 AUTHOR
 
 Th. "Tom" Zörner
 C<tomzo (at) users (dot) sourceforge (dot) net>
 
-Der beste Weg Feedback zu übermitteln, ist über das Diskussionsforum auf der nxtvepg-Homepage.
+Der beste Weg Feedback zu übermitteln, ist über das Diskussionsforum auf der nxtvepg-Homepage. Sehen Sie in der README-Datei nach Instruktionen darüber, welche Informationen im Bug-Report stehen sollten (z.B. die Meldung "geht nicht" reicht in den seltensten Fällen.)
 
 Vielen Dank
 an NE<eacute>o für die fortlaufende Bereitstellung der setup.exe für Windows Releases,

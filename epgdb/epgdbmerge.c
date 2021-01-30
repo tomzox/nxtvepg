@@ -551,7 +551,7 @@ static bool EpgDbMerge_PiMatch( const PI_BLOCK * pRefPi, const PI_BLOCK * pNewPi
          }
       }
       if (result == FALSE)
-         dprintf6("        CMP FAIL   '%s' %s -- %d,%d,%d,%d\n", PI_GET_TITLE(pNewPi), EpgDbMergePrintTime(pNewPi), ovl, rt1, rt2, abs(pNewPi->start_time - pRefPi->start_time));
+         dprintf6("        CMP FAIL   '%s' %s -- %d,%d,%d,%ld\n", PI_GET_TITLE(pNewPi), EpgDbMergePrintTime(pNewPi), ovl, rt1, rt2, labs(pNewPi->start_time - pRefPi->start_time));
    }
    return result;
 }
@@ -704,47 +704,79 @@ void EpgDbMergeAllPiBlocks( PDBC dbc )
 }
 
 // ---------------------------------------------------------------------------
-// Replace all blocks of one network
+// Replace all PI blocks of networks merged from the given providers
 //
-void EpgDbMergeUpdateNetwork( EPGDB_CONTEXT * pDbContext, uint srcNetwop, EPGDB_BLOCK * pNewBlock )
+void EpgDbMergeUpdateNetworks( EPGDB_CONTEXT * pDbContext, uint provCount, const uint * pProvCni )
 {
    EPGDB_MERGE_CONTEXT * dbmc;
    EPGDB_BLOCK *pFirstNetwopBlock[MAX_NETWOP_COUNT];
    EPGDB_BLOCK *pMergedPi;
    EPGDB_BLOCK *pBlock, *pNext;
+   const AI_BLOCK * pAi;
+   bool needMerge[MAX_NETWOP_COUNT];
+   uint provIdx;
+   uint dbIdx;
+   uint netIdx;
    uint netwop;
 
    assert(pDbContext->merged);
-
    dbmc = (EPGDB_MERGE_CONTEXT*) pDbContext->pMergeContext;
-   netwop = dbmc->prov[dbmc->acqIdx].netwopMap[pNewBlock->blk.pi.netwop_no];
-   if (netwop != 0xff)
+
+   memset(needMerge, 0, sizeof(needMerge));
+
+   for (provIdx = 0; provIdx < provCount; ++provIdx)
    {
-      pMergedPi = NULL;
+      // get the index of the db in the merge context
+      for (dbIdx = 0; dbIdx < dbmc->dbCount; dbIdx++)
+         if (dbmc->prov[dbIdx].provCni == pProvCni[provIdx])
+            break;
 
-      EpgDbMergeNetworkPi(pDbContext, netwop, &pMergedPi);
-
-      // free old blocks of the newly merged network
-      pBlock = pDbContext->pFirstNetwopPi[netwop];
-      while (pBlock != NULL)
+      if (dbIdx < dbmc->dbCount)
       {
-         pNext = pBlock->pNextNetwopBlock;
-         xfree(pBlock);
-         pBlock = pNext;
+         pAi = (AI_BLOCK *) &dbmc->prov[dbIdx].pDbContext->pAiBlock->blk.ai;
+         for (netIdx = 0; netIdx < pAi->netwopCount; ++netIdx)
+         {
+            netwop = dbmc->prov[dbIdx].netwopMap[netIdx];
+            if (netwop < MAX_NETWOP_COUNT)
+            {
+               dprintf3("EpgDbMerge-UpdateNetworks: prov:%X net#:%d update merged net#:%d\n", pProvCni[provIdx], netIdx, netwop);
+               needMerge[netwop] = TRUE;
+            }
+         }
       }
-
-      // copy network block lists and insert newly merged blocks
-      memcpy(pFirstNetwopBlock, pDbContext->pFirstNetwopPi, sizeof(pFirstNetwopBlock));
-      pFirstNetwopBlock[netwop] = pMergedPi;
-
-      EpgDbMergeLinkNetworkPi(pDbContext, pFirstNetwopBlock);
-
-      assert(EpgDbCheckChains(pDbContext));
-
-      // update GUI
-      if (pDbContext->pPiAcqCb != NULL)
-         pDbContext->pPiAcqCb(pDbContext, EPGDB_PI_RESYNC, NULL, NULL);
    }
+
+   for (netwop = 0; netwop < pDbContext->pAiBlock->blk.ai.netwopCount; ++netwop)
+   {
+      if (needMerge[netwop])
+      {
+         pMergedPi = NULL;
+         EpgDbMergeNetworkPi(pDbContext, netwop, &pMergedPi);
+
+         // free old blocks of the newly merged network
+         pBlock = pDbContext->pFirstNetwopPi[netwop];
+         while (pBlock != NULL)
+         {
+            pNext = pBlock->pNextNetwopBlock;
+            xfree(pBlock);
+            pBlock = pNext;
+         }
+
+         // replace with chained list of newly merged blocks
+         pFirstNetwopBlock[netwop] = pMergedPi;
+      }
+      else  // keep PI of this network unchanged
+         pFirstNetwopBlock[netwop] = pDbContext->pFirstNetwopPi[netwop];
+   }
+
+   // rebuild link chains between all blocks
+   EpgDbMergeLinkNetworkPi(pDbContext, pFirstNetwopBlock);
+
+   assert(EpgDbCheckChains(pDbContext));
+
+   // update GUI
+   if (pDbContext->pPiAcqCb != NULL)
+      pDbContext->pPiAcqCb(pDbContext, EPGDB_PI_RESYNC, NULL, NULL);
 }
 
 // ---------------------------------------------------------------------------

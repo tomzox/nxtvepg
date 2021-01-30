@@ -665,7 +665,7 @@ bool EpgAcqTtx_MonitorSources( void )
    bool advance = FALSE;
 
    // FIXME obsolete - move code to call of TtxGrab_PostProcess()
-   if (TtxGrab_CheckPostProcess(0))
+   if (TtxGrab_CheckPostProcess())
    {
 #ifdef USE_DAEMON
       // trigger the server to notify all connected clients

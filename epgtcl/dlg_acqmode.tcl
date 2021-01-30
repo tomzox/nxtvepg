@@ -33,6 +33,7 @@ set netacqcf_view "both"
 
 #=LOAD=PopupNetAcqConfig
 #=LOAD=PopupTtxGrab
+#=LOAD=ProvLoadTeletext
 #=DYNAMIC=
 
 ##  --------------------------------------------------------------------------
@@ -571,5 +572,20 @@ proc QuitTtxGrabPopup {} {
       destroy .ttxgrab
    }
 }
+
+proc ProvLoadTeletext {} {
+   C_GetTtxConfig ttxgrab_tmpcf
+
+   if {$ttxgrab_tmpcf(enable)} {
+      C_MergeTeletextProviders
+   } else {
+      set answer [tk_messageBox -type okcancel -default ok -icon question -parent . \
+                      -message "Teletext EPG acquisition is currently not enabled. Configure it now?"]
+      if {$answer eq "ok"} {
+         PopupTtxGrab
+      }
+   }
+}
+
 #=ENDIF=USE_TTX_GRABBER
 

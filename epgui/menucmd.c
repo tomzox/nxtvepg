@@ -109,12 +109,6 @@ static int MenuCmd_SetControlMenuStates( ClientData ttp, Tcl_Interp *interp, int
                     ((uiCni != 0) ? "normal" : "disabled"));
       eval_check(interp, comm);
 
-//TODO teletext?
-//      // enable "acq timescales" only if acq running on different db than ui
-//      sprintf(comm, ".menubar.ctrl entryconfigure \"Nextview acq. timescales...\" -state %s\n",
-//                    ((acqState.nxtvDbCni != 0) ? "normal" : "disabled"));
-//      eval_check(interp, comm);
-
 #ifdef USE_TTX_GRABBER
       sprintf(comm, ".menubar.ctrl entryconfigure \"Teletext grabber statistics...\" -state %s\n",
                     (RcFile_Query()->ttx.ttx_enable ? "normal" : "disabled"));
@@ -1325,8 +1319,7 @@ static int MenuCmd_UpdateMergeOptions( Tcl_Interp *interp, Tcl_Obj * pAttrListOb
 
    // note order must match that of enum MERGE_ATTRIB_TYPE
    static CONST84 char * pKeywords[] = { "cftitle", "cfdescr", "cfthemes",
-      "cfseries", "cfeditorial", "cfparental",
-      "cfsound", "cfformat", "cfrepeat", "cfsubt",
+      "cfeditorial", "cfparental", "cfsound", "cfformat", "cfrepeat", "cfsubt",
       "cfmisc", "cfvps", (char *) NULL };
 
    result = Tcl_ListObjGetElements(interp, pAttrListObj, &attrCount, &pAttrArgv);
@@ -1384,7 +1377,6 @@ static int MenuCmd_UpdateMergeProviders( Tcl_Interp *interp, Tcl_Obj * pCniListO
    int  cniCount, cni, idx;
    int  result;
 
-   // parse CNI list, format: {0x0d94 ...}
    result = Tcl_ListObjGetElements(interp, pCniListObj, &cniCount, &pCniObjv);
    if (result == TCL_OK)
    {
@@ -1411,27 +1403,49 @@ static int MenuCmd_UpdateMergeProviders( Tcl_Interp *interp, Tcl_Obj * pCniListO
 //
 static int MenuCmd_GetMergeProviderList( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
 {
-   const char * const pUsage = "Usage: C_GetMergeProviderList";
+   const char * const pUsage = "Usage: C_GetMergeProviderList [rc_only|with_auto_ttx]";
    const RCFILE * pRc;
    Tcl_Obj * pResultList;
    char cni_buf[16+2+1];
    int  idx;
+   bool with_auto_ttx;
    int  result;
 
-   if (objc != 1)
+   if (objc != 2)
    {  // parameter count is invalid
       Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
       result = TCL_ERROR;
    }
    else
    {
+      with_auto_ttx = (strcmp(Tcl_GetString(objv[1]), "with_auto_ttx") == 0);
       pResultList = Tcl_NewListObj(0, NULL);
-      pRc = RcFile_Query();
 
-      for (idx = 0; idx < pRc->db.prov_merge_count; idx++)
+      if (with_auto_ttx)
       {
-         sprintf(cni_buf, "0x%04X", pRc->db.prov_merge_cnis[idx]);
-         Tcl_ListObjAppendElement(interp, pResultList, Tcl_NewStringObj(cni_buf, -1));
+         uint  provCount;
+         uint  provCniTab[MAX_MERGED_DB_COUNT];
+
+         if (EpgContextMergeGetCnis(pUiDbContext, &provCount, provCniTab))
+         {
+            for (idx = 0; idx < provCount; idx++)
+            {
+               sprintf(cni_buf, "0x%04X", provCniTab[idx]);
+               Tcl_ListObjAppendElement(interp, pResultList, Tcl_NewStringObj(cni_buf, -1));
+            }
+         }
+      }
+      else
+      {
+         pRc = RcFile_Query();
+
+         for (idx = 0; idx < pRc->db.prov_merge_count; idx++)
+         {
+            // Note: need to return CNI as string due to use as array index and lsearch
+            // (which doesn't do hex->dec conversion even with -integer)
+            sprintf(cni_buf, "0x%04X", pRc->db.prov_merge_cnis[idx]);
+            Tcl_ListObjAppendElement(interp, pResultList, Tcl_NewStringObj(cni_buf, -1));
+         }
       }
       Tcl_SetObjResult(interp, pResultList);
       result = TCL_OK;
@@ -1452,9 +1466,9 @@ static int MenuCmd_GetMergeOptions( ClientData ttp, Tcl_Interp *interp, int objc
    int  ati, idx;
    int  result;
 
+   // note order must match that of enum MERGE_ATTRIB_TYPE
    static const char * pKeywords[] = { "cftitle", "cfdescr", "cfthemes",
-      "cfseries", "cfeditorial", "cfparental",
-      "cfsound", "cfformat", "cfrepeat", "cfsubt",
+      "cfeditorial", "cfparental", "cfsound", "cfformat", "cfrepeat", "cfsubt",
       "cfmisc", "cfvps", (char *) NULL };
 
    if (objc != 1)
@@ -1503,24 +1517,69 @@ static int MenuCmd_GetMergeOptions( ClientData ttp, Tcl_Interp *interp, int objc
 //
 static int MenuCmd_ProvMerge_Start( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
 {
-   const char * const pUsage = "Usage: C_ProvMerge_Start [<prov-list> <options>]";
+   const char * const pUsage = "Usage: C_ProvMerge_Start [<auto-merge-TTX> <prov-list> <options>]";
    EPGDB_CONTEXT * pDbContext;
+   int  autoMergeTtx;
    int  result;
 
-   if ((objc != 1) && (objc != 3))
+   if ((objc != 1) && (objc != 4))
    {  // parameter count is invalid
       Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
       result = TCL_ERROR;
    }
    else
    {
-      if (objc == 3)
+      if (objc == 4)
       {
-         MenuCmd_UpdateMergeProviders(interp, objv[1]);
-         MenuCmd_UpdateMergeOptions(interp, objv[1+1]);
+         Tcl_GetIntFromObj(interp, objv[1], &autoMergeTtx);
+         RcFile_SetAutoMergeTtx(autoMergeTtx);
+
+         MenuCmd_UpdateMergeProviders(interp, objv[2]);
+         MenuCmd_UpdateMergeOptions(interp, objv[3]);
       }
 
-      pDbContext = EpgSetup_MergeDatabases();
+      pDbContext = EpgSetup_MergeDatabases(CTX_RELOAD_ERR_REQ);
+      if (pDbContext != NULL)
+      {
+         EpgContextCtl_Close(pUiDbContext);
+         pUiDbContext = pDbContext;
+
+         UiControl_AiStateChange(NULL);
+         StatsWin_UiStatsUpdate(TRUE, TRUE);
+         eval_check(interp, "ResetFilterState");
+
+         PiBox_Reset();
+         UpdateRcFile(TRUE);
+      }
+      // note: db load errors are reported via callback
+      result = TCL_OK;
+   }
+
+   return result;
+}
+
+// ----------------------------------------------------------------------------
+// Initiate merging of teletext providers
+//
+static int MenuCmd_MergeTeletextProviders( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
+{
+   const char * const pUsage = "Usage: C_MergeTeletextProviders";
+   EPGDB_CONTEXT * pDbContext;
+   int  result;
+
+   if (objc != 1)
+   {  // parameter count is invalid
+      Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
+      result = TCL_ERROR;
+   }
+   else
+   {
+      // zero explicitly selected
+      RcFile_UpdateDbMergeCnis(NULL, 0);
+
+      RcFile_SetAutoMergeTtx(TRUE);
+
+      pDbContext = EpgSetup_MergeDatabases(CTX_RELOAD_ERR_REQ);
       if (pDbContext != NULL)
       {
          EpgContextCtl_Close(pUiDbContext);
@@ -1574,6 +1633,27 @@ static int MenuCmd_GetAcqConfig( ClientData ttp, Tcl_Interp *interp, int objc, T
 
          Tcl_SetObjResult(interp, pResultList);
       }
+      result = TCL_OK;
+   }
+   return result;
+}
+
+// ----------------------------------------------------------------------------
+// Query auto-merge-TTX option
+//
+static int MenuCmd_GetAutoMergeTtx( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
+{
+   const char * const pUsage = "Usage: C_GetAutoMergeTtx";
+   int  result;
+
+   if (objc != 1)
+   {  // parameter count is invalid
+      Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
+      result = TCL_ERROR;
+   }
+   else
+   {
+      Tcl_SetObjResult(interp, Tcl_NewIntObj(RcFile_Query()->db.auto_merge_ttx));
       result = TCL_OK;
    }
    return result;
@@ -2543,6 +2623,10 @@ void MenuCmd_Init( void )
       Tcl_CreateObjCommand(interp, "C_SetControlMenuStates", MenuCmd_SetControlMenuStates, (ClientData) NULL, NULL);
 
       Tcl_CreateObjCommand(interp, "C_ChangeProvider", MenuCmd_ChangeProvider, (ClientData) NULL, NULL);
+      Tcl_CreateObjCommand(interp, "C_GetMergeProviderList", MenuCmd_GetMergeProviderList, (ClientData) NULL, NULL);
+      Tcl_CreateObjCommand(interp, "C_GetMergeOptions", MenuCmd_GetMergeOptions, (ClientData) NULL, NULL);
+      Tcl_CreateObjCommand(interp, "C_ProvMerge_Start", MenuCmd_ProvMerge_Start, (ClientData) NULL, NULL);
+      Tcl_CreateObjCommand(interp, "C_MergeTeletextProviders", MenuCmd_MergeTeletextProviders, (ClientData) NULL, NULL);
 
       Tcl_CreateObjCommand(interp, "C_UpdateLanguage", MenuCmd_UpdateLanguage, (ClientData) NULL, NULL);
       Tcl_CreateObjCommand(interp, "C_GetProvServiceName", MenuCmd_GetProvServiceName, (ClientData) NULL, NULL);
@@ -2554,11 +2638,8 @@ void MenuCmd_Init( void )
       Tcl_CreateObjCommand(interp, "C_GetAiNetwopList", MenuCmd_GetAiNetwopList, (ClientData) NULL, NULL);
       Tcl_CreateObjCommand(interp, "C_GetNetwopNames", MenuCmd_GetNetwopNames, (ClientData) NULL, NULL);
       Tcl_CreateObjCommand(interp, "C_UpdateNetwopNames", MenuCmd_UpdateNetwopNames, (ClientData) NULL, NULL);
-
-      Tcl_CreateObjCommand(interp, "C_GetMergeProviderList", MenuCmd_GetMergeProviderList, (ClientData) NULL, NULL);
-      Tcl_CreateObjCommand(interp, "C_GetMergeOptions", MenuCmd_GetMergeOptions, (ClientData) NULL, NULL);
-      Tcl_CreateObjCommand(interp, "C_ProvMerge_Start", MenuCmd_ProvMerge_Start, (ClientData) NULL, NULL);
       Tcl_CreateObjCommand(interp, "C_GetAcqConfig", MenuCmd_GetAcqConfig, (ClientData) NULL, NULL);
+      Tcl_CreateObjCommand(interp, "C_GetAutoMergeTtx", MenuCmd_GetAutoMergeTtx, (ClientData) NULL, NULL);
 
       Tcl_CreateObjCommand(interp, "C_StartEpgScan", MenuCmd_StartEpgScan, (ClientData) NULL, NULL);
       Tcl_CreateObjCommand(interp, "C_StopEpgScan", MenuCmd_StopEpgScan, (ClientData) NULL, NULL);

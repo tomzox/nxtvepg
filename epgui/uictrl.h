@@ -31,6 +31,7 @@ typedef enum
    CTX_RELOAD_ERR_ANY,         // caller does not care about CNI of db
    CTX_RELOAD_ERR_ACQ,         // db requested by acq control
    CTX_RELOAD_ERR_REQ,         // db was requested by the user interaction
+   CTX_RELOAD_ERR_DFLT,        // db is from previous session
 } CONTEXT_RELOAD_ERR_HAND;
 
 typedef enum

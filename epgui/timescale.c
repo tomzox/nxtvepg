@@ -715,19 +715,14 @@ void TimeScale_ProvChange( void )
 // - the timescale queue (filled by background acquisition) processing is
 //   locked until the window is updated
 //
-void TimeScale_VersionChange( uint acqCni )
+void TimeScale_VersionChange( void )
 {
-   dprintf1("TimeScale-VersionChange: acqCni:0x%X\n", acqCni);
+   dprintf0("TimeScale-VersionChange\n");
 
    if ( tscaleState.open )
    {
-      if ( EpgDbContextIsMerged(pUiDbContext)
-              ? EpgContextMergeCheckForCni(pUiDbContext, acqCni)
-              : (acqCni == EpgDbContextGetCni(pUiDbContext)) )
-      {
-         tscaleState.locked = TRUE;
-         AddMainIdleEvent(TimeScale_CreateOrRebuild, NULL, TRUE);
-      }
+      tscaleState.locked = TRUE;
+      AddMainIdleEvent(TimeScale_CreateOrRebuild, NULL, TRUE);
    }
 }
 
