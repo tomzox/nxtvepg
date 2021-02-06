@@ -35,15 +35,18 @@
 // ---------------------------------------------------------------------------
 // Connect request
 //
-#define MAGIC_STR      "NEXTVIEW-DB by TOMZO"
-#define MAGIC_STR_LEN  20
+#define MAGIC_STR      "NXTVEPG-NETACQ"
+#define MAGIC_STR_LEN  14
 
 // ---------------------------------------------------------------------------
 // Structure for acq stats reports
 //
-#define STATS_REQ_BITS_HIST         0x01   // full acq stats
+#define STATS_REQ_BITS_LOW_FREQ     0x01   // full acq stats, 20 sec interval
+#define STATS_REQ_BITS_HIGH_FREQ    0x02   // full acq stats, 2 sec interval
 #define STATS_REQ_BITS_VPS_PDC_REQ  0x08   // forward VPS/PDC CNI and PIL
 #define STATS_REQ_BITS_VPS_PDC_UPD  0x10   // forward the next new VPS/PDC reading
+
+#define STATS_REQ_MINIMAL(X) (((X) & (STATS_REQ_BITS_LOW_FREQ | STATS_REQ_BITS_HIGH_FREQ)) == 0)
 
 #define STATS_IND_INVALID_VPS_PDC   0xFF
 
@@ -51,7 +54,6 @@ typedef enum
 {
    EPGDB_STATS_UPD_TYPE_MINIMAL,
    EPGDB_STATS_UPD_TYPE_INITIAL,
-   EPGDB_STATS_UPD_TYPE_UPDATE,
 } EPGDB_STATS_UPD_TYPE;
 
 typedef struct MSG_STRUCT_STATS_IND_STRUCT
@@ -72,7 +74,6 @@ typedef struct MSG_STRUCT_STATS_IND_STRUCT
    {
       struct
       {
-         uint32_t             nowMaxAcqNetCount;
          EPG_ACQ_VPS_PDC      vpsPdc;
          time32_t             lastAiTime;
          time32_t             resv_align2; // 64-bit alignment
@@ -84,16 +85,6 @@ typedef struct MSG_STRUCT_STATS_IND_STRUCT
          EPG_ACQ_VPS_PDC      vpsPdc;
          time32_t             resv_align3; // 64-bit alignment
       } initial;
-
-      struct
-      {
-         TTX_DEC_STATS        ttx_dec;
-         TTX_GRAB_STATS       grabTtxStats;
-         EPG_ACQ_VPS_PDC      vpsPdc;
-         uint32_t             acqDuration;
-         uint32_t             resv_align4;
-         time32_t             lastStatsUpdate;
-      } update;
    } u;
 } MSG_STRUCT_STATS_IND;
 
@@ -120,21 +111,6 @@ typedef struct
 
 typedef struct
 {
-   uint32_t  statsReqBits;            // extent of acq stats requested by the GUI
-} MSG_STRUCT_FORWARD_REQ;
-
-typedef struct
-{
-   int       dummy;  //TODO remove message
-} MSG_STRUCT_FORWARD_CNF;
-
-typedef struct
-{
-   uint32_t  cni;                     // CNI of the db acq is currently working for
-} MSG_STRUCT_FORWARD_IND;
-
-typedef struct
-{
    uint32_t  statsReqBits;            // extent of acq stats (handled by upper layers only)
 } MSG_STRUCT_STATS_REQ;
 
@@ -152,9 +128,6 @@ typedef union
 {
    MSG_STRUCT_CONNECT_REQ   con_req;
    MSG_STRUCT_CONNECT_CNF   con_cnf;
-   MSG_STRUCT_FORWARD_REQ   fwd_req;
-   MSG_STRUCT_FORWARD_CNF   fwd_cnf;
-   MSG_STRUCT_FORWARD_IND   fwd_ind;
    MSG_STRUCT_STATS_REQ     stats_req;
    MSG_STRUCT_STATS_IND     stats_ind;
    MSG_STRUCT_VPS_PDC_IND   vps_pdc_ind;

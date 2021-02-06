@@ -72,7 +72,7 @@ char * EpgAcqClient_QueryAcqStatus( char ** ppErrorMsg );
 bool EpgAcqClient_TerminateDaemon( char ** pErrorMsg );
 void EpgAcqClient_HandleSocket( EPGACQ_EVHAND * pAcqEv );
 bool EpgAcqClient_CheckTimeouts( void );
-bool EpgAcqClient_SetAcqStatsMode( bool enable );
+bool EpgAcqClient_SetAcqStatsMode( bool enable, bool highFreq );
 bool EpgAcqClient_SetVpsPdcMode( bool enable, bool update );
 bool EpgAcqClient_IsLocalServer( void );
 bool EpgAcqClient_DescribeNetState( EPGDBSRV_DESCR * pNetState );

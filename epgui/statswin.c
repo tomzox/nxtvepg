@@ -1005,7 +1005,7 @@ static int StatsWin_ToggleDbStats( ClientData ttp, Tcl_Interp *interp, int argc,
             dbStatsWinState.updateHandler = NULL;
 
             // enable extended statistics reports
-            EpgAcqCtl_EnableAcqStats(TRUE);
+            EpgAcqCtl_EnableAcqStats(TRUE, statsWinTtx.open);
 
             // display initial summary
             StatsWin_UpdateDbStatsWin(NULL);
@@ -1020,10 +1020,9 @@ static int StatsWin_ToggleDbStats( ClientData ttp, Tcl_Interp *interp, int argc,
             eval_check(interp, comm);
 
             // disable extended statistics reports when all windows are closed
-            if ( (dbStatsWinState.open == FALSE) &&
-                 (statsWinTtx.open == FALSE) )
+            if (statsWinTtx.open == FALSE)
             {
-               EpgAcqCtl_EnableAcqStats(FALSE);
+               EpgAcqCtl_EnableAcqStats(statsWinTtx.open, statsWinTtx.open);
             }
          }
          // set the state of the checkbutton of the respective menu entry
@@ -1070,7 +1069,7 @@ static int StatsWin_ToggleTtxStats( ClientData ttp, Tcl_Interp *interp, int argc
             statsWinTtx.updateHandler = NULL;
 
             // enable extended statistics reports
-            EpgAcqCtl_EnableAcqStats(TRUE);
+            EpgAcqCtl_EnableAcqStats(TRUE, TRUE);
 
             // display initial summary
             StatsWin_UpdateTtxStats(NULL);
@@ -1084,11 +1083,8 @@ static int StatsWin_ToggleTtxStats( ClientData ttp, Tcl_Interp *interp, int argc
             sprintf(comm, "destroy %s", STATS_WIN_TTX_WNAM);
             eval_check(interp, comm);
 
-            // disable extended statistics reports when all windows are closed
-            if (dbStatsWinState.open == FALSE)
-            {
-               EpgAcqCtl_EnableAcqStats(FALSE);
-            }
+            // switch to low reporting interval, or disable extended reports when all windows closed
+            EpgAcqCtl_EnableAcqStats(!dbStatsWinState.open, FALSE);
          }
          // set the state of the checkbutton of the according menu entry
          Tcl_SetVar2Ex(interp, "menuStatusAcqStatsOpen", NULL,

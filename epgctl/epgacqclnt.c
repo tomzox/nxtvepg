@@ -69,7 +69,6 @@ typedef enum
    CLNT_STATE_RETRY,
    CLNT_STATE_WAIT_CONNECT,
    CLNT_STATE_WAIT_CON_CNF,
-   CLNT_STATE_WAIT_FWD_CNF,
    CLNT_STATE_WAIT_BLOCKS,
    CLNT_STATE_COUNT
 } CLNT_STATE;
@@ -219,13 +218,6 @@ static bool EpgAcqClient_CheckMsg( uint len, EPGNETIO_MSG_HEADER * pHead, EPGDBS
          }
          break;
 
-      case MSG_TYPE_FORWARD_CNF:
-         if (len == sizeof(EPGNETIO_MSG_HEADER) + sizeof(pBody->fwd_cnf))
-         {
-            result = TRUE;
-         }
-         break;
-
       case MSG_TYPE_VPS_PDC_IND:
          if (len == sizeof(EPGNETIO_MSG_HEADER) + sizeof(pBody->vps_pdc_ind))
          {
@@ -283,9 +275,9 @@ static bool EpgAcqClient_CheckMsg( uint len, EPGNETIO_MSG_HEADER * pHead, EPGDBS
                      {
                         swap32(&pBody->stats_ind.u.initial.vpsPdc.cni);
                         swap32(&pBody->stats_ind.u.initial.vpsPdc.pil);
-                        // teletext grabber
                         swap32(&pBody->stats_ind.u.initial.stats.acqStartTime);
                         swap32(&pBody->stats_ind.u.initial.stats.lastStatsUpdate);
+                        swap32(&pBody->stats_ind.u.initial.stats.acqRuntime);
                         swap32(&pBody->stats_ind.u.initial.stats.acqDuration);
                         for (idx=0; idx < sizeof(pBody->stats_ind.u.initial.stats.pkgStats) / sizeof(uint32_t); idx++)
                            swap32(((uint32_t *)&pBody->stats_ind.u.initial.stats.pkgStats) + idx);
@@ -296,26 +288,6 @@ static bool EpgAcqClient_CheckMsg( uint len, EPGNETIO_MSG_HEADER * pHead, EPGDBS
                   }
                   else
                      debug2("EpgAcqClient-CheckMsg: STATS_IND type INITIAL illegal msg len %d != %d", size, (uint)sizeof(pBody->stats_ind.u.initial));
-                  break;
-               case EPGDB_STATS_UPD_TYPE_UPDATE:
-                  if (size == sizeof(pBody->stats_ind.u.update))
-                  {
-                     if (clientState.endianSwap)
-                     {
-                        swap32(&pBody->stats_ind.u.update.vpsPdc.cni);
-                        swap32(&pBody->stats_ind.u.update.vpsPdc.pil);
-                        swap32(&pBody->stats_ind.u.update.acqDuration);
-                        swap32(&pBody->stats_ind.u.update.lastStatsUpdate);
-                        for (idx=0; idx < sizeof(pBody->stats_ind.u.update.ttx_dec) / sizeof(uint32_t); idx++)
-                           swap32(((uint32_t *)&pBody->stats_ind.u.update.ttx_dec) + idx);
-                        // teletext grabber
-                        for (idx=0; idx < sizeof(pBody->stats_ind.u.update.grabTtxStats) / sizeof(uint32_t); idx++)
-                           swap32(((uint32_t *)&pBody->stats_ind.u.update.grabTtxStats) + idx);
-                     }
-                     result = TRUE;
-                  }
-                  else
-                     debug2("EpgAcqClient-CheckMsg: STATS_IND type UPDATE illegal msg len %d != %d", size, (uint)sizeof(pBody->stats_ind.u.update));
                   break;
                default:
                   debug1("EpgAcqClient-CheckMsg: STATS_IND illegal type %d", pBody->stats_ind.type);
@@ -336,7 +308,6 @@ static bool EpgAcqClient_CheckMsg( uint len, EPGNETIO_MSG_HEADER * pHead, EPGDBS
          break;
 
       case MSG_TYPE_CONNECT_REQ:
-      case MSG_TYPE_FORWARD_REQ:
       case MSG_TYPE_STATS_REQ:
          debug1("EpgAcqClient-CheckMsg: recv server msg type %d", pHead->type);
          result = FALSE;
@@ -383,39 +354,28 @@ static bool EpgAcqClient_TakeMessage( EPGACQ_EVHAND * pAcqEv, EPGDBSRV_MSG_BODY 
             else
             {  // version ok -> request block forwarding
                clientState.daemonPid = pMsg->con_cnf.daemon_pid;
-               clientMsg.fwd_req.statsReqBits = clientState.statsReqBits;
+
+               clientMsg.stats_req.statsReqBits = clientState.statsReqBits;
                // if VPS/PDC was requested, force an immediate update
                if ((clientState.statsReqBits & STATS_REQ_BITS_VPS_PDC_REQ) != 0)
-                  clientMsg.fwd_req.statsReqBits |= STATS_REQ_BITS_VPS_PDC_UPD;
-               EpgNetIo_WriteMsg(&clientState.io, MSG_TYPE_FORWARD_REQ, sizeof(clientMsg.fwd_req), &clientMsg.fwd_req, FALSE);
+                  clientMsg.stats_req.statsReqBits |= STATS_REQ_BITS_VPS_PDC_UPD;
+               EpgNetIo_WriteMsg(&clientState.io, MSG_TYPE_STATS_REQ, sizeof(clientMsg.stats_req), &clientMsg.stats_req, FALSE);
+
                pAcqEv->blockOnWrite = pAcqEv->blockOnRead = FALSE;
 
-               clientState.state = CLNT_STATE_WAIT_FWD_CNF;
+               clientState.state = CLNT_STATE_WAIT_BLOCKS;
                clientState.statsReqUpdate = FALSE;
+
+               // update network state in GUI stats display
+               UiControlMsg_AcqEvent(ACQ_EVENT_STATS_UPDATE);
+
                result = TRUE;
             }
          }
          break;
 
-      case MSG_TYPE_FORWARD_CNF:
-         // server confirms restart for a new provider request list
-         if (clientState.state == CLNT_STATE_WAIT_FWD_CNF)
-         {
-            dprintf0("EpgDbClient-TakeMessage: FORWARD_CNF\n");
-            // this message carries no information for the client, nor is it replied to.
-            // its purpose is synchronizing server and client
-            clientState.state = CLNT_STATE_WAIT_BLOCKS;
-
-            // update network state (only for initial connect)
-            UiControlMsg_AcqEvent(ACQ_EVENT_STATS_UPDATE);
-
-            result = TRUE;
-         }
-         break;
-
       case MSG_TYPE_STATS_IND:
-         if ( (clientState.state == CLNT_STATE_WAIT_BLOCKS) ||
-              (clientState.state == CLNT_STATE_WAIT_FWD_CNF) )
+         if (clientState.state == CLNT_STATE_WAIT_BLOCKS)
          {
             // note: stats indication cannot be processed immediately; instead it must be
             // processed after all EPG blocks in the queue have been inserted to the db,
@@ -468,7 +428,6 @@ static bool EpgAcqClient_TakeMessage( EPGACQ_EVHAND * pAcqEv, EPGDBSRV_MSG_BODY 
          break;
 
       case MSG_TYPE_CONNECT_REQ:
-      case MSG_TYPE_FORWARD_REQ:
       case MSG_TYPE_STATS_REQ:
       default:
          break;
@@ -650,7 +609,6 @@ void EpgAcqClient_HandleSocket( EPGACQ_EVHAND * pAcqEv )
    pAcqEv->blockOnWrite = (clientState.io.writeLen > 0);
    pAcqEv->blockOnRead  = !pAcqEv->blockOnWrite;
    pAcqEv->fd           = clientState.io.sock_fd;
-   // trigger acq ctl module if EPG blocks or other messages are queued
    pAcqEv->processQueue = (clientState.pStatsMsg != NULL);
 }
 
@@ -882,7 +840,7 @@ bool EpgAcqClient_TerminateDaemon( char ** ppErrorMsg )
          xfree(pMsgBuf);
       }
    }
-   else if (clientState.state >= CLNT_STATE_WAIT_FWD_CNF)
+   else if (clientState.state == CLNT_STATE_WAIT_BLOCKS)
    {
       pid = clientState.daemonPid;
    }
@@ -963,10 +921,10 @@ static bool EpgAcqClient_UpdateAcqStatsMode( uint statsReqBits )
    // server is only notified is the parameters have changed
    if (clientState.statsReqBits != statsReqBits)
    {
-      dprintf3("EpgDbClient-UpdateAcqStatsMode: new stats mode: HIST=%s TSC-REQ=%s TSC-ALL=%s\n", ((statsReqBits & STATS_REQ_BITS_HIST) ? "on":"off"), ((statsReqBits & STATS_REQ_BITS_TSC_REQ) ? "on":"off"), ((statsReqBits & STATS_REQ_BITS_TSC_ALL) ? "on":"off"));
+      dprintf2("EpgDbClient-UpdateAcqStatsMode: new stats mode: low_freq?:%d high_freq?:%d\n", ((statsReqBits & STATS_REQ_BITS_LOW_FREQ) != 0), ((statsReqBits & STATS_REQ_BITS_HIGH_FREQ) != 0));
       clientState.statsReqBits = statsReqBits;
 
-      if (clientState.state >= CLNT_STATE_WAIT_FWD_CNF)
+      if (clientState.state == CLNT_STATE_WAIT_BLOCKS)
       {
          if (EpgNetIo_IsIdle(&clientState.io))
          {  // no outstanding I/O
@@ -1005,14 +963,14 @@ static bool EpgAcqClient_UpdateAcqStatsMode( uint statsReqBits )
 // - the difference between normal and extended is not known to this module;
 //   the flag is passed to the acqctl callback on server-side
 //
-bool EpgAcqClient_SetAcqStatsMode( bool enable )
+bool EpgAcqClient_SetAcqStatsMode( bool enable, bool highFreq )
 {
    uint statsReqBits = clientState.statsReqBits;
 
+   statsReqBits &= ~(STATS_REQ_BITS_LOW_FREQ | STATS_REQ_BITS_HIGH_FREQ);
+
    if (enable)
-      statsReqBits |= STATS_REQ_BITS_HIST;
-   else
-      statsReqBits &= ~STATS_REQ_BITS_HIST;
+      statsReqBits |= (highFreq ? STATS_REQ_BITS_HIGH_FREQ: STATS_REQ_BITS_LOW_FREQ);
 
    return EpgAcqClient_UpdateAcqStatsMode(statsReqBits);
 }
@@ -1062,8 +1020,7 @@ bool EpgAcqClient_CheckTimeouts( void )
    if ( (now > clientState.io.lastIoTime + SRV_REPLY_TIMEOUT) &&
         ( (EpgNetIo_IsIdle(&clientState.io) == FALSE) ||
           (clientState.state == CLNT_STATE_WAIT_CONNECT) ||
-          (clientState.state == CLNT_STATE_WAIT_CON_CNF) ||
-          (clientState.state == CLNT_STATE_WAIT_FWD_CNF) ))
+          (clientState.state == CLNT_STATE_WAIT_CON_CNF) ))
    {
       debug0("EpgDbClient-CheckForBlocks: network timeout");
       SystemErrorMessage_Set(&clientState.pErrorText, 0, "Lost connection (I/O timeout)", NULL);
@@ -1103,9 +1060,8 @@ bool EpgAcqClient_CheckTimeouts( void )
 
 // ----------------------------------------------------------------------------
 // Process all stats reports received from server
-// - called after the block input queue was processed
-// - 4 modes are supported (to minimize required bandwidth): initial, initial
-//   with prov info, update with prov info, minimal update (prov info must be
+// - 3 modes are supported (to minimize required bandwidth): initial,
+//   update with prov info, minimal update (prov info must be
 //   forwarded when acq runs on a database whose blocks are not forwarded)
 // - depending on the mode a different structure is enclosed
 //
@@ -1147,22 +1103,8 @@ static bool EpgAcqClient_ProcessStats( void )
             if (pUpd->u.initial.vpsPdc.cniType != STATS_IND_INVALID_VPS_PDC)
                clientState.acqVpsPdcInd += 1;
             break;
-
-         case EPGDB_STATS_UPD_TYPE_UPDATE:
-            memcpy(pAcqDescr, &pUpd->descr, sizeof(*pAcqDescr));
-
-            pAcqStats->lastStatsUpdate = pUpd->u.update.lastStatsUpdate;
-            pAcqStats->acqDuration = pUpd->u.update.acqDuration;
-
-            memcpy(&pAcqStats->ttx_dec, &pUpd->u.update.ttx_dec, sizeof(pAcqStats->ttx_dec));
-            memcpy(&pAcqStats->pkgStats, &pUpd->u.update.grabTtxStats, sizeof(pAcqStats->pkgStats));
-
-            if (pUpd->u.update.vpsPdc.cniType != STATS_IND_INVALID_VPS_PDC)
-               clientState.acqVpsPdcInd += 1;
-
-            break;
       }
-      dprintf3("ProcessStats-ProcessStats: type %d, AI follows=%d, acqstate=%d\n", pUpd->type, pUpd->aiFollows, pUpd->descr.ttxGrabState);
+      dprintf2("EpgAcqClient-ProcessStats: type %d, acqstate=%d\n", pUpd->type, pUpd->descr.ttxGrabState);
 
       // free the message
       pNext = (EPGDBSRV_MSG_BODY*) clientState.pStatsMsg->stats_ind.p.pNext;
@@ -1182,7 +1124,10 @@ void EpgAcqClient_ProcessBlocks( void )
 {
    if (clientState.state != CLNT_STATE_OFF)
    {
-      EpgAcqClient_ProcessStats();
+      if (EpgAcqClient_ProcessStats())
+      {
+         UiControlMsg_AcqEvent(ACQ_EVENT_STATS_UPDATE);
+      }
    }
 }
 
@@ -1208,7 +1153,6 @@ bool EpgAcqClient_DescribeNetState( EPGDBSRV_DESCR * pNetState )
          result = TRUE;
          break;
       case CLNT_STATE_WAIT_CON_CNF:
-      case CLNT_STATE_WAIT_FWD_CNF:
          pNetState->state = NETDESCR_CONNECT;
          result = TRUE;
          break;

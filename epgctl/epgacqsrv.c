@@ -58,17 +58,8 @@
 typedef enum
 {
    SRV_STATE_WAIT_CON_REQ,
-   SRV_STATE_WAIT_FWD_REQ,
    SRV_STATE_FORWARD,
 } SRV_REQ_STATE;
-
-typedef enum
-{
-   SRV_FWD_STATS_DONE,
-   SRV_FWD_STATS_INITIAL,
-   SRV_FWD_STATS_UPD,
-   SRV_FWD_STATS_UPD_NO_AI,
-} SRV_STATS_STATE;
 
 // this struct holds client-specific state and parameters
 typedef struct REQUEST_struct
@@ -80,7 +71,7 @@ typedef struct REQUEST_struct
    bool            isLocalCon;
    bool            endianSwap;
 
-   SRV_STATS_STATE doTtxStats;
+   bool            doTtxStats;
    bool            doVpsPdc;
    time32_t        sendDbUpdTime;
    uint            statsReqBits;
@@ -105,7 +96,8 @@ typedef struct
 } SRV_CTL_STRUCT;
 
 #define SRV_REPLY_TIMEOUT       60
-#define SRV_STALLED_STATS_INTV  15
+#define SRV_STATS_IND_INTV_HIGH  2
+#define SRV_STATS_IND_INTV_LOW  20
 
 // ----------------------------------------------------------------------------
 // Local variables
@@ -132,7 +124,7 @@ static void EpgAcqServer_BuildStatsMsg( EPGDBSRV_STATE * req )
       EpgAcqCtl_DescribeAcqState(&req->msgBuf.stats_ind.descr);
       newVpsPdc = EpgAcqCtl_GetVpsPdc(&vpsPdc, VPSPDC_REQ_DAEMON, TRUE);
 
-      if ((req->statsReqBits & STATS_REQ_BITS_HIST) == 0)
+      if (STATS_REQ_MINIMAL(req->statsReqBits))
       {
          req->msgBuf.stats_ind.type = EPGDB_STATS_UPD_TYPE_MINIMAL;
          msgLen = sizeof(req->msgBuf.stats_ind) - sizeof(req->msgBuf.stats_ind.u) + sizeof(req->msgBuf.stats_ind.u.minimal);
@@ -144,39 +136,21 @@ static void EpgAcqServer_BuildStatsMsg( EPGDBSRV_STATE * req )
       }
       else
       {
-         if (req->doTtxStats == SRV_FWD_STATS_INITIAL)
-         {
-            req->msgBuf.stats_ind.type = EPGDB_STATS_UPD_TYPE_INITIAL;
-            msgLen = sizeof(req->msgBuf.stats_ind) - sizeof(req->msgBuf.stats_ind.u) + sizeof(req->msgBuf.stats_ind.u.initial);
+         req->msgBuf.stats_ind.type = EPGDB_STATS_UPD_TYPE_INITIAL;
+         msgLen = sizeof(req->msgBuf.stats_ind) - sizeof(req->msgBuf.stats_ind.u) + sizeof(req->msgBuf.stats_ind.u.initial);
 
-            // include the complete statistics struct
-            memcpy(&req->msgBuf.stats_ind.u.initial.stats, &acqStats, sizeof(acqStats));
-            if (newVpsPdc)
-               req->msgBuf.stats_ind.u.initial.vpsPdc = vpsPdc;
-            else
-               req->msgBuf.stats_ind.u.initial.vpsPdc.cniType = STATS_IND_INVALID_VPS_PDC;
-         }
+         // include the complete statistics struct
+         memcpy(&req->msgBuf.stats_ind.u.initial.stats, &acqStats, sizeof(acqStats));
+         if (newVpsPdc)
+            req->msgBuf.stats_ind.u.initial.vpsPdc = vpsPdc;
          else
-         {
-            req->msgBuf.stats_ind.type = EPGDB_STATS_UPD_TYPE_UPDATE;
-            msgLen = sizeof(req->msgBuf.stats_ind) - sizeof(req->msgBuf.stats_ind.u) + sizeof(req->msgBuf.stats_ind.u.update);
-
-            req->msgBuf.stats_ind.u.update.acqDuration = acqStats.acqDuration;
-            req->msgBuf.stats_ind.u.update.lastStatsUpdate = acqStats.lastStatsUpdate;
-            memcpy(&req->msgBuf.stats_ind.u.update.ttx_dec, &acqStats.ttx_dec, sizeof(acqStats.ttx_dec));
-            memcpy(&req->msgBuf.stats_ind.u.update.grabTtxStats, &acqStats.pkgStats, sizeof(acqStats.pkgStats));
-
-            if (newVpsPdc)
-               req->msgBuf.stats_ind.u.update.vpsPdc = vpsPdc;
-            else
-               req->msgBuf.stats_ind.u.update.vpsPdc.cniType = STATS_IND_INVALID_VPS_PDC;
-         }
+            req->msgBuf.stats_ind.u.initial.vpsPdc.cniType = STATS_IND_INVALID_VPS_PDC;
       }
 
       EpgNetIo_WriteMsg(&req->io, MSG_TYPE_STATS_IND, msgLen, &req->msgBuf.stats_ind, FALSE);
    }
 
-   req->doTtxStats = SRV_FWD_STATS_DONE;
+   req->doTtxStats = FALSE;
 }
 
 // ----------------------------------------------------------------------------
@@ -221,7 +195,6 @@ static char * EpgAcqServer_BuildAcqDescrStr( void )
    EPG_ACQ_STATS sv;
    EPG_ACQ_VPS_PDC vpsPdc;
    //bool newVpsPdc;
-   uint acq_duration;
    const char * pAcqModeStr;
    const char * pAcqPasvStr;
    uint off = 0;
@@ -231,45 +204,23 @@ static char * EpgAcqServer_BuildAcqDescrStr( void )
    /*newVpsPdc =*/ EpgAcqCtl_GetVpsPdc(&vpsPdc, VPSPDC_REQ_DAEMON, TRUE);
 
    EpgAcqCtl_GetAcqModeStr(&acqState, &pAcqModeStr, &pAcqPasvStr, NULL);
-   off += snprintf(pMsg + off, 10000 - off, "Acq mode:               %s\n", pAcqModeStr);
+   off += snprintf(pMsg + off, 10000 - off, "Acq mode:             %s\n", pAcqModeStr);
    if (pAcqPasvStr != NULL)
-      off += snprintf(pMsg + off, 10000 - off, "Passive reason:         %s\n", pAcqPasvStr);
+      off += snprintf(pMsg + off, 10000 - off, "Passive reason:       %s\n", pAcqPasvStr);
 
-   if ((sv.acqStartTime > 0) && (sv.acqStartTime <= sv.lastStatsUpdate))
-      acq_duration = sv.lastStatsUpdate - sv.acqStartTime;
-   else
-      acq_duration = 0;
-
-   off += snprintf(pMsg + off, 10000 - off, "Channel VPS/PDC CNI:    %04X\n"
-                                            "Channel VPS/PDC PIL:    %02d.%02d. %02d:%02d\n",
+   off += snprintf(pMsg + off, 10000 - off, "Channel VPS/PDC CNI:  %04X\n"
+                                            "Channel VPS/PDC PIL:  %02d.%02d. %02d:%02d\n",
                                      vpsPdc.cni,
                                      (vpsPdc.pil >> 15) & 0x1F, (vpsPdc.pil >> 11) & 0x0F,
                                      (vpsPdc.pil >>  6) & 0x1F, (vpsPdc.pil) & 0x3F);
 
-   off += snprintf(pMsg + off, 10000 - off, "Nextview acq duration:  %d\n",
-                               acq_duration);
-
-#if 0 // TODO TTX concurrent acquisition
-   off += snprintf(pMsg + off, 10000 - off,
-                 "TTX pkg/frame:          %.1f\n"
-                 "Captured TTX pages:     %d\n"
-                 "TTX acq. duration:      %d\n",
-                 (double)sv.ttx_dec.ttxPkgRate / (1 << TTX_PKG_RATE_FIXP),
-                 sv.pkgStats.ttxPagCount,
-                 sv.acqDuration
-          );
-#endif
-
-   if (acqState.ttxSrcCount > 0)
-   {
-      off += snprintf(pMsg + off, 10000 - off, "Teletext sources done:    %d of %d\n"
-                                               "Teletext sources in work: %d\n"
-                                               "Teletext acq duration:    %d\n",
-                                  acqState.ttxGrabDone, acqState.ttxSrcCount,
-                                  acqState.ttxGrabCount,
-                                  (int)(sv.lastStatsUpdate - sv.acqStartTime)
-                     );
-   }
+   off += snprintf(pMsg + off, 10000 - off, "Acq runtime:          %02d:%02d (of %02d:%02d)\n"
+                                            "Channels done:        %d of %d\n"
+                                            "Channels in work:     %d\n",
+                                     (sv.acqRuntime / 60), (sv.acqRuntime % 60),
+                                        (sv.acqDuration / 60), (sv.acqDuration % 60),
+                                     acqState.ttxGrabDone, acqState.ttxSrcCount,
+                                     acqState.ttxGrabCount);
 
    return pMsg;
 }
@@ -350,20 +301,6 @@ static bool EpgAcqServer_CheckMsg( uint len, EPGNETIO_MSG_HEADER * pHead, EPGDBS
          }
          break;
 
-      case MSG_TYPE_FORWARD_REQ:
-         if (len == sizeof(EPGNETIO_MSG_HEADER) + sizeof(pBody->fwd_req))
-         {
-            if (*pEndianSwap)
-            {
-               swap32(&pBody->fwd_req.statsReqBits);
-            }
-            else
-            {
-               result = TRUE;
-            }
-         }
-         break;
-
       case MSG_TYPE_STATS_REQ:
          if (len == sizeof(EPGNETIO_MSG_HEADER) + sizeof(pBody->stats_req))
          {
@@ -379,8 +316,6 @@ static bool EpgAcqServer_CheckMsg( uint len, EPGNETIO_MSG_HEADER * pHead, EPGDBS
 
       case MSG_TYPE_CONNECT_CNF:
       case MSG_TYPE_CONQUERY_CNF:
-      case MSG_TYPE_FORWARD_CNF:
-      case MSG_TYPE_FORWARD_IND:
       case MSG_TYPE_VPS_PDC_IND:
       case MSG_TYPE_DB_UPD_IND:
       case MSG_TYPE_STATS_IND:
@@ -450,29 +385,8 @@ static bool EpgAcqServer_TakeMessage( EPGDBSRV_STATE *req, EPGDBSRV_MSG_BODY * p
 #endif
             EpgNetIo_WriteMsg(&req->io, MSG_TYPE_CONNECT_CNF, sizeof(req->msgBuf.con_cnf), &req->msgBuf.con_cnf, FALSE);
 
-            req->state = SRV_STATE_WAIT_FWD_REQ;
-            result = TRUE;
-         }
-         break;
-
-      case MSG_TYPE_FORWARD_REQ:
-         // the client submits a list of providers of which he wants all incoming blocks
-         // this message is sent initially and after a GUI provider change
-         // note: if acq is working on a provider not in this list, AI and OI#0 are forwarded anyways
-         dprintf0("EpgAcqServer-TakeMessage: fwd req\n");
-         if ( (req->state == SRV_STATE_WAIT_FWD_REQ) ||
-              (req->state == SRV_STATE_FORWARD) )
-         {
-            // save the new CNI list in the client req structure
-            req->statsReqBits = pMsg->fwd_req.statsReqBits;
-            req->state = SRV_STATE_WAIT_FWD_REQ;
-
-            // immediately reply with confirmation message: mandatory for synchronization with the client
-            // - copy params from request into reply (to identify the request we reply to)
-            EpgNetIo_WriteMsg(&req->io, MSG_TYPE_FORWARD_CNF, sizeof(req->msgBuf.fwd_cnf), &req->msgBuf.fwd_cnf, FALSE);
-
-            // check if the current acq db is requested for forwarding
-            req->doTtxStats = SRV_FWD_STATS_INITIAL;
+            req->statsReqBits = 0;
+            req->doTtxStats = TRUE;
 
             req->state = SRV_STATE_FORWARD;
             result = TRUE;
@@ -485,9 +399,11 @@ static bool EpgAcqServer_TakeMessage( EPGDBSRV_STATE *req, EPGDBSRV_MSG_BODY * p
          if (req->state == SRV_STATE_FORWARD)
          {
             // send statistics if extended reports were requested
-            if ( ((pMsg->stats_req.statsReqBits & STATS_REQ_BITS_HIST) != 0) &&
-                 ((req->statsReqBits & STATS_REQ_BITS_HIST) == 0) )
-               req->doTtxStats = SRV_FWD_STATS_INITIAL;
+            if ( !STATS_REQ_MINIMAL(pMsg->stats_req.statsReqBits) &&
+                 STATS_REQ_MINIMAL(req->statsReqBits) )
+            {
+               req->doTtxStats = TRUE;
+            }
 
             // immediately send VPS/PDC updates if requested and available
             if (pMsg->stats_req.statsReqBits & STATS_REQ_BITS_VPS_PDC_REQ)
@@ -566,7 +482,7 @@ sint EpgAcqServer_GetFdSet( fd_set * rd, fd_set * wr )
          FD_SET(req->io.sock_fd, rd);
       else
       if ((req->io.writeLen > 0) ||
-          (req->doTtxStats != SRV_FWD_STATS_DONE) ||
+          (req->doTtxStats) ||
           (req->doVpsPdc) ||
           (req->sendDbUpdTime != 0))
          FD_SET(req->io.sock_fd, wr);
@@ -660,8 +576,7 @@ void EpgAcqServer_HandleSockets( fd_set * rd, fd_set * wr )
          {
             EpgAcqServer_BuildDbUpdateMsg(req);
          }
-         else if ( (req->doTtxStats != SRV_FWD_STATS_DONE) &&
-                   (req->state == SRV_STATE_FORWARD) )
+         else if ( (req->doTtxStats) && (req->state == SRV_STATE_FORWARD) )
          {  // statistics are due: include them now if either the block queue is empty
             // or next is an AI block (but suppress stats during provider change)
             EpgAcqServer_BuildStatsMsg(req);
@@ -685,19 +600,19 @@ void EpgAcqServer_HandleSockets( fd_set * rd, fd_set * wr )
       }
       else // check for protocol or network I/O timeout
       if ( (now > req->io.lastIoTime + SRV_REPLY_TIMEOUT) &&
-           ( (req->state == SRV_STATE_WAIT_CON_REQ) ||
-             (req->state == SRV_STATE_WAIT_FWD_REQ) ))
+           (req->state == SRV_STATE_WAIT_CON_REQ) )
       {
          debug2("EpgAcqServer-HandleSockets: fd %d: protocol timeout in state %d", req->io.sock_fd, req->state);
          EpgAcqServer_Close(req, FALSE);
       }
-      else if ( (now > req->io.lastIoTime + SRV_STALLED_STATS_INTV) &&
+      else if ( (now > req->io.lastIoTime
+                         + ( ((req->statsReqBits & STATS_REQ_BITS_HIGH_FREQ) != 0)
+                             ? SRV_STATS_IND_INTV_HIGH : SRV_STATS_IND_INTV_LOW )) &&
                 (req->state == SRV_STATE_FORWARD) &&
                 EpgNetIo_IsIdle(&req->io) )
       {
          dprintf1("EpgAcqServer-HandleSockets: fd %d: send 'no reception' stats\n", req->io.sock_fd);
          req->io.lastIoTime = now;
-         req->doTtxStats = SRV_FWD_STATS_UPD_NO_AI;
          EpgAcqServer_BuildStatsMsg(req);
       }
 
@@ -907,10 +822,7 @@ void EpgAcqServer_TriggerStats( void )
    {
       if (req->state == SRV_STATE_FORWARD)
       {
-         if (req->statsReqBits & STATS_REQ_BITS_HIST)
-         {
-            req->doTtxStats = SRV_FWD_STATS_INITIAL;
-         }
+         req->doTtxStats = TRUE;
       }
    }
 }

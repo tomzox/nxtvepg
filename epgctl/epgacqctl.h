@@ -151,7 +151,7 @@ bool EpgAcqCtl_ProcessVps( void );
 
 // interface for status, statistics and timescales display
 bool EpgAcqCtl_GetAcqStats( EPG_ACQ_STATS * pAcqStats );
-void EpgAcqCtl_EnableAcqStats( bool enable );
+void EpgAcqCtl_EnableAcqStats( bool enable, bool highFreq );
 void EpgAcqCtl_DescribeAcqState( EPGACQ_DESCR * pAcqState );
 void EpgAcqCtl_GetAcqModeStr( const EPGACQ_DESCR * pAcqState,
                               const char ** ppModeStr, const char ** ppPasvStr, const char ** pStateStr );

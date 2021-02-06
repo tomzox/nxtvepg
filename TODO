@@ -47,7 +47,6 @@ Post-Nextview EPG:
 - teletext acq stats: percentage cycle loaded (i.e. cycles done vs. max. sub-page count)
 - teletext configuration dialog: allow channel-specific config of page range, exclusion & duration
 - teletext emit XML encoding UTF-8
-- teletext: in daemon mode: acq statistics display updates not working & "TODO" in epgacqsrv.c
 - port to WIN32: "Broadcast Driver Architecture" (filter graph)
 
 Missing documentation:

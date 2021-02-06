@@ -271,12 +271,12 @@ bool EpgAcqCtl_GetAcqStats( EPG_ACQ_STATS * pAcqStats )
 //   and has the advantage that a statistics message arrives inbetween and
 //   makes the data valid again
 //
-void EpgAcqCtl_EnableAcqStats( bool enable )
+void EpgAcqCtl_EnableAcqStats( bool enable, bool highFreq )
 {
 #ifdef USE_DAEMON
    // Pass through the setting to the network client (even while acq is off or not
    // in network mode, because it's needed as soon as a connection is established)
-   EpgAcqClient_SetAcqStatsMode(enable);
+   EpgAcqClient_SetAcqStatsMode(enable, highFreq);
 #endif
 }
 
