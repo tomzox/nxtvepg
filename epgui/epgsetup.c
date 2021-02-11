@@ -21,7 +21,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgsetup.c,v 1.12 2011/01/16 20:27:55 tom Exp tom $
+ *  $Id: epgsetup.c,v 1.13 2021/02/11 20:40:47 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -206,10 +206,12 @@ void EpgSetup_UpdateProvCniTable( void )
             }
          }
       }
+      dprintf3("EpgSetup-UpdateProvCniTable: prov:%X nets:%d -> user-selected:%d\n", pUiDbContext->provCni, pAiBlock->netwopCount, newOrdCount);
 
-      if (provCni != MERGED_PROV_CNI)
+      // also needed for merged DB after adding additional providers
+      //if (provCni != MERGED_PROV_CNI)
       {
-         // step #2: remove suppressed CNIs from the list
+         // step #2: invalidate suppressed CNIs in the AI network list
          if (pSupList != NULL)
          {
             for (netIdx = 0; netIdx < pSupList->net_count; netIdx++)
@@ -239,6 +241,7 @@ void EpgSetup_UpdateProvCniTable( void )
             }
          }
       }
+      dprintf3("EpgSetup-UpdateProvCniTable: prov:%X plus non-sup, minus sup:%d -> %d netwops\n", pUiDbContext->provCni, ((pSupList != NULL) ? pSupList->net_count : 0), newOrdCount);
 
       if (update)
       {
@@ -294,122 +297,87 @@ void EpgSetup_SetNetwopPrefilter( EPGDB_CONTEXT * dbc, FILTER_CONTEXT * fc )
       fatal0("EpgSetup-SetNetwopPrefilter: illegal NULL pointer param");
 }
 
-// ---------------------------------------------------------------------------
-// Build default network CNI list for merged DB if none is configured yet
-// - include those CNIs which are selected
-//   user hasn't had a chance to invoke the network selection -> must include
-//   all CNIs of all providers
-//
-static bool EpgSetup_InitMergeDbNetwops( uint provCniCount, const uint * pProvCniTab,
-                                         uint * pCniCount, uint * pCniTab )
-{
-   EPGDB_CONTEXT  * pPeek;
-   const AI_BLOCK  * pAiBlock;
-   const AI_NETWOP * pNetwops;
-   const uint * pCfSelCni;
-   uint cfNetCount;
-   uint netIdx;
-   uint dbIdx;
-   uint prevIdx;
-   uint netwopCount;
-   uint cni;
-
-   netwopCount = 0;
-   for (dbIdx = 0; dbIdx < provCniCount; dbIdx++)
-   {
-      // search RC for the "include" network CNI list for this provider
-      RcFile_GetNetworkSelection(pProvCniTab[dbIdx], &cfNetCount, &pCfSelCni, NULL, NULL);
-
-      if (pCfSelCni != NULL)
-      {
-         for (netIdx = 0; (netIdx < cfNetCount) && (netwopCount < MAX_NETWOP_COUNT); netIdx++)
-         {
-            cni = pCfSelCni[netIdx];
-
-            // check if the CNI already is in the generated table
-            for (prevIdx = 0; prevIdx < netwopCount; prevIdx++)
-               if (NORM_CNI(cni) == NORM_CNI(pCniTab[prevIdx]))
-                  break;
-
-            // if not found, append
-            if (prevIdx >= netwopCount)
-            {
-               dprintf2("EpgSetup-InitMergeDbNetwops: add CNI 0x%04X of DB 0x%04X\n", cni, pProvCniTab[dbIdx]);
-               pCniTab[netwopCount] = cni;
-               netwopCount += 1;
-            }
-         }
-      }
-      else
-      {  // no network list configured for this provider -> include all networks in the DB
-
-         pPeek = EpgContextCtl_Peek(pProvCniTab[dbIdx], CTX_FAIL_RET_NULL);
-         if (pPeek != NULL)
-         {
-            EpgDbLockDatabase(pPeek, TRUE);
-            pAiBlock = EpgDbGetAi(pPeek);
-            if (pAiBlock != NULL)
-            {
-               pNetwops = AI_GET_NETWOPS(pAiBlock);
-
-               for (netIdx = 0; (netIdx < pAiBlock->netwopCount) && (netwopCount < MAX_NETWOP_COUNT); netIdx++, pNetwops++)
-               {
-                  cni = AI_GET_NET_CNI(pNetwops);
-
-                  // check if the CNI already is in the generated table
-                  for (prevIdx = 0; prevIdx < netwopCount; prevIdx++)
-                     if (cni == pCniTab[prevIdx])
-                        break;
-
-                  // if not found, append
-                  if (prevIdx >= netwopCount)
-                  {
-                     dprintf3("EpgSetup-InitMergeDbNetwops: add net #%d: CNI 0x%04X of DB 0x%04X\n", netIdx, cni, pProvCniTab[dbIdx]);
-                     pCniTab[netwopCount] = cni;
-                     netwopCount += 1;
-                  }
-               }
-            }
-            EpgDbLockDatabase(pPeek, FALSE);
-            EpgContextCtl_ClosePeek(pPeek);
-         }
-         else
-            debug1("EpgSetup-InitMergeDbNetwops: failed to peek DB 0x%04X (ignored)\n", pProvCniTab[dbIdx]);
-      }
-   }
-   *pCniCount = netwopCount;
-   return TRUE;
-}
-
 // ----------------------------------------------------------------------------
 // Retrieve network CNI list for the merged database
 // - it's not an error if no list is configured (yet);
 //   (in this case all networks are included)
 //
-static bool EpgSetup_GetMergeDbNetwops( uint * pCniCount, uint * pCniTab )
+static bool EpgSetup_GetMergeDbNetwops( uint provCniCount, const uint * pProvCniTab,
+                                        uint * pCniCount, uint * pCniTab )
 {
    const uint * pCfSelCni;
+   const uint * pCfSupCni;
    uint cfNetCount;
-   bool result = FALSE;
+   uint cfSupCount;
+   EPGDB_CONTEXT  * pPeek;
+   const AI_BLOCK  * pAiBlock;
+   const AI_NETWOP * pNetwops;
+   uint netIdx;
+   uint prevIdx;
+   uint dbIdx;
+   uint netwopCount;
+   uint cni;
 
-   *pCniCount = 0;
-
-   RcFile_GetNetworkSelection(MERGED_PROV_CNI, &cfNetCount, &pCfSelCni, NULL, NULL);
-   if (pCfSelCni != NULL)
+   netwopCount = 0;
+   RcFile_GetNetworkSelection(MERGED_PROV_CNI, &cfNetCount, &pCfSelCni, &cfSupCount, &pCfSupCni);
+   if ((cfNetCount > 0) && (pCfSelCni != NULL))
    {
-      if (cfNetCount > 0)
-      {
-         *pCniCount = cfNetCount;
-         if (*pCniCount > MAX_NETWOP_COUNT)
-            *pCniCount = MAX_NETWOP_COUNT;
+      // copy network selection list of merge config
+      netwopCount = (cfNetCount <= MAX_NETWOP_COUNT) ? cfNetCount : MAX_NETWOP_COUNT;
+      memcpy(pCniTab, pCfSelCni, netwopCount * sizeof(pCniTab[0]));
+   }
 
-         memcpy(pCniTab, pCfSelCni, cfNetCount * sizeof(pCniTab[0]));
-         result = TRUE;
+   // add networks from all merged DBs that are not explicitly suppressed in merge config
+   for (dbIdx = 0; dbIdx < provCniCount; dbIdx++)
+   {
+      pPeek = EpgContextCtl_Peek(pProvCniTab[dbIdx], CTX_RELOAD_ERR_NONE);
+      if (pPeek != NULL)
+      {
+         EpgDbLockDatabase(pPeek, TRUE);
+         pAiBlock = EpgDbGetAi(pPeek);
+         if (pAiBlock != NULL)
+         {
+            pNetwops = AI_GET_NETWOPS(pAiBlock);
+
+            for (netIdx = 0; (netIdx < pAiBlock->netwopCount) && (netwopCount < MAX_NETWOP_COUNT); netIdx++, pNetwops++)
+            {
+               cni = AI_GET_NET_CNI(pNetwops);
+
+               // skip the CNI if in the merge provider suppression list
+               for (prevIdx = 0; prevIdx < cfSupCount; prevIdx++)
+                  if (cni == pCfSupCni[prevIdx])
+                     break;
+
+               if (prevIdx >= cfSupCount)
+               {
+                  // skip the CNI if already in the generated table
+                  for (prevIdx = 0; prevIdx < netwopCount; prevIdx++)
+                     if (cni == pCniTab[prevIdx])
+                        break;
+
+                  if (prevIdx >= netwopCount)
+                  {
+                     if (netwopCount < MAX_NETWOP_COUNT)
+                     {
+                        dprintf3("EpgSetup-InitMergeDbNetwops: add net #%d: CNI 0x%04X of DB 0x%04X\n", netIdx, cni, pProvCniTab[dbIdx]);
+                        pCniTab[netwopCount] = cni;
+                        netwopCount += 1;
+                     }
+                     else
+                        debug1("EpgSetup-InitMergeDbNetwops: overflow of network table (max len %d)", MAX_NETWOP_COUNT);
+                  }
+               }
+            }
+         }
+         EpgDbLockDatabase(pPeek, FALSE);
+         EpgContextCtl_ClosePeek(pPeek);
       }
       else
-         debug0("EpgSetup-GetMergeDbNetwops: warning: network CNI list for merged db is empty");
+         debug1("EpgSetup-InitMergeDbNetwops: failed to peek DB 0x%04X (ignored)", pProvCniTab[dbIdx]);
    }
-   return result;
+   *pCniCount = netwopCount;
+
+   return TRUE;
 }
 
 // ----------------------------------------------------------------------------
@@ -484,9 +452,8 @@ EPGDB_CONTEXT * EpgSetup_MergeDatabases( void )
    uint  idx;
    time_t now;
 
-   if ( (EpgSetup_GetMergeProviders(&provCount, pProvCniTab, &max[0]) ) &&
-        (EpgSetup_GetMergeDbNetwops(&netwopCount, netwopCniTab) ||
-         EpgSetup_InitMergeDbNetwops(provCount, pProvCniTab, &netwopCount, netwopCniTab)) )
+   if ( EpgSetup_GetMergeProviders(&provCount, pProvCniTab, &max[0]) &&
+        EpgSetup_GetMergeDbNetwops(provCount, pProvCniTab, &netwopCount, netwopCniTab) )
    {
       expireTime = RcFile_Query()->db.piexpire_cutoff * 60;
 
@@ -834,7 +801,7 @@ void EpgSetup_AcquisitionMode( NETACQ_SET_MODE netAcqSetMode )
 #endif
 
    // pass the params to the acquisition control module
-   EpgAcqCtl_SelectMode(mode, ACQMODE_COUNT, cniCount, cniTab, ttxFreqCount, pTtxNames, pTtxFreqs);
+   EpgAcqCtl_SelectMode(mode, ACQMODE_PHASE_COUNT, cniCount, cniTab, ttxFreqCount, pTtxNames, pTtxFreqs);
 
    if (pTtxNames != NULL)
       xfree(pTtxNames);

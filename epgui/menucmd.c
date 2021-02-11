@@ -18,7 +18,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: menucmd.c,v 1.137 2020/06/17 19:34:20 tom Exp tom $
+ *  $Id: menucmd.c,v 1.138 2021/02/11 20:40:47 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -1994,38 +1994,29 @@ static void MenuCmd_AddProvDelButton( uint cni )
 //
 static void MenuCmd_AddEpgScanMsg( const char * pMsg, bool bold )
 {
-#ifndef USE_UTF8
-   Tcl_DString msg_dstr;
-#endif
    Tcl_DString cmd_dstr;
+   Tcl_Obj * pMsgObj;
 
    if (pMsg != NULL)
    {
-#ifndef USE_UTF8
-      if (Tcl_ExternalToUtfDString(NULL, pMsg, -1, &msg_dstr) != NULL)
-#endif
+      // messages may contain CNI description which is in Latin-1, not UTF-8
+      pMsgObj = TranscodeToUtf8(EPG_ENC_ISO_8859_1, NULL, pMsg, NULL);
+      if (pMsgObj != NULL)
       {
+         Tcl_IncrRefCount(pMsgObj);
          Tcl_DStringInit(&cmd_dstr);
          Tcl_DStringAppend(&cmd_dstr, "EpgScanAddMessage ", -1);
          // append message (plus a newline) as list element, so that '{' etc. is escaped properly
-#ifdef USE_UTF8
-         Tcl_DStringAppendElement(&cmd_dstr, pMsg);
-#else
-         Tcl_DStringAppendElement(&cmd_dstr, Tcl_DStringValue(&msg_dstr));
-#endif
+         Tcl_DStringAppendElement(&cmd_dstr, Tcl_GetStringFromObj(pMsgObj, NULL));
          Tcl_DStringAppend(&cmd_dstr, (bold ? " bold" : " {}"), -1);
 
          eval_check(interp, Tcl_DStringValue(&cmd_dstr));
 
-#ifndef USE_UTF8
-         Tcl_DStringFree(&msg_dstr);
-#endif
          Tcl_DStringFree(&cmd_dstr);
+         Tcl_DecrRefCount(pMsgObj);
       }
-#ifndef USE_UTF8
       else
          debug1("MenuCmd-AddEpgScanMsg: UTF conversion failed for '%s'", pMsg);
-#endif
    }
    else
       debug0("MenuCmd-AddEpgScanMsg: illegal NULL ptr param");

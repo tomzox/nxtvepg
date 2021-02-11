@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: rcfile.h,v 1.9 2008/10/19 17:54:50 tom Exp tom $
+ *  $Id: rcfile.h,v 1.10 2021/02/11 20:40:47 tom Exp tom $
  */
 
 #ifndef __RCFILE_H
@@ -49,7 +49,7 @@
 #define TTXGRAB_DFLT_START_PG 0x300
 #define TTXGRAB_DFLT_END_PG 0x399
 #define TTXGRAB_DFLT_OV_PG 0x301
-#define TTXGRAB_DFLT_DURATION 90
+#define TTXGRAB_DFLT_DURATION 120
 
 #ifndef WIN32  // for WIN32 this enum is defined in winshm.h
 typedef enum

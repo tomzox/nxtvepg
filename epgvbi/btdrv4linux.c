@@ -44,7 +44,7 @@
  *    NetBSD:  Mario Kemper <magick@bundy.zhadum.de>
  *    FreeBSD: Simon Barner <barner@gmx.de>
  *
- *  $Id: btdrv4linux.c,v 1.79 2020/06/24 07:23:04 tom Exp tom $
+ *  $Id: btdrv4linux.c,v 1.80 2021/02/11 20:40:47 tom Exp tom $
  */
 
 #if !defined(linux) && !defined(__NetBSD__) && !defined(__FreeBSD__) 
@@ -212,7 +212,7 @@ typedef enum
 //
 static char * BtDriver_GetDevicePath( BTDRV_DEV_TYPE devType, uint cardIdx )
 {
-   static char devName[DEV_MAX_NAME_LEN + 1];
+   static __thread char devName[DEV_MAX_NAME_LEN + 1];
 #if !defined(__NetBSD__) && !defined(__FreeBSD__)
    static char * pLastDevPath = NULL;
    char * pDevPath;

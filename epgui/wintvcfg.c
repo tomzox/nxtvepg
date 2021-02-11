@@ -29,7 +29,7 @@
  *    so their respective copyright applies too. Please see the notes in
  *    functions headers below.
  *
- *  $Id: wintvcfg.c,v 1.32 2021/01/03 12:20:42 tom Exp tom $
+ *  $Id: wintvcfg.c,v 1.33 2021/02/11 20:40:47 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -227,8 +227,11 @@ char * WintvCfg_GetRcPath( const char * pBase, uint appIdx )
    if ((appIdx != TVAPP_NONE) && (appIdx < TVAPP_COUNT))
    {
       // on UNIX config files are usually located in the home directory
-      if ((pBase == NULL) || (*pBase == 0))
+      if ((pBase == NULL) || (*pBase == 0) ||
+          (tvAppList[appIdx].needPath == FALSE))
+      {
          pBase = getenv("HOME");
+      }
 
       if ((pBase != NULL) && (*pBase != 0))
       {

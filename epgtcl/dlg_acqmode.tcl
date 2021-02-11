@@ -18,7 +18,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: dlg_acqmode.tcl,v 1.12 2011/01/05 19:13:39 tom Exp tom $
+#  $Id: dlg_acqmode.tcl,v 1.13 2021/02/11 20:40:47 tom Exp tom $
 #
 set acqmode_popup 0
 set netacqcf_popup 0
@@ -550,7 +550,7 @@ proc TtxGrab_Enabled {} {
 
 # helper function to convert page numbers to decimal for display
 proc TtxGrab_Hex2Dec {hex} {
-   if {$hex < 0x100} {$hex += 0x800}
+   if {$hex < 0x100} {incr hex 0x800}
    set dec [expr ($hex & 0x00F) + \
                  10*(($hex & 0x0F0)>>4) + \
                  100*(($hex & 0xF00)>>8)]
@@ -559,7 +559,7 @@ proc TtxGrab_Hex2Dec {hex} {
 
 # helper function to convert page numbers to hexadecimal
 proc TtxGrab_Dec2Hex {dec} {
-   if {$dec > 800} {$dec -= 800}
+   if {$dec > 800} {incr dec -800}
    set hex [expr ($dec % 10) + \
                  16*(($dec/10) % 10) + \
                  256*(($dec/100) % 10)]
@@ -610,6 +610,7 @@ proc QuitTtxGrabPopup {} {
                 ($ttxgrab_tmpcf(ovpg) <= $ttxgrab_tmpcf(pg_end))} {
 
                # convert page numbers back to hexadecimal
+               # ATTN: afterward dialog must be closed, else corrupt values are shown
                set ttxgrab_tmpcf(ovpg) [TtxGrab_Dec2Hex $ttxgrab_tmpcf(ovpg)]
                set ttxgrab_tmpcf(pg_start) [TtxGrab_Dec2Hex $ttxgrab_tmpcf(pg_start)]
                set ttxgrab_tmpcf(pg_end) [TtxGrab_Dec2Hex $ttxgrab_tmpcf(pg_end)]
