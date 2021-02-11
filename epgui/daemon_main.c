@@ -59,6 +59,9 @@ HINSTANCE  hMainInstance;  // copy of win32 instance handle
 #endif
 EPGDB_CONTEXT * pUiDbContext;
 
+// ----------------------------------------------------------------------------
+// Accept message from context control about db reload error
+//
 void UiControlMsg_ReloadError( uint cni, EPGDB_RELOAD_RESULT dberr, int errHand, bool isNewDb )
 {
    char msgBuf[100];
@@ -80,10 +83,19 @@ void UiControlMsg_ReloadError( uint cni, EPGDB_RELOAD_RESULT dberr, int errHand,
       }
    }
 }
+
+// ----------------------------------------------------------------------------
+// Accept message from acq control about network connection error
+// - only used on client-side, hence no output method for non-GUI mode needed
+//
 void UiControlMsg_NetAcqError( void )
 {
    // cannot occur in daemon mode (client lost connection to daemon)
 }
+
+// ----------------------------------------------------------------------------
+// Distribute acquisition events to GUI modules
+//
 void UiControlMsg_AcqEvent( ACQ_EVENT acqEvent )
 {
    // no GUI - nothing to do here

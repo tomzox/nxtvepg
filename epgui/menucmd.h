@@ -30,7 +30,6 @@ void MenuCmd_Init( void );
 
 void AutoStartAcq( void );
 void MenuCmd_AcqStatsUpdate( void );
-bool MenuCmd_PopupTvCardSetup( void );
 
 void SetUserLanguage( Tcl_Interp *interp );
 

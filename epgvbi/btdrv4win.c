@@ -170,16 +170,14 @@ static bool BtDriver_WdmDllLoad( bool showDrvErr )
          if (errCode == ERROR_FILE_NOT_FOUND)
          {
             MessageBox(NULL, "WDM interface library '" WDM_DRV_DLL_PATH "' not found.\n"
-                             "Without this DLL file you can only use the internal\n"
-                             "'dsdrv' driver for your TV card.",
+                             "Without this DLL file your TV card driver cannot be accessed.",
                              "nxtvepg WDM problem", MB_ICONEXCLAMATION | MB_OK | MB_TASKMODAL | MB_SETFOREGROUND);
          }
          else if (errCode == ERROR_MOD_NOT_FOUND)
          {
             MessageBox(NULL, "Failed to load WDM interface library '" WDM_DRV_DLL_PATH "'\n"
                              "probably because DLL 'MSVCR70D.dll' was not found in the path.\n"
-                             "Without loading the WDM DLL you can only use the internal\n"
-                             "'dsdrv' driver for your TV card.",
+                             "Without loading the WDM DLL your TV card driver cannot be accessed.",
                              "nxtvepg WDM problem", MB_ICONEXCLAMATION | MB_OK | MB_TASKMODAL | MB_SETFOREGROUND);
          }
          else

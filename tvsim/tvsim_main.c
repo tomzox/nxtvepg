@@ -355,8 +355,10 @@ error:
 // dummies for wintvui.c
 #include "epgdb/epgdbfil.h"
 #include "epgui/epgsetup.h"
+#include "epgui/uictrl.h"
 bool EpgSetup_AcquisitionMode( NETACQ_SET_MODE netAcqSetMode ) { return FALSE; }
 void EpgAcqCtl_Stop( void ) {}
+void UiControlMsg_AcqEvent( ACQ_EVENT acqEvent ) {}
 
 #ifndef WIN32
 // ---------------------------------------------------------------------------

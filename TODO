@@ -5,11 +5,18 @@ boost any item's priority, find more points that need to be fixed or if
 you have ideas for additional features.
 
 Mandatory fixes for release 3.0.0:
-- ttx grabber config: add channels.conf selection & auto-detect location
-- manual: move general description of TTX grabber from CONFIGURATION chapter
-  to an initial chapter; add description of config parameters
+- Replace default shortcut definitions (i.e. remove use of categories)
+- Tcl error merge option config dialog
+   foreach item $selist { $lbox.sel.selist insert end $names($item) }
+- merge option config: after merging with restrictions, next merge pops
+  up error: incorrect display "not in the main selection"
+- height of netwop filter listbox in main window;
+  same for height of provider list in merge dialog
+- increase or remove merge limit to 64
 
 Post-Nextview EPG:
+- bad error message when using "Load teletext EPG" and no files available yet
+- daemon mode: ? make work independent of TV app & ttx grabber cfg. (e.g. windows)
 - stats db histogram, merged db: show percentage of DBs updated during last 12-24 hours
 - stats db histogram: add tool-tip to each pie of the chart (showing legend & percentage)
 - stats timescale: "acq tail": highlight networks/time ranges acq is working for

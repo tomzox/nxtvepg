@@ -496,7 +496,7 @@ EPGDB_CONTEXT * EpgSetup_MergeDatabases( int errHand )
          // at the front of the provider selection order
          RcFile_UpdateMergedProvSelection();
 
-         // update access time and count for all merged providers (XMLTV only)
+         // update access time and count for all merged providers
          now = time(NULL);
          for (idx = 0; idx < provCount; idx++)
          {
@@ -838,11 +838,13 @@ bool EpgSetup_CheckTvCardConfig( void )
 
    if (drvType == BTDRV_SOURCE_UNDEF)
    {
-      result = FALSE;
+      // equivalent to EpgSetup-CardDriver()
+      drvType = BtDriver_GetDefaultDrvType();
    }
-   else if (drvType == BTDRV_SOURCE_NONE)
+
+   if (drvType == BTDRV_SOURCE_NONE)
    {
-      result = TRUE;
+      result = FALSE;
    }
    else
    {

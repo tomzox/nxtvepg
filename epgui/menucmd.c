@@ -276,13 +276,6 @@ static void MenuCmd_StartLocalAcq( Tcl_Interp * interp )
    #endif
    bool wasNetAcq;
 
-   // Warn user if TV card is not configured
-   if ( !EpgSetup_CheckTvCardConfig() && MenuCmd_PopupTvCardSetup() )
-   {
-      // User quit popup via "cancel" button
-      return;
-   }
-
    // save previous acq mode to detect mode changes
    wasNetAcq = IsRemoteAcqDefault();
 
@@ -1561,9 +1554,9 @@ static int MenuCmd_ProvMerge_Start( ClientData ttp, Tcl_Interp *interp, int objc
 // ----------------------------------------------------------------------------
 // Initiate merging of teletext providers
 //
-static int MenuCmd_MergeTeletextProviders( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
+static int MenuCmd_MergeTtxProviders( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
 {
-   const char * const pUsage = "Usage: C_MergeTeletextProviders";
+   const char * const pUsage = "Usage: C_MergeTtxProviders";
    EPGDB_CONTEXT * pDbContext;
    int  result;
 
@@ -1574,8 +1567,14 @@ static int MenuCmd_MergeTeletextProviders( ClientData ttp, Tcl_Interp *interp, i
    }
    else
    {
-      // zero explicitly selected
+      // zero providers explicitly selected
       RcFile_UpdateDbMergeCnis(NULL, 0);
+
+      // clear merge provider options
+      for (uint ati = 0; ati < MERGE_TYPE_COUNT; ati++)
+      {
+         RcFile_UpdateDbMergeOptions(ati, NULL, 0);
+      }
 
       RcFile_SetAutoMergeTtx(TRUE);
 
@@ -2120,58 +2119,10 @@ static int MenuCmd_TclCbCheckTvCardConfig( ClientData ttp, Tcl_Interp *interp, i
    }
    else
    {
-#ifndef WIN32
-      isOk = TRUE;
-#else
       isOk = EpgSetup_CheckTvCardConfig();
-#endif
       Tcl_SetObjResult(interp, Tcl_NewBooleanObj(isOk));
       result = TCL_OK;
    }
-   return result;
-}
-
-// ---------------------------------------------------------------------------
-// WIN32: Advise user to configure the TV card
-// - returns TRUE if user confirmed start of TV card config (i.e. clicked "OK")
-// - returns FALSE after cancel, or subsequent invocations
-//
-bool MenuCmd_PopupTvCardSetup( void )
-{
-   static bool haveWarned = FALSE;
-   uint uiCni;
-   bool result = FALSE;
-
-   // warn only once, to avoid becoming a nuisance
-   if (haveWarned == FALSE)
-   {
-      haveWarned = TRUE;
-   
-      uiCni = EpgDbContextGetCni(pUiDbContext);
-
-      sprintf(comm, "tk_messageBox -type okcancel -default ok -icon info -parent . "
-                    "-title {Welcome to nxtvepg} -message {%s%s}",
-                              "Before you can start loading Nextview EPG data, you need "
-                              "to configure your TV card type in the following dialog. ",
-                    ((uiCni == 0) ?
-                              "Afterwards please note the instructions in the main window."
-                              : "")
-                    );
-      if (Tcl_EvalEx(interp, comm, -1, 0) == TCL_OK)
-      {
-         if (strcmp(Tcl_GetStringResult(interp), "ok") == 0)
-         {
-            // open the TV card configuration dialog; auto-enable acq after dialog is closed
-            sprintf(comm, "set ::hwcf_acq_reenable 1\n"
-                          "PopupHardwareConfig\n");
-            eval_check(interp, comm);
-            result = TRUE;
-         }
-      }
-      else
-         debugTclErr(interp, "Main-PopupTvCardSetup");
-   }
-
    return result;
 }
 
@@ -2423,7 +2374,7 @@ static int MenuCmd_UpdateTtxConfig( ClientData ttp, Tcl_Interp *interp, int objc
       {
          ifdebug1(((cfArgc & 1) != 0), "MenuCmd-UpdateTtxConfig: warning: uneven number of params: %d", cfArgc);
          // initialize the config variables
-         memset(&rxTtxGrab, 0, sizeof(rxTtxGrab));
+         rxTtxGrab = RcFile_Query()->ttx;
 
          for (cf_idx = 0; (cf_idx < cfArgc) && (result == TCL_OK); cf_idx += 2)
          {
@@ -2626,7 +2577,7 @@ void MenuCmd_Init( void )
       Tcl_CreateObjCommand(interp, "C_GetMergeProviderList", MenuCmd_GetMergeProviderList, (ClientData) NULL, NULL);
       Tcl_CreateObjCommand(interp, "C_GetMergeOptions", MenuCmd_GetMergeOptions, (ClientData) NULL, NULL);
       Tcl_CreateObjCommand(interp, "C_ProvMerge_Start", MenuCmd_ProvMerge_Start, (ClientData) NULL, NULL);
-      Tcl_CreateObjCommand(interp, "C_MergeTeletextProviders", MenuCmd_MergeTeletextProviders, (ClientData) NULL, NULL);
+      Tcl_CreateObjCommand(interp, "C_MergeTtxProviders", MenuCmd_MergeTtxProviders, (ClientData) NULL, NULL);
 
       Tcl_CreateObjCommand(interp, "C_UpdateLanguage", MenuCmd_UpdateLanguage, (ClientData) NULL, NULL);
       Tcl_CreateObjCommand(interp, "C_GetProvServiceName", MenuCmd_GetProvServiceName, (ClientData) NULL, NULL);

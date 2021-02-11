@@ -64,6 +64,8 @@
 #include "epgui/epgmain.h"
 #include "epgui/wintvcfg.h"
 
+#include "epgtcl/dlg_xawtvcf.h"
+
 
 // ----------------------------------------------------------------------------
 // Structure which is filled with a TV channel table read from a config file
@@ -111,6 +113,7 @@ typedef struct
    bool          needPath;
    bool       (* pGetChanTab) ( TV_CHNTAB_BUF * pChanTab, const char * pChanTabPath, char ** ppErrMsg );
    const char  * pChanTabFile;
+   char *     (* pAutoDetectPath) ( void );
 } TVAPP_LIST;
 
 // ----------------------------------------------------------------------------
@@ -390,7 +393,7 @@ static void WintvCfg_ChanTabItemClose( TV_CHNTAB_BUF * pChanTab )
       }
       else
       {
-         dprintf3("WintvCfg-ChanTabItemClose: skip item #%d: no freq (%d) or name (%d)\n", pChanTab->itemCount, pChanTab->pData[pChanTab->itemCount].freq, pChanTab->pData[pChanTab->itemCount].strOff);
+         dprintf3("WintvCfg-ChanTabItemClose: skip item #%d: no freq (%lu) or name (%d)\n", pChanTab->itemCount, pChanTab->pData[pChanTab->itemCount].freq.freq, pChanTab->pData[pChanTab->itemCount].strOff);
          if (pChanTab->pData[pChanTab->itemCount].strOff != CHNTAB_MISSING_NAME)
          {
             pChanTab->strBufOff = pChanTab->pData[pChanTab->itemCount].strOff;
@@ -726,7 +729,6 @@ static bool WintvCfg_GetMultidecChanTab( TV_CHNTAB_BUF * pChanTab, const char * 
       {  // file open failed -> warn the user
          if (ppErrMsg != NULL)
             SystemErrorMessage_Set(ppErrMsg, errno, 
-                                   "Check your settings in the TV interaction configuration dialog. "
                                    "Could not open the MultiDec channel table \"", pChanTabPath, "\": ", NULL);
       }
    }
@@ -805,7 +807,6 @@ static bool WintvCfg_GetKtvChanTab( TV_CHNTAB_BUF * pChanTab, const char * pChan
       {  // file open failed -> warn the user
          if (ppErrMsg != NULL)
             SystemErrorMessage_Set(ppErrMsg, errno, 
-                                   "Check your settings in the TV interaction configuration dialog. "
                                    "Could not open the K!TV channel table \"", pChanTabPath, "\": ", NULL);
       }
    }
@@ -885,7 +886,6 @@ static bool WintvCfg_GetDscalerChanTab( TV_CHNTAB_BUF * pChanTab, const char * p
       {  // file open failed -> warn the user
          if (ppErrMsg != NULL)
             SystemErrorMessage_Set(ppErrMsg, errno, 
-                                   "Check your settings in the TV interaction configuration dialog. "
                                    "Could not open the DScaler channel table \"", pChanTabPath, "\": ", NULL);
       }
    }
@@ -971,6 +971,9 @@ static bool WintvCfg_GetVdrChanTab( TV_CHNTAB_BUF * pChanTab, const char * pChan
 
             if (fgets(sbuf, 2048-1, fp) != NULL)
             {
+               if (sbuf[0] == ':')   // comment line
+                  continue;
+
                if (WintvCfg_SplitStringColon(sbuf, fields, CCNF_VDR_COUNT + 1) == CCNF_VDR_COUNT)
                {
                   // strip bouquet name from network name
@@ -1207,6 +1210,8 @@ static bool WintvCfg_GetVdrChanTab( TV_CHNTAB_BUF * pChanTab, const char * pChan
             else
                break;
          }
+         if (ferror(fp))
+            SystemErrorMessage_Set(ppErrMsg, errno, "Error reading channel table \"", pChanTabPath, "\": ", NULL);
          fclose(fp);
 
          result = TRUE;
@@ -1215,7 +1220,6 @@ static bool WintvCfg_GetVdrChanTab( TV_CHNTAB_BUF * pChanTab, const char * pChan
       {  // file open failed -> warn the user
          if (ppErrMsg != NULL)
             SystemErrorMessage_Set(ppErrMsg, errno,
-                                   "Check your settings in the TV interaction configuration dialog. "
                                    "Could not open channel table \"", pChanTabPath, "\": ", NULL);
       }
    }
@@ -1539,6 +1543,8 @@ static bool WintvCfg_GetMplayerChanTab( TV_CHNTAB_BUF * pChanTab, const char * p
             else
                break;
          }
+         if (ferror(fp))
+            SystemErrorMessage_Set(ppErrMsg, errno, "Error reading channel table \"", pChanTabPath, "\": ", NULL);
          fclose(fp);
 
          result = TRUE;
@@ -1547,7 +1553,6 @@ static bool WintvCfg_GetMplayerChanTab( TV_CHNTAB_BUF * pChanTab, const char * p
       {  // file open failed -> warn the user
          if (ppErrMsg != NULL)
             SystemErrorMessage_Set(ppErrMsg, errno,
-                                   "Check your settings in the TV interaction configuration dialog. "
                                    "Could not open channel table \"", pChanTabPath, "\": ", NULL);
       }
    }
@@ -1659,6 +1664,8 @@ static bool WintvCfg_GetXawtvChanTab( TV_CHNTAB_BUF * pChanTab, const char * pCh
             else
                debug1("Xawtv-GetFreqTab: parse error line \"%s\"", line);
          }
+         if (ferror(fp))
+            SystemErrorMessage_Set(ppErrMsg, errno, "Error reading channel table \"", pChanTabPath, "\": ", NULL);
          fclose(fp);
 
          // add the last section's data to the output list
@@ -1678,7 +1685,6 @@ static bool WintvCfg_GetXawtvChanTab( TV_CHNTAB_BUF * pChanTab, const char * pCh
       {  // file open failed -> warn the user
          if (ppErrMsg != NULL)
             SystemErrorMessage_Set(ppErrMsg, errno, 
-                                   "Check your settings in the TV interaction configuration dialog. "
                                    "Could not open channel table \"", pChanTabPath, "\": ", NULL);
       }
    }
@@ -1794,7 +1800,6 @@ static bool WintvCfg_GetZappingChanTab( TV_CHNTAB_BUF * pChanTab, const char * p
       {  // file open failed -> warn the user
          if (ppErrMsg != NULL)
             SystemErrorMessage_Set(ppErrMsg, errno, 
-                                   "Check your settings in the TV interaction configuration dialog. "
                                    "Could not open channel table \"", pChanTabPath, "\": ", NULL);
       }
    }
@@ -2066,7 +2071,6 @@ static bool WintvCfg_GetTvtimeChanTab( TV_CHNTAB_BUF * pChanTab, const char * pC
          {  // failed to open the station table
             if (ppErrMsg != NULL)
                SystemErrorMessage_Set(ppErrMsg, errno, 
-                                      "Check your settings in the TV interaction configuration dialog. "
                                       "Could not open channel table \"", pChanTabPath, "\": ", NULL);
          }
 
@@ -2077,42 +2081,114 @@ static bool WintvCfg_GetTvtimeChanTab( TV_CHNTAB_BUF * pChanTab, const char * pC
       {  // failed to open the main config file
          if (ppErrMsg != NULL)
             SystemErrorMessage_Set(ppErrMsg, errno, 
-                                   "Check your settings in the TV interaction configuration dialog. "
                                    "Could not open the tvtime config file \"", pMainRc, "\": ", NULL);
       }
       xfree(pMainRc);
    }
    return result;
 }
+
+// ---------------------------------------------------------------------------
+// Concatenate path segments and check if the file exists
+// - any of the given paths may be NULL, but segments following a NULL pointer are ignored;
+//   note this allows passing getenv("HOME") et.al. without result checking
+// - returns NULL if not, else the concatenated path - to be freed by caller
+//
+static char * WintvCfg_PathExists( const char * p1, const char * p2, const char * p3 )
+{
+   char * pPath = NULL;
+
+   if ((p1 != NULL) && (p2 != NULL) && (p3 != NULL))
+   {
+      pPath = (char*) xmalloc(strlen(p1) + 1 + strlen(p2) + 1 + strlen(p3) + 1);
+      sprintf(pPath, "%s/%s/%s", p1, p2, p3);
+   }
+   else if ((p1 != NULL) && (p2 != NULL))
+   {
+      pPath = (char*) xmalloc(strlen(p1) + 1 + strlen(p2) + 1);
+      sprintf(pPath, "%s/%s", p1, p2);
+   }
+   else if (p1 != NULL)
+   {
+      pPath = xstrdup(p1);
+   }
+   else
+      dprintf3("WintvCfg-PathExists: SKIP %s / %s / %s\n", (p1 ? p1 : "(NULL)"), (p2 ? p2 : "(NULL)"), (p3 ? p3: "(NULL)"));
+
+   if ((pPath != NULL) && (access(pPath, R_OK) != 0))
+   {
+      dprintf1("WintvCfg-PathExists: NOPE %s\n", pPath);
+      xfree(pPath);
+      pPath = NULL;
+   }
+   return pPath;
+}
+
+// ----------------------------------------------------------------------------
+// Auto-detect channels.conf for various DVB TV applications
+// - returns NULL upon failure, else path - need to be freed by caller
+
+static char * WintvCfg_AutoDetectVdrPath( void)
+{
+   return WintvCfg_PathExists("/var/lib/vdr/channels.conf", NULL, NULL);
+}
+
+static char * WintvCfg_AutoDetectMPlayerPath( void )
+{
+   return WintvCfg_PathExists(getenv("HOME"), ".mplayer/channels.conf", NULL);
+}
+
+static char * WintvCfg_AutoDetectKaffeinePath( void )
+{
+   return WintvCfg_PathExists(getenv("HOME"), ".kde/share/apps/kaffeine/channels.dvb", NULL);
+}
+
+static char * WintvCfg_AutoDetectXinePath( void )
+{
+   char * pResult;
+
+   pResult = WintvCfg_PathExists(getenv("XDG_CONFIG_HOME"), "xine/channels.conf", NULL);
+   if (pResult == NULL)
+      pResult = WintvCfg_PathExists(getenv("HOME"), ".config/xine/channels.conf", NULL);
+   if (pResult == NULL)
+      pResult = WintvCfg_PathExists(getenv("HOME"), ".xine/channels.conf", NULL);
+
+   return pResult;
+}
 #endif  // not WIN32
 
+// ----------------------------------------------------------------------------
+// TV application table
+//
 static const TVAPP_LIST tvAppList[TVAPP_COUNT] =
 {
-   { "none",     FALSE, NULL, "" },
+   { "none",     FALSE, NULL, "", NULL },
 #ifdef WIN32
-   { "DScaler",  TRUE,  WintvCfg_GetDscalerChanTab,  "program.txt" },
-   { "K!TV",     TRUE,  WintvCfg_GetKtvChanTab,      "program.set" },
-   { "MultiDec", TRUE,  WintvCfg_GetMultidecChanTab, "Programm.set" },
-   { "MoreTV",   FALSE, WintvCfg_GetMoretvChanTab,   "" },
-   { "FreeTV",   FALSE, WintvCfg_GetFreetvChanTab,   "" },
+   { "DScaler",  TRUE,  WintvCfg_GetDscalerChanTab,  "program.txt", NULL },
+   { "K!TV",     TRUE,  WintvCfg_GetKtvChanTab,      "program.set", NULL },
+   { "MultiDec", TRUE,  WintvCfg_GetMultidecChanTab, "Programm.set", NULL },
+   { "MoreTV",   FALSE, WintvCfg_GetMoretvChanTab,   "", NULL },
+   { "FreeTV",   FALSE, WintvCfg_GetFreetvChanTab,   "", NULL },
 #else
-   { "VDR",      TRUE,  WintvCfg_GetVdrChanTab,      "channels.conf" },
-   { "mplayer",  TRUE,  WintvCfg_GetMplayerChanTab,  "channels.conf" },
-   { "Kaffeine", TRUE,  WintvCfg_GetMplayerChanTab,  "channels.conf" },
-   { "Totem",    TRUE,  WintvCfg_GetMplayerChanTab,  "channels.conf" },
-   { "Xine",     TRUE,  WintvCfg_GetMplayerChanTab,  "channels.conf" },
+   { "VDR",      TRUE,  WintvCfg_GetVdrChanTab,      "", WintvCfg_AutoDetectVdrPath },
+   { "mplayer",  TRUE,  WintvCfg_GetMplayerChanTab,  "", WintvCfg_AutoDetectMPlayerPath },
+   { "Kaffeine", TRUE,  WintvCfg_GetMplayerChanTab,  "", WintvCfg_AutoDetectKaffeinePath },
+   { "Totem",    TRUE,  WintvCfg_GetMplayerChanTab,  "", NULL },
+   { "Xine",     TRUE,  WintvCfg_GetMplayerChanTab,  "", WintvCfg_AutoDetectXinePath },
 
-   { "Xawtv",    FALSE, WintvCfg_GetXawtvChanTab,    ".xawtv" },
-   { "XawDecode",FALSE, WintvCfg_GetXawtvChanTab,    ".xawdecode/xawdecoderc" },
-   { "XdTV",     FALSE, WintvCfg_GetXawtvChanTab,    ".xdtv/xdtvrc" },
-   { "Zapping",  FALSE, WintvCfg_GetZappingChanTab,  ".zapping/zapping.conf" },
-   { "TVTime",   FALSE, WintvCfg_GetTvtimeChanTab,   ".tvtime/stationlist.xml" },
+   { "Xawtv",    FALSE, WintvCfg_GetXawtvChanTab,    ".xawtv", NULL },
+   { "XawDecode",FALSE, WintvCfg_GetXawtvChanTab,    ".xawdecode/xawdecoderc", NULL },
+   { "XdTV",     FALSE, WintvCfg_GetXawtvChanTab,    ".xdtv/xdtvrc", NULL },
+   { "Zapping",  FALSE, WintvCfg_GetZappingChanTab,  ".zapping/zapping.conf", NULL },
+   { "TVTime",   FALSE, WintvCfg_GetTvtimeChanTab,   ".tvtime/stationlist.xml", NULL },
 #endif
 };
 
 // ----------------------------------------------------------------------------
 // Assemble path to the TV app configuration file
 // - the returned string must be freed by the caller!
+// - "pBase" is a pointer to the user-configured directory or file;
+//   if NULL, the returned path is auto-detected from known directories
 //
 char * WintvCfg_GetRcPath( const char * pBase, uint appIdx )
 {
@@ -2121,9 +2197,19 @@ char * WintvCfg_GetRcPath( const char * pBase, uint appIdx )
 
    if ((appIdx != TVAPP_NONE) && (appIdx < TVAPP_COUNT))
    {
-      // on UNIX config files are usually located in the home directory
+      // auto-detection of channel config file
       if ((pBase == NULL) || (*pBase == 0))
+      {
+         if (tvAppList[appIdx].pAutoDetectPath != NULL)
+            pPath = tvAppList[appIdx].pAutoDetectPath();
+         else if (*tvAppList[appIdx].pChanTabFile != 0)
+            pBase = getenv("HOME");  // try $HOME/.xawtv et.al.
+      }
+      else if (tvAppList[appIdx].needPath == FALSE)
+      {
+         // ignore given path, use $HOME instead
          pBase = getenv("HOME");
+      }
 
       if ((pBase != NULL) && (*pBase != 0))
       {
@@ -2138,15 +2224,19 @@ char * WintvCfg_GetRcPath( const char * pBase, uint appIdx )
 #endif
          {
             pFileName = tvAppList[appIdx].pChanTabFile;
-
-            pPath = (char*) xmalloc(strlen(pBase) + strlen(pFileName) + 2);
-            strcpy(pPath, pBase);
-            strcat(pPath, "/");
-            strcat(pPath, pFileName);
+            if (*pFileName != 0)
+            {
+               pPath = (char*) xmalloc(strlen(pBase) + strlen(pFileName) + 2);
+               strcpy(pPath, pBase);
+               strcat(pPath, "/");
+               strcat(pPath, pFileName);
+            }
+            else
+               pPath = xstrdup(pBase);
          }
       }
       else
-         debug0("WintvCfg-GetPath: no path defined for TV app");
+         ifdebug2(pPath == NULL, "WintvCfg-GetPath: no default path for TV app #%d (%s)", appIdx, tvAppList[appIdx].pName);
    }
 
    return pPath;
@@ -2156,7 +2246,7 @@ char * WintvCfg_GetRcPath( const char * pBase, uint appIdx )
 // Query TV application parameters
 // - to enumerate supported apps: call with increasing index param until result is FALSE
 //
-bool WintvCfg_QueryApp( uint appIdx, const char ** ppAppName, bool * pNeedPath )
+bool WintvCfg_QueryApp( uint appIdx, const char ** ppAppName, int * pNeedPath )
 {
    bool result = FALSE;
 
@@ -2164,8 +2254,19 @@ bool WintvCfg_QueryApp( uint appIdx, const char ** ppAppName, bool * pNeedPath )
    {
       if (ppAppName != NULL)
          *ppAppName = tvAppList[appIdx].pName;
+
       if (pNeedPath != NULL)
-         *pNeedPath = tvAppList[appIdx].needPath;
+      {
+         if (tvAppList[appIdx].needPath)
+         {
+            if (tvAppList[appIdx].pChanTabFile[0] == 0)
+               *pNeedPath = EPGTCL_TVAPP_PATH_TYPE_FILE;
+            else
+               *pNeedPath = EPGTCL_TVAPP_PATH_TYPE_DIR;
+         }
+         else
+            *pNeedPath = EPGTCL_TVAPP_PATH_TYPE_NONE;
+      }
       result = TRUE;
    }
    return result;

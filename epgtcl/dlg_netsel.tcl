@@ -148,7 +148,7 @@ proc PopupNetwopSelection {} {
          pack  .netsel.bottom -side top -padx 10 -pady 5 -fill x
 
          frame  .netsel.cmd
-         button .netsel.cmd.help -text "Help" -width 7 -command {PopupHelp $helpIndex(Configuration) "Select networks"}
+         button .netsel.cmd.help -text "Help" -width 7 -command {PopupHelp $helpIndex(Configure menu) "Select networks"}
          button .netsel.cmd.abort -text "Abort" -width 7 -command {destroy .netsel}
          button .netsel.cmd.ok -text "Ok" -width 7 -command {SaveSelectedNetwopList} -default active
          pack  .netsel.cmd.help .netsel.cmd.abort .netsel.cmd.ok -side left -padx 10
@@ -161,7 +161,7 @@ proc PopupNetwopSelection {} {
          set netsel_cni 0
          NetselUpdateCni orig
 
-         bind .netsel <Key-F1> {PopupHelp $helpIndex(Configuration) "Select networks"}
+         bind .netsel <Key-F1> {PopupHelp $helpIndex(Configure menu) "Select networks"}
          bind .netsel <Alt-KeyPress> [bind Menubutton <Alt-KeyPress>]
          bind .netsel.cmd <Destroy> {+ set netsel_popup 0}
          bind .netsel.cmd.ok <Return> {tkButtonInvoke .netsel.cmd.ok}

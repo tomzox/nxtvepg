@@ -120,7 +120,7 @@ proc PopupDumpDbTabs {} {
       pack .dumptabs.all.opt -side top -pady 10
 
       frame .dumptabs.all.cmd
-      button .dumptabs.all.cmd.help -text "Help" -width 5 -command {PopupHelp $helpIndex(Control) "Export as text"}
+      button .dumptabs.all.cmd.help -text "Help" -width 5 -command {PopupHelp $helpIndex(Control menu) "Export as text"}
       pack .dumptabs.all.cmd.help -side left -padx 10
       button .dumptabs.all.cmd.clear -text "Dismiss" -width 5 -command {destroy .dumptabs}
       pack .dumptabs.all.cmd.clear -side left -padx 10
@@ -129,7 +129,7 @@ proc PopupDumpDbTabs {} {
       pack .dumptabs.all.cmd -side top
 
       pack .dumptabs.all -padx 10 -pady 10
-      bind .dumptabs <Key-F1> {PopupHelp $helpIndex(Control) "Export as text"}
+      bind .dumptabs <Key-F1> {PopupHelp $helpIndex(Control menu) "Export as text"}
       bind .dumptabs.all <Destroy> {+ set dumptabs_popup 0}
       focus .dumptabs.all.name.filename
    } else {
@@ -222,7 +222,7 @@ proc PopupDumpHtml {} {
       pack .dumphtml.opt4 -side top -pady 5 -padx 10 -fill x
 
       frame .dumphtml.cmd
-      button .dumphtml.cmd.help -text "Help" -width 5 -command {PopupHelp $helpIndex(Control) "Export as HTML"}
+      button .dumphtml.cmd.help -text "Help" -width 5 -command {PopupHelp $helpIndex(Control menu) "Export as HTML"}
       pack .dumphtml.cmd.help -side left -padx 10
       button .dumphtml.cmd.dismiss -text "Dismiss" -width 5 -command {destroy .dumphtml}
       pack .dumphtml.cmd.dismiss -side left -padx 10
@@ -234,7 +234,7 @@ proc PopupDumpHtml {} {
       HtmlDump_ToggleAppend
       HtmlDump_ToggleColsel
 
-      bind .dumphtml <Key-F1> {PopupHelp $helpIndex(Control) "Export as HTML"}
+      bind .dumphtml <Key-F1> {PopupHelp $helpIndex(Control menu) "Export as HTML"}
       bind .dumphtml.cmd <Destroy> {+ set dumphtml_popup 0}
       focus .dumphtml.opt1.name.filename
    } else {
@@ -318,13 +318,13 @@ proc PopupHtmlColumnSelection {} {
       .htmlcols.all.ai.ailist configure -width 20
       .htmlcols.all.sel.selist configure -width 20
 
-      button .htmlcols.all.cmd.help -text "Help" -width 7 -command {PopupHelp $helpIndex(Control) "Export as HTML"}
+      button .htmlcols.all.cmd.help -text "Help" -width 7 -command {PopupHelp $helpIndex(Control menu) "Export as HTML"}
       button .htmlcols.all.cmd.abort -text "Abort" -width 7 -command {destroy .htmlcols}
       button .htmlcols.all.cmd.ok -text "Ok" -width 7 -command HtmlDump_ApplyColumnSelection
       pack .htmlcols.all.cmd.help .htmlcols.all.cmd.abort .htmlcols.all.cmd.ok -side bottom -anchor sw
       pack .htmlcols.all -side top
 
-      bind  .htmlcols <Key-F1> {PopupHelp $helpIndex(Control) "Export as HTML"}
+      bind  .htmlcols <Key-F1> {PopupHelp $helpIndex(Control menu) "Export as HTML"}
       bind  .htmlcols.all.cmd <Destroy> {+ set htmlcols_popup 0}
       bind  .htmlcols.all.cmd.ok <Return> {tkButtonInvoke .htmlcols.all.cmd.ok}
       bind  .htmlcols.all.cmd.ok <Escape> {tkButtonInvoke .htmlcols.all.cmd.abort}
@@ -442,7 +442,7 @@ proc PopupDumpXml {} {
       pack   .dumpxml.all.xml_fmt -side top -pady 10 -anchor w
 
       frame  .dumpxml.all.cmd
-      button .dumpxml.all.cmd.help -text "Help" -width 5 -command {PopupHelp $helpIndex(Control) "Export as XMLTV"}
+      button .dumpxml.all.cmd.help -text "Help" -width 5 -command {PopupHelp $helpIndex(Control menu) "Export as XMLTV"}
       pack   .dumpxml.all.cmd.help -side left -padx 10
       button .dumpxml.all.cmd.abort -text "Abort" -width 5 -command {destroy .dumpxml}
       pack   .dumpxml.all.cmd.abort -side left -padx 10
@@ -452,7 +452,7 @@ proc PopupDumpXml {} {
 
       pack   .dumpxml.all -padx 10 -pady 10
       bind   .dumpxml.all <Destroy> {+ set dumpxml_popup 0}
-      bind   .dumpxml <Key-F1> {PopupHelp $helpIndex(Control) "Export as XMLTV"}
+      bind   .dumpxml <Key-F1> {PopupHelp $helpIndex(Control menu) "Export as XMLTV"}
       focus  .dumpxml.all.name.filename
    } else {
       raise .dumpxml

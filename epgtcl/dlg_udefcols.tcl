@@ -416,14 +416,14 @@ proc PopupUserDefinedColumns {} {
 
       # 4th row: main control
       frame   .usercol.cmd
-      button  .usercol.cmd.help -text "Help" -width 7 -command {PopupHelp $helpIndex(Configuration) "Attribute composition"}
+      button  .usercol.cmd.help -text "Help" -width 7 -command {PopupHelp $helpIndex(Configure menu) "Attribute composition"}
       button  .usercol.cmd.del -text "Delete" -command {UserColsDlg_Delete} -width 7
       button  .usercol.cmd.dismiss -text "Dismiss" -width 7 -command {if [UserColsDlg_CheckDiscard] {destroy .usercol}}
       button  .usercol.cmd.apply -text "Apply" -width 7 -command {UserColsDlg_Apply}
       pack    .usercol.cmd.help .usercol.cmd.del .usercol.cmd.dismiss .usercol.cmd.apply -side left -padx 10
       pack    .usercol.cmd -side top -pady 10
 
-      bind    .usercol <Key-F1> {PopupHelp $helpIndex(Configuration) "Attribute composition"}
+      bind    .usercol <Key-F1> {PopupHelp $helpIndex(Configure menu) "Attribute composition"}
       bind    .usercol.cmd <Destroy> {+ set usercol_popup 0}
       #bind    .usercol.cmd.ok <Return> {tkButtonInvoke .usercol.cmd.ok}
       #bind    .usercol.cmd.ok <Escape> {tkButtonInvoke .usercol.cmd.abort}

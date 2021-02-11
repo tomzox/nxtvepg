@@ -79,6 +79,7 @@ typedef enum
    EPGDB_ACQ_NO_TUNER,
    EPGDB_ACQ_ACCESS_DEVICE,
    EPGDB_ACQ_PASSIVE,
+   EPGDB_EMPTY_ACQ_WAIT,
    EPGDB_ACQ_WAIT,
    EPGDB_ACQ_WAIT_DAEMON,
    EPGDB_ACQ_OTHER_PROV,
@@ -121,7 +122,7 @@ static const char * UiControl_GetDbStateMsg( EPGDB_STATE state )
 
       case EPGDB_PROV_NONE_BUT_ACQ:
          pMsg = "No EPG data is loaded yet. The Teletext EPG grabber is running, "
-                "but its data is not selected for display. Use the Control menu "
+                "but its output is not selected for display. Use the Control menu "
                 "for loading an XMLTV file or Teletext EPG.";
          break;
 
@@ -168,6 +169,12 @@ static const char * UiControl_GetDbStateMsg( EPGDB_STATE state )
                 "You have configured acquisition mode to passive, so EPG data "
                 "can only be acquired once you use another application to tune to "
                 "the selected EPG provider's TV channel.";
+         break;
+
+      case EPGDB_EMPTY_ACQ_WAIT:
+         pMsg = "Please wait a few minutes until Teletext EPG data is received. "
+                "You can monitor progress using \"Teletext grabber statistics\" in the Control menu. "
+                "Alternatively, load data from XMLTV files via the Control menu.";
          break;
 
       case EPGDB_ACQ_WAIT:
@@ -244,7 +251,12 @@ static EPGDB_STATE UiControl_GetDbState( void )
       //   dbState = EPGDB_TVCARD_CFG;
       //else
       if (acqState.ttxGrabState != ACQDESCR_DISABLED)
-         dbState = EPGDB_PROV_NONE_BUT_ACQ;
+      {
+         if (RcFile_Query()->db.auto_merge_ttx)
+            dbState = EPGDB_EMPTY_ACQ_WAIT;
+         else
+            dbState = EPGDB_PROV_NONE_BUT_ACQ;
+      }
       else if (EpgContextCtl_HaveProviders() == FALSE)
          dbState = ((drvType != BTDRV_SOURCE_NONE) ? EPGDB_PROV_NONE_BUT_TTX : EPGDB_PROV_NONE);
       else
@@ -393,23 +405,6 @@ void UiControl_AiStateChange( ClientData clientData )
    const AI_BLOCK *pAiBlock;
    const char * name;
    Tcl_DString cmd_dstr;
-
-#if 0
-   if ( (EpgDbContextGetCni(pUiDbContext) == 0) &&
-        (EpgAcqCtl_GetProvCni() != 0) &&
-        (EpgScan_IsActive() == FALSE) )
-   {  // UI db is completely empty (should only happen if there's no provider at all)
-      dprintf1("UiControl-AiStateChange: browser db empty, switch to acq db 0x%04X\n", EpgAcqCtl_GetProvCni());
-      // switch browser to acq db
-      EpgContextCtl_Close(pUiDbContext);
-      pUiDbContext = EpgContextCtl_Open(EpgAcqCtl_GetProvCni(), FALSE, CTX_FAIL_RET_DUMMY, CTX_RELOAD_ERR_ANY);
-
-      // update acq CNI list in case follow-ui acq mode is selected
-      EpgSetup_AcquisitionMode(NETACQ_KEEP);
-      // display the data from the new db
-      PiBox_Reset();
-   }
-#endif
 
    // check if the message relates to the browser db
    if (pUiDbContext != NULL)
@@ -573,7 +568,16 @@ static void UiControl_LoadAcqDb( ClientData clientData )
          else if (RcFile_Query()->db.auto_merge_ttx)
          {  // database completely empty
             dprintf0("UiControl-LoadAcqDb: initial merge\n");
+
+            // zero providers explicitly selected
             RcFile_UpdateDbMergeCnis(NULL, 0);
+
+            // clear merge provider options
+            for (uint ati = 0; ati < MERGE_TYPE_COUNT; ati++)
+            {
+               RcFile_UpdateDbMergeOptions(ati, NULL, 0);
+            }
+
             pDbContext = EpgSetup_MergeDatabases(CTX_RELOAD_ERR_NONE);
             if (pDbContext != NULL)
             {

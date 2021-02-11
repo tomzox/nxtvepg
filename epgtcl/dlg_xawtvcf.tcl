@@ -49,7 +49,12 @@ proc TvAppGetName {} {
 # callback invoked when TV station is changed - only used by vbirec, unused by nxtvepg
 proc XawtvConfigShmChannelChange {station freq} {}
 
+#=CONST= ::tvapp_path_type_none     0
+#=CONST= ::tvapp_path_type_dir      1
+#=CONST= ::tvapp_path_type_file     2
+
 #=LOAD=XawtvConfigPopup
+#=LOAD=TvAppConfigWid_Create
 #=DYNAMIC=
 
 ##  --------------------------------------------------------------------------
@@ -58,20 +63,12 @@ proc XawtvConfigShmChannelChange {station freq} {}
 proc XawtvConfigPopup {} {
    global xawtvcf_popup
    global xawtvcf wintvcf xawtv_tmpcf
-   global xawtv_tmp_tvapp_list
    global xawtv_poptype_names
-   global is_unix fileImage font_fixed
+   global is_unix font_fixed
 
    if {$xawtvcf_popup == 0} {
       CreateTransientPopup .xawtvcf "TV Application Interaction Configuration"
       set xawtvcf_popup 1
-
-      # load TV app config into temporary variables
-      set tmpl [C_Tvapp_GetConfig]
-      set xawtv_tmpcf(tvapp_idx) [lindex $tmpl 0]
-      set xawtv_tmpcf(tvapp_path) [lindex $tmpl 1]
-
-      set xawtv_tmp_tvapp_list [C_Tvapp_GetTvappList]
 
       # load configuration into temporary array
       if $is_unix {
@@ -149,53 +146,7 @@ proc XawtvConfigPopup {} {
 
       # create TV app selection popdown menu and "Test" command button
       frame  .xawtvcf.tvapp -borderwidth 1 -relief raised
-      label  .xawtvcf.tvapp.lab -text "Specify from where to load the channel table:" -justify left
-      pack   .xawtvcf.tvapp.lab -side top -anchor w -padx 5 -pady 5
-
-      frame  .xawtvcf.tvapp.apptype
-      label  .xawtvcf.tvapp.apptype.lab -text "TV application:"
-      pack   .xawtvcf.tvapp.apptype.lab -side left -padx 5
-      menubutton .xawtvcf.tvapp.apptype.mb -text [lindex $xawtv_tmp_tvapp_list $xawtv_tmpcf(tvapp_idx)] \
-                                           -menu .xawtvcf.tvapp.apptype.mb.men \
-                                           -justify center -indicatoron 1
-      config_menubutton .xawtvcf.tvapp.apptype.mb
-      menu   .xawtvcf.tvapp.apptype.mb.men -tearoff 0
-      set cmd {.xawtvcf.tvapp.apptype.mb configure -text [lindex $xawtv_tmp_tvapp_list $xawtv_tmpcf(tvapp_idx)]}
-      set idx 0
-      foreach name $xawtv_tmp_tvapp_list {
-         .xawtvcf.tvapp.apptype.mb.men add radiobutton -label $name \
-                      -variable xawtv_tmpcf(tvapp_idx) -value $idx \
-                      -command XawtvConfigSetTvapp
-         incr idx
-      }
-      pack   .xawtvcf.tvapp.apptype.mb -side left -padx 10 -fill x -expand 1
-
-      button .xawtvcf.tvapp.apptype.load -text "Test" -command XawtvConfigTestPathAndType
-      pack   .xawtvcf.tvapp.apptype.load -side right -padx 10 -fill x -expand 1
-      pack   .xawtvcf.tvapp.apptype -side top -fill x
-
-      # create entry field and command button to configure TV app directory
-      frame  .xawtvcf.tvapp.name
-      label  .xawtvcf.tvapp.name.prompt -text "Path:"
-      pack   .xawtvcf.tvapp.name.prompt -side left -anchor w
-      entry  .xawtvcf.tvapp.name.filename -textvariable xawtv_tmpcf(tvapp_path) -font $font_fixed -width 33
-      pack   .xawtvcf.tvapp.name.filename -side left -padx 5 -fill x -expand 1
-      bind   .xawtvcf.tvapp.name.filename <Enter> {SelectTextOnFocus %W}
-      button .xawtvcf.tvapp.name.dlgbut -image $fileImage -command {
-         set tmp [tk_chooseDirectory -parent .xawtvcf \
-                     -initialdir $xawtv_tmpcf(tvapp_path) \
-                     -mustexist 1]
-         if {[string length $tmp] > 0} {
-            set xawtv_tmpcf(tvapp_path) $tmp
-         }
-         unset tmp
-      }
-      pack   .xawtvcf.tvapp.name.dlgbut -side left -padx 5
-      pack   .xawtvcf.tvapp.name -side top -padx 5 -pady 5 -anchor w -fill x -expand 1
-
-      # set state and text of the entry field and button
-      XawtvConfigSetTvapp
-
+      TvAppConfigWid_Create .xawtvcf.tvapp 1
       pack   .xawtvcf.tvapp -side top -anchor w -fill x -pady 5
 
       # if "general enable" is off, disable the other buttons
@@ -204,13 +155,13 @@ proc XawtvConfigPopup {} {
       }
 
       frame .xawtvcf.cmd
-      button .xawtvcf.cmd.help -text "Help" -width 5 -command {PopupHelp $helpIndex(Configuration) "TV application interaction"}
+      button .xawtvcf.cmd.help -text "Help" -width 5 -command {PopupHelp $helpIndex(Configure menu) "TV application interaction"}
       button .xawtvcf.cmd.abort -text "Abort" -width 5 -command XawtvConfigQuit
       button .xawtvcf.cmd.save -text "Ok" -width 5 -command XawtvConfigSave -default active
       pack .xawtvcf.cmd.help .xawtvcf.cmd.abort .xawtvcf.cmd.save -side left -padx 10
       pack .xawtvcf.cmd -side top -pady 10
 
-      bind .xawtvcf <Key-F1> {PopupHelp $helpIndex(Configuration) "TV application interaction"}
+      bind .xawtvcf <Key-F1> {PopupHelp $helpIndex(Configure menu) "TV application interaction"}
       bind .xawtvcf.cmd <Destroy> {+ set xawtvcf_popup 0}
       bind .xawtvcf.cmd.save <Return> {tkButtonInvoke %W}
       bind .xawtvcf.cmd.save <Escape> {tkButtonInvoke .xawtvcf.cmd.abort}
@@ -250,48 +201,6 @@ proc XawtvConfigPopupSelected {} {
    }
 }
 
-# callback for TV application type popup: disable or enable path entry field
-proc XawtvConfigSetTvapp {} {
-   global xawtv_tmpcf xawtv_tmp_tvapp_list
-   global text_bg
-
-   .xawtvcf.tvapp.apptype.mb configure -text [lindex $xawtv_tmp_tvapp_list $xawtv_tmpcf(tvapp_idx)]
-
-   if {[C_Tvapp_CfgNeedsPath $xawtv_tmpcf(tvapp_idx)] == 0} {
-      .xawtvcf.tvapp.name.filename configure -state normal -background #c0c0c0 -textvariable {}
-      .xawtvcf.tvapp.name.filename delete 0 end
-      .xawtvcf.tvapp.name.filename configure -state disabled
-      .xawtvcf.tvapp.name.dlgbut configure -state disabled
-   } else {
-      .xawtvcf.tvapp.name.filename configure -state normal -background $text_bg -textvariable xawtv_tmpcf(tvapp_path)
-      .xawtvcf.tvapp.name.dlgbut configure -state normal
-   }
-}
-
-# callback for "Test" button next to TV app type and path selection
-proc XawtvConfigTestPathAndType {} {
-   global xawtv_tmpcf xawtv_tmp_tvapp_list
-
-   set name [lindex $xawtv_tmp_tvapp_list $xawtv_tmpcf(tvapp_idx)]
-   set chn_count [C_Tvapp_TestChanTab 1 $xawtv_tmpcf(tvapp_idx) $xawtv_tmpcf(tvapp_path)]
-
-   if {$chn_count > 0} {
-      # OK
-      if {[llength [C_GetNetwopNames]] > 0} {
-         tk_messageBox -type ok -icon info -title "Info" -parent .xawtvcf \
-                       -message "Test sucessful: found $chn_count TV channels in $name."
-      } else {
-         tk_messageBox -type ok -icon info -title "Info" -parent .xawtvcf \
-                       -message "Test sucessful: found $chn_count channels. You can now use the network name dialog in the configure menu to synchronize names between nxtvepg and $name"
-      }
-
-   } elseif {$chn_count == 0} {
-      # opened ok, but no channels found
-      tk_messageBox -type ok -icon warning -title "Warning" -parent .xawtvcf \
-                    -message "No channels found in the $name channel table!"
-   }
-}
-
 # callback for general enable: adjust state of depending widgets
 proc XawtvConfigGeneralEnable {} {
    global xawtv_tmpcf
@@ -324,12 +233,11 @@ proc XawtvConfigDisplayShmAttach {} {
 
 # clean up temporary variables ans close main window
 proc XawtvConfigQuit {} {
-   global xawtv_tmp_tvapp_list xawtv_tmpcf
+   global xawtv_tmpcf
    global xawtv_poptype_names
 
    # free memory in temporary variables
    catch {unset xawtv_poptype_names}
-   unset xawtv_tmp_tvapp_list
    array unset xawtv_tmpcf
 
    # close the dialog window
@@ -341,12 +249,15 @@ proc XawtvConfigSave {} {
    global xawtvcf wintvcf xawtv_tmpcf
    global is_unix
 
-   set tmpl [C_Tvapp_GetConfig]
+   set tv_app_cfg [TvAppConfigWid_GetResults .xawtvcf]
 
-   if {($xawtv_tmpcf(tvapp_idx) != 0)} {
+   if {([lindex $tv_app_cfg 0] != 0)} {
       # silently test the channel table (i.e. don't show diagnostics as with "Test" button)
-      set test_result [C_Tvapp_TestChanTab 0 $xawtv_tmpcf(tvapp_idx) $xawtv_tmpcf(tvapp_path)]
-      if {$test_result < 0} {
+      set test_result [C_Tvapp_TestChanTab [lindex $tv_app_cfg 0] [lindex $tv_app_cfg 1]]
+      set chn_count [lindex $test_result 0]
+      set err_msg [lindex $test_result 1]
+
+      if {$chn_count < 0} {
          set answer [tk_messageBox -type okcancel -default cancel -icon warning -parent .xawtvcf \
                         -message "Cannot load the TV channel table - You should press 'Cancel' now and then use the 'Test' button to the TV application type and path settings."]
       } elseif {$test_result == 0} {
@@ -373,7 +284,7 @@ proc XawtvConfigSave {} {
    }
 
    # save config
-   C_Tvapp_UpdateConfig $xawtv_tmpcf(tvapp_idx) $xawtv_tmpcf(tvapp_path)
+   C_Tvapp_UpdateConfig [lindex $tv_app_cfg 0] [lindex $tv_app_cfg 1]
    UpdateRcFile
 
    # load config vars into the TV interaction module
@@ -386,3 +297,144 @@ proc XawtvConfigSave {} {
    NetworkNaming_UpdateTvApp
 }
 
+##  - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+##  TV application selection & path configuration sub-widget
+##
+
+proc TvAppConfigWid_Create {wid with_label} {
+   global tv_app_cfg_idx tv_app_cfg_path tv_app_cfg_selist tv_app_prev_idx
+   global font_fixed fileImage
+
+   set tv_app_cfg_selist [C_Tvapp_GetTvappList]
+
+   # load TV app config into temporary variables
+   set tmpl [C_Tvapp_GetConfig]
+   set tv_app_cfg_idx [lindex $tmpl 0]
+   set tv_app_cfg_path [lindex $tmpl 1]
+   set tv_app_prev_idx $tv_app_cfg_idx
+
+   if {$with_label} {
+      label  $wid.lab -text "Specify from where to load the channel table:" -justify left
+      pack   $wid.lab -side top -anchor w -padx 5 -pady 5
+   }
+
+   frame  $wid.apptype
+   label  $wid.apptype.lab -text "TV application:"
+   pack   $wid.apptype.lab -side left -padx 5
+   menubutton $wid.apptype.mb -text [lindex $tv_app_cfg_selist $tv_app_cfg_idx] \
+                                        -menu $wid.apptype.mb.men \
+                                        -justify center -indicatoron 1
+   config_menubutton $wid.apptype.mb
+   menu   $wid.apptype.mb.men -tearoff 0
+   set cmd {$wid.apptype.mb configure -text [lindex $tv_app_cfg_selist $tv_app_cfg_idx]}
+   set idx 0
+   foreach name $tv_app_cfg_selist {
+      $wid.apptype.mb.men add radiobutton -label $name \
+                   -variable tv_app_cfg_idx -value $idx \
+                   -command [list TvAppConfigWid_SetTvapp $wid]
+      incr idx
+   }
+   pack   $wid.apptype.mb -side left -padx 10 -fill x -expand 1
+
+   button $wid.apptype.load -text "Test" -command [list TvAppConfigWid_TestPathAndType $wid $with_label]
+   pack   $wid.apptype.load -side right -padx 10 -fill x -expand 1
+   pack   $wid.apptype -side top -fill x
+
+   # create entry field and command button to configure TV app directory
+   frame  $wid.name
+   label  $wid.name.prompt -text "Path:"
+   pack   $wid.name.prompt -side left -anchor w
+   entry  $wid.name.filename -textvariable tv_app_cfg_path -font $font_fixed -width 33
+   pack   $wid.name.filename -side left -padx 5 -fill x -expand 1
+   bind   $wid.name.filename <Enter> {SelectTextOnFocus %W}
+   button $wid.name.dlgbut -image $fileImage -command [list TvAppConfigWid_OpenTvappPathSel $wid]
+   pack   $wid.name.dlgbut -side left -padx 5
+   pack   $wid.name -side top -padx 5 -pady 5 -anchor w -fill x -expand 1
+
+   # set state and text of the entry field and button
+   TvAppConfigWid_SetTvapp $wid
+}
+
+# callback for the directory selection button: open modal file selector dialog
+proc TvAppConfigWid_OpenTvappPathSel {wid} {
+   global tv_app_cfg_idx tv_app_cfg_path
+
+   if {[C_Tvapp_CfgNeedsPath $tv_app_cfg_idx] == $::tvapp_path_type_file} {
+      set tmp [tk_getOpenFile -parent [winfo toplevel $wid] \
+                  -title "Select a channel configuration file" \
+                  -initialdir $tv_app_cfg_path \
+                  -filetypes {{"Channel config" ".conf"} {"any" "*"}}]
+   } else {
+      set tmp [tk_chooseDirectory -parent [winfo toplevel $wid] \
+                  -title "Select TV app's installation path" \
+                  -initialdir $tv_app_cfg_path \
+                  -mustexist 1]
+   }
+   if {[string length $tmp] > 0} {
+      set tv_app_cfg_path $tmp
+   }
+}
+
+# callback for TV application type popup: disable or enable path entry field
+proc TvAppConfigWid_SetTvapp {wid} {
+   global tv_app_cfg_idx tv_app_cfg_path tv_app_cfg_selist tv_app_prev_idx
+   global text_bg
+
+   $wid.apptype.mb configure -text [lindex $tv_app_cfg_selist $tv_app_cfg_idx]
+
+   set app_path ""
+   if {[C_Tvapp_CfgNeedsPath $tv_app_cfg_idx app_path] == $::tvapp_path_type_none} {
+      $wid.name.filename configure -state normal -background #c0c0c0 -textvariable {}
+      $wid.name.filename delete 0 end
+      $wid.name.filename configure -state disabled
+      $wid.name.dlgbut configure -state disabled
+   } else {
+      $wid.name.filename configure -state normal -background $text_bg -textvariable tv_app_cfg_path
+      $wid.name.dlgbut configure -state normal
+
+      if {$tv_app_cfg_idx != $tv_app_prev_idx} {
+         set tv_app_cfg_path $app_path
+         set tv_app_prev_idx $tv_app_cfg_idx
+      }
+   }
+}
+
+# callback for "Test" button next to TV app type and path selection
+proc TvAppConfigWid_TestPathAndType {wid with_netname_hint} {
+   global tv_app_cfg_idx tv_app_cfg_path tv_app_cfg_selist
+
+   set name [lindex $tv_app_cfg_selist $tv_app_cfg_idx]
+
+   set test_result [C_Tvapp_TestChanTab $tv_app_cfg_idx $tv_app_cfg_path]
+   set chn_count [lindex $test_result 0]
+   set err_msg [lindex $test_result 1]
+
+   if {$err_msg ne ""} {
+      tk_messageBox -type ok -icon error -parent [winfo toplevel $wid] -message $err_msg
+   } elseif {$chn_count > 0} {
+      # OK
+      if {[llength [C_GetNetwopNames]] > 0} {
+         tk_messageBox -type ok -icon info -title "Info" -parent [winfo toplevel $wid] \
+                       -message "Test sucessful: found $chn_count TV channels in $name."
+      } else {
+         set msg "Test sucessful: found $chn_count channels."
+         if {$with_netname_hint} {
+            append msg " You can now use the network name dialog in the configure menu to synchronize names between nxtvepg and $name"
+         }
+         tk_messageBox -type ok -icon info -title "Info" -parent [winfo toplevel $wid] -message $msg
+      }
+
+   } elseif {$chn_count == 0} {
+      # opened ok, but no channels found
+      tk_messageBox -type ok -icon warning -title "Warning" -parent [winfo toplevel $wid] \
+                    -message "No channels found in the $name channel table!"
+   }
+}
+
+# widget owner interface for retrieving results
+# note the result is shared if multiple dialogs instantiate the widget
+proc TvAppConfigWid_GetResults {wid} {
+   global tv_app_cfg_idx tv_app_cfg_path tv_app_cfg_selist
+
+   return [list $tv_app_cfg_idx $tv_app_cfg_path]
+}

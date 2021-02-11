@@ -935,7 +935,7 @@ static int start_filter(struct section_buf * s) {
      goto err0;
      }
   if ((s->fd = open(s->dmx_devname, O_RDWR)) < 0) {
-     fprintf(stderr, "ERROR: could not open demux.\n");
+     fprintf(stderr, "ERROR: could not open demux %s: %s\n", s->dmx_devname, strerror(errno));
      goto err0;
      }
 

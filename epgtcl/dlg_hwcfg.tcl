@@ -23,7 +23,6 @@
 set hwcfg_popup 0
 set tvcard_popup 0
 
-set hwcf_dsdrv_log 0
 set hwcf_acq_reenable 0
 set hwcfg_drvsrc_sel 0
 
@@ -37,9 +36,10 @@ set hwcfg_drvsrc_sel 0
 #=CONST= ::tvcf_drvsrc_v4l       0
 #=CONST= ::tvcf_drvsrc_dvb       1
 
-# Causes for acquisition re-enable:
-# 0: don't reenable; 1: only if quit with 'Ok';
-# 2: was temporary disable, re-enable also if quit with 'Abort'
+# Causes for acquisition re-enable in "hwcf_acq_reenable":
+# 0: don't reenable
+# 1: only if quit with 'Ok'
+# 2: was temporary disabled, re-enable also if quit with 'Abort'
 #=CONST= ::tvcf_acq_disa_none    0
 #=CONST= ::tvcf_acq_disa_drv     1
 #=CONST= ::tvcf_acq_disa_tmp     2
@@ -60,7 +60,7 @@ set hwcfg_drvsrc_sel 0
 proc PopupHardwareConfig {} {
    global is_unix netacq_enable
    global hwcfg_cardidx_sel hwcfg_input_sel hwcfg_drvsrc_sel
-   global hwcfg_prio_sel hwcfg_slicer_sel hwcf_dsdrv_log
+   global hwcfg_prio_sel hwcfg_slicer_sel
    global hwcfg_card_list
    global hwcfg_popup
 
@@ -180,13 +180,13 @@ proc PopupHardwareConfig {} {
 
       # create standard command buttons
       frame .hwcfg.cmd
-      button .hwcfg.cmd.help -text "Help" -width 6 -command {PopupHelp $helpIndex(Configuration) "TV card input"}
+      button .hwcfg.cmd.help -text "Help" -width 6 -command {PopupHelp $helpIndex(Configure menu) "TV card input"}
       button .hwcfg.cmd.abort -text "Abort" -width 6 -command {HardwareConfigQuit 0}
       button .hwcfg.cmd.ok -text "Ok" -width 6 -command {HardwareConfigQuit 1} -default active
       pack .hwcfg.cmd.help .hwcfg.cmd.abort .hwcfg.cmd.ok -side left -padx 10
       pack .hwcfg.cmd -side top -pady 10
 
-      bind .hwcfg <Key-F1> {PopupHelp $helpIndex(Configuration) "TV card input"}
+      bind .hwcfg <Key-F1> {PopupHelp $helpIndex(Configure menu) "TV card input"}
       bind .hwcfg <Alt-KeyPress> [bind Menubutton <Alt-KeyPress>]
       bind .hwcfg.cmd <Destroy> {+ set hwcfg_popup 0 }
       bind .hwcfg.cmd.ok <Return> {tkButtonInvoke .hwcfg.cmd.ok}
@@ -286,15 +286,8 @@ proc HwCfg_DrvTypeChanged {} {
    global hwcfg_drvsrc_sel
 
    if {!$is_unix} {
-      if {$hwcfg_drvsrc_sel == $::tvcf_drvsrc_dsdrv} {
-         # show dsdrv setup options
-         if {[lsearch -exact [pack slaves .hwcfg] .hwcfg.opt3] == -1} {
-            pack .hwcfg.opt3 -after .hwcfg.opt2 -side top -fill x -padx 5 -pady 3
-         }
-      } else {
-         if {[lsearch -exact [pack slaves .hwcfg] .hwcfg.opt3] != -1} {
-            pack forget .hwcfg.opt3 -side top -fill x -padx 5 -pady 3
-         }
+      if {[lsearch -exact [pack slaves .hwcfg] .hwcfg.opt3] != -1} {
+         pack forget .hwcfg.opt3 -side top -fill x -padx 5 -pady 3
       }
    }
    HwCfg_LoadTvCardList 1
@@ -327,7 +320,7 @@ proc HardwareCreateInputMenu {widget dummy} {
 proc HardwareConfigQuit {is_ok} {
    global is_unix
    global hwcfg_cardidx_sel hwcfg_input_sel hwcfg_drvsrc_sel
-   global hwcfg_prio_sel hwcfg_slicer_sel hwcf_dsdrv_log
+   global hwcfg_prio_sel hwcfg_slicer_sel
    global hwcfg_card_list hwcfg_input_list
    global hwcf_acq_reenable
 
@@ -344,44 +337,6 @@ proc HardwareConfigQuit {is_ok} {
 
       if {$is_ok} {
          # OK button -> save config into the global variables
-
-         if { !$is_unix } {
-            set hwcfg [C_GetHardwareConfig]
-
-            if { $hwcf_acq_reenable && ![C_IsAcqEnabled] &&
-                 ($hwcfg_drvsrc_sel == $::tvcf_drvsrc_dsdrv) } {
-
-               # Win32: initial TV card configuration
-               set answer [tk_messageBox -type okcancel -default ok -icon warning -title "Caution" -parent .hwcfg \
-                              -message "Nextview acquisition will be enabled now. In the unlikely case your system should crash, remove the 'nxtvepg.ini' file and try again with the 'WDM stop' option enabled, or use a WDM source."]
-               if {[string compare $answer "ok"] != 0} {
-                  return
-               }
-            } elseif { ([lindex $hwcfg $::hwcf_ret_drvsrc_idx] == $::tvcf_drvsrc_wdm) &&
-                       ($hwcfg_drvsrc_sel == $::tvcf_drvsrc_dsdrv) } {
-               # Win32: switching from WDM to dsdrv
-               if {[C_IsAcqEnabled]} {
-                  C_ToggleAcq 0 0
-                  set hwcf_acq_reenable $::tvcf_acq_disa_tmp
-               }
-               set answer [tk_messageBox -type okcancel -default ok -icon warning -title "nxtvepg warning" -parent .hwcfg \
-                              -message "WARNING: switching from a WDM driver to dsdrv is risky because the WDM driver may still be active. It's recommended to press 'Cancel' now and reboot before re-starting Nextview acquisition with dsdrv4."]
-               if {[string compare $answer "ok"] != 0} {
-                  # new config is still saved, but acq not re-enabled
-                  set hwcf_acq_reenable $::tvcf_acq_disa_none
-               }
-            } elseif {$hwcf_dsdrv_log} {
-               # Win32: driver start-up logging
-               set msg "To produce a driver startup logfile "
-               if {[C_IsAcqEnabled]} {
-                  append msg "first stop, then re-"
-               } else {
-                  append msg "now, "
-               }
-               append msg "start acquisition via the 'Control' menu."
-               tk_messageBox -type ok -icon info -parent .hwcfg -message $msg
-            }
-         }
 
          C_UpdateHardwareConfig $hwcfg_cardidx_sel $hwcfg_input_sel $hwcfg_drvsrc_sel \
                                 $hwcfg_prio_sel $hwcfg_slicer_sel

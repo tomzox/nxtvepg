@@ -136,7 +136,7 @@ proc PopupNetAcqConfig {} {
 
       # standard dialog buttons: Ok, Abort, Help
       frame .netacqcf.cmd
-      button .netacqcf.cmd.help -text "Help" -width 5 -command {PopupHelp $helpIndex(Configuration) "Client/Server"}
+      button .netacqcf.cmd.help -text "Help" -width 5 -command {PopupHelp $helpIndex(Configure menu) "Client/Server"}
       button .netacqcf.cmd.abort -text "Abort" -width 5 -command {NetAcqConfigQuit 0}
       button .netacqcf.cmd.save -text "Ok" -width 5 -command {NetAcqConfigQuit 1} -default active
       pack .netacqcf.cmd.help .netacqcf.cmd.abort .netacqcf.cmd.save -side left -padx 10
@@ -147,7 +147,7 @@ proc PopupNetAcqConfig {} {
       bind .netacqcf.cmd <Destroy> {+ set netacqcf_popup 0}
       bind .netacqcf.cmd.save <Return> {tkButtonInvoke %W}
       bind .netacqcf.cmd.save <Escape> {tkButtonInvoke .netacqcf.cmd.abort}
-      bind .netacqcf <Key-F1> {PopupHelp $helpIndex(Configuration) "Client/Server"}
+      bind .netacqcf <Key-F1> {PopupHelp $helpIndex(Configure menu) "Client/Server"}
       focus .netacqcf.cmd.save
 
       NetAcqChangeView
@@ -299,29 +299,6 @@ proc PopupTtxGrab {} {
       # initialize popup with current settings
       C_GetTtxConfig ttxgrab_tmpcf
 
-      # check if TV app is configured
-      set tmpl [C_Tvapp_GetConfig]
-      if {[C_Tvapp_TestChanTab 0 [lindex $tmpl 0] [lindex $tmpl 1]] <= 0} {
-         if {$ttxgrab_tmpcf(enable)} {
-            # already enabled
-            set answer [tk_messageBox -type okcancel -default ok -icon info -parent . \
-                                      -message "The teletext grabber cannot work without a TV application's channel table. Configure a valid TV app. now?"]
-            if {[string compare $answer "ok"] == 0} {
-               XawtvConfigPopup
-               array unset ttxgrab_tmpcf
-               return
-            }
-         } else {
-            set answer [tk_messageBox -type okcancel -default ok -icon info -parent . \
-                                      -message "Before you can enable the teletext grabber, you must configure a TV application from which to load a channel table. Configure a TV app. now?"]
-            if {[string compare $answer "ok"] == 0} {
-               XawtvConfigPopup
-            }
-            array unset ttxgrab_tmpcf
-            return
-         }
-      }
-
       CreateTransientPopup .ttxgrab "Teletext grabber configuration"
       set ttxgrab_popup 1
 
@@ -380,6 +357,11 @@ proc PopupTtxGrab {} {
       incr gridrow
       pack  .ttxgrab.all -side top -pady 5 -padx 10 -fill x -expand 1
 
+      # Channel table selection
+      labelframe .ttxgrab.tvapp -text "TV channel table"
+      TvAppConfigWid_Create .ttxgrab.tvapp 0
+      pack  .ttxgrab.tvapp -side top -pady 5 -padx 10 -fill x -expand 1
+
       # checkbuttons for acquisition modes
       labelframe .ttxgrab.mode -text "Acquisition mode"
       #label .ttxgrab.mode.info1 -text "If you have more than one EPG provider, you can\nselect here in which order their data is acquired:" -justify left
@@ -395,13 +377,13 @@ proc PopupTtxGrab {} {
 
       # command buttons at the bottom of the window
       frame .ttxgrab.cmd
-      button .ttxgrab.cmd.help -text "Help" -width 5 -command {PopupHelp $helpIndex(Configuration) "Teletext grabber"}
+      button .ttxgrab.cmd.help -text "Help" -width 5 -command {PopupHelp $helpIndex(Configure menu) "Teletext grabber"}
       button .ttxgrab.cmd.abort -text "Abort" -width 5 -command {destroy .ttxgrab}
       button .ttxgrab.cmd.ok -text "Ok" -width 5 -command {QuitTtxGrabPopup} -default active
       pack .ttxgrab.cmd.help .ttxgrab.cmd.abort .ttxgrab.cmd.ok -side left -padx 10
       pack .ttxgrab.cmd -side top -pady 10
 
-      bind .ttxgrab <Key-F1> {PopupHelp $helpIndex(Configuration) "Teletext grabber"}
+      bind .ttxgrab <Key-F1> {PopupHelp $helpIndex(Configure menu) "Teletext grabber"}
       bind .ttxgrab.cmd <Destroy> {+ set ttxgrab_popup 0}
       bind .ttxgrab.cmd.ok <Return> {tkButtonInvoke %W}
       bind .ttxgrab.cmd.ok <Escape> {tkButtonInvoke .ttxgrab.cmd.abort}
@@ -449,11 +431,17 @@ proc PopupTtxGrab {} {
 proc TtxGrab_Enabled {} {
    global ttxgrab_tmpcf
 
-   set wlist [list .ttxgrab.all.chcnt_ent \
+   set wlist [list .ttxgrab.ena_auto \
+                   .ttxgrab.all.chcnt_ent \
                    .ttxgrab.all.ovpg_ent \
                    .ttxgrab.all.pgstart_ent \
                    .ttxgrab.all.pgend_ent \
-                   .ttxgrab.all.dur_ent]
+                   .ttxgrab.all.dur_ent \
+                   .ttxgrab.all.exp_ent \
+                   .ttxgrab.mode.mode1 \
+                   .ttxgrab.mode.mode2 \
+                   .ttxgrab.mode.mode0 \
+                   .ttxgrab.keep_ttx]
 
    if $ttxgrab_tmpcf(enable) {
       foreach wid $wlist {
@@ -468,7 +456,7 @@ proc TtxGrab_Enabled {} {
 
 # helper function to convert page numbers to decimal for display
 proc TtxGrab_Hex2Dec {hex} {
-   if {$hex < 0x100} {$hex += 0x800}
+   if {$hex < 0x100} {incr hex 0x800}
    set dec [expr ($hex & 0x00F) + \
                  10*(($hex & 0x0F0)>>4) + \
                  100*(($hex & 0xF00)>>8)]
@@ -477,7 +465,7 @@ proc TtxGrab_Hex2Dec {hex} {
 
 # helper function to convert page numbers to hexadecimal
 proc TtxGrab_Dec2Hex {dec} {
-   if {$dec > 800} {$dec -= 800}
+   if {$dec > 800} {incr dec -800}
    set hex [expr ($dec % 10) + \
                  16*(($dec/10) % 10) + \
                  256*(($dec/100) % 10)]
@@ -515,8 +503,7 @@ proc QuitTtxGrabPopup {} {
    global ttxgrab_tmpcf
    global acqmode_start acqmode_sel
 
-   if $ttxgrab_tmpcf(enable) {
-      set ok 0
+   if {$ttxgrab_tmpcf(enable)} {
       if { [TtxGrab_PgNoCheck $ttxgrab_tmpcf(ovpg) "overview page"] &&
            [TtxGrab_PgNoCheck $ttxgrab_tmpcf(pg_start) "page range start"] &&
            [TtxGrab_PgNoCheck $ttxgrab_tmpcf(pg_end) "page range end"] &&
@@ -529,55 +516,87 @@ proc QuitTtxGrabPopup {} {
             #if {($ttxgrab_tmpcf(ovpg) >= $ttxgrab_tmpcf(pg_start)) && \
             #    ($ttxgrab_tmpcf(ovpg) <= $ttxgrab_tmpcf(pg_end))} {
 
-               # convert page numbers back to hexadecimal
-               set ttxgrab_tmpcf(ovpg) [TtxGrab_Dec2Hex $ttxgrab_tmpcf(ovpg)]
-               set ttxgrab_tmpcf(pg_start) [TtxGrab_Dec2Hex $ttxgrab_tmpcf(pg_start)]
-               set ttxgrab_tmpcf(pg_end) [TtxGrab_Dec2Hex $ttxgrab_tmpcf(pg_end)]
-               set ok 1
-
             #} else {
             #   tk_messageBox -type ok -default ok -icon error -parent .ttxgrab \
             #                 -message "Overview page number must lie inside capture page range"
+            #   return
             #}
+
+            # check if TV app is configured
+            set tv_app_cfg [TvAppConfigWid_GetResults .ttxgrab]
+            set test_result [C_Tvapp_TestChanTab [lindex $tv_app_cfg 0] [lindex $tv_app_cfg 1]]
+            set chn_count [lindex $test_result 0]
+            set err_msg [lindex $test_result 1]
+
+            if {$chn_count <= 0} {
+               tk_messageBox -type ok -icon error -parent .ttxgrab \
+                             -message [concat "A TV channel table is needed by the Teletext Grabber - " $err_msg]
+               return
+            } elseif {$chn_count < $ttxgrab_tmpcf(net_count)} {
+               set answer [tk_messageBox -type okcancel -default cancel -icon warning -parent .ttxgrab \
+                              -message "The selected TV application's channel table has only $chn_count channels which is less than selected for Teletext."]
+               if {$answer eq "cancel"} return
+            }
+
+            if {![C_CheckTvCardConfig]} {
+               set answer [tk_messageBox -type okcancel -default ok -icon info -parent .ttxgrab \
+                             -message "Before you can start loading Teletext EPG data, you need to configure your TV card type in the following dialog."]
+               if {$answer eq "ok"} {
+                  # open the TV card configuration dialog; auto-enable acq after dialog is closed
+                  # Note 1 == ::tvcf_acq_disa_drv
+                  set ::hwcf_acq_reenable 1
+                  PopupHardwareConfig
+               }
+               return
+            }
+
+            # convert page numbers back to hexadecimal
+            # ATTN: This has to be done last and followed by destruction of dialog
+            set ttxgrab_tmpcf(ovpg) [TtxGrab_Dec2Hex $ttxgrab_tmpcf(ovpg)]
+            set ttxgrab_tmpcf(pg_start) [TtxGrab_Dec2Hex $ttxgrab_tmpcf(pg_start)]
+            set ttxgrab_tmpcf(pg_end) [TtxGrab_Dec2Hex $ttxgrab_tmpcf(pg_end)]
+
+            # pass params to C level
+            C_Tvapp_UpdateConfig [lindex $tv_app_cfg 0] [lindex $tv_app_cfg 1]
+            C_UpdateTtxConfig $acqmode_sel $acqmode_start [array get ttxgrab_tmpcf]
+
          } else {
             tk_messageBox -type ok -default ok -icon error -parent .ttxgrab \
                           -message "Invalid capture range: end must be larger than start page"
+            return
          }
+
+      } else {
+         # error already reported above
+         return
       }
    } else {
-      # forget all changes in the paramete fields
-      C_GetTtxConfig ttxgrab_tmpcf
-      set ttxgrab_tmpcf(enable) 0
-      set ok 1
+      # ignore all changes in the paramete fields except for "enable" flag
+      C_UpdateTtxConfig $acqmode_sel $acqmode_start [list "enable" 0]
    }
 
-   if $ok {
-      if {[C_IsNetAcqActive default]} {
-         set tmpl [C_GetAcqConfig]
-         set old_acqmode_sel [lindex $tmpl $::acqcf_ret_mode_idx]
-         if {$old_acqmode_sel ne $acqmode_sel} {
-            # warn that params do not affect acquisition running remotely
-            tk_messageBox -type ok -icon info -message "Please note that this does not update the acquisition mode on server side."
-         }
+   if {[C_IsNetAcqActive default]} {
+      set tmpl [C_GetAcqConfig]
+      set old_acqmode_sel [lindex $tmpl $::acqcf_ret_mode_idx]
+      if {$old_acqmode_sel ne $acqmode_sel} {
+         # warn that params do not affect acquisition running remotely
+         tk_messageBox -type ok -icon info -message "Please note that this does not update the acquisition mode on server side."
       }
-
-      # pass params to C level
-      C_UpdateTtxConfig $acqmode_sel $acqmode_start [array get ttxgrab_tmpcf]
-
-      # free memory
-      array unset ttxgrab_tmpcf
-      unset acqmode_sel acqmode_start
-
-      # close the popup window
-      destroy .ttxgrab
    }
+
+   # free memory
+   array unset ttxgrab_tmpcf
+   unset acqmode_sel acqmode_start
+
+   # close the popup window
+   destroy .ttxgrab
 }
 
 proc ProvLoadTeletext {} {
    C_GetTtxConfig ttxgrab_tmpcf
 
    if {$ttxgrab_tmpcf(enable)} {
-      C_MergeTeletextProviders
+      C_MergeTtxProviders
    } else {
       set answer [tk_messageBox -type okcancel -default ok -icon question -parent . \
                       -message "Teletext EPG acquisition is currently not enabled. Configure it now?"]

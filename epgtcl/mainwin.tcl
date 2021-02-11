@@ -3541,7 +3541,7 @@ proc PopupColumnSelection {} {
       .colsel.all.ai.ailist configure -width 20
       .colsel.all.sel.selist configure -width 20
 
-      button .colsel.all.cmd.help -text "Help" -width 7 -command {PopupHelp $helpIndex(Configuration) "Select attributes"}
+      button .colsel.all.cmd.help -text "Help" -width 7 -command {PopupHelp $helpIndex(Configure menu) "Select attributes"}
       button .colsel.all.cmd.quit -text "Dismiss" -width 7 -command {destroy .colsel}
       button .colsel.all.cmd.apply -text "Apply" -width 7 -command ColSelDlg_Apply
       pack .colsel.all.cmd.help .colsel.all.cmd.quit .colsel.all.cmd.apply -side bottom -anchor c
@@ -3564,7 +3564,7 @@ proc PopupColumnSelection {} {
       pack    .colsel.tailmsg.goto  -side right -anchor e
       pack    .colsel.tailmsg  -side top -fill x
 
-      bind .colsel <Key-F1> {PopupHelp $helpIndex(Configuration) "Select attributes"}
+      bind .colsel <Key-F1> {PopupHelp $helpIndex(Configure menu) "Select attributes"}
       bind .colsel.all.cmd <Destroy> {+ set colsel_popup 0}
       bind  .colsel.all.cmd.apply <Return> {tkButtonInvoke .colsel.all.cmd.apply}
       bind  .colsel.all.cmd.apply <Escape> {tkButtonInvoke .colsel.all.cmd.quit}

@@ -239,7 +239,7 @@ static void BtDriver_OpenVbiDataBuf( uint bufIdx );
 //
 static char * BtDriver_GetDevicePath( BTDRV_DEV_TYPE devType, uint cardIdx, BTDRV_SOURCE_TYPE drvType )
 {
-   static char devName[DEV_MAX_NAME_LEN + 1];
+   static __thread char devName[DEV_MAX_NAME_LEN + 1];
 
 #if !defined(__NetBSD__) && !defined(__FreeBSD__)
    if (drvType == BTDRV_SOURCE_DVB)
@@ -1527,7 +1527,7 @@ bool BtDriver_Configure( int cardIndex, BTDRV_SOURCE_TYPE drvType, int prio )
       result = (!wasEnabled || !pVbiBuf->hasFailed);
    }
    else
-      debug1("BtDriver-Configure: invalid drvType:%d\n", drvType);
+      debug1("BtDriver-Configure: invalid drvType:%d", drvType);
 
    return result;
 }

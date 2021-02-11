@@ -48,7 +48,7 @@
 #define TTXGRAB_DFLT_START_PG 0x300
 #define TTXGRAB_DFLT_END_PG 0x399
 #define TTXGRAB_DFLT_OV_PG 0x301
-#define TTXGRAB_DFLT_DURATION 90
+#define TTXGRAB_DFLT_DURATION 120
 
 #ifndef WIN32  // for WIN32 this enum is defined in winshm.h
 typedef enum

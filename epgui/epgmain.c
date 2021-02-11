@@ -364,16 +364,6 @@ static void EventHandler_SigHup( ClientData clientData )
 }
 #endif
 
-#ifdef WIN32
-// ---------------------------------------------------------------------------
-// WIN32: Advise user to configure the TV card
-//
-static void Main_PopupTvCardSetup( ClientData clientData )
-{
-   MenuCmd_PopupTvCardSetup();
-}
-#endif
-
 // ---------------------------------------------------------------------------
 // Start database export
 //
@@ -2338,16 +2328,7 @@ int main( int argc, char *argv[] )
 
       if (mainOpts.disableAcq == FALSE)
       {  // enable EPG acquisition
-#ifdef WIN32
-         if ( EpgSetup_CheckTvCardConfig() == FALSE )
-         {
-            AddMainIdleEvent(Main_PopupTvCardSetup, NULL, TRUE);
-         }
-         else
-#endif
-         {
-            AutoStartAcq();
-         }
+         AutoStartAcq();
       }
 
       // init main window title, PI listbox state and status line

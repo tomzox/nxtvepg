@@ -60,8 +60,11 @@
 #include "epgui/rcfile.h"
 #include "epgui/epgmain.h"
 #include "epgui/epgsetup.h"
+#include "epgui/uictrl.h"
 #include "epgui/wintvcfg.h"
 #include "epgui/wintvui.h"
+
+#include "epgtcl/dlg_xawtvcf.h"
 
 
 // ----------------------------------------------------------------------------
@@ -171,6 +174,7 @@ found:
 //
 static int WintvUi_GetTvappList( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
 {
+   const char * const pUsage = "Usage: C_Tvapp_GetTvappList";
    Tcl_Obj * pResultList;
    uint appIdx;
    const char * pAppName;
@@ -178,9 +182,7 @@ static int WintvUi_GetTvappList( ClientData ttp, Tcl_Interp *interp, int objc, T
 
    if (objc != 1)
    {  // parameter count is invalid
-      #if (DEBUG_SWITCH_TCL_BGERR == ON)
-      Tcl_SetResult(interp, (char*) "C_Tvapp_GetTvappList: no parameters expected", TCL_STATIC);
-      #endif
+      Tcl_SetResult(interp, (char*) pUsage, TCL_STATIC);
       result = TCL_ERROR;
    }
    else
@@ -206,6 +208,7 @@ static int WintvUi_GetTvappList( ClientData ttp, Tcl_Interp *interp, int objc, T
 //
 static int WintvUi_GetDefaultApp( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
 {
+   const char * const pUsage = "Usage: C_Tvapp_GetDefaultApp";
 #ifndef WIN32
    const char * pChanTabPath;
    struct stat fstat;
@@ -217,9 +220,7 @@ static int WintvUi_GetDefaultApp( ClientData ttp, Tcl_Interp *interp, int objc, 
 
    if (objc != 1)
    {  // parameter count is invalid
-      #if (DEBUG_SWITCH_TCL_BGERR == ON)
-      Tcl_SetResult(interp, (char*) "C_Tvapp_GetDefaultApp: no parameters expected", TCL_STATIC);
-      #endif
+      Tcl_SetResult(interp, (char*) pUsage, TCL_STATIC);
       result = TCL_ERROR;
    }
    else
@@ -232,6 +233,7 @@ static int WintvUi_GetDefaultApp( ClientData ttp, Tcl_Interp *interp, int objc, 
          pChanTabPath = WintvCfg_GetRcPath(NULL, appIdx);
          if (pChanTabPath != NULL)
          {
+            // select last modified of all found TV app config files
             if ( (stat(pChanTabPath, &fstat) == 0) &&
                  S_ISREG(fstat.st_mode) &&
                  (fstat.st_mtime > max_ts) )
@@ -249,7 +251,7 @@ static int WintvUi_GetDefaultApp( ClientData ttp, Tcl_Interp *interp, int objc, 
       }
       else
 #endif
-         Tcl_SetObjResult(interp, Tcl_NewIntObj(0));
+         Tcl_SetObjResult(interp, Tcl_NewIntObj(TVAPP_NONE));
 
       result = TCL_OK;
    }
@@ -357,27 +359,40 @@ static int WintvUi_GetStationNames( ClientData ttp, Tcl_Interp *interp, int objc
 //
 static int WintvUi_CfgNeedsPath( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
 {
-   int   appIdx;
-   bool  needPath;
-   int   result;
+   const char * const pUsage = "Usage: C_Tvapp_CfgNeedsPath: <tvAppIdx> [varDefaultPath]";
+   char * pPath;
+   char * pVarName;
+   int appIdx;
+   int pathType;
+   int result;
 
-   if ( (objc != 2) ||
+   if ( ((objc != 2) && (objc != 3)) ||
         (Tcl_GetIntFromObj(interp, objv[1], &appIdx) != TCL_OK) )
    {  // parameter count is invalid
-      #if (DEBUG_SWITCH_TCL_BGERR == ON)
-      Tcl_SetResult(interp, (char*) "Usage C_Tvapp_CfgNeedsPath: <tvAppIdx>", TCL_STATIC);
-      #endif
+      Tcl_SetResult(interp, (char*) pUsage, TCL_STATIC);
       result = TCL_ERROR;
    }
    else
    {
-      if (WintvCfg_QueryApp(appIdx, NULL, &needPath) == FALSE)
+      if (WintvCfg_QueryApp(appIdx, NULL, &pathType) == FALSE)
       {
          debug1("WintvUi-CfgNeedsPath: invalid TV app index %d", appIdx);
-         needPath = FALSE;
+         pathType = EPGTCL_TVAPP_PATH_TYPE_NONE;
       }
 
-      Tcl_SetObjResult(interp, Tcl_NewBooleanObj(needPath));
+      if (objc == 3)
+      {
+         pVarName = Tcl_GetString(objv[2]);
+
+         pPath = WintvCfg_GetRcPath(NULL, appIdx);
+         if (pPath != NULL)
+         {
+            Tcl_SetVar2Ex(interp, pVarName, NULL, Tcl_NewStringObj(pPath, strlen(pPath)), 0);
+            xfree(pPath);
+         }
+      }
+
+      Tcl_SetObjResult(interp, Tcl_NewIntObj(pathType));
 
       result = TCL_OK;
    }
@@ -417,60 +432,53 @@ static int WintvUi_Enabled( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Ob
 //
 static int WintvUi_TestChanTab( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
 {
+   const char * const pUsage = "Usage: C_Tvapp_TestChanTab: <tvAppIdx> <path>";
+   Tcl_Obj * pResultList;
+   Tcl_Obj * pResultMsg;
    const char * pChanTabPath;
    const char * pAppName;
    const char * pTvAppPath;
    char * pErrMsg;
-   bool   needPath;
+   int    needPath;
    int    newAppIdx;
    int    chnCount;
-   int    showErr;
    int    result;
 
-   if ( (objc != 1+3) ||
-        (Tcl_GetIntFromObj(interp, objv[1], &showErr) != TCL_OK) ||
-        (Tcl_GetIntFromObj(interp, objv[2], &newAppIdx) != TCL_OK) )
+   if ( (objc != 1+2) ||
+        (Tcl_GetIntFromObj(interp, objv[1], &newAppIdx) != TCL_OK) )
    {  // parameter count is invalid
-      #if (DEBUG_SWITCH_TCL_BGERR == ON)
-      Tcl_SetResult(interp, (char*) "Usage C_Tvapp_TestChanTab: <showerr> <tvAppIdx> <path>", TCL_STATIC);
-      #endif
+      Tcl_SetResult(interp, (char*) pUsage, TCL_STATIC);
       result = TCL_ERROR;
    }
    else
    {
-      pTvAppPath = Tcl_GetString(objv[3]);
+      pResultList = Tcl_NewListObj(0, NULL);
+      pTvAppPath = Tcl_GetString(objv[2]);
+      pResultMsg = Tcl_NewStringObj("", 0);
       chnCount = -1;
 
       if ( (newAppIdx == TVAPP_NONE) ||
            (WintvCfg_QueryApp(newAppIdx, &pAppName, &needPath) == FALSE) )
       {  // no TV app selected yet (i.e. option "none" selected)
-         if (showErr)
-         {
-            eval_check(interp,
-               "tk_messageBox -type ok -icon error -parent .xawtvcf -message {"
-                  "Please select a TV application from which to load the channel table.}");
-         }
+         const char * pMsg = "Please select a TV application from which to load the channel table.";
+         Tcl_SetStringObj(pResultMsg, pMsg, strlen(pMsg));
       }
       else
       {
-         if ((needPath == FALSE) || ((pTvAppPath != NULL) && (*pTvAppPath != 0)))
+         if ((needPath == EPGTCL_TVAPP_PATH_TYPE_NONE) ||
+             ((pTvAppPath != NULL) && (*pTvAppPath != 0)))
          {
             pChanTabPath = WintvCfg_GetRcPath(pTvAppPath, newAppIdx);
             if (pChanTabPath != NULL)
             {
                pErrMsg = NULL;
-               if (WintvCfg_GetChanTab(newAppIdx, pChanTabPath, (showErr ? &pErrMsg : NULL),
-                                       NULL, NULL, (uint*)&chnCount))
+               if (WintvCfg_GetChanTab(newAppIdx, pChanTabPath, &pErrMsg, NULL, NULL, (uint*)&chnCount))
                {
                   // sucessfully opened: return number of found names
                }
-               else if (pErrMsg != NULL)
+               if (pErrMsg != NULL)
                {
-                  if (showErr)
-                  {
-                     sprintf(comm, "tk_messageBox -type ok -icon error -parent .xawtvcf -message {%s}", pErrMsg);
-                     eval_check(interp, comm);
-                  }
+                  Tcl_SetStringObj(pResultMsg, pErrMsg, strlen(pErrMsg));
                   xfree(pErrMsg);
                }
                xfree((void *)pChanTabPath);
@@ -478,17 +486,16 @@ static int WintvUi_TestChanTab( ClientData ttp, Tcl_Interp *interp, int objc, Tc
          }
          else
          {  // no TV app directory specified -> abort with error msg
-            if (showErr)
-            {
-               sprintf(comm, "tk_messageBox -type ok -icon error -parent .xawtvcf -message {"
-                             "You must specify the directory where %s is installed.}",
-                             pAppName);
-               eval_check(interp, comm);
-            }
+            const char * pMsg = (needPath == EPGTCL_TVAPP_PATH_TYPE_DIR) ?
+                                "Please specify the directory where the channel table is located." :
+                                "Please specify the location of your channel configuration file (usually named channels.conf)";
+            Tcl_SetStringObj(pResultMsg, pMsg, strlen(pMsg));
          }
       }
 
-      Tcl_SetObjResult(interp, Tcl_NewIntObj(chnCount));
+      Tcl_ListObjAppendElement(interp, pResultList, Tcl_NewIntObj(chnCount));
+      Tcl_ListObjAppendElement(interp, pResultList, pResultMsg);
+      Tcl_SetObjResult(interp, pResultList);
       result = TCL_OK;
    }
    return result;
@@ -543,22 +550,20 @@ static int WintvUi_GetConfig( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_
 //
 static int WintvUi_UpdateConfig( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
 {
+   const char * const pUsage = "Usage: C_Tvapp_UpdateConfig: <tvAppIdx> <path>";
    const char * pAppName;
-   bool  needPath;
-   int   appIdx;
-   int   result;
+   int appIdx;
+   int result;
 
    if ( (objc != 1+2) ||
         (Tcl_GetIntFromObj(interp, objv[1], &appIdx) != TCL_OK) )
    {
-#if (DEBUG_SWITCH_TCL_BGERR == ON)
-      Tcl_SetResult(interp, (char*) "Usage C_Tvapp_UpdateConfig: <tvAppIdx> <path>", TCL_STATIC);
-#endif
+      Tcl_SetResult(interp, (char*) pUsage, TCL_STATIC);
       result = TCL_ERROR;
    }
    else
    {
-      if (WintvCfg_QueryApp(appIdx, &pAppName, &needPath))
+      if (WintvCfg_QueryApp(appIdx, &pAppName, NULL))
       {
          // note: destinction between UNIX and WIN32 config is inside
          RcFile_SetTvApp(appIdx, Tcl_GetString(objv[2]));
@@ -567,6 +572,13 @@ static int WintvUi_UpdateConfig( ClientData ttp, Tcl_Interp *interp, int objc, T
          if (EpgSetup_AcquisitionMode(NETACQ_KEEP) == FALSE)
          {
             EpgAcqCtl_Stop();
+         }
+
+         // in case channel table changed
+         if (RcFile_Query()->db.auto_merge_ttx)
+         {
+            // FIXME need to redo merge in case channel count was reduced
+            UiControlMsg_AcqEvent(ACQ_EVENT_NEW_DB);
          }
       }
       else

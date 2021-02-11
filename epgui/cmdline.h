@@ -31,7 +31,6 @@ typedef enum
    EPG_DUMP_TEXT,
    EPG_DUMP_XMLTV,
    EPG_DUMP_HTML,
-   EPG_DUMP_RAW,
    EPG_DUMP_COUNT
 } EPG_DUMP_MODE;
 

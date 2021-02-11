@@ -35,18 +35,30 @@ B<nxtvepgd> S<[ daemon options ]>
 
 =head1 DESCRIPTION
 
-B<nxtvepg> ist eine X11- und Windows-Anwendung zur Anzeige von Programminformationen aus Dateien in XMLTV Format. Wenn eine TV-Karte vorhanden ist, kann nxtvepg zusätzlich Programminformationen aus Teletext-Seiten ausgewählter TV-Programme extrahieren und anzeigen oder im XMLTV Format exportieren.
+B<nxtvepg> ist eine X11- und Windows-Anwendung zur Anzeige von
+TV-Programminformationen (EPG) aus Dateien in XMLTV Format. Wenn eine
+TV-Karte vorhanden ist, kann nxtvepg zusätzlich Programminformationen
+aus Teletext-Seiten ausgewählter TV-Programme extrahieren und anzeigen,
+oder im XMLTV Format exportieren.
 
-B<nxtvepgd> ist eine reduzierte Variante von nxtvepg, die nur den Teletext EPG Grabber beinhaltet. Das Programm hat keine graphische Oberfläche, sondern arbeitet im Hinterdrund als sogenannter "daemon" Prozess. Der Prozess akquiriert kontinuierlich EPG aus Teletext und aktualisiert XMLTV Dateien, die dann im nxtveog GUI geladen werden können.
+B<nxtvepgd> ist eine reduzierte Variante von nxtvepg, die nur den
+Teletext EPG Grabber beinhaltet. Das Programm hat keine graphische
+Oberfläche, sondern arbeitet im Hintergrund als sogenannter "daemon"
+Prozess. Der Prozess akquiriert kontinuierlich TV-Programminformationen
+aus dem Teletext und aktualisiert XMLTV Dateien, die dann im nxtvepg GUI
+oder anderen Anwendungen geladen werden können.
 
-Neue Anwender sollten mit dem Lesen bei Kapitel L<"GETTING STARTED"> beginnen, das die Konfiguration des Teletext EPG Grabbers beschreibt. Falls Sie dieses Feature nicht verwenden wollen, können Sie mit Kapitel L<"BASIC BROWSING"> beginnen.
+Neue Anwender sollten mit dem Lesen dieser Bedienungsanleitung bei
+Kapitel L<"GETTING STARTED"> beginnen, das die Konfiguration des
+Teletext EPG Grabbers beschreibt. Falls Sie dieses Feature nicht
+verwenden wollen, können Sie mit Kapitel L<"BASIC BROWSING"> beginnen.
 
 
 =head1 OPTIONS
 
 Als I<XMLTV_files ...> Parameter auf der Kommandozeile können eine oder mehrere Dateien im XMLTV Format angegeben werden. Falls mehr als eine Datei angegeben ist, werden sie zusammengeführt wie im Kapitel L<"MERGED DATABASES"> beschrieben.  Die Daten aus den XMLTV Dateien werden dann im GUI angezeigt.
 
-Zusammenfassung der Befehlszeilen-Optionen:
+Zusammenfassung der Kommandozeilenoptionen:
 
 =over 4
 
@@ -66,7 +78,11 @@ Spezifiziert die Position des Hauptfensters, z.B. B<-geometry -0+0> um das Haupt
 
 Starte mit dem Hauptfenster als Icon (bzw. minimiert)
 
-Für Windows-Nutzer ist diese Option besonders hilfreich, wenn nxtvepg über die I<Autostart>-Gruppe gestartet wird. Wird "I<Hide on minimize>" benutzt, startet nxtvepg fast unsichtbar im Hintergrund nur mit einem Symbol im Tray der Taskleiste (siehe auch L<"CONFIGURATION">, Kapitel "Show/Hide").
+Für Windows-Nutzer ist diese Option besonders hilfreich, wenn nxtvepg
+über die I<Autostart>-Gruppe gestartet wird. Wird "I<Hide on minimize>"
+benutzt, startet nxtvepg fast unsichtbar im Hintergrund nur mit einem
+Symbol im Tray der Taskleiste (siehe auch L<"CONFIGURE MENU">, Kapitel
+"Show/Hide").
 
 =item B<-rcfile> I<path>
 
@@ -90,15 +106,26 @@ Wählt einen Provider mit dessen hexadezimalen CNI (Country and Network Identifie
 
 =item B<-noacq>
 
-Starte mit abgeschalteter Akquisition. Die Akquisition kann später immer noch über das Contol-Menü gestartet werden (siehe L<"CONTROL: Enable acquisition">)
+Starte mit abgeschalteter Akquisition. Die Akquisition kann später immer
+noch über das Contol-Menü gestartet werden
+(siehe L<"CONTROL MENU: Enable acquisition">)
 
 =item B<-daemon>
 
 Starte ohne grafische Oberfläche. Der Prozess wird von der Oberfläche getrennt (d.h. ohne sichtbares Fenster auf dem Desktop) und führt die Akquisition im Hintergrund aus. Wenn keine anderen Optionen angegeben sind, wird der gleiche Akquisitionsmodus wie in der GUI konfiguriert benutzt. Die Option I<-daemon> kann nicht mit I<-noacq>, I<-remctrl> oder anderen GUI-bezogenen Optionen kombiniert werden.
 
-Der Daemon erzeugt immer einen Socket im Verzeichnis I</tmp> (nur UNIX) und optional einen TCP/IP-Socket, um Browserprozessen Verbindungen zu erlauben. Wenn verbunden, wird der Browser benachrichtigt wenn der Teletext EPG grabber XMLTV Dateien aktualisiert; Wenn die Verbindung nicht besteht kann es vorkommen, dass die Programmdaten des Browsers unvollständig oder veraltet bleiben.
+Der Daemon erzeugt immer einen Socket im Verzeichnis I</tmp> (nur UNIX)
+und optional einen TCP/IP-Socket, um Browserprozessen Verbindungen zu
+erlauben. Wenn verbunden, wird der Browser benachrichtigt wenn der
+Teletext EPG Grabber XMLTV Dateien aktualisiert; Wenn die Verbindung
+nicht besteht kann es vorkommen, dass die Programmdaten des Browsers
+unvollständig oder veraltet bleiben.
 
-Zu beachten ist dass der Browser das gleiche XMLTV Datenbankverzeichnis (siehe Option I<-dbdir>) nutzen B<muss>, weil der Daemon nur Unterschiede an den im selben Verzeichnis gespeicherten Datenbank-Dateien sendet. Weitere Details siehe L<"CONFIGURATION">, Kapitel "Client/Server".
+Zu beachten ist dass der Browser das gleiche XMLTV Datenbankverzeichnis
+(siehe Option I<-dbdir>) nutzen B<muss>, weil der Daemon nur
+Unterschiede an den im selben Verzeichnis gespeicherten
+Datenbank-Dateien sendet. Weitere Details siehe L<"CONFIGURE MENU">,
+Kapitel "Client/Server".
 
 UNIX Warnung: Aus Sicherheitsgründen ist davon abzuraten, den Daemon-Prozess mit Administrator-Rechten laufen zu lassen (d.h. als "root"). Nxtvepg wurde nicht auf mögliche Schwachstellen untersucht. Wenn der Daemon schon beim Systemstart geladen werden soll, sollten Sie das "su"-Kommando verwenden. Auch ist zu beachten, dass wahrscheinlich die Optionen I<-rcfile> und I<-dbdir> angegeben werden müssen, da die Umgebungsvariable $HOME möglicherweise nicht (korrekt) gesetzt ist. Beispiel:
 
@@ -111,7 +138,10 @@ Zum Beenden des Daemon-Prozesses siehe unten stehende Option I<-daemonstop>.
 
 Mit dieser Option wird ein im Hintergrund laufender Akquistionsprozess gesucht und falls gefunden angehalten; danach beendet sich das Programm. Beachten Sie, dass Sie die entsprechende Berechtigung benötigen, ein Signal zum Beenden des Prozesses zu senden (muss mit derselben Benutzer-ID laufen). Diese Option ist dazu gedacht, die Steuerung der Akquisition durch Skripte zu ermöglichen, z.B. um diese zu einer bestimmten Zeit automatisch zu starten oder zu terminieren.
 
-B<Tipp:> Wenn der Daemon auf dem gleichen Host und der selben uid läuft, können Sie ihn auch beenden, indem Sie die Option "I<Enable acquisition>" unter dem I<Control>-Menü abstellen, während Sie mit dem Daemon verbunden sind. Weitere Details siehe L<"CONTROL"> und L<"FILES">.
+B<Tipp:> Wenn der Daemon auf dem gleichen Host und der selben uid läuft,
+können Sie ihn auch beenden, indem Sie die Option "I<Enable acquisition>"
+unter dem I<Control>-Menü abstellen, während Sie mit dem Daemon verbunden
+sind. Weitere Details siehe L<"CONTROL MENU"> und L<"FILES">.
 
 =item B<-daemonquery>
 
@@ -138,11 +168,18 @@ Nur UNIX: Im Daemon-Modus verhindert diese Option, dass sich der Prozess vom Ter
 
 =item B<-acqpassive>
 
-Im Daemon-Modus überschreibt diese Option die Akquisitionseinstellung der Konfigurationsdatei und zwingt die Akquisition in den passiven Modus (siehe L<"DATA ACQUISITION">). Die Konfigurationsdatei wird nicht geändert, sodass Sie verschiedene Akqusitionsstrategien für Daemon und GUI verwenden können.
+Im Daemon-Modus überschreibt diese Option die Akquisitionseinstellung
+der Konfigurationsdatei und zwingt die Akquisition in den passiven Modus
+(siehe L<"TELETEXT EPG GRABBER">). Die Konfigurationsdatei wird nicht
+geändert, sodass Sie verschiedene Akqusitionsstrategien für Daemon und
+GUI verwenden können.
 
 =item B<-acqonce> I<phase>
 
-Im Daemon-Modus hält diese Option automatisch die Akquisition an und beendet den Daemon nachdem die vorgegebene Phase für alle Provider abgeschlossen wurde. Die Phasen sind die gleichen wie unter L<"DATA ACQUISITION"> definiert, d.h. I<now> oder I<full>.
+Im Daemon-Modus hält diese Option automatisch die Akquisition an und
+beendet den Daemon nachdem die vorgegebene Phase für alle Provider
+abgeschlossen wurde. Die Phasen sind die gleichen wie unter
+L<"TELETEXT EPG GRABBER"> definiert, d.h. I<now> oder I<full>.
 
 Falls Sie nach dem Schließen von nxtvepg ein anderes Programm starten möchten, verwenden Sie Option I<-nodetach> (nur auf UNIX verfügbar). In diesem Fall wird die aufrufende Shell mit dem Start des nächsten Kommandos in Ihrem Skript warten bis nxtvepg beendet ist. Auf Windows gibt es keinen einfachen Weg um dies zu erreichen, da nxtvepg keine so genannte "Console"-Applikation ist und somit immer im Hintergrund gestartet wird. Deshalb benötigen Sie eine Skript-Sprache die es erlaubt darauf zu warten, dass nxtvepg terminiert.
 
@@ -150,13 +187,28 @@ Falls Sie nach dem Schließen von nxtvepg ein anderes Programm starten möchten, v
 
 Mit diesem Argument exportiert nxtvepg nur die Datenbank und beendigt sich danach ohne den Browser zu starten.  Dieses Argument muss mit I<-provider> kombiniert werden, um die zu exportierende Datenbank auszuwählen.
 
-Verwenden Sie das Schlüsselwort I<xml> als Modus, um die Datenbank in das XML-Format zu exportieren. Benötigen Sie eine andere als die zuletzt im "Export"-Dialog des Control-Menüs eingestellte XMLTV-Variante, verwenden Sie I<xml5utc> oder I<xml5ltz> um die Variante direkt festzulegen. Weitere Details siehe L<"CONTROL: Export as XMLTV">.
+Verwenden Sie das Schlüsselwort I<xml> als Modus, um die Datenbank in
+das XML-Format zu exportieren. Benötigen Sie eine andere als die zuletzt
+im "Export"-Dialog des Control-Menüs eingestellte XMLTV-Variante,
+verwenden Sie I<xml5utc> oder I<xml5ltz> um die Variante direkt
+festzulegen. Weitere Details siehe L<"CONTROL MENU: Export as XMLTV">.
 
-Verwenden Sie das Schlüsselwort I<html> als Modus, um Programmdaten in ein HTML Dokument zu exportieren.  Es werden die zuletzt im HTML-Export Dialog eingestellten Optionen verwendet. (Es sei denn "nxtvepgd", d.h. der reine Akquisitions-Daemon wird für den export verwendet.)  Weitere Details siehe L<"CONTROL: Export as HTML">.  Zusätzlich können Sie die Zahl der exportierten Programme limitieren indem Sie das Limit durch Doppelpunkt getrennt anhängen (z.B. C<-dump html:50>.)  Das Format der Programmliste ist jedoch nicht über Kommandozeilenparameter konfigurierbar.
+Verwenden Sie das Schlüsselwort I<html> als Modus, um Programmdaten in
+ein HTML Dokument zu exportieren.  Es werden die zuletzt im HTML-Export
+Dialog eingestellten Optionen verwendet. (Es sei denn "nxtvepgd", d.h.
+der reine Akquisitions-Daemon wird für den Export verwendet.)  Weitere
+Details siehe L<"CONTROL MENU: Export as HTML">.  Zusätzlich können Sie
+die Zahl der exportierten Programme limitieren indem Sie das Limit durch
+Doppelpunkt getrennt anhängen (z.B. C<-dump html:50>.)  Das Format der
+Programmliste ist jedoch nicht über Kommandozeilenparameter
+konfigurierbar.
 
-Um die Daten in tabellarischer Form in eine Textdatei zu exportieren (z.B. für den Import in eine SQL-Datenbank) sind die folgenden Schlüsselwörter vorhanden: I<pi>, um die gesamte TV-Sendungsbeschreibungen auszugeben; I<ai>, um die Kanal- bzw. Sendertabelle auszugeben; I<pdc>, um die Themenkategorien-Tabelle auszugeben. Weitere Details siehe L<"CONTROL: Export as text">.
-
-Für Analysezwecke gibt es außerdem noch den Modus I<raw> der den gesamten Inhalt der Datenbank in einem Format ausgibt das sich eng an die internen Datenstrukturen anlehnt.  Das Format kann sich jederzeit ändern, daher sollte dieser Modus nicht zur Weiterverarbeitung der Daten verwendet werden. Für mehr Details siehe L<"CONTROL: Dump raw database">.
+Um die Daten in tabellarischer Form in eine Textdatei zu exportieren
+(z.B. für den Import in eine SQL-Datenbank) sind die folgenden
+Schlüsselwörter vorhanden: I<pi>, um die gesamte
+TV-Sendungsbeschreibungen auszugeben; I<ai>, um die Kanal- bzw.
+Sendertabelle auszugeben; I<pdc>, um die Themenkategorien-Tabelle
+auszugeben. Weitere Details siehe L<"CONTROL MENU: Export as text">.
 
 Alle Ausgaben werden auf das Terminal ausgegeben (das so genannte I<stdout>) falls sie nicht per Pipeline "|" in ein anderes Programm oder per ">" in eine Datei umgelenkt werden.  Siehe auch Option I<-outfile>.
 
@@ -187,7 +239,10 @@ Folgende Befehle sind verfügbar: I<quit> beendet den anderen nxtvepg-Prozess; I<
 
 =item B<-clock> I<mode>
 
-Mit dieser Option startet nxtvepg in einem besonderen Betriebsmodus in dem nur Datum und Uhrzeit aus dem Teletext ermittelt werden. Danach beendet sich das Programm wieder. Als Quelle wird das erste Programm in der Programmtabelle der konfigurierten TV-applikation verwendet.
+Mit dieser Option startet nxtvepg in einem besonderen Betriebsmodus in
+dem nur Datum und Uhrzeit aus dem Teletext ermittelt werden. Danach
+beendet sich das Programm wieder. Als Quelle wird das erste Programm in
+der Programmtabelle der konfigurierten TV-Applikation verwendet.
 
 B<Wichtige Einschränkung:> nxtvepg kann die Zeit nur von Sendern lesen die im Teletext ein so genanntes I<packet 8/30/1> ausstrahlen. Dieses enthält Datum, Zeit und Zeitzone in einer genau festgelegten Binärkodierung.  nxtvepg wird niemals die Uhrzeit aus der Teletextkopfzeile verwenden, da diese wegen Laufschriften, unterschiedlichen Formaten uvm. sehr unzuverlässig ist.
 
@@ -209,17 +264,99 @@ Hinweis für Windows-Benutzer: alle diese Optionen sind - sofern nicht anders ang
 
 =head1 GETTING STARTED
 
-Bevor Sie TV-Programmdaten aus dem Teletext laden können (im Folgenden I<Akquisition> genannt), müssen Sie noch einige Einstellungen vornehmen. Welche das sind, hängt von der Ausstattung des Rechners ab und wird in diesem Kapitel beschrieben. Solange das Browserfenster keine Daten enthält, wird ein gelb unterlegter Hilfetext angezeigt.
+Dieses Handbuch beschreibt alle Eigenschaften von nxtvepg detailliert.
+Sie müssen nicht alles davon auf einmal lesen, um die Software bedienen
+zu können.
 
-Um nur XMLTV Dateien aus anderen Quellen zu laden und anzuzeigen sind jedoch keinerlei Einstellungen erforderlich. Falls keine TV-Karte verfügbar ist oder Sie diese in nxtvepg nicht verwenden möchten, selektieren Sie Treiber-Type "None" im "TV-card input" Dialog im Configure Menü.
+Falls Sie nxtvepg nur zur Anzeige von Programminformationen aus Dateien
+im XMLTV Format benutzen möchten, können Sie dieses Kapitel
+überspringen. Es empfiehlt sich jedoch, wenigstens die Kapitel
+L<"BASIC BROWSING"> und L<"FILTERING"> querzulesen.
 
-Dieses Handbuch beschreibt alle Eigenschaften von nxtvepg im Detail. Sie müssen nicht alles davon auf einmal lesen, um die Software bedienen zu können. Es empfiehlt sich jedoch, wenigstens die Abschnitte L<"BASIC BROWSING">, L<"DATA ACQUISITION"> und L<"FILTERING"> durchzugehen.
+Die folgenden Abschnitte beschreiben die minimal notwendigen Schritte um
+den Teletext EPG Grabber zu starten und damit TV-Programminformationen
+zu erhalten. Normalerweise sollte das nur einige wenige Mausklicks an
+den richtigen Stellen erfordern.
+
+Für eine detaillierte Beschreibung der Konfiguration des Teletext
+Grabbers und seiner Funktionsweise, siehe Kapitel
+L<"TELETEXT EPG GRABBER">.
+
+=head2 Configuring the Teletext EPG Grabber
+
+Der Teletext EPG Grabber ist in nxtvepg initial nicht aktiviert, da eine
+TV-Kanaltabelle konfiguriert werden muß, damit nxtvepg in der Lage ist
+von diesen TV-Kanälen Teletext zu empfangen. Dies geschieht über den
+I<Teletext Grabber> Eintrag im I<Configure> Menü.
+
+Um den Teletext Grabber einzuschalten muß zuerst der Haken am obersten
+Feld des Dialogfensters gesetzt werden. Danach wählen Sie eine
+TV-Applikation aus dem Menü innerhalb des Rahmens I<TV channel table>.
+nxtvepg wird daraufhin versuchen die Kanaltabelle automatisch zu finden.
+Falls der Pfad nicht im Eingabefeld unterhalb des Auswahlmenüs
+erscheint, klicken Sie auf das Verzeichnissymbol neben dem Eingabefeld
+und geben Sie den Pfad manuell an. Danach kann der I<Test>-Knopf
+verwendet werden um zu prüfen ob nxtvepg die Kanaltabelle aus der Datei
+auslesen kann.
+
+Optional, jedoch empfehlenswert, ist danach den Wert im Eingabefeld
+I<Number of TV channels to grab> im Rahmen I<Teletext options> zu
+prüfen. Der Teletext Grabber wird nur von der angegebenen Zahl von
+TV-Kanälen Programminformationen sammeln, beginnend am Anfang der
+Kanaltabelle (Radiokanäle werden damit nicht mitgezählt). Falls Sie die
+Kanaltabelle so sortiert haben, dass die für Sie interessanten Kanäle am
+Anfang stehen, können Sie diese Einstellung nutzen um nicht interessante
+Sender auszuschließen. Dies vermeidet das der Grabber nutzlose Daten
+sammelt. Die Einstellung bestimmt außerdem, wie viele Sender in die
+Anzeige geladen werden, wenn Sie den I<Load Teletext EPG> Menüeintrag im
+I<Control> Menü verwenden um Teletext EPG anzuzeigen.
+
+Erklärungen zu weiteren Einstellungen im Teletext Grabber Menü finden
+Sie in der "Teletext Grabber" Sektion des Kapitels L<"CONFIGURE MENU">.
+
+Wenn die den Konfigurationsdialog mit dem "Ok" Knopf verlassen, wird
+nxtvepg automatisch beginnen Programminformationen aus dem Teletext zu
+laden (es sei denn Die haben im Dialog die Option
+I<Start acquisition automatically> deaktiviert). Es erscheint dann eine
+entsprechende Notiz in der Statuszeile am unteren Ende des
+Hauptfensters. Falls noch keine anderen XMLTV Dateien geladen wurden,
+wird nxtvepg automatisch die generierten Programminformationen anzeigen
+sobald sie verfügbar werden.  Normalerweise dauert dies ca. 2 Minuten
+(einstellbar im Konfigurationsmenü). Falls nach dieser Zeit keine
+Anzeige erscheint, prüfen Sie die Einstellungen wie im nächsten
+Abschnitt beschrieben, und prüfen Sie ob die ersten TV-Kanäle in der
+konfigurierten Kanaltabelle Teletext aussenden.
 
 =head2 Configuring TV card input
 
-Bevor nxtvepg mit der Akquisition von EPG-Daten beginnt, sollte eingetragen werden welche TV-Karte und welche Quelle verwendet wird. Dies kann im Dialog "I<TV card input>" des Konfigurationsmenüs eingestellt werden (detailliertere Information siehe unter L<"CONFIGURATION">, Kapitel "TV card input").
+Der Teletext EPG Grabber benötigt eine TV-Karte um Teletext empfangen zu
+können. Initial verwendet nxtvepg die erste TV-Karte die vom
+Betriebssystem gemeldet wird, und davon die erste Eingabequelle. Falls
+Sie nur eine TV-Karte in Ihrem PC verbaut haben und diese nur einen
+Antenneneingang hat, wird die Voreinstellung ausreichend sein.
+Andernfalls sollten Sie die automatisch getroffene Auswahl mittels über
+das I<Configure> Menü erreichbaren I<TV card input> Dialogs überprüfen.
 
-Voreinstellung für UNIX ist das DVB Gerät mit Index 0, oder falls keine DVB-Karte vorhanden ist, das "VBI" Gerät mit Index 0. Voreinstellung für MS Windows ist das erste vom WDM Treiber gefundene Gerät (auf welche TV-Karte sich dieses bezieht ist undefiniert). Voreinstellung für die Quelle ist die erste vom Treiber gemeldete; oft ist dies der TV-Tuner, es könnte jedoch ein unbelegter externer Eingang sein.
+Im Rahmen an der Oberseite des Dialogs wird eine TV-Karte ausgewählt.
+Zur Wahl stehen alle vom Betriebssystem erkannten TV-Karten. Stellen Sie
+zuerst den Kartentyp mittels des Optionsfelds ein: Wählen Sie
+I<Digital TV> für DVB, oder I<Analog TV>. Zuerst sollte über die Knöpfe
+ein Kartentyp ausgewählt werden: Digital TV steht für DVB Karten (die
+die aktuellen Übertragungsstandards), Analog TV für PAL/SECAM (d.h. die
+älteren, in Europa nicht mehr für TV verwendeten Übertragungsstandards).
+Nach der Auswahl wird der vom Treiber identifizierte Name der TV-Karte
+oberhalb angezeigt. Haben Sie mehr als eine TV-Tunerkarte in Ihrem
+Rechner, können Sie dann wählen, welche Sie nutzen wollen.
+
+Nachdem Sie die TV-Karte ausgewählt haben, prüfen Sie ob als
+Eingabequelle I<Video source> die TV-Antenne eingestellt ist. Je nach
+Kartentreiber, kann der angezeigte Text dafür unterschiedlich ausfallen,
+wie z.B. "TV tuner" oder "RF input". Wenn die Einstellung korrekt ist,
+können Sie den Dialog mit "Ok" verlassen. Falls der Teletext Grabber
+schon aktiviert ist, werden die neuen Einstellungen sofort übernommen.
+Ansonsten können Sie den Grabber jetzt mittels des I<Enable acquisition>
+Eintrags im Control Menü aktivieren. Es sollte dann die Notiz
+"Acquisition working..." in der Statuszeile erscheinen.
 
 =head2 Configuring a TV application
 
@@ -229,29 +366,55 @@ nxtvepg kann wie folgt mit TV-Anwendungen zusammenarbeiten:
 
 =item *
 
-Laden der Kanaltabelle der TV-Anwendung: die Verwendung der TV-Tunerfrequenzen aus einer externen Kanaltabelle ist Voraussetzung für die Verwendung des Teletext Grabbers. Die eingelesenen Sendernamen werden außerdem vom Dialog "I<Network name>" im Konfigurationsmenü (siehe L<"CONFIGURATION">, Kapitel "Network names") genutzt, um die Sendernamen zwischen nxtvepg und der TV-Anwendung zu synchronisieren.
+Das Laden der TV-Kanalliste der von Ihnen verwendeten TV-Applikation
+erlaubt die einfache Synchronisation der Sendernamen in der
+Programmübersicht für den Fall das Ihr EPG Provider andere Sendernamen
+verwendet. Siehe dazu Dialog "I<Network name>" im L<"CONFIGURE MENU">.
+Falls Sie den Teletext-EPG Grabber verwenden ist dieser Schritt jedoch
+nicht notwendig, da der Grabber bereits die Namen aus derselben
+Kanalliste verwendet.
 
 =item *
 
-Die Interaktion zwischen nxtvepg und der TV-Anwendung, um Ihnen nützliche Features zur Verfügung zu stellen, wie z.B. ein On-Screen-Display des Titels der aktuell laufenden Sendung nach dem Kanalwechsel, wenn Sie aus nxtvepg heraus mit dem Button "I<Tune TV>" den Kanal ändern, sowie auch z.B. die im Hintergrund laufende Akquisition der EPG Daten während Sie Ihr TV-Programm ansehen.
+Die Interaktion zwischen nxtvepg und der TV-Anwendung, um Ihnen
+nützliche Features zur Verfügung zu stellen, wie z.B. ein
+On-Screen-Display des Titels der aktuell laufenden Sendung nach dem
+Kanalwechsel, wenn Sie aus nxtvepg heraus mit dem Button "I<Tune TV>"
+den Kanal ändern, sowie auch z.B. die im Hintergrund laufende
+Akquisition der EPG Daten während Sie Ihr TV-Programm ansehen.
 
 =back
 
-Das erste Feature ist eine passive Funktion, d.h. nur nxtvepg muss an die entsprechende TV-Anwendung angepasst werden. Der zweite jedoch erfordert die Kooperation beider Seiten. Aus diesem Grund wird die Zahl der TV-Anwendungen, für die passive Funktionen unterstützt werden, immer wesentlich größer sein. Unter Windows werden die Interaktionsfunktionen derzeit nur von K!TV unterstützt.
+Das erste Feature ist eine passive Funktion, d.h. nur nxtvepg muss an
+die entsprechende TV-Anwendung angepasst werden. Der zweite jedoch
+erfordert die Kooperation beider Seiten. Aus diesem Grund wird die Zahl
+der TV-Anwendungen, für die passive Funktionen unterstützt werden, immer
+wesentlich größer sein.
 
-Unter UNIX werden derzeit I<xawtv>, I<xdtv> (früheres I<xawdecode>), I<zapping> und I<tvtime> unterstützt. Mit allen Vieren funktionieren alle genannten Features.
+Betreffend das zweite, aktive Feature: Auf Windows werden die
+Interaktionsfunktionen derzeit nur von K!TV unterstützt (einer
+TV-Anwendung für analoge TV-Karten). Auf UNIX werden bisher leider nur
+ältere analoge TV-Applikationen wie z.B. "xawtv" für diese Features
+unterstützt, jedoch keine DVB TV-Applikationen. Die Liste der
+unterstützten Applikationen finden Sie im Konfigurationsdialog
+"I<TV app. interaction>" (siehe Kapitel L<"CONFIGURE MENU">).
 
-Auf Windows werden verschiedene Freeware TV-Anwendungen im Zusammenhang mit den passiven Features unterstützt; dazu müssen Sie angeben welche Anwendung Sie verwenden. Sollten Sie im Dialog "I<TV card input>" die TV-Karten-Einstellungen einer TV-Anwendung geladen haben, ist der Typ der TV-Anwendung bereits konfiguriert. Ansonsten oder falls Sie eine andere Anwendung als Quelle der Kanaltabelle nutzen wollen, öffnen Sie den Dialog "I<TV app. interaction>" (siehe auch L<"CONFIGURATION">, Kapitel "TV application interaction").
+Sie können testen ob nxtvepg mit einer TV-Anwendung interagieren kann,
+indem Sie beide Programme starten und danach in nxtvepg den Dialog zur
+"I<TV app. interaction>" im Konfigurationsmenü öffnen. Der
+Verbindungsstatus ist in der Mitte des Dialogfensters angegeben. Nur mit
+kooperierenden TV-Anwendungen ist nxtvepg in der Lage, die Karte auch
+dann automatisch frei zu geben, wenn die TV-Anwendung bereits gestartet
+ist (Fernsehen hat immer den Vorrang gegenüber der Akquisition der
+EPG-Daten).
 
-Betreffend das zweite, aktive Feature: Sie können testen ob nxtvepg mit einer TV-Anwendung interagieren kann, indem Sie beide Programme starten und danach in nxtvepg den Dialog zur "I<TV app. interaction>" im Konfigurationsmenü öffnen. Der Verbindungsstatus ist in der Mitte des Dialogfensters angegeben. Üblicherweise wird nxtvepg unter Windows, falls bereits beim Start eine nicht unterstützte TV-Anwendung läuft, eine Fehlermeldung wie "Capturing is already enabled in the TV card" oder eine andere Treiberfehlermeldung anzeigen. Nur mit kooperierenden TV-Anwendungen ist nxtvepg in der Lage, die Karte auch dann automatisch frei zu geben, wenn die TV-Anwendung bereits gestartet ist (Fernsehen hat immer den Vorrang gegenüber der Akquisition der EPG-Daten).
-
-Wichtig: Unter Windows dürfen Sie nxtvepg nicht mit aktiviertem Empfang parallel zu einer TV-Anwendung starten. Sollte dies dennoch versehentlich passieren, schließen Sie bitte beide Anwendungen sofort. Wenn zwei Programme gleichzeitig auf die TV-Karte zugreifen, kann der entstehende Konflikt das System zum Absturz bringen.
-
-Nach dem Einstellen von TV-Anwendungstyp und -pfad sollten Sie den Konfigurationsdialog "I<Network name>" öffnen, um die Sendernamen zwischen TV-Anwendung und nxtvepg zu synchronisieren. Selbst wenn keine Interaktion möglich ist, wird empfohlen, dieselben Sendernamen in beiden Applikationen zu verwenden. Details sind in L<"CONFIGURATION">, Kapitel "Network names" zu finden.
-
-=head2 Configuring the Teletext EPG Grabber
-
-Nachdem die TV-Applikation und TV-Karte konfiguriert sind, können Sie den Teletext EPG Grabber durch setzen des ersten Häkchens im entsprechenden Konfigurationsmenü einschalten. Wenn Sie den automatischen Start der Akquisition eingeschaltet lassen, wird der Grabber nach Verlassen des Dialogs durch Ok automatisch gestartet. Weitere Details siehe L<"CONFIGURATION">, Kapitel "Teletext grabber")
+Falls Sie nicht den Teletext EPG Grabber verwenden, sollten Sie nach dem
+Einstellen von TV-Anwendungstyp und -pfad den Konfigurationsdialog
+"I<Network name>" öffnen, um die Sendernamen zwischen TV-Anwendung und
+nxtvepg zu synchronisieren. Selbst wenn keine Interaktion möglich ist,
+erleichtert es die Bedienung wenn dieselben Sendernamen in beiden
+Applikationen gezeigt werden. Details sind in L<"CONFIGURE MENU">,
+Kapitel "Network names" zu finden.
 
 =head1 BASIC BROWSING
 
@@ -261,7 +424,19 @@ Das einfache Blättern durch die Programm-Informationen sollte intuitiv möglich s
 
 Mit der Maus kann jeder Titel durch einen Klick ausgewählt werden. Im unteren Fenster wird dabei die Beschreibung angezeigt. Mit dem linken Scrollbalken kann die Liste vorwärts zu in fernerer Zukunft laufenden Programmen bewegt werden. Mit der Wochenanzeige rechts kann man direkt zu einer bestimmten Zeit an einem bestimmten Datum springen.
 
-Benutzen Sie bei Verwendung des Keyboards die "Pfeil auf/ab"-Tasten, um einen Titel auszuwählen. Für das schnelle Scrollen verwenden Sie die "Bild auf/ab"-Tasten. Mit der "Pos 1"-Taste gelangen Sie immer zurück zum ersten Titel. Mit TAB oder SHIFT+TAB können Sie den Fokus der Keyboardeingabe auf andere Eingabeelemente bewegen, z.B. zu den Sender- und Shortcut-Listen; um ein gewähltes Thema oder einen Shortcut als Filter zu bestätigen drücken Sie die Leertaste. Die ersten 10 Shortcuts können auch direkt vom Hauptfenster aus über die Zahlentasten 1-9 und 0 aktiviert werden. STRG+C im Hauptfenster öffnet das Kontextmenü; STRG+F öffnet den Dialog zur Textsuche; die ESCAPE-Taste ist gleichbedeutend dem Reset-Button (Dismiss/Abort). Die Menüs können Sie erreichen, indem Sie die ALT-Taste zusammen mit dem unterstrichenen Buchstaben des entsprechenden Menüeintrags drücken.
+Benutzen Sie bei Verwendung des Keyboards die "Pfeil auf/ab"-Tasten, um
+einen Titel auszuwählen. Für das schnelle Scrollen verwenden Sie die
+"Bild auf/ab"-Tasten. Mit der "Pos 1"-Taste gelangen Sie immer zurück
+zum ersten Titel. Mit TAB oder SHIFT+TAB können Sie den Fokus der
+Tastatureingabe auf andere Eingabeelemente bewegen, z.B. zu den Sender-
+und Shortcut-Listen; um ein gewähltes Thema oder einen Shortcut als
+Filter zu bestätigen drücken Sie die Leertaste. Die ersten 10 Shortcuts
+können auch direkt vom Hauptfenster aus über die Zahlentasten 1-9 und 0
+aktiviert werden. STRG+C im Hauptfenster öffnet das Kontextmenü; STRG+F
+öffnet den Dialog zur Textsuche; die ESCAPE-Taste ist gleichbedeutend
+dem Reset-Button (Dismiss/Abort). Die Menüs können Sie erreichen, indem
+Sie die ALT-Taste zusammen mit dem unterstrichenen Buchstaben des
+entsprechenden Menüeintrags drücken.
 
 Sie können die Programmwahl auf verschiedenste Art einschränken, um dadurch leichter zu finden was Sie interessiert. Beispielsweise können Sie die Liste auf Sendungen bestimmter Sender beschränken; oder Sie beschränken die Liste nur auf Filme. Dieser Prozess wird I<filtering> genannt und weiter unten detailliert beschrieben, siehe L<"FILTERING">. Für die geläufigsten Filteroptionen gibt es eine Liste mit I<Shortcuts> auf der linken Seite des Hauptfensters. Zu bemerken ist, dass diese Liste frei konfigurierbar ist, siehe L<"FILTER SHORTCUTS">.
 
@@ -269,64 +444,247 @@ Seit Version 2.5.0 bietet nxtvepg zwei Layouts für die TV-Programmübersicht an: 
 
 Wenn Sie die Höhe des Programmfensters verändern, wird das Infotext-Fenster unten entsprechend angepasst. Sie können die Größenverhältnisse zwischen Programmliste und Infotext mit dem dazwischen liegenden Button mit den zwei kleinen auf/ab-Pfeilen anpassen, indem Sie diese mit gedrückt gehaltener Maustaste verschieben.
 
-Nxtvepg kann mit TV-Anwendungen interagieren (z.B. I<xawtv> auf UNIX; erfordert zuvor ein Setup, siehe L<"GETTING STARTED">), um eine Verbindung in beide Richtungen zu gewährleisten: Erstens werden Sie einen "I<Tune TV>"-Button im Hauptfenster unterhalb der Uhr vorfinden. Wenn Sie diesen anklicken, wird der Sender der aktuell gewählten Sendung in der TV-Anwendung aufgerufen. Dies geht auch mit einem Doppelklick auf das Programm oder über das Drücken der ENTER-Taste. Durch einen Klick der rechten Maustaste auf den Button "I<Tune TV>" links können Sie auch ein kleines Menü aufrufen, das eine grundlegende TV-Steuerung bietet. Zweitens wird der Cursor im nxtvepg-Hauptfenster automatisch auf die im aktuellen Sender laufende Sendung springen, wenn Sie den Kanal innerhalb der TV-Anwendung wechseln. Sie können diese Reaktion manuell durch das Drücken der Keyboard-Taste "i" auslösen. Siehe L<"CONFIGURATION">, Kapitel "TV application interaction" für mehr Details.
+Nxtvepg kann mit TV-Anwendungen interagieren (z.B. I<xawtv> auf UNIX;
+erfordert zuvor ein Setup, siehe L<"GETTING STARTED">), um eine
+Verbindung in beide Richtungen zu gewährleisten: Erstens werden Sie
+einen "I<Tune TV>"-Button im Hauptfenster unterhalb der Uhr vorfinden.
+Wenn Sie diesen anklicken, wird der Sender der aktuell gewählten Sendung
+in der TV-Anwendung aufgerufen. Dies geht auch mit einem Doppelklick auf
+das Programm oder über das Drücken der ENTER-Taste. Durch einen Klick
+der rechten Maustaste auf den Button "I<Tune TV>" links können Sie auch
+ein kleines Menü aufrufen, das eine grundlegende TV-Steuerung bietet.
+Zweitens wird der Cursor im nxtvepg-Hauptfenster automatisch auf die im
+aktuellen Sender laufende Sendung springen, wenn Sie den Kanal innerhalb
+der TV-Anwendung wechseln. Sie können diese Reaktion manuell durch das
+Drücken der Keyboard-Taste "i" auslösen. Siehe L<"CONFIGURE MENU">,
+Kapitel "TV application interaction" für mehr Details.
 
 Am unteren Rand des Fensters gibt es eine Statuszeile, die über den Status der Datenbank und der Akquisition informiert. Im Prinzip ist es eine stark komprimierte Zusammenfassung des B<Statistics>-Popups des B<Control>-Menüs und besonders nützlich, um über das Alter der Datenbank zu informieren oder bei unterbrochener Akquisition zu warnen.
 
 I<Beachten Sie:> Die meisten Provider übertragen Inhaltsbeschreibungen (d.h. den Text im unteren nxtvepg-Fenster) nur für gegenwärtig laufende Sendungen und solche, deren Startzeit sehr nahe liegen. Diese Zeitspanne für den vollen Sendebereich kann maximal 2 Stunden oder 3 Titel pro Sender sein. Als Konsequenz hieraus sollten Sie die Datenakquisition so oft wie nur möglich aktivieren; erwägen Sie, den Akquisitions-Daemon permanent im Hintergrund laufen zu lassen. Mehr Details zum Akquisitionsprozess siehe nachfolgendes Kapitel.
 
-=head1 DATA ACQUISITION
+=head1 TELETEXT EPG GRABBER
 
-Das Grundprinzip des Teletext EPG Grabbers ist der Reihe nach alle in der Kanaltabelle gefundenen TV-Kanäle einzustellen und deren Teletext zu laden. Für jeden Kanal dessen Teletext geladen wurde werden die Seiten danach analysiert und EPG Informationen extrahiert, um diese in Dateien im XMLTV Format zu speichern.
+Der Teletext EPG Grabber ermöglicht es, TV-Programminformationen aus dem
+Teletext vieler europäischer TV-Sender zu extrahieren und in eine
+gemeinsame Übersicht zusammenzufassen. Der Grabber benötigt zum Empfang
+des Teletext eine TV-Karte und einen Antennenanschluß. Aus dem vom einer
+einstellbaren TV-Kanalliste empfangenen Teletextseiten werden dann
+zuerst die Programmübersichtstabellen extrahiert und danach die darauf
+referenzierten Seiten mit Beschreibungstexten. Die extrahierten
+Informationen werden sofort in die Anzeige übernommen; des weiteren
+stehen die Informationen in Dateien in XMLTV Format für die Verwendung
+in anderen Applikationen zur Verfügung.
 
-Programminformationen werden im Browser aktualisiert sobald eine XMLTV Datei aktualisiert wurde. Dabei wird versucht die Cursorposition bzw. Titelwahl nicht zu verändern, es sei denn, der Cursor steht auf dem allerersten Eintrag - in diesem Fall wir der Cursor auf das gegebenenfalls neue ersten Programm in der Datenbank gesetzt.
+Die Breite und Tiefe der extrahierten Informationen variiert stark
+zwischen den verschiedenen TV-Sendern. Falls überhaupt Teletext
+ausgestrahlt wird, ist überlicherweise mindestens der aktuelle und
+folgende Tag abgedeckt. Manche Sender decken aber sogar mehr als eine
+Woche ab. Meistens finden sich zusätzlich Inhaltsbeschreibungen
+zumindest für zeitnah folgenden Spielfilme und populäre Serien. Im
+Vergleich mit anderen Quellen für TV-Programminformationen, sind
+Beschreibungen zu Nachrichtenmagazinen und anderen tagesaktuellen
+Sendungen oft aktueller und ausführlicher. Andererseits hat Teletext
+u.a. den Nachteil dass Sendungen nicht zuverlässig in Kategorien wie
+z.B. Spielfilme, Serien usw. eingeteilt werden können.
 
-Wenn Sie nicht den TV-Tuner als Eingang wählen (d.h. Sie wählen eine externe Quelle über den Composite- oder S-Video-Eingang) oder der TV-Tuner durch eine andere Anwendung in Beschlag genommen wird (nur bei UNIX, z.B. wenn man TV sieht), werden zwar trotzdem Daten akquiriert, es ist Ihnen aber nicht mehr möglich automatisch den TV-Sender zu wechseln. Folglich sind Sie selbst für die Auswahl des TV-Kanals des Providers verantwortlich, dessen Datenbank Sie laden oder auffrischen wollen.
+In der aktuellen Version unterstützt der Teletext Grabber hauptsächlich
+den Teletext überregionaler deutscher Sender. Um Sender anderer Länder
+verarbeiten zu können, müßten die Algorithmen an die unterschiedlichen
+Formate und sprachliche Bezeichnungen angepasst werden. Der Hintergrund
+ist, dass es eine große Bandbreite von Darstellungsmöglichkeiten von
+Tabellen, Datum und Uhrzeiten gibt.
 
-TV-Programmtabellen in Teletext werden üblicherweise nur einmal täglich aktualisiert (es sei den es treten aktuelle Programmänderungen auf). Von daher ist es ausreichend die Akquisition einmal täglich laufen zu lassen.
-Sie können den Fortschritt der Akquisition über die verschiedenen über das Control-Menü aufrufbaren Statistikfenster beobachten. (Siehe L<"STATISTICS"> für Details.)
+Da der Teletext Grabber Teletext jedes TV-Senders nacheinander empfangen
+muß, und die meisten Sender für die Programmübersichten in großem Umfang
+Unterseiten verwenden, kann der Empfang aller Daten recht lange dauern:
+Für die meisten Sender werden zwischen 1,5 bis 2 Minuten pro Sender
+benötigt. Beim Empfang via DVB kann reduziert sich die Dauer
+glücklicherweise jedoch stark, da alle Sender eines Transponders
+gleichzeitig empfangen werden können, wodurch sich je nach Kanalauswahl
+eine Beschleunigung von Faktor 5 bis 10 ergeben kann. Trotzdem empfiehlt
+sich, die Kanalliste des Teletext Grabbers auf die wirklich
+interessanten Sender zu begrenzen.
+
+Programminformationen im Teletext werden überlicherweise nicht mehr als
+einmal täglich aktualisiert (außer bei Programmänderungen aus aktuellem
+Anlass). Daher ist es ausreichend den Teletext Grabber einmal täglich zu
+starten. Es empfiehlt sich andererseits ihn nicht seltener als jeden
+zweiten Tag zu starten, erstens da einige Sendern die Übersicht auf zwei
+Tage beschränken, und zweitens da bei selbst bei anderen Sendern
+Beschreibungstexte für Sendungen weiter in der Zukunft fehlen.
+
+Es gibt eine Reihe von Konfigurationsoptionen mit denen der Teletext
+Grabber angepasst werden kann, wie z.B. der Seitenbereich und die
+Minimalempfangsdauer pro Sender. Aktuell kann diese Konfiguration
+allerdings nur global für alle Sender vorgenommen werden. Für mehr
+Details dazu siehe den Abschnitt "Teletext Grabber" im Kapitel
+L<"CONFIGURE MENU">.
+
+=head2 Using Teletext EPG
+
+Der Teletext Grabber speichert die gesammelten Programminformationen in
+Dateien im XMLTV Format, so daß diese prinzipiell wie jede andere Datei
+dieses Formats über die "Load..." bzw. "Merge..." Einträge im
+Kontrollmenü geladen werden können. Um die Dateien zu finden, klicken
+Sie in den entsprechenden Dialogfenstern auf das Verzeichnissymbol neben
+den I<Select directory> Eingabefeldern (am oberen Rang der
+Dialogfenster). Dann erscheint ein Menü in dem sie mittels Eintrag
+"Teletext Grabber XMLTV directory" die Dateiliste im Dialogfenster
+anzeigen lassen können.
+
+Für den Merge ist die Option I<Automatically include Teletext EPG> eine
+einfachere Möglichkeit als alle Dateien manuell auszuwählen. Wenn die
+Option angewählt ist, werden Dateien aller vom Teletext Grabber
+aktualisierten Sender automatisch mit zusammengeführt, ohne sie manuell
+in die Auswahlliste auf der rechten Seite zu übernehmen. Auch später neu
+angelegte Dateien werden automatisch zusammengeführt und deren Daten in
+die Anzeige übernommen.
+
+Die einfachste Möglichkeit ist jedoch der I<Load Teletext EPG> Befehl im
+Control Menü: Damit werden mit einem Klick automatisch alle vom Teletext
+Grabber aktualisierten Progammübersichten zusammengeführt und angezeigt.
+(Genauer gesagt, zusammengeführt werden Programminformationen der im
+Teletext Grabber Konfigurationsmenü ausgewählten Zahl von Sendern aus
+der Kanaltabelle.) Dieser Modus ist voreingestellt solange keine andere
+XMLTV Datei geladen wurde.
+
+Zu mehr Details zu den genannten Befehlen und Optionen siehe Kapitel
+L<"CONTROL MENU">.
+
+Unabhängig von der Art auf der die Daten geladen wurden wird die Anzeige
+immer aktualisiert sobald der Teletext Grabber im Hintergrund neue
+Programminformationen geladen hat. Bei der Aktualisierung bleibt die
+Cursorposition unverändert, es sei denn er befindet sich auf dem
+allerersten Eintrag.
 
 =head2 Acquisition modes
 
-Der Dialog zur Konfiguration des Teletext-Grabbers ermöglicht es Ihnen die Strategie für Akquisition von EPG Daten zu beeinflussen: Die ersten beiden Modi sind nur für den Spezialfall dass sie nicht den Tuner der TV-KArte verwenden, so dass nxtveog keine TV-Sender umschalten kann. Die anderen Modi bestimmen die zeitliche Abfolge in der Daten gesucht werden.
+Die Vorgehensweise des Teletext Grabbers ist reihum Teletext von allen
+konfigurierten TV-Sendern für eine bestimmte Zeit zu empfangen und
+speichern. Wenn alle benötigten Teletext-Seiten empfangen wurden, wird
+daraus die TV-Programmübersicht extrahiert und in Dateien im XMLTV
+Format gespeichert. Wie zuvor beschrieben, kann dies bei DVB parallel
+für alle TV-Sender eines Transponders erfolgen. Sie können den
+Fortschritt über die im Control-Menü aufrufbaren Statistikfenster
+beobachten. (Siehe L<"STATISTICS"> für Details.)
+
+Der Dialog zur Konfiguration des Teletext-Grabbers ermöglicht es Ihnen
+die Strategie für Akquisition von EPG Daten zu beeinflussen: Die ersten
+beiden Modi sind nur für den Spezialfall dass sie nicht den Tuner der
+TV-Karte verwenden, so dass nxtvepg keine TV-Sender umschalten kann. Die
+anderen Modi bestimmen die zeitliche Abfolge in der Daten gesucht
+werden.
 
 =over 4
 
-=item B<Passive>
-
-In diesem Modus greift die Software nie auf das Video-Gerät zu und ändert auch nie Input-Kanal oder Tuner-Frequenz. Dies ist nützlich, wenn Sie das Setup der Quelle über Befehlszeilen-Tools wie I<v4lctl> durchführen wollen. Verwenden Sie Applikationen die Videodaten verarbeitet (z.B. eine TV-Anwendung), brauchen Sie diesen Modus nicht, weil nxtvepg automatisch in den passiven Modus umschaltet, wenn ein Kanalwechsel aus diesem Grund fehlschlägt.
-
-Bitte beachten Sie: wenn nxtvepg den TV-Kanal nicht kontrolliert, kann es sich nicht automatisch um die Aktualisierung Ihrer Datenbank kümmern. Sogar wenn die Browserdatenbank komplett leer sein sollte, werden keine Daten erscheinen bis Sie den Kanal des Providers manuell über eine externe Applikation angesteuert haben. Aus diesem Grund ist von der Verwendung des passiven Modus abzuraten.
-
 =item B<Cyclic: Full>
 
-Dieser Modus ist der Default. Der Modus arbeitet wie bei L<"DATA ACQUISITION"> schon beschrieben. Das heisst, EPG wird der Reihe nach von den TV-Sendern in der geladenen Sendertabelle empfangen und verarbeitet. Für jeden Sender wird solange empfangen wie nötig alle vom EPG verwendeten Seiten und Unterseiten zu laden. Die EPG Akquisition ist beendet nach einem Durchlauf über alle Sender.
+Dieser Modus ist voreingestellt. Der Modus arbeitet wie bei
+L<"TELETEXT EPG GRABBER"> schon beschrieben. Das heißt, EPG wird der
+Reihe nach von den TV-Sendern in der geladenen Sendertabelle empfangen
+und verarbeitet. Für jeden Sender wird solange empfangen wie nötig alle
+vom EPG verwendeten Seiten und Unterseiten zu laden. Die EPG Akquisition
+ist beendet nach einem Durchlauf über alle Sender.
 
-Technische Details: Da mit Übertragungsfehlern gerechnet werden muss, wird tatsächlich nicht versucht, jede einzelne Unterseite der von EPG verwendeten Teletext Seiten zu laden bevor der EPG Grabber zum nächsten Sender schaltet. Stattdessen empfängt der Grabber so viele Seitenzyklen wie maximal an Unterseiten im EPG Bereich verwendet werden. (Die meisten Teletextanbieter verwenden keine Unterseiten für die heutige Programmtabelle; oft wird jedoch für Folgetage nur eine Seite für den ganzen Tag verwendet und die Tabellen dann auf soviele Unterseiten verteilt wie nötig um die gesamte Liste darzustellen. In jedem Seitenzyklus wird nur eine Unterseite pro Teletextseite übertragen; die Dauer eines Zyklus hängt von der Gesamt zahl der Seiten im Teletext ab; ein typischer Wert is 20 Sekunden.)
+Technische Details: Da mit Übertragungsfehlern gerechnet werden muss,
+wird tatsächlich nicht versucht, jede einzelne Unterseite der von EPG
+verwendeten Teletext Seiten zu laden bevor der EPG Grabber zum nächsten
+Sender schaltet. Stattdessen empfängt der Grabber so viele Seitenzyklen
+wie maximal an Unterseiten im EPG Bereich verwendet werden. (Die meisten
+Teletextanbieter verwenden keine Unterseiten für die heutige
+Programmtabelle; oft wird jedoch für Folgetage nur eine Seite für den
+ganzen Tag verwendet und die Tabellen dann auf so viele Unterseiten
+verteilt wie nötig um die gesamte Liste darzustellen. In jedem
+Seitenzyklus wird nur eine Unterseite pro Teletextseite übertragen; die
+Dauer eines Zyklus hängt von der Gesamt zahl der Seiten im Teletext ab;
+ein typischer Wert ist 20 Sekunden.)
 
 =item B<Cyclic: Now - Full>
 
-In diesem Modus werden die EPG Daten in zwei Durchläufen geladen: Im ersten Durchlauf wird Teletext nur kurz von jedem Sender geladen, nämlich nur solange wie nötig um den EPG Seitenbereich einmal zu empfangen (d.h. nur eine Unterseite wird geladen, siehe vorheriger Abschnitt). Dies ist ausreichend für das Programm des heutigen Tages, da für dieses üblicherweise keine Unterseiten verwendet werden. Nach dem ersten Durchlauf wird ein weiterer gestartet, der dann genau wie bei I<Cyclic: Full> beschrieben arbeitet.
+In diesem Modus werden die EPG Daten in zwei Durchläufen geladen: Im
+ersten Durchlauf wird Teletext nur kurz von jedem Sender geladen,
+nämlich nur solange wie nötig um den EPG Seitenbereich einmal zu
+empfangen (d.h. nur eine Unterseite wird geladen, siehe vorheriger
+Abschnitt). Dies ist ausreichend für das Programm des heutigen Tages, da
+für dieses üblicherweise keine Unterseiten verwendet werden. Nach dem
+ersten Durchlauf wird ein weiterer gestartet, der dann genau wie bei
+I<Cyclic: Full> beschrieben arbeitet.
 
-Technische Details: Der erste Durchlauf ist weiterhin optimiert um die Laufzeit zu minimieren indem nach jedem Senderwechsel kontrolliert wird welche Seite im Zyklus gerade übertragen wird. Ist der Abstand zum Beginn der EPG Seiten groß, wird zwischenzeitlich ein anderer Sender probiert um unnötige Wartezeit zu vermeiden.
+Technische Details: Der erste Durchlauf ist weiterhin optimiert um die
+Laufzeit zu minimieren indem nach jedem Senderwechsel kontrolliert wird
+welche Seite im Zyklus gerade übertragen wird. Ist der Abstand zum
+Beginn der EPG Seiten groß, wird zwischenzeitlich ein anderer Sender
+probiert um unnötige Wartezeit zu vermeiden.
+
+=item B<Passive>
+
+In diesem Modus greift die Software nie auf das Video-Gerät zu und
+ändert auch nie Input-Kanal oder Tuner-Frequenz. Dies ist nützlich, wenn
+Sie das Setup der Quelle über Befehlszeilen-Tools wie I<v4lctl>
+durchführen wollen. Verwenden Sie Applikationen die Videodaten
+verarbeitet (z.B. eine TV-Anwendung), brauchen Sie diesen Modus nicht,
+weil nxtvepg automatisch in den passiven Modus umschaltet, wenn ein
+Kanalwechsel aus diesem Grund fehlschlägt.
+
+Bitte beachten Sie: wenn nxtvepg den TV-Kanal nicht kontrolliert, kann
+es sich nicht automatisch um die Aktualisierung Ihrer Datenbank kümmern.
+Sogar wenn die Browserdatenbank komplett leer sein sollte, werden keine
+Daten erscheinen bis Sie den Kanal des Providers manuell über eine
+externe Applikation angesteuert haben. Aus diesem Grund ist von der
+Verwendung des passiven Modus abzuraten.
 
 =back
 
-Welcher Modus der Beste für Sie ist, hängt davon ab wie Sie Ihren Browser nutzen. Falls Sie hautpsächlich am aktuellen Programm interessiert sind, ist "Now - Full" ideal. Falls Sie die gesamt Übersicht benötigen, ist es schneller "Full" zu verwenden, da der "Now - Full" Modus länger braucht um alle Daten komplett zu laden. (Genauer gesagt, der "Full" Durchlauf dauert in beiden Modi genauso lange, so dass die Zeit für den "Now" Durchlauf zur Gesamtlaufzeit hinzukommt.)
+Welcher Modus der Beste für Sie ist, hängt davon ab wie Sie Ihren
+Browser nutzen. Falls Sie hautpsächlich am aktuellen Programm
+interessiert sind, ist "Now - Full" ideal. Falls Sie die gesamt
+Übersicht benötigen, ist es schneller "Full" zu verwenden, da der "Now -
+Full" Modus länger braucht um alle Daten komplett zu laden. (Genauer
+gesagt, der "Full" Durchlauf dauert in beiden Modi genauso lange, so
+dass die Zeit für den "Now" Durchlauf zur Gesamtlaufzeit hinzukommt.)
 
 =head1 STATISTICS
 
-Es gibt eine Reihe von Optionan, Informationen zum Status der Datenbank und des Akquisitions-Prozesses zu erhalten: Der Erste und prägnanteste ist die Statuszeile am unteren Rand des Hauptfensters (nur wenn diese auch aktiviert ist, siehe L<"CONFIGURATION">). Der Zweite besteht aus dem Zeitskalen-Fenster ("timescale"), welche die mit TV-Programmdaten belegten Zeitspannen jedes TV-Senders visualisiert. Der Dritte besteht aus der Datenbankstatistik, welche technische Details über die im Browser geladene Datenbank liefern (wie z.B. welcher Prozentsatz an Einträgen bereits aktualisiert ist usw.). Weiterhin gibt es ein Fenster das Status des Teletext EPG Grabbers wiederspiegelt.
+Es gibt eine Reihe von Möglichkeiten, Informationen zum Status der
+Datenbank und des Akquisitions-Prozesses zu erhalten: Der Erste und
+prägnanteste ist die Statuszeile am unteren Rand des Hauptfensters (nur
+wenn diese auch aktiviert ist, siehe L<"CONFIGURE MENU">). Der Zweite
+besteht aus dem Zeitskalen-Fenster ("timescale"), welche die mit
+TV-Programmdaten belegten Zeitspannen jedes TV-Senders visualisiert. Der
+Dritte besteht aus der Datenbankstatistik, welche technische Details
+über die im Browser geladene Datenbank liefern (wie z.B. welcher
+Prozentsatz an Einträgen bereits aktualisiert ist usw.). Weiterhin gibt
+es ein Fenster das Status des Teletext EPG Grabbers widerspiegelt.
 
 =head2 Status line
 
 Die Statuszeile fasst separat den Status der Browserdatenbank und den des Akquisitionsprozesses zusammen. Aus Platzgründen enthält sie nur die relevanteste Information, d.h. die angezeigte Information hängt vom jeweiligen Status ab.
 
-Zur Browserdatenbank sehen Sie normalerweise nur den Namen der XMLTV Datei. Ist die Datei mehr als einen Tag alt, wird zusätzlich das Alter und der Anteil der seit der letzten Aktualisierung abgelaufenen Programme angezeigt.  (In welchem Intervall die Daten aktualisiert werden sollten ist nxtvepg nicht bekannt, da dies von der Vorschaulänge und Dynamik Ihres Anbieters abhängt. Für den Teletext EPG Grabber ist eine tägliche Aktualisierung empfohlen; siehe auch L<"DATA ACQUISITION">).
+Zur Browserdatenbank sehen Sie normalerweise nur den Namen der XMLTV
+Datei. Ist die Datei mehr als einen Tag alt, wird zusätzlich das Alter
+und der Anteil der seit der letzten Aktualisierung abgelaufenen
+Programme angezeigt.  (In welchem Intervall die Daten aktualisiert
+werden sollten ist nxtvepg nicht bekannt, da dies von der Vorschaulänge
+und Dynamik Ihres Anbieters abhängt. Für den Teletext EPG Grabber ist
+eine tägliche Aktualisierung empfohlen;
+siehe auch L<"TELETEXT EPG GRABBER">).
 
-Falls der Teletext EPG Grabber eingeschalten ist, wird zusätzlich der Status der Akquisition dargestellt. Dies umfasst die Information ob die Akquisition aktuell aktiv ist und falls ja, der Anteil der bereits geladenen TV-Programme und der Name des Programmes von dem aktuell empfangen wird. Zusätzlich erscheint eine Angabe zur Akquisitionsphase, wie z.B. "Now" falls der initiale Schnelldurchgang läuft (falls diese Option in der Konfiguration eingeschalten ist), "Full" während des Ladens der kompletten Daten, oder "Complete" nachdem die Daten aller Programme geladen sind.
+Falls der Teletext EPG Grabber eingeschaltet ist, wird zusätzlich der
+Status der Akquisition dargestellt. Dies umfasst die Information ob die
+Akquisition aktuell aktiv ist und falls ja, der Anteil der bereits
+geladenen TV-Programme und der Name des Sender von dem aktuell empfangen
+wird. Zusätzlich erscheint eine Angabe zur Akquisitionsphase, wie z.B.
+"Now" falls der initiale Schnelldurchgang läuft (falls diese Option in
+der Konfiguration eingeschaltet ist), "Full" während des Ladens der
+kompletten Daten, oder "Complete" nachdem die Daten aller Programme
+geladen sind.
 
-Falls die Akquisition blockiert ist oder ein Fehler aufgetreten ist, wird dies hier angezeigt. Insbesondere erscheint der Hinweis "forced passive" wenn nxtvepg nicht in der Lage ist TV-Programme umzuschalten um dort Teletext zu laden. (In der Regel ist die Ursache dafür dass eine andere Applikation die TV-KArte belegt.)
+Falls die Akquisition blockiert ist oder ein Fehler aufgetreten ist,
+wird dies hier angezeigt. Insbesondere erscheint der Hinweis "forced
+passive" wenn nxtvepg nicht in der Lage ist TV-Programme umzuschalten um
+dort Teletext zu laden. (In der Regel ist die Ursache dafür dass eine
+andere Applikation die TV-Karte belegt.)
 
 =head2 Timescale popup window
 
@@ -334,7 +692,11 @@ Das Zeitskalenfenster spiegelt für jeden TV-Sender wieder, welche Zeitspannen mi
 
 Das Fenster besitzt eine Skala für jeden TV-Sender, der von der geladenen XMLTV Datei abgedeckt wird. Das linke Ende der Skalen verweist auf die Startzeit der ältesten in der Datenbank vorhandenen TV-Sendung. Abhängig davon wie lange das letzte Update der Datenbank zurückliegt und wie lange der EPG Anbieter abgelaufene Programme in der Datenbank hält, können die Sendungen teilweise oder sogar ganz in der Vergangenheit liegen. Die exakten Datierungen werden in der Datumsskala am oberen Rand des Fensters ausgegeben, wobei die aktuelle Zeit zusätzlich durch einen mit "now" gekennzeichneten kleinen Pfeil markiert ist.
 
-Bereiche die von Sendungen des jeweiligen Senders in der Datenbank belegt werden, sind durch gelbe, rote, pink, oder blaue Farbe markiert. Bereiche ohne Programminformation sind grau. Die Bereiche vor dem ersten und jenseits des letzten bekannten Programms sind schwarz. Die Bedeutung der unterschiedlichen Farben im einzelnen ist wie folgt:
+Bereiche die von Sendungen des jeweiligen Senders in der Datenbank
+belegt werden, sind durch gelbe, rote, pink, oder blaue Farbe markiert.
+Bereiche ohne Programminformationen sind grau. Die Bereiche vor dem
+ersten und jenseits des letzten bekannten Programms sind schwarz. Die
+Bedeutung der unterschiedlichen Farben im einzelnen ist wie folgt:
 
 =over 4
 
@@ -352,7 +714,8 @@ Programminformationen des übernächsten und folgender Tage.
 
 =item I<Dunkelrot, dunkles pink oder Dunkelblau:>
 
-Wie oben, jedoch liegt die Aktualisierung der Programminformation mehr als einen Tage zurück.
+Wie oben, jedoch liegt die Aktualisierung der Programminformationen mehr
+als einen Tage zurück.
 
 =item I<Gelb:>
 
@@ -360,11 +723,13 @@ Ungültige PI-Blöcke (Überschneidung oder 0 Minuten Laufzeit)
 
 =item I<Grau:>
 
-Lücken in der Programminformation. Grund dafür können Sendepausen sein (d.h. bei TV-Sendern die nicht 24 Stunden am Tag senden), oder Übertragungsfehler in der EPG Akquisition
+Lücken in den Programminformationen. Grund dafür können Sendepausen sein
+(d.h. bei TV-Sendern die nicht 24 Stunden am Tag senden), oder
+Übertragungsfehler in der EPG Akquisition
 
 =item I<Schwarz:>
 
-Zeitspanne die vom Inhaltsanbieter nicht abgedeckt wird.
+Zeitspanne die vom Inhalteanbieter nicht abgedeckt wird.
 
 =back
 
@@ -392,7 +757,14 @@ Wie viele Blöcke sind in der lokalen Datenbank vorhanden und haben die neueste V
 
 Gesamtzahl und Prozentsatz abgelaufener Blöcke in der Datenbank. Es ist völlig normal dass dieser Wert im Laufe der Zeit ansteigt, bis zur nächsten Aktualisierung der Datenbank.
 
-Wie bei der Aktualisierung mit abgelaufenen Programminformationen umgegangen wird, hängt vom gewählten EPG Anbieter ab: Anbieter können abgelaufene Programme sofort löschen, oder für eine gewisse Zeit erhalten (z.B. um zu Erlauben Informationen wie Programmbeschreibung und Darsteller auch nach Ablauf der Sendung nochmal nachzulesen, wie über den I<Expired display> Filter möglich.) Beim Teletext EPG Grabber können Sie dies selbst bestimmen, siehe Kapitel L<"CONFIGURATION">, "Teletext grabber".
+Wie bei der Aktualisierung mit abgelaufenen Programminformationen
+umgegangen wird, hängt vom gewählten EPG Anbieter ab: Anbieter können
+abgelaufene Programme sofort löschen, oder für eine gewisse Zeit
+erhalten (z.B. um zu Erlauben Informationen wie Programmbeschreibung und
+Darsteller auch nach Ablauf der Sendung nochmal nachzulesen, wie über
+den I<Expired display> Filter möglich.) Beim Teletext EPG Grabber können
+Sie dies selbst bestimmen, siehe Kapitel L<"CONFIGURE MENU">, "Teletext
+Grabber".
 
 =item I<Defective blocks:>
 
@@ -400,13 +772,30 @@ Anzahl der Blöcke mit ungültiger oder überlappender Startzeit. Diese Blöcke tauc
 
 =back
 
-Das Tortendiagramm zur Linken des Fensters visualisiert diese Zahlen. Der Kreis repräsentiert 100% der in der AI aufgelisteten Blöcke. Er ist aufgeteilt in Stream 1 (rot) und Stream 2 (blau). Die schraffierten Segmente stellen die Blöcke dar, die in der lokalen Datenbank noch fehlen, die gelben Segmente den Prozentsatz an abgelaufenen und/oder fehlerhaften Blöcken.
+Das Tortendiagramm zur Linken des Fensters visualisiert diese Zahlen.
+Der Kreis repräsentiert 100% der Blöcke in der Datenbank. Er ist
+aufgeteilt in Blöcke zum Programm des heutigen Tags (rot), des
+morgigen Tags (pink) und folgende Tage (blau). Die schraffierten
+Segmente stellen die Blöcke dar, die mehr als einen Tag akquiriert
+wurden, die gelben Segmente den Prozentsatz an abgelaufenen und/oder
+fehlerhaften Blöcken.
 
-Falls die Datenbank vom Teletext EPG Grabber aktualisiert wird, wird ein zusätzlicher Bereich unterhalb den Statistiken eingeblendet, in dem ein Histogramm und Statusinformationen zur Akquisition dargestellt sind. Das Histogram zeigt dieselbe Information wie das Tortendiagramm, jedoch in Form eines Balkendiagramms über einer Zeitachse. Die Statusinformationen zur Rechten des Balkendiagramms haben dieselbe Bedeutung wie im nächsten Kapitel für die Teletext grabber statistics beschrieben.
+Falls die Datenbank vom Teletext EPG Grabber aktualisiert wird, wird ein
+zusätzlicher Bereich unterhalb der Statistiken eingeblendet, in dem ein
+Histogramm und Statusinformationen zur Akquisition dargestellt sind. Das
+Histogram zeigt dieselbe Information wie das Tortendiagramm, jedoch in
+Form eines Balkendiagramms über einer Zeitachse. Die Statusinformationen
+zur Rechten des Balkendiagramms haben dieselbe Bedeutung wie im nächsten
+Kapitel für die Teletext Grabber statistics beschrieben.
 
-=head2 Teletext grabber statistics
+=head2 Teletext Grabber Statistics
 
-Über das Control-Menü kann ein Fenster geöffnet werden welches Informationen über den Status des Teletext EPG Grabber gibt. Das Fenster präsentiert die Informationen in zwei getrennten Bereichen: Der obere Bereich zeigt die Konfiguration und übergreifenden aktuellen Status. Der untere Bereich zeigt eine Reihe on Statistiken über Teletextempfang aus den aktuell eingestellten TV-Sendern.
+Über das Control-Menü kann ein Fenster geöffnet werden welches
+Informationen über den Status des Teletext EPG Grabber gibt. Das Fenster
+präsentiert die Informationen in zwei getrennten Bereichen: Der obere
+Bereich zeigt die Konfiguration und übergreifenden aktuellen Status. Der
+untere Bereich zeigt eine Reihe von Statistiken über Teletextempfang aus
+den aktuell eingestellten TV-Sendern.
 
 Beschreibung der Informationen im oberen Bereich des Fensters:
 
@@ -430,7 +819,10 @@ Gibt die Anzahl der Sender an von denen aktuell Teletext empfangen wird. Bei ana
 
 =item I<Acq. runtime:>
 
-Der erste Wert gibt an, wie lange der Teletext vom aktuell eingestellten TV-Sender ampfangen wurde (in Sekunden, Format MM::SS).  Der Wert in Klammern dahinter gibt die für den aktuellen Sender konfigurierte "Capture duration" an (siehe L<"CONFIGURATION">, "Teletext grabber").
+Der erste Wert gibt an, wie lange der Teletext vom aktuell eingestellten
+TV-Sender empfangen wurde (in Sekunden, Format MM::SS).  Der Wert in
+Klammern dahinter gibt die für den aktuellen Sender konfigurierte
+"Capture duration" an (siehe L<"CONFIGURE MENU">, "Teletext Grabber").
 
 =item I<Acq. state:>
 
@@ -438,7 +830,10 @@ Der Status des Empfangs auf dem aktuellen Sender: "Capturing" während des Ladens
 
 =back
 
-Der untere Bereich des Fensters besteht aus einer Tabelle: Die erste Zeile gibt die Namen der TV-Sender an von denen aktuell Teletext empfangen wird. Die folgenden Zeilen zeigen die folgenden statistische Informationen for jeden der Sender in der entsprechenden Spalte:
+Der untere Bereich des Fensters besteht aus einer Tabelle: Die erste
+Zeile gibt die Namen der TV-Sender an von denen aktuell Teletext
+empfangen wird. Die folgenden Zeilen zeigen die folgenden statistische
+Informationen für jeden der Sender in der entsprechenden Spalte:
 
 =over 4
 
@@ -450,19 +845,28 @@ Wurde ein Programme Identification Label (PIL) empfangen, wird er nach der CNI i
 
 =item I<Capture range:>
 
-Dies gibt die Nummern der für die jeweiligen Sender konfigurierten ersten und letzten Teletextseite die geladen werden an. Die Angabe ist direkt aus der Konfiguration dees Teletext-Grabbers übernommen.
+Dies gibt die Nummern der für die jeweiligen Sender konfigurierten
+ersten und letzten Teletextseite die geladen werden an. Die Angabe ist
+direkt aus der Konfiguration des Teletext-Grabbers übernommen.
 
 =item I<Captured pages:>
 
-Anzahl der empfangenen Teletext Seiten (inklusive Wiederholungen und Unterseiten, d.h. vereinfacht gesagt die Anzahl der empfangen Seitenheader.)
+Anzahl der empfangenen Teletext Seiten (inklusive Wiederholungen und
+Unterseiten, d.h. vereinfacht gesagt die Anzahl der empfangen Kopfzeilen.)
 
 =item I<Captured packages:>
 
-Anzahl der verarbeiteten Teletext "Packets" (d.h. Textzeilen) aus der aktuellen "Capture range". Eine Teletextseite besteht meist aus 23-25 Zeilen. Die zweite Angabe in dieser Tabellenzeile gibt an wieviel Prozent der insgesamt empfangen "packets" verarbeitet wurden.
+Anzahl der verarbeiteten Teletext "Packets" (d.h. Textzeilen) aus der
+aktuellen "Capture range". Eine Teletextseite besteht meist aus 23-25
+Zeilen. Die zweite Angabe in dieser Tabellenzeile gibt an wie viel
+Prozent der insgesamt empfangen "packets" verarbeitet wurden.
 
 =item I<Decoding errors:>
 
-Gibt die Anzahl Dekodierungsfehler bei der Verarbeitung von Teletext an. (Kontrollinformation ist Kamming-8/4 geschützt, Textdaten nur mit Parity Bits.) Der Prozentsatz ist berechnet aus der Gesamtzahl verarbeiteter Packets mit je 45 Bytes.
+Gibt die Anzahl Dekodierfehler bei der Verarbeitung von Teletext an.
+(Kontrollinformation ist Hamming-8/4 geschützt, Textdaten nur mit Parity
+Bits.) Der Prozentsatz ist berechnet aus der Gesamtzahl verarbeiteter
+Packets mit je 45 Bytes.
 
 =item I<TTX data rate:>
 
@@ -470,7 +874,6 @@ Die Rate in Baud, d.h. Bits pro Sekunde, mit welcher Teletext-Datenzeilen im akt
 
 =back
 
-Das Diagramm links zeigt den Verlauf der prozentualen Füllung für Stream 1 und Stream 2; die Bedeutung der Farben ist dieselbe wie in den Zeitskalen-Fenstern.
 
 =head1 MERGED DATABASES
 
@@ -478,31 +881,54 @@ Unter "Merge" versteht man das Zusammenführen von EPG Daten aus verschiedenen XM
 
 Ein weiterer Einsatz ist der Fall das Sie mehrere EPG Anbieter verwenden die dieselben Sender abdecken. In dem Fall erlaubt der Merge die Daten für jedes TV-Programm in der Anzeige zu vereinigen. Für Informationen wie Beschreibungstexte werden die Daten aller EPG Anbieter aneinendergeügt. Für Informationstypen wo das Aneinanderfügen nicht sinnvoll ist, wird die Information aus den Daten des ersten Anbieters angezeigt (d.h. die Reihenfolge der Auswahl ist relevant; Details siehe unten).
 
-Über den Menüeintrag B<Merge XMLTV files> im B<Control>-Menü erhalten Sie einen Dialog mit zwei Listenfeldern: das Linke davon enthält eine Liste von XMLTV Dateien. Ein anderes Verzeichnis kann mit Click auf den Knopf neben dem Eingabefeld gewählt werden. Der Verzeichnisname kann auch manuell editiert werden; Nach Drücken der Return-Taste wird die Liste der Dateien aktualisiert. (Zu beachten ist dass nur Dateien mit Endung ".xml" und gültigem XMLTV Format in der Liste angezeigt werden.)
+Über den Menüeintrag B<Merge XMLTV files> im B<Control>-Menü erhalten
+Sie einen Dialog mit zwei Listenfeldern: das Linke davon enthält eine
+Liste von XMLTV Dateien. Ein anderes Verzeichnis kann mit Klick auf den
+Knopf neben dem Eingabefeld gewählt werden. Der Verzeichnisname kann
+auch manuell editiert werden; Nach Drücken der Return-Taste wird die
+Liste der Dateien aktualisiert. (Zu beachten ist dass nur Dateien mit
+Endung ".xml" und gültigem XMLTV Format in der Liste angezeigt werden.)
 
-Das rechte Liste stellt die Dateien dar, die Sie zusammenführen wollen. Bei der ersten Verwendung des Dialogs wird die Liste leer sein; Bei späteren Aufrufen wird die zuletzt verwendete Auswahl wieder angezeight. Sie können Einträge in dieser Liste hinzufügen, durch Auswahl eines Eintrags in der linken Liste und Drücken des "Add" Knopfes. Einträge können aus der Lste gelöscht werden durch Auswahl eines oder mehrerer Einträge und Drücken des "Delete" Knopfes. Die Reihenfolge kann durch Auswahl von einem oder mehreren Einträgen und Drücken der beiden Pfeil-Knöpfe geändert werden. Sind Sie fertig mit Ihrer Auswahl, drücken Sie B<OK>, um das Zusammenführen der ausgeählten Dateien zu starten und die so neu erzeugte EPG Datenbank anzuzeigen.
+Das rechte Liste stellt die Dateien dar, die Sie zusammenführen wollen.
+Bei der ersten Verwendung des Dialogs wird die Liste leer sein; Bei
+späteren Aufrufen wird die zuletzt verwendete Auswahl wieder angezeigt.
+Sie können Einträge in dieser Liste hinzufügen, durch Auswahl eines
+Eintrags in der linken Liste und Drücken des "Add" Knopfes. Einträge
+können aus der Liste gelöscht werden durch Auswahl eines oder mehrerer
+Einträge und Drücken des "Delete" Knopfes. Die Reihenfolge kann durch
+Auswahl von einem oder mehreren Einträgen und Drücken der beiden
+Pfeil-Knöpfe geändert werden. Sind Sie fertig mit Ihrer Auswahl, drücken
+Sie B<OK>, um das Zusammenführen der ausgewählten Dateien zu starten und
+die so neu erzeugte EPG Datenbank anzuzeigen.
 
 Durch das Anordnen der Provider in Ihrer Auswahl, weisen Sie ihnen Prioritäten zu, die für eine Konfliktlösung sehr wichtig sind. Ein Konflikt tritt dann auf, wenn Start- und Stopzeiten der Sendung bei den Providern verschieden sind. Die Wahrscheinlichkeit solch eines Konfliktes hängt von der Qualität Ihrer Provider ab; theoretisch sollten sie nie auftreten, außer wenn kurzfristige Programmänderungen erfolgen. In der Realität sind solche Konflikte gar nicht so unwahrscheinlich, speziell bei Sendungen, die früh am Morgen ausgestrahlt werden. Sie sollten den verlässlichsten Provider an die erste Stelle setzen, da widersprüchliche Sendungen von darunter stehenden Providern abgelehnt werden, d.h. nicht mit in die zusammengeführte Datenbank aufgenommen werden.
 
-Durch Anwählen der Option B<Automatically include Teletext EPG> werden alle durch den Teletext EPG Grabber erzeugten XMLTV Dateien mit eingebunden. Auch erst später neu angelegte Dateien werden dynamisch hinzugefügt. Bei Verwendung der Option ist die Reihenfolge der Dateien beim Zusammenführen nicht festgelegt; Dies ist jedoch in dem Fall nicht entscheidend, da zwischen den Dateien des Grabbers keine Konflikte bestehen da jede Datei ein separates Netzwerk abdeckt. Falls Sie dennoch das Zusammenführen genauer konfigurieren wollen, können Sie die Dateien des Teletext Grabbers auch manuell angeben. Das geht am schnellsten indem Sie im über den kleinen Pfeil neben dem Pfadeingabefeld erreichbaren Menü den Eintrag I<Teletext grabber XMLTV directory> anclicken. Danach können Sie alle Einträge in der Linken liste selektieren und mit dem "add" Knopf in die Liste der zusammenzuführenden Dateien übernehmen.
+Durch Anwählen der Option B<Automatically include Teletext EPG> werden
+alle durch den Teletext EPG Grabber erzeugten XMLTV Dateien mit
+eingebunden. Auch erst später neu angelegte Dateien werden dynamisch
+hinzugefügt. Bei Verwendung der Option ist die Reihenfolge der Dateien
+beim Zusammenführen nicht festgelegt; Dies ist jedoch in dem Fall nicht
+entscheidend, da zwischen den Dateien des Grabbers keine Konflikte
+bestehen da jede Datei ein separates Netzwerk abdeckt. Falls Sie dennoch
+das Zusammenführen genauer konfigurieren wollen, können Sie die Dateien
+des Teletext Grabbers auch manuell angeben. Das geht am schnellsten
+indem Sie im über den kleinen Pfeil neben dem Pfadeingabefeld
+erreichbaren Menü den Eintrag I<Teletext Grabber XMLTV directory>
+anklicken. Danach können Sie alle Einträge in der Linken liste
+selektieren und mit dem "add" Knopf in die Liste der zusammenzuführenden
+Dateien übernehmen.
 
 Der Button B<Configure> im Dialog ermöglicht Ihnen die Feinkontrolle über die Priorität der Provider während des Zusammenführens aller sich unterscheidenden Attribute der Sendungen. Sie können einen Provider sogar für ein Attribut komplett entfernen, z.B. falls dieser falsche Daten übermittelt. Eine Ausnahme stellt hierbei der Titel dar, den Sie von keinem Provider löschen können.
 
 Attribute, die nicht zusammengeführt werden können, z.B. das Editorial Rating, werden aus der ersten Datenbank in die Liste aufgenommen, die das Attribut für eine vorgegebene Sendung enthält (siehe auch L<"FILTERING">).
 
-=head1 NAVIGATE
-
-Das Navigate-Menü enthält einen Baum von Filteroptionen, die vom gewählten Provider zusammen mit den Programmdaten übermittelt werden. Das Filtering erlaubt es, die Auflistung der Programm-Informationen auf diejenigen Titel einzuschränken, die dem gewählten Menüeintrag entsprechen.
-
-Umfang und Inhalt dieses Menüs hängen ausschließlich vom Provider ab. Leider bieten die meisten Provider nur ein sehr limitiertes Menü an. Deshalb empfiehlt es sich eigene Filter via Shortcuts zu definieren, so wie in den nächsten beiden Kapiteln beschrieben.
-
-Jede Filterauswahl kann durch den Menüeintrag I<Reset> oder den I<Reset>-Button im Hauptfenster zurückgesetzt werden.
-
-Unter Windows ist das Navigate-Menü aus technischen Gründen ein Eintrag innerhalb des I<Filter>-Menüs (das Konzept dynamisch erzeugter, hierarchischer Menüs scheint Windows fremd zu sein, deshalb musste ein Popupmenü verwendet werden).
-
 =head1 FILTERING
 
-Ähnlich I<Navigate> erlaubt dieses Menü die Kontrolle darüber, welche der Sendungen der Datenbank in der Liste präsent sein sollen. Jedoch sind Sie hier nicht auf die Vorauswahl der Filteroptionen beschränkt. Für jede existierende Art von Attribut gibt es einen Filter. Attribute sind zum Beispiel Sender, Startzeit, Themenbeschreibung und so weiter.
+Dieses Menü ermöglicht Kontrolle darüber, welche der TV-Sendungen der
+Datenbank in der Liste angezeigt werden. Für jede Art von TV-Sendungen
+zugeordneten Attributen gibt es einen Filter. Attribute sind zum
+Beispiel Sendername, Startzeit, Themenbeschreibung und
+Beschreibungstext.
 
 Filter können entweder einmalig durch erneutes Auswählen desselben Eintrages im Filtermenü zurückgesetzt werden, oder global durch einen Klick auf I<Reset>-Button oder -Menüeintrag.
 
@@ -526,7 +952,13 @@ Wollen Sie die Auflistung auf Sendungen begrenzen, die mehr als eines der vorgeg
 
 Beschränkt die Liste der Programme auf einen oder mehrere Sender. Der Filter ist abgeschaltet, wenn alle Kontrollkästchen deaktiviert sind.
 
-B<Tipp:> Die Senderauswahlliste kann permanent im Hauptfenster eingeblendet werden, indem eine der Checkboxen "I<Show networks>" im Untermenü I<Show/Hide> des Konfigurationsmenüs (siehe L<"CONFIGURATION">, Kapitel "Show/Hide") aktiviert wird. Außerdem sind sowohl die Senderreihenfolge als auch die Sendernamen konfigurierbar. Insbesondere können Sie auch uninteressante Sender permanent aus der Liste entfernen.
+B<Tipp:> Die Senderauswahlliste kann permanent im Hauptfenster
+eingeblendet werden, indem eine der Checkboxen "I<Show networks>" im
+Untermenü I<Show/Hide> des Konfigurationsmenüs (siehe
+L<"CONFIGURE MENU">, Kapitel "Show/Hide") aktiviert wird. Außerdem sind
+sowohl die Senderreihenfolge als auch die Sendernamen konfigurierbar.
+Insbesondere können Sie auch uninteressante Sender permanent aus der
+Liste entfernen.
 
 =item B<Text search>
 
@@ -536,11 +968,21 @@ Sie können nach mehr als einem Text gleichzeitig suchen; Sie werden alle Sendung
 
 Drücken Sie "I<Click here to open...>", um einen kleinen Dialog zu öffnen, der es Ihnen erlaubt, schnell eine große Liste von Texten (beispielsweise eine Liste Ihrer bevorzugten Filmtitel) anzufügen. Ebenso können Sie Text zum Beispiel aus einem Texteditor heraus in den Dialog einfügen (STRG+V) oder diesen direkt aus einer Datei laden. Jede Zeile in den Textfeldern wird als separate Suchanfrage angefügt, wenn Sie OK drücken, und alle neuen Einträge werden dieselben Optionen besitzen. Leerzeichen am Beginn oder Ende von Zeilen werden automatisch entfernt und mit # beginnende Zeilen werden übersprungen, wenn sie aus einer Datei heraus geladen werden.
 
-Ein Verlauf der letzten 50 Suchbegriffe (nur manuell eingegebene) einschließlich deren Optionen ist im Dropdown-Menü unterhalb des Texteingabefeldes verfügbar. Sie können es mit dem Pfeilbutton an der rechten Seite des Eingebefeldes öffnen, oder mit einer der "Pfeil auf/ab"-Tasten.  Ebenso stehen die letzten 10 Suchwörter im Menü des Spaltenkopfes I<Title> der Programmliste zur Verfügung (letzteres nur im "Single List"-Layout.)
+Ein Verlauf der letzten 50 Suchbegriffe (nur manuell eingegebene)
+einschließlich deren Optionen ist im Dropdown-Menü unterhalb des
+Texteingabefeldes verfügbar. Sie können es mit dem Pfeilknopf an der
+rechten Seite des Eingebefeldes öffnen, oder mit einer der "Pfeil
+auf/ab"-Tasten.  Ebenso stehen die letzten 10 Suchwörter im Menü des
+Spaltenkopfs I<Title> der Programmliste zur Verfügung (letzteres nur im
+"Single List"-Layout.)
 
 =item B<Recurring titles>
 
-Das Filtermenü dieses Names listet alle Programmtitel die mehr als einmal in der Datenbank vorkommen. Intern basiert die Suche schlicht auf der Textsuche, d.h. es handelt sich nicht um einen eigenen Filtertyp. Um einzelne über dieses Menü gesetzten Filter aufzuheben können sie daher den I<Text search> Dialog verwenden.
+Das Filtermenü dieses Namems listet alle Programmtitel auf, die mehr als
+einmal in der Datenbank vorkommen. Intern basiert die Suche schlicht auf
+der Textsuche, d.h. es handelt sich nicht um einen eigenen Filtertyp. Um
+einzelne über dieses Menü gesetzten Filter aufzuheben können sie daher
+den I<Text search> Dialog verwenden.
 
 =item B<Features>
 
@@ -556,7 +998,9 @@ B<Tipp:> Sie können die Filterinvertierung benutzen um Sendungen zu finden, die 
 
 =item B<Editorial Rating>
 
-Begrenzt die Auflistung auf Sendungen, die entsprechend der Bewertung des Inhaltsanbieters mindestens eine bestimmte Qualität besitzen. Der Bereich der Werteskala geht von 1 bis 7.
+Begrenzt die Auflistung auf Sendungen, die entsprechend der Bewertung
+des Inhalteanbieters mindestens eine bestimmte Qualität besitzen. Der
+Bereich der Werteskala geht von 1 bis 7.
 
 Zu bemerken ist, dass einige Anbieter nicht alle Werte verwenden, beispielsweise nur 1, 3, 5 (Daumen hoch, Mittel, Daumen runter).  Aus diesem Grund werden beim Mischen von Datenbanken Ratings auch nur vom ersten Anbieter übernommen (siehe auch L<"MERGED DATABASES">.)
 
@@ -568,7 +1012,10 @@ Folgende Optionen stehen zur Verfügung: Wenn Sie "I<Start at current time>" akti
 
 Für das Datum können Sie zwischen folgenden Modi wählen: I<Ignore date>: der Filter erlaubt Sendungen, die an irgendeinem Tag starten (im oberhalb stehenden Zeitfenster). I<Relative date>: erlaube nur Sendungen, die in N Tagen von heute an starten, d.h. für Null: heute, für 1: morgen usw. I<Weekday>: erlaube Sendungen, die am angegebenen Wochentag starten (die Skala läuft von Samstag bis Freitag). I<Day of month>: erlaube nur Sendungen, die am n-ten Tag eines Monats starten (die Skala läuft von 1 bis 31).
 
-Zu beachten ist, dass die Hauptabsicht dieses Filters in der Unterstützung der Zeiteinschränkungen in den Navigate-Menüs des Providers (siehe L<"NAVIGATE">) oder der Shortcuts liegt. Zur manuellen Navigation gibt es praktikablere Alternativen, z.B. die Wochentags-Skala und Dropdown-Menüs im Hauptfenster des Browsers oberhalb der Zeit- und Datumsspalten (nicht verfügbar im Grid-Layout).
+Zur manuellen Navigation außerhalb von Filtershortcuts gibt es
+praktikablere Alternativen als diesen Filter, wie z.B. die
+Wochentags-Skala und Dropdown-Menüs im Hauptfenster des Browsers
+oberhalb der Zeit- und Datumsspalten (nicht verfügbar im Grid-Layout).
 
 =item B<Program index>
 
@@ -584,11 +1031,28 @@ Die Zeitdauer kann entweder durch die Skalen oder durch direkte Eingabe der Wert
 
 =item B<Expired Programmes Display>
 
-Im Gegensatz zu allen anderen Filteroptionen wird diese genutzt, um den Satz zutreffender Sendungen zu I<vergrößern>. Sie ermöglicht es, abgelaufene Sendungen mit in die Liste einzuschließen (d.h. solche mit Stopzeit in der Vergangenheit); diese werden mit einem gelblichen Hintergrund gekennzeichnet (die Farbe können Sie ändern, siehe C<.Xdefaults> und C<nxtvepg.ad> in L<"FILES">). Mit dem Schieberegler können Sie die Schwelle der Ablaufzeit Minutengenau verstellen. Die Eingebefelder unterhalb des Schiebers geben die äquivalente Zeitschwelle in Einheiten von Tagen und Stunden an. Sie können diese Felder auch direkt editieren; Drücken Sie die Return-Taste um Änderungen zu übernehmen.
+Im Gegensatz zu allen anderen Filteroptionen wird diese genutzt, um den
+Satz zutreffender Sendungen zu I<vergrößern>. Sie ermöglicht es,
+abgelaufene Sendungen mit in die Liste einzuschließen (d.h. solche mit
+Stopzeit in der Vergangenheit); diese werden mit einem gelblichen
+Hintergrund gekennzeichnet (die Farbe können Sie ändern, siehe
+C<.Xdefaults> und C<nxtvepg.ad> in L<"FILES">). Mit dem Schieberegler
+können Sie die Schwelle der Ablaufzeit Minutengenau verstellen. Die
+Eingabefelder unterhalb des Schiebers geben die äquivalente Zeitschwelle
+in Einheiten von Tagen und Stunden an. Sie können diese Felder auch
+direkt editieren; Drücken Sie die Return-Taste um Änderungen zu
+übernehmen.
 
 Standardmäßig ist die Schwelle für die Ablaufzeit Null, sodass abgelaufene Sendungen sofort aus der Anzeige verschwinden.
 
-Beachten Sie, dass Sie nicht mehr Sendungen hinzufügen können, als in der Datenbank gespeichert sind. nxtvepg löscht abgelaufene Programme zwar nicht aus der Datenbank, jedoch passiert dies üblicherweise bei der Aktualisierung des XMLTV Files. Ob bzw. wie lange abgelaufende Programme bei Aktualisierung erhalten bleiben hängt von Ihrem Anbieter bzw. dem zur Aktualisierung verwendeten Programm ab. Beim Teletext EPG Grabber können sie den Schwellwert frei konfigurieren (siehe L<"CONFIGURATION"> Kapitel "Teletext grabber").
+Beachten Sie, dass Sie nicht mehr Sendungen hinzufügen können, als in
+der Datenbank gespeichert sind. nxtvepg löscht abgelaufene Programme
+zwar nicht aus der Datenbank, jedoch passiert dies üblicherweise bei der
+Aktualisierung des XMLTV Files. Ob bzw. wie lange abgelaufene Programme
+bei Aktualisierung erhalten bleiben hängt von Ihrem Anbieter bzw. dem
+zur Aktualisierung verwendeten Programm ab. Beim Teletext EPG Grabber
+können sie den Schwellwert frei konfigurieren (siehe L<"CONFIGURE MENU">
+Kapitel "Teletext Grabber").
 
 =item B<VPS/PDC>
 
@@ -598,9 +1062,20 @@ Begrenzt die Auflistung auf Sendungen, die eine gültige VPS/PDC-Startzeit-Kennun
 
 =head2 Inverting filters
 
-Am Ende des Filtermenüs findet sich das Untermenü I<Invert>, welches es ermöglicht das Ergebnis der Filterung zu umzudrehen. Es gibt zwei Möglichkeiten: global und individuell.
+Am Ende des Filtermenüs findet sich das Untermenü I<Invert>, welches es
+ermöglicht das Ergebnis der Filterung ins Gegenteil umzukehren (d.h. nur
+die Programme anzuzeigen die sonst ausgefiltert worden wären). Es gibt
+zwei Möglichkeiten: global und individuell.
 
-Wenn Sie die globale Umkehrung (engl. "I<global inversion>") wählen, werden Sie exakt diejenigen Sendungen erhalten, welche ansonsten ausgefiltert würden (ausgenommen Sendungen, die von Ihrer Sender- und Sendezeitwahl permanent ausgefiltert werden). Beachten Sie: durch die Art wie Filter-Shortcuts zusammengeführt werden, wenn mehr als einer gleichzeitig gewählt wurde, ist es in den meisten Fällen nicht angeraten, globales Umkehren für Filter-Shortcuts zu verwenden, solange Sie die Kombinationsregel nicht andern (siehe L<"FILTER SHORTCUTS: Shortcut combination modes">).
+Wenn Sie die globale Umkehrung (engl. "I<global inversion>") wählen,
+werden Sie exakt diejenigen Sendungen erhalten, welche ansonsten
+ausgefiltert würden (ausgenommen Sendungen, die von Ihrer Sender- und
+Sendezeitwahl permanent ausgefiltert werden). Beachten Sie: durch die
+Art wie Filter-Shortcuts zusammengeführt werden, wenn mehr als einer
+gleichzeitig gewählt wurde, ist es in den meisten Fällen nicht
+angeraten, globales Umkehren für Filter-Shortcuts zu verwenden, solange
+Sie die Kombinationsregel nicht ändern (siehe
+L<"FILTER SHORTCUTS: Shortcut combination modes">).
 
 Das Invert-Menü erlaubt ebenso, bestimmte Filtertypen individuell zu invertieren (auch in einigen Filter-Untermenüs gibt es I<Invert>-Buttons mit derselben Funktion). Die Logik hinter der Kombination von Filtern ist dieselbe wie ohne die Invertierung, d.h. es gibt ein logisches ODER zwischen Filtern des gleichen Typs (beispielsweise Sender A ODER Sender B) und ein logischen UND zwischen verschiedenartigen Filtertypen (z.B. Sender A UND Themenkategorie Spielfilm).
 
@@ -616,7 +1091,11 @@ Beachten Sie: obwohl das Feature Filter die Verwendung verschiedener Klassen anb
 
 Es gibt eine Reihe vordefinierter Filteroptionen im Hauptfenster unter der Uhr. Diese so genannten Shortcuts ermöglichen Ihnen, Filter mit einem einzelnen Mausklick zu aktivieren. Sie können beliebig Einträge zu dieser Liste hinzufügen, ändern oder löschen.
 
-Wollen Sie einen Shortcut hinzufügen, stellen Sie zunächst die Filter so ein, wie Sie diese speichern wollen. D.h. wählen Sie entweder vorhandene Shortcuts oder einen Eintrag aus dem Navigationsmenü und/oder fügen Sie Filter aus dem Haupt- oder dem Kontextmenü hinzu. Haben Sie eine interessante Konfiguration gefunden, wählen Sie "I<Add filter shortcut>" aus dem Menü I<Shortcuts>.
+Wollen Sie einen Shortcut hinzufügen, stellen Sie zunächst die Filter so
+ein, wie Sie diese speichern wollen. Wählen Sie also entweder vorhandene
+Shortcuts und/oder fügen Sie Filter aus dem Hauptmenü oder dem
+Kontextmenü hinzu. Haben Sie eine interessante Konfiguration gefunden,
+wählen Sie "I<Add filter shortcut>" aus dem Menü I<Shortcuts>.
 
 Dies wird den Dialog zum Bearbeiten des Shortcuts (der unten detailliert beschrieben wird) mit Ihrem neuen Shortcut am Beginn der linken Liste öffnen. Sie sollten die Shortcut-Kennung im Feld oben rechts ändern; standardmäßig ist es "I<new shortcut>". Die Kennung wird in der Shortcut-Liste im Hauptfenster angezeigt. Sind Sie fertig, drücken Sie den Button I<Save>.  Drücken Sie I<Abort> wenn Sie es sich anders überlegt haben und den Shortcut schließlich doch nicht hinzufügen wollen.
 
@@ -628,7 +1107,15 @@ Wenn Sie einen Shortcut aktualisieren (engl. "I<update>") und Ihre aktuellen Fil
 
 =head2 Editing Filter Shortcuts
 
-Um Namen und/oder die Organisation Ihrer Shortcuts zu ändern, öffnen Sie den I<Edit>-Dialog (z.B. über das Hauptmenü). Auf der linken Seite des Dialogfensters steht eine Liste aller Ihrer Shortcuts. In der Mitte befindet sich eine Reihe von Befehlsbuttons, die mit dem zur Linken markierten Shortcut zusammenarbeiten (unten erklärt). Zur Rechten liegt ein editierbares Feld mit dem Shortcut-Namen, eine nicht-beschreibbare Anzeige der dem Shortcut momentan zugewiesenen Filter-Einstellungen, und Popupmenüs zum Ändern der Filtermaske und der Kombinationsregeln (unten ebenfalls detailliert erklärt).
+Um Namen und/oder die Organisation Ihrer Shortcuts zu ändern, öffnen Sie
+den I<Edit>-Dialog (z.B. über das Hauptmenü). Auf der linken Seite des
+Dialogfensters steht eine Liste aller Ihrer Shortcuts. In der Mitte
+befindet sich eine Reihe von Befehlsknöpfen, die mit dem zur Linken
+markierten Shortcut zusammenarbeiten (unten erklärt). Zur Rechten liegt
+ein editierbares Feld mit dem Shortcut-Namen, eine nicht-beschreibbare
+Anzeige der dem Shortcut momentan zugewiesenen Filter-Einstellungen, und
+Popupmenüs zum Ändern der Filtermaske und der Kombinationsregeln (unten
+ebenfalls detailliert erklärt).
 
 Die Buttons mit den auf/ab-Pfeilen werden den markierten Shortcut nach oben bzw. unten bewegen. Die Buttons mit den nach links oben oder rechts unten zeigenden Pfeilen werden verwendet, um einen Shortcut aus einem Unterordner heraus beziehungsweise in einen hinein zu bewegen.
 
@@ -670,9 +1157,16 @@ B<Tipp:> Noch schneller können Sie einen einzelnen Shortcut ändern indem Sie das
 
 Standardmäßig zeigt die Programmliste für jede Sendung eine Auswahl an elementaren Attributen wie Datum, Startzeit, Titel, TV-Sender. Indem Sie die Composite-Attribute verwenden, können Sie die TV-Programmtabelle Ihren persönlichen Vorlieben entsprechend anpassen. Beispielsweise könnten Sie (1) das Anzeigeformat vordefinierter Attribute verändern (z.B. Farben zur Hervorhebung benutzen), (2) neue Attribute hinzufügen, beispielsweise für Bilder als Kennzeichnung bevorzugter Sendungen, und/oder (3) die Anzeige durch die Kombination verschiedener Attribute in ein einziges verdichten.
 
-Zusammengesetzte Attribute ("composite attribute") ersetzen einzelne Attribute in der Anzeige (z.B. nur die Spalte mit den Themenkategorien). Neu erstellte Composite-Attribute werden an die Liste der vordefinierten Attribute angehängt. Sie können dann Ihre Sendungsliste als eine Mischung aus vordefinierten und Composite-Attributen konfigurieren (siehe L<"CONFIGURATION">, Kapitel "Select attributes").
+Zusammengesetzte Attribute ("composite attribute") ersetzen einzelne
+Attribute in der Anzeige (z.B. nur die Spalte mit den Themenkategorien).
+Neu erstellte Composite-Attribute werden an die Liste der vordefinierten
+Attribute angehängt. Sie können dann Ihre Sendungsliste als eine
+Mischung aus vordefinierten und Composite-Attributen konfigurieren
+(siehe L<"CONFIGURE MENU">, Kapitel "Select attributes").
 
-Composite-Attribute werden über den Dialog "I<Attribute composition>" im I<Configure>-Menü erstellt und bearbeitet (siehe L<"CONFIGURATION">, Kapitel "Attribute composition").
+Composite-Attribute werden über den Dialog "I<Attribute composition>" im
+I<Configure>-Menü erstellt und bearbeitet (siehe L<"CONFIGURE MENU">,
+Kapitel "Attribute composition").
 
 Das "Herz" der Attribut-Komposition ist eine Liste von Filter-Shortcuts und Reminder-Gruppen, die Sie als Auswahl Ihrer persönlichen Filter-Shortcuts und/oder Reminder-Gruppen aufbauen (siehe auch L<"FILTER SHORTCUTS"> und L<"REMINDERS">).
 
@@ -716,7 +1210,14 @@ Alle Änderungen, die in diesem Dialog vorgenommen werden, treten sofort in Kraft
 
 =head2 Reminder group configuration
 
-Öffnet einen Konfigurations-Dialog für Reminder-Gruppen. Jeder Reminder ist genau einer Gruppe zugeordnet, die festlegt welche Aktionen zur Startzeit der Sendungen ausgeführt werden. Gruppen erlauben Ihnen, Aktionen leicht zu ändern (und insbesondere: sie zu deaktivieren, wenn Sie nicht in Stimmung sind, TV zu kucken), ohne jeden einzelnen Reminder editieren zu müssen. Wenn Sie einen neuen Reminder mit dem Menübefehl "I<add reminder>" erstellen, wird dieser immer der ersten Gruppe zugeordnet, d.h. Index 0.
+Öffnet einen Konfigurationsdialog für Reminder-Gruppen. Jeder Reminder
+ist genau einer Gruppe zugeordnet, die festlegt welche Aktionen zur
+Startzeit der Sendungen ausgeführt werden. Gruppen erlauben Ihnen,
+Aktionen leicht zu ändern (und insbesondere: sie zu deaktivieren, wenn
+Sie nicht in Stimmung sind, TV zu kucken), ohne jeden einzelnen Reminder
+editieren zu müssen. Wenn Sie einen neuen Reminder mit dem Menübefehl
+"I<add reminder>" erstellen, wird dieser immer der ersten Gruppe
+zugeordnet, d.h. Index 0.
 
 Standardmäßig hat nxtvepg nur eine Gruppe, die eine Nachricht 5 Minuten vor und direkt zur Startzeit auftauchen lässt. Sie können dies ändern, indem Sie die Gruppe in der linken Liste auswählen und dann die Parameter rechts modifizieren. Oder erstellen Sie einen neuen Reminder durch eine Klick auf I<New>. Ebenso können Sie die Sortierreihenfolge der Gruppen ändern (nur aus Komfortgründen vorhanden; außer für Gruppe Null ist die Reihenfolge irrelevant). Der Button I<Show> setzt einen Filter für die Programmliste, sodass nur Sendungen angezeigt werden, die auf Reminder in der gleichen Gruppe zutreffen, wie der aktuell gewählte Shortcut.
 
@@ -756,21 +1257,40 @@ Dieser Menüeintrag wird einen Reminder für die aktuell gewählte Sendung hinzufüg
 
 =item B<Benutzerdefinierte Einträge>
 
-Die optionale, vierte Sektion ist standardmäßig leer, kann aber dazu verwendet werden, benutzerdefinierte externe Programme für die selektierte Sendung aufzurufen. Genauer gesagt können Sie auf ihrer Befehlszeile Parameter (wie beispielsweise Titel oder Startzeit) der gewählten Sendung einschließen. Die Befehle können über ein Konfigurationsmenü hinzugefügt werden (siehe L<"CONFIGURATION">, Kapitel "Context menu configuration").
+Die optionale, vierte Sektion ist standardmäßig leer, kann aber dazu
+verwendet werden, benutzerdefinierte externe Programme für die
+selektierte Sendung aufzurufen. Genauer gesagt können Sie auf ihrer
+Befehlszeile Parameter (wie beispielsweise Titel oder Startzeit) der
+gewählten Sendung einschließen. Die Befehle können über ein
+Konfigurationsmenü hinzugefügt werden (siehe L<"CONFIGURE MENU">,
+Kapitel "Context menu configuration").
 
 =back
 
-=head1 CONTROL
+=head1 CONTROL MENU
 
 Übersicht der im Control-Menü verfügbaren Befehle:
 
 =head2 Load XMLTV file
 
-Öffnet den Dialog Laden von EPG Daten aus einer Datei im XMLTV format. Dieser Dialog zeigt alle XMLTV Dateien im Verzeichnis an das im Eingabefeld an der Oberseite des Dialogfensters ausgewählt ist. Ein anderes Verzeichnis kann mit Click auf den Knopf ganz rechts neben dem Eingabefeld gewählt werden. Der Verzeichnisname kann auch manuell editiert werden; Nach Drücken der Return-Taste wird die Liste der Dateien aktualisiert. (Zu beachten ist dass nur Dateien mit Endung ".xml" und gültigem XMLTV Schema in der Liste angezeigt werden.)
+Öffnet den Dialog Laden von EPG Daten aus einer Datei im XMLTV Format.
+Dieser Dialog zeigt alle XMLTV Dateien im Verzeichnis an das im
+Eingabefeld an der Oberseite des Dialogfensters ausgewählt ist. Ein
+anderes Verzeichnis kann mit Klick auf den Knopf ganz rechts neben dem
+Eingabefeld gewählt werden. Der Verzeichnisname kann auch manuell
+editiert werden; Nach Drücken der Return-Taste wird die Liste der
+Dateien aktualisiert. (Zu beachten ist dass nur Dateien mit Endung
+".xml" und gültigem XMLTV Schema in der Liste angezeigt werden.)
 
-Wurde eine Datei in der Liste durch Anclicken selektiert, werden in dieser XML Datei enthaltenen Informationen über die Quelle der Daten die Liste der abgedeckten Sender rechts im Dialogfenster angezeigt. Durch Doppelclick auf einen Dateinamen, oder den OK Knopf, wird die ausgewählte XMLTV Datei in den Browser geladen.
+Wurde eine Datei in der Liste durch Anklicken selektiert, werden in
+dieser XML Datei enthaltenen Informationen über die Quelle der Daten die
+Liste der abgedeckten Sender rechts im Dialogfenster angezeigt. Durch
+Doppelklick auf einen Dateinamen, oder den OK Knopf, wird die
+ausgewählte XMLTV Datei in den Browser geladen.
 
-Wurde die Datenbank über längere Zeit nicht aufgefrischt, kann die Programmliste leer sein. In dem Fall sollten Sie den zur Erstellung der Datei verwendeten EPG-grabber nochmals starten.
+Wurde die Datenbank über längere Zeit nicht aufgefrischt, kann die
+Programmliste leer sein. In dem Fall sollten Sie den zur Erstellung der
+Datei verwendeten EPG Grabber nochmals starten.
 
 =head2 Merge XMLTV files
 
@@ -780,23 +1300,54 @@ Wurde die Datenbank über längere Zeit nicht aufgefrischt, kann die Programmliste
 
 Führt alle vom Teletext EPG Grabber erzeugten XMLTV Dateien zusammen und zeigt diese an. Welche Programme abgedeckt sind, wird über die Programmwahl in der Teletext Grabber Konfiguration bestimmt. Diese Option ist vorausgewählt wenn beim Start keine XMLTV Daten geladen wurden.
 
-Diese Option kann schon ausgeählt werden wenn der Teletext Grabber noch keine Daten geladen hat. In dem Fall wird nur das nxtvepg Logo und ein entsprechender Hinweis angezeigt. Sobald Daten von einem Sender geladen wurden, werden diese automatisch angezeigt. Während der Wartezeit können Sie den Fortschritt über die im Control Menü verfügbaren "Statistik" Fenster verfolgen.
+Diese Option kann schon ausgewählt werden wenn der Teletext Grabber noch
+keine Daten geladen hat. In dem Fall wird nur das nxtvepg Logo und ein
+entsprechender Hinweis angezeigt. Sobald Daten von einem Sender geladen
+wurden, werden diese automatisch angezeigt. Während der Wartezeit können
+Sie den Fortschritt über die im Control Menü verfügbaren "Statistik"
+Fenster verfolgen.
 
 Diese Option ist äquivalent zum manuellen Zusammenführen der vom Teletext EPG Grabber erzeugten Dateien über "Merge XMLTV files", wenn in diesem Dialog die Option "Add all Teletext EPG data" gewählt wird, außer daß dies nicht möglich ist bevor wenigstens eine Datei erzeugt wurde.
 
 =head2 Enable acquisition
 
-Schaltet die Teletext-EPG Datenakquisition temporär an oder aus. Diese Option ist nur wählbar wenn der Teletext EPG grabber konfiguriert wurde (siehe L<"CONFIGURATION">, Kapitel "Teletext grabber") und eine TV-Karte verfügbar ist.
+Schaltet die Teletext-EPG Datenakquisition temporär an oder aus. Diese
+Option ist nur wählbar wenn der Teletext EPG Grabber konfiguriert wurde
+(siehe L<"CONFIGURE MENU">, Kapitel "Teletext Grabber") und eine
+TV-Karte verfügbar ist.
 
-Wenn Sie den Browser starten, wird die Akquisition automatisch aktiviert falls die entsprechende Option im Teletext-Grabber Konfirmationsmenü angwählt wurde. Sie können den automatischen Start temporär unterdrücken, indem Sie Befehlszeilenschalter B<-noacq> auf der Kommandozeile angeben. Das Abschalten der Akquisition erlaubt anderen Anwendungen, wie z.B. einer TV-Applikation, die TV-Karte zu nutzen und TV-Kanäle zu wechseln.
+Wenn Sie den Browser starten, wird die Akquisition automatisch aktiviert
+falls die entsprechende Option im Teletext-Grabber Konfigurationsmenü
+angwählt wurde. Sie können den automatischen Start temporär
+unterdrücken, indem Sie Befehlszeilenschalter B<-noacq> auf der
+Kommandozeile angeben. Das Abschalten der Akquisition erlaubt anderen
+Anwendungen, wie z.B. einer TV-Applikation, die TV-Karte zu nutzen und
+TV-Kanäle zu wechseln.
 
 Sie werden eine Fehlermeldung erhalten, wenn das Gerät bereits von einer anderen Anwendung belegt ist. Ebenso erhalten Sie eine Fehlermeldung, wenn Sie keine Berechtigung besitzen auf das Gerät zuzugreifen (UNIX, siehe auch L<"FILES">) bzw. den Treiber zu starten (Windows). Bei vermuteten Treiber- oder Empfangsproblemen, testen Sie am Besten zuerst mit einer TV-Anwendung, da diese mit Hilfe des TV-Bilds eine leichtere Fehlerdiagnose erlaubt. Siehe auch L<"GETTING STARTED">.
 
-UNIX: Wird die Akquisition ausgeschaltet, wird auch das I</dev/vbi> device freigegeben. Die Akquisition kann auch automatisch an- und ausgeschalten werden (d.h. von einem Shell-Skript aus) indem man das Signal HUP (z.B. mit dem Befehl kill(1)) an einen der nxtvepg-Prozesse oder -Threads sendet. Sollten Sie einen Daemon zur Akquisition benutzen (siehe nächster Befehl), müssen Sie das Signal an einen der Daemon-Prozesse/-Threads senden. Um dies zu vereinfachen, wird die "PID" des Prozesses der den Device geöffnet hält in F</tmp/.vbi.pid> gespeichert.
+UNIX: Wird die Akquisition ausgeschaltet, wird auch das I</dev/vbi>
+device freigegeben. Die Akquisition kann auch automatisch an- und
+ausgeschaltet werden (d.h. von einem Shell-Skript aus) indem man das
+Signal HUP (z.B. mit dem Befehl kill(1)) an einen der nxtvepg-Prozesse
+oder -Threads sendet. Sollten Sie einen Daemon zur Akquisition benutzen
+(siehe nächster Befehl), müssen Sie das Signal an einen der
+Daemon-Prozesse/-Threads senden. Um dies zu vereinfachen, wird die "PID"
+des Prozesses der den Device geöffnet hält in F</tmp/.vbi.pid>
+gespeichert.
 
 =head2 Connect to acq. daemon
 
-Starten oder trennen Sie die Verbindung zwischen dem Browser und einem im Hintergrund laufenden Akquisitions-Daemon. Der Daemon kann auf dem gleichen Host oder sonst wo im lokalen Netzwerk laufen. Die Adresse des Daemons und andere Parameter werden im I<Client/Server>-Menü konfiguriert (siehe L<"CONFIGURATION">, Kapitel "Client/Server"). Standardmäßig wird der Daemon lokal gestartet. Der Hauptvorteil des Gebrauchs eines Daemon ist, dass Sie die Akquisition permanent im Hintergrund laufen lassen können, auch wenn Sie den Browser (oder auf UNIX den X11-Server, d.h. das "windowing system") beenden. In M$ Windows wird der Daemon beendet, wenn Sie sich ausloggen.
+Starten oder trennen Sie die Verbindung zwischen dem Browser und einem
+im Hintergrund laufenden Akquisitions-Daemon. Der Daemon kann auf dem
+gleichen Host oder sonst wo im lokalen Netzwerk laufen. Die Adresse des
+Daemons und andere Parameter werden im I<Client/Server>-Menü
+konfiguriert (siehe L<"CONFIGURE MENU">, Kapitel "Client/Server").
+Standardmäßig wird der Daemon lokal gestartet. Der Hauptvorteil des
+Gebrauchs eines Daemon ist, dass Sie die Akquisition permanent im
+Hintergrund laufen lassen können, auch wenn Sie den Browser (oder auf
+UNIX den X11-Server, d.h. das "windowing system") beenden. In M$ Windows
+wird der Daemon beendet, wenn Sie sich ausloggen.
 
 Wenn Sie versuchen zu verbinden, aber der Daemon läuft noch nicht, wird Ihnen angeboten den Daemon automatisch zu starten, vorausgesetzt Sie haben den Server-Hostnamen I<localhost> konfiguriert. Der Daemon wird mit denselben Datenbank- und rcfile-Pfaden wie der Browser gestartet.
 
@@ -816,9 +1367,13 @@ Blendet das Zeitskalenfenster für die Browserdatenbank ein und aus. Das Fenster 
 
 Blendet das Statistikfenster für die Browser-Datenbank ein oder aus.  Die Statistik gibt Auskunft über die Anzahl der Programmeinträge in der Datenbank, den prozentualen Füllungsgrad, den Prozentsatz der abgelaufenen Einträge, das Datum des letzten Updates usw.  Läuft die Akquisition auf der gleichen Datenbank, enthält es zusätzlich Information zu Status und Fortschritt der Akquisition. Für Details siehe L<"STATISTICS">, Abschnitt "Database statistics">.
 
-=item B<Teletext grabber statistics>
+=item B<Teletext Grabber Statistics>
 
-Blendet das Statistikfenster für den Teletext EPG Grabber ein oder aus. Dieses gibt über Status und Fortschritt der Akquisition Auskunft. Zusätzlich werden Statistiken über Teletextdatenempfang aus den aktuell eingestellten TV-Programmen angezeigt.  Für Details siehe L<"STATISTICS">, Abschnitt "Teletext grabber statistics".
+Blendet das Statistikfenster für den Teletext EPG Grabber ein oder aus.
+Dieses gibt über Status und Fortschritt der Akquisition Auskunft.
+Zusätzlich werden Statistiken über Teletextdatenempfang aus den aktuell
+eingestellten TV-Programmen angezeigt.  Für Details siehe
+L<"STATISTICS">, Abschnitt "Teletext Grabber statistics".
 
 =back
 
@@ -886,7 +1441,12 @@ B<Tipp:> Die Dateien können auch direkt über die Befehlszeile mittels der Schalt
 
 B<Tipp:> Sie können die Menge der exportierten Daten einschränken indem Sie eine zusammengeführte Datenbank konfigurieren. Dies ist auch für einen einzelnen Provider möglich. Auf diese Weise können Sie bestimmte Sender oder Attribute ausschließen, z.B. um Themen-Kategorien von der Ausgabe auszuschließen (siehe Untermenü I<Configure> im Dialog der Merge-Konfiguration). Siehe auch unten für Alternativen beim Export über die Komandozeile.
 
-Einige TV-Anwendungen sind dafür bekannt, XMLTV-Timestamps nicht korrekt auszuwerten. Um diese Probleme zu umgehen gibt es eine Option, die erlaubt, Datumsangaben und Uhrzeiten in lokaler Zeit anstatt UTC (auch bekannt als I<Greenwhich Mean Time> oder GMT) zu exportieren. Erscheinen alle Programmdaten um eine oder zwei Stunden verschoben in Ihrer TV-Anwendung, versuchen Sie es mit dieser Option.
+Einige TV-Anwendungen sind dafür bekannt, XMLTV-Zeitstempel nicht
+korrekt auszuwerten. Um diese Probleme zu umgehen gibt es eine Option,
+die erlaubt, Datumsangaben und Uhrzeiten in lokaler Zeit anstatt UTC
+(auch bekannt als I<Greenwich Mean Time> oder GMT) zu exportieren.
+Erscheinen alle Programmdaten um eine oder zwei Stunden verschoben in
+Ihrer TV-Anwendung, versuchen Sie es mit dieser Option.
 
 B<Tipp:> Die Datenbank kann auch direkt über die Befehlszeile mittels des Schalters B<-dump xml> exportiert werden. Dabei können sie auch eine oder mehrere B<-epgquery> Optionen anfügen um den Export auf ausgewählte Sender oder Programme einzuschränken (für Details siehe L<"OPTIONS">)
 
@@ -894,7 +1454,12 @@ B<Tipp:> Die Datenbank kann auch direkt über die Befehlszeile mittels des Schalt
 
 Öffnet einen Dialog, der erlaubt, die komplette Datenbank oder markierte Sendungen in eine Datei im HTML-Format (Hypertext Markup Language) zu exportieren. Die Datei kann dann in einen WWW-Browser geladen werden, z.B. I<Mozilla> oder I<Opera>. Dies ist insbesondere nützlich, wenn Sie Ihre TV-Beschreibungen ausdrucken wollen.
 
-Oben im Dialogfenster müssen Sie den Namen der Ausgabedatei eingeben; wenn Sie Ihr keine Erweiterung geben, wird automatisch ein I<.html> angehängt. Klicken Sie auf den kleinen Ordnerbutton rechts daneben, um einen Dialog zur Dateiwahl zu offnen. Drücken Sie den Button I<Export>, um das HTML-Dokument zu erstellen und I<Dismiss>, um das Dialogfenster zu schließen.
+Oben im Dialogfenster müssen Sie den Namen der Ausgabedatei eingeben;
+wenn Sie Ihr keine Erweiterung geben, wird automatisch ein I<.html>
+angehängt. Klicken Sie auf den kleinen Verzeichnisauswahlknopf rechts
+daneben, um einen Dialog zur Dateiauswahl zu öffnen. Drücken Sie den
+Button I<Export>, um das HTML-Dokument zu erstellen und I<Dismiss>, um
+das Dialogfenster zu schließen.
 
 Standardmäßig ist die Checkbox "I<All matching programmes, but max ...>" aktiviert. In diesem Modus werden alle Sendungen exportiert, die auf die aktuellen Filter-Einstellungen zutreffen, jedoch nur bis zur angegebenen Maximalzahl an Sendungen. Es wird empfohlen die Zahl der Sendungen immer zu beschränken, da sonst sehr große HTML-Dokumente erzeugt werden, was zu einer langen Ladezeit in Ihrem Web-Browser führen kann.
 
@@ -912,34 +1477,171 @@ B<Tipp:> Die HTML Datei kann auch direkt über die Befehlszeile mittels des Schal
 
 =head2 Quit
 
-Schließt alle Fenster und beendet die Anwendung. Wurde die Akquisition als Daemon gestartet, wird dieser nicht beendet (siehe L<"CONTROL: Connect to acq. daemon">).
+Schließt alle Fenster und beendet die Anwendung. Wurde die Akquisition
+als Daemon gestartet, wird dieser nicht beendet
+(siehe L<"CONTROL MENU: Connect to acq. daemon">).
 
-=head1 CONFIGURATION
+=head1 CONFIGURE MENU
 
 Übersicht der im Configure-Menü verfügbaren Befehle:
 
-=head2 Teletext grabber
+=head2 Teletext Grabber
 
-Öffnet einen Dialog, mit dem der Teletext EPG Grabber eingeschaltet und konfiguriert werden kann.  Um EPG Daten aus dem Teletext zu laden, werden reihum alle TV-Kanäle eingestellt, die TV-Übersichtsseiten gelesen (für deutsche Sender meist 301-399) und daraus eine Programmliste erstellt. Falls für einzelne Programme Referenzen auf weitere Teletext-Seiten angegeben sind, wird versucht von dort Beschreibungstexte zu laden.  Die Ausgabe des Teletext-Grabbers erfolgt in einzelne Dateien im XMLTV-Format. Für jeden TV-Sender wird eine getrennte XML Datei angelegt.
+Öffnet einen Dialog, mit dem der Teletext EPG Grabber eingeschaltet und
+konfiguriert werden kann. Eine Einführung zur Funktionsweise und
+Verwendung des Grabbers findet sich in Kapitel L<"TELETEXT EPG GRABBER">.
 
-Um die vom Grabber gesammelten Daten anzuzeigen, wählen Sie am einfachsten den "Load Teletext EPG" Eintrag im "Control" Menü. Alternative können Sie die vom Grabber erzeugten XMLTV Dateien manuell oder automatisch über den "Merge" Dialog im selben Menü einbinden.
+Der oberste Knopf I<Enable teletext grabber> im Dialogfenster schaltet
+den Teletext EPG Akquisition global ein oder aus. Die anderen Elemente
+des Dialogs sind nur bedienbar wenn dieser Knopf aktiviert ist.
 
-Ein Nachteil dieses Grabbers ist die lange Ladezeit. Diese kommt hauptsächlich dadurch zustande, dass die TV-Übersicht auf mehrere Unterseiten einzelner Teletext-Seiten verteilt sind. Dadurch werden mehrere Teletext-Zyklen für jeden TV-Sender benötigt um alle relevanten Seiten zu laden, meist mindestens 90 - 120 Sekunden. Bei Empfang via DVB ist jedoch paralleler Empfang von Sendern auf demselbem Transponder möglich, was die Ladezeit um Faktor 5 bis 8 beschleunigen kann.  Ein weiteres zentrales Problem besteht darin dass die TV-Übersicht kein einheitliches Format hat, so dass die Erkennung nicht immer zuverlässig arbeiten kann. Insbesondere können aktuell keine Themenkategorien erkannt werden.  Dieser Nachteil kann jedoch überwunden werden, indem die aus dem Teletext gewonnenen Daten anderer Quellen vereinigt werden (siehe L<"MERGED DATABASES">)
+Wenn der Knopf I<Start acquisition automatically> aktiviert ist, startet
+die Teletext EPG Akquisition automatisch sobald der Dialog mittels "Ok"
+geschlossen wird als auch bei jedem Neustart von nxtvepg. Wenn die
+Option nicht aktiviert ist, kann die EPG Akquisition jederzeit manuell
+über den Befehl I<Enable acquisition> im L<"CONTROL"> Menü gestartet
+werden.
 
-Falls Sie noch keine TV-Applikation konfiguriert haben wird beim Start des Grabbers eine diesbezügliche Fehlermeldung erscheinen, denn der Grabber benötigt eine TV-Kanaltabelle. Der Grabber liest EPG Daten ab dem ersten in der Tabelle gelisteten Sender und danach der Reihe nach die folgenden Sender. Diese Reihenfolge läßt sich momentan noch nicht ändern, jedoch können Sie die Anzahl der Sender begrenzen.
+Im unter den beiden Knöpfen befindlichen Rahmen "Teletext options"
+befinden folgende Optionen:
 
-Tipp: Wenn der Akquisitionsmodus "Cyclic: Now - All" selektiert ist (siehe auch L<"DATA ACQUISITION">) wird während der "Now" Phase eine optimierte Strategie verwendet bei der die Reihenfolge der Sender so gelegt wird dass Wartezeiten minimiert werden. Damit kann ein Schnitt von 15-20 Sekunden pro Sender erreicht werden.  In der "Full" Phase werden dann immer für die bei I<capture duration> angegebene Zeit Teletext-Daten gelesen; normalerweise sind dies 90 Sekunden (solch eine lange Zeit ist nötig da viele Sender die Programminfos auf Unterseiten legen, die nicht in jedem Teletextzyklus enthalten sind.)
+=over 4
 
+=item I<Number of TV channels to grab>
+
+Dies ist die wichtigste Option in dieser Sektion, da hier festgelegt
+wird von welchen TV-Sendern der Grabber Teletext empfangen und in die
+Anzeige geladen wird. Der Wert im Eingabefeld wählt dafür die Anzahl der
+Sender ab dem Beginn der konfigurierten TV-Kanalliste aus (siehe unten;
+Radiosender werden dabei nicht mitgezählt).
+
+Sie sollten den Wert von der Voreinstellung von 100 Sendern auf die Zahl
+der für Sie interessanten Sender reduzieren. Dies setzt jedoch voraus,
+dass Sie die TV-Kanalliste so sortiert haben, dass interessante Sender
+am Anfang stehen. Andernfalls kann es sein dass sie den Wert erhöhen
+müssen; dies wird jedoch die vom Grabber benötigte Ladezeit erhöhen.
+
+Für TV-Sender die keinen Teletext ausstrahlen wird der Grabber keine
+XMLTV Dateien erzeugen. Der Grabber ist nicht in der Lage den
+Zusammenhang zwischen den Normal- und HD-Versionen der TV-Sender zu
+erkennen, daher werden EPG Daten doppelt angelegt falls beide Versionen
+im ausgewählten Bereich der Kanalliste liegen.
+
+=item I<Capture page range>
+
+Diese Option legt fest, welche Seiten aus dem Teletext geladen werden.
+Der Grabber wird auf diesen Seiten nach TV-Programmübersichtstabellen
+suchen. Um die Wahrscheinlichkeit von Fehldetektion zu reduzieren
+empfiehlt es sich den Bereich auf das nötigste einzuschränken. Aktuell
+käßt sich die Einstellung jedoch nur global für alle Sender vornehmen,
+so daß der Bereich so gewählt werden muß dass er für Programmübersicht
+verwendete Teletextseiten aller TV-Sender einschließt.
+
+=item I<Capture duration>
+
+Diese Option legt die Zeit in Sekunden fest für die Teletext von jedem
+ausgewählten TV-Sender geladen wird (bzw. für jeden Transponder bei
+DVB). Zu beachten ist, dass fast alle TV-Sender Mehrfachseiten für die
+Programmübersicht verwenden, so dass mehrere Seitenzyklen benötigt
+werden um alle benötigten "Unterseiten" zu laden. Der voreingestellte
+Wert von 120 Sekunden ist für TV-Sender die z.B. 8 Unterseiten verwenden
+schon an der unteren Grenze. Falls Sie Lücken in den
+Programminformationen solcher Sender bemerken, sollten Sie die
+Einstellung hier erhöhen.
+
+=item I<Keep expired programmes>
+
+Diese Option legt fest, wie lange nach Ende einer TV-Sender die
+Programminformationen aus der XMLTV Datei gelöscht werden. Diese
+Löschung erfolgt automatisch bei jeder Aktualisierung, damit die
+Dateigröße nicht ins unendliche wächst. Siehe auch Abschnitt "Expired
+Programmes Display" im Kapitel L<"FILTERING"> dazu wie man abgelaufene
+Programminformationen noch einsehen kann.
+
+=back
+
+Im zweiten Rahmen des Konfigurationsdialogs wird festgelegt von wo die
+TV-Kanalliste geladen wird. Der Teletext Grabber benötigt diese um die
+Namen und Frequenzen der zu bearbeitenden Sender zu ermitteln um von
+dort Teletext zu empfangen. nxtvepg selber ermöglicht nicht eine solche
+Tabelle anzulegen, da davon ausgegangen wird dass Sie bereits eine
+solche Liste in einer TV-Applikation erstellt haben. Daher wird hier die
+Möglichkeit geboten, diese wiederzuverwenden.
+
+nxtvepg kann die Kanallisten der gebräuchlichsten TV-Applikationen
+lesen. Nach Auswahl einer TV-Applikation aus dem Menü wird nxtvepg
+versuchen die Kanaltabellendatei automatisch zu finden. Falls der Pfad
+nicht im Eingabefeld unterhalb des Auswahlmenüs erscheint, klicken Sie
+bitte auf das Verzeichnissymbol neben dem Eingabefeld und geben Sie den
+Pfad manuell an (bei DVB heißt diese Datei meist C<channels.conf>).
+Danach kann der I<Test> Knopf verwendet werden um zu prüfen ob nxtvepg
+die Kanaltabelle aus der Datei auslesen kann. Falls Sie Ihre
+TV-Applikation nicht in der Liste finden, können Sie versuchen die
+Kanallistendatei mit einer anderen TV-Applikationseinstellung zu laden.
+(Für Linux können Sie zur Not das externe Tool I<w_scan> verwenden um
+eine neue Kanalliste im VDR oder mplayer Format zu erzeugen.)
+
+Im dritten Rahmen I<Acquisition mode> kann eine Strategie für
+Akquisition von EPG Daten ausgewählt werden. Die hier angebotenen
+Optionen sind im Abschnitt "Acquisition modes" im Kapitel
+L<"TELETEXT EPG GRABBER"> beschrieben.
+
+Mit dem untersten Knopf I<Keep teletext raw capture data> des
+Dialogfensters kann eingestellt werden dass der Grabber die empfangenen
+Teletextseiten in einer Datei mit Endung ".dat" neben den normalerweise
+erzeugten ".xml" Dateien abspeichert (siehe auch Kapitel L<"FILES">).
+Die Dateien enthalten die rohen Teletextdaten in unverarbeiteter Form.
+Die Dateien sind in Textform und können mit jedem Texteditor geöffnet
+werden. Der Seiteninhalt ist i.d.R. erkennbar, wenn auch mit
+Sonderzeichen durchsetzt, da etwa Umlaute und Farbkodierung in Teletext
+speziell kodiert sind.
+
+Diese Dateien können benutzt werden um Fehler bei der Extraktion von EPG
+zu analysieren. Die Verbindung zwischen Programminformationen in der
+XMLTV Datei kann über in Kommentaren innerhalb der "E<lt>programmeE<gt>"
+Tags hergestellt werden: Der Kommentar oberhalb des Programmtitels gibt
+die Teletextseite an auf der die Programmübersicht gefunden wurde. Der
+Kommentar oberhalb des Beschribungstext die Zusatzseite der diese
+Information entstammt. Zum Debuggen der Extraktion sollte am besten die
+auf der nxtvepg Homepage erhältliche Kommandozeilenversion des Grabbers
+I<tv_grab_ttx> verwendet werden. Die Datei kann mit folgendem Kommando
+geladen werden: C<tv_grab_ttx -debug -verify FILENAME.dat>.
 
 =head2 TV channel scan
 
-Öffnet einen Dialog mit dem alle TV-Kanäle auf Teletextübertragung geprüft werden können. Dies ist jedoch nur informativ und für die Funktion des Teletext-EPG grabbers nicht erforderlich. Bedenken Sie, dass der Scan nur funktionieren kann, wenn sie den internen TV-Tuner als Video-Input eingestellt haben. Siehe auch L<"GETTING STARTED"> und die folgenden Kapitel zur Konfiguration der TV-Karte.
+Öffnet einen Dialog mit dem alle TV-Kanäle auf Teletextübertragung
+geprüft werden können. Dies ist jedoch nur informativ und für die
+Funktion des Teletext EPG Grabbers nicht erforderlich. Bedenken Sie,
+dass der Scan nur funktionieren kann, wenn sie den internen TV-Tuner als
+Video-Input eingestellt haben. Siehe auch L<"GETTING STARTED"> und die
+folgenden Kapitel zur Konfiguration der TV-Karte.
 
-Der Button "I<Use TV app.>" wird automatisch ausgewählt, wenn eine TV-Anwendung im Dialog "I<TV app. interaction>" eingestellt wurde. Anstatt alle möglichen TV-Kanäle oder -Frequenzen in allen Bändern zu durchsuchen, wird nxtvepg dann lediglich die dort definierten TV-Kanäle überprüfen. So wird die Suche nicht nur verkürzt, sondern auch zuverlässiger.
+Der Button "I<Use TV app.>" wird automatisch ausgewählt, wenn eine
+TV-Anwendung im Dialog "I<TV app. interaction>" eingestellt wurde.
+nxtvepg wird dann lediglich die dort definierten TV-Kanäle
+überprüfen. So wird die Suche nicht nur verkürzt, sondern auch
+zuverlässiger. Für DVB wird nur dieser Modus unterstützt.
 
-Andernfalls wird die Suche auf allen möglichen Empfangsfrequenzen in verschiedenen Frequenzbändern durchgeführt. Dies ist nur bei analogen TV-KArten unterstützt. In Frankreich sollte die französische Frequenztabelle (welche gleichzeitig die I<Secam L> TV-Norm impliziert) für die Sendersuche ausgewählt werden. In allen anderen Ländern sollte die Standard-Frequenztabelle ausgewählt werden. Letztere deckt alle üblichen westeuropäischen Frequenzen in Kabel- und Antennenausstrahlung mit PAL TV-Norm ab. Andere Länder werden für diesen Modus zurzeit nicht unterstützt. In einer Gegend, in der sowohl PAL- als auch SECAM-Sender empfangen werden können, sollte die Suche zweimal mit verschiedenen Frequenztabellen ausgeführt werden.
+Für analoge TV-Karten wird die Suche wenn keine TV-Sendertabelle
+konfiguriert wurde auf allen möglichen Empfangsfrequenzen in
+verschiedenen Frequenzbändern durchgeführt. In Frankreich sollte die
+französische
+Frequenztabelle (welche gleichzeitig die I<Secam L> TV-Norm impliziert)
+für die Sendersuche ausgewählt werden. In allen anderen Ländern sollte
+die Standard-Frequenztabelle ausgewählt werden. Letztere deckt alle
+üblichen westeuropäischen Frequenzen in Kabel- und Antennenausstrahlung
+mit PAL TV-Norm ab. Andere Länder werden für diesen Modus zurzeit nicht
+unterstützt. In einer Gegend, in der sowohl PAL- als auch SECAM-Sender
+empfangen werden können, sollte die Suche zweimal mit verschiedenen
+Frequenztabellen ausgeführt werden.
 
-Setzen Sie ein Häkchen an der Checkbox I<Slow>, wenn Sie auf manchen Kanälen einen schlechten Empfang haben. Im Slow-Modus wird der Suchlauf Kanäle mit "instabilem" Videosignal nicht überspringen (d.h. kein PLL H-lock innerhalb 150 Millisekunden) und auf alles doppelt so lange als sonst warten, d.h. bis zu 4 Sekunden auf eine VPS/PDC-Kanal-Identifikation und bis zu 90 Sekunden auf ein EPG wenn potentielle EPG-Datenpakete gefunden wurden. Zu bemerken ist, dass Sie die Einstellung "Slow" auch während des Suchlaufs ändern können.
+Setzen Sie ein Häkchen an der Checkbox I<Slow>, wenn Sie auf manchen
+Kanälen einen schlechten Empfang haben. Im Slow-Modus wird der Suchlauf
+Kanäle mit "instabilem" Videosignal nicht überspringen (d.h. kein PLL
+H-lock innerhalb 150 Millisekunden) und auf alles doppelt so lange als
+sonst warten, d.h. bis zu 4 Sekunden auf eine VPS/PDC
+Kanalidentifikation. Zu bemerken ist, dass Sie die Einstellung "Slow"
+auch während des Suchlaufs ändern können.
 
 Technische Details des EPG-Suchlaufs: Der Suchlauf wird jede physikalische TV-Frequenz (oder Teilmengen davon, wenn Sie eine der unten beschriebenen Optionen verwenden) aufsuchen und auf ein TV-Signal überprüfen. Wird ein solches innerhalb 150 ms erkannt oder wurde mindestens ein Teletext-Paket empfangen, wird der Suchlauf bis zu zwei Sekunden auf eine gültige VPS/PDC-Kanal-Identifizierung warten. Diese Information erscheint dann im Protokollfenster. Die gefundenen Informationen werden von nxtvepg aktuell nicht ausgewertet, sind also nur zur Information des Benutzers.
 
@@ -947,29 +1649,67 @@ Technische Details des EPG-Suchlaufs: Der Suchlauf wird jede physikalische TV-Fr
 
 Öffnet einen Dialog, in dem die Parameter der Hardware der TV-Karte konfiguriert werden können.
 
-Dieser Dialog enthält unter Windows mehr Optionen als auf UNIX, da der Treiber unter UNIX Teil des Betriebssystems ist, bei Windows dagegen Teil der Applikation.  Bei Windows muss der Treiber daher für jede Anwendung erneut konfiguriert werden. Sie müssen Ihre Karte im Unterdialog "I<Configure card>" konfigurieren bevor Sie nxtvepg nutzen können. Bitte sehen Sie in L<"GETTING STARTED"> nach einer Beschreibung dieses Dialogs.
+Im oberen Teil des Dialogfensters wird die TV-Karte ausgewählt. Zuerst
+sollte über die Knöpfe ein Kartentyp ausgewählt werden: Digital TV steht
+für DVB Karten (die die aktuellen Übertragungsstandards), Analog TV für
+PAL/SECAM (d.h. die älteren, in Europa nicht mehr für TV verwendeten
+Übertragungsstandards). Nach der Auswahl wird der vom Treiber
+identifizierte Name der TV-Karte oberhalb angezeigt.
 
-"I<Video source>" erlaubt die Wahl der Quelle des Video-Inputs, d.h. wo Sie ein Kabel für den Video-Eingang mit Ihrer TV-Karte verbunden haben: I<Tuner> oder I<Television> verweist auf einen Eingang via Antennenkabel (auch als UHF/VHF- oder BK-Kabel bekannt, d.h. terrestrischer Empfang oder Kabel-TV); I<Composite> verweist auf ein Cinch-Video-Kabel wie es von Satelliten-Receivern oder billigen Video-Rekordern verwendet wird; I<S-Video> ist eine Variante von Composite mit besserer Bildqualität (oft fälschlich S-VHS-Kabel genannt, weil es meistens von S-VHS-Recordern verwendet wird) und leicht zu erkennen an den Sub-D-Anschlüssen (in deutsch "Hosidenstecker" genannt). Abhängig von Ihrer Hardware werden Sie nur eine Teilmenge dieser Input-Typen sehen oder zusätzliche (z.B. I<Radio>, welches jedoch nicht als Input für nxtvepg brauchbar ist).
+Haben Sie mehr als eine TV-Tunerkarte in Ihrem Rechner, können Sie
+wählen, welche Sie nutzen wollen. Dieselbe Auswahl wird über die
+Befehlszeilenoption B<-card> getroffen (siehe L<"OPTIONS">). Das
+Popupmenü wird Ihnen alle Kartentypen - wie im Treiber konfiguriert -
+auflisten. Zu bemerken ist, dass sich das Ändern der Karte ebenso auf
+die folgende Input-Wahl auswirken wird, insbesondere wenn die Karten
+unterschiedliche Sortierreihenfolgen der Input-Typen besitzen.
 
-Zu beachten ist, dass wenn nicht der TV-Tuner als Eingabe gewählt wird, nxtvepg nicht automatisch auf den Sender Ihres EPG-Anbieters umschalten kann. Siehe auch L<"DATA ACQUISITION">.
+Die Auswahl I<Video source> erlaubt die Wahl der Quelle des
+Video-Inputs, d.h. wo Sie ein Kabel für den Video-Eingang mit Ihrer
+TV-Karte verbunden haben. Die Anschlußbezeichnungen werden vom Treiber
+Ihrer TV-Karte bestimmt, daher können die Begriffe variieren: I<Tuner>
+oder I<Television> verweist auf einen Eingang via Antennenkabel (d.h.
+terrestrischer Empfang, Satellit oder Kabel-TV); I<Composite> verweist
+auf ein Cinch-Video-Kabel, wie es von externen Satelliten-Receivern oder
+billigen Video-Rekordern verwendet wird; I<S-Video> ist eine Variante
+von Composite mit besserer Bildqualität (oft fälschlich S-VHS-Kabel
+genannt, weil es meistens von S-VHS-Recordern verwendet wird) und leicht
+zu erkennen an den Sub-D-Anschlüssen (in deutsch "Hosidenstecker"
+genannt). Abhängig von Ihrer Hardware werden Sie nur eine Teilmenge
+dieser Input-Typen sehen oder zusätzliche (z.B. I<Radio>, welches jedoch
+nicht als Input für nxtvepg brauchbar ist).
 
-Haben Sie mehr als eine TV-Tunerkarte in Ihrem Rechner, können Sie wählen, welche Sie nutzen wollen. Dieselbe Auswahl wird über die Befehlszeilenoption B<-card> getroffen (siehe L<"OPTIONS">). Das Popupmenü wird Ihnen alle Kartentypen - wie im Treiber konfiguriert - auflisten. Zu bemerken ist, dass sich das Ändern der Karte ebenso auf die Input-Wahl auswirken wird, insbesondere wenn die Karten unterschiedliche Sortierreihenfolgen der Input-Typen besitzen.
+Zu beachten ist, dass wenn nicht der TV-Tuner als Eingabe gewählt wird,
+nxtvepg nicht automatisch auf den Sender Ihres EPG-Anbieters umschalten
+kann. Siehe auch L<"TELETEXT EPG GRABBER">.
 
-Die Option "I<Slicer Quality>" wählt zwischen verschiedenen Algorithmen aus, mit denen der Teletext aus dem analogen Videosignal extrahiert wird. Der Algorithmus I<simple> funktioniert nur bei ausgezeichnetem TV-Empfang, hat jedoch den Vorteil, sehr wenig CPU-Ressourcen zu verbrauchen. Der Algorithmus I<elaborate> (aus Zappings libzvbi zapping.sourceforge.net und ursprünglich für den Linux-Teletextviewer I<alevt> entwickelt) ist wesentlich fehlertoleranter. Wenn Sie I<automatic> wählen, wird die Akquisition immer mit dem einfachen Algorithmus starten, jedoch auf den aufwendigeren umschalten, wenn die Fehlerrate bestimmte Grenzwerte übersteigt (siehe auch L<"STATISTICS: Teletext grabber statistics">).
+Die Option "I<Slicer Quality>" wählt zwischen verschiedenen Algorithmen
+aus, mit denen der Teletext aus dem analogen Videosignal extrahiert
+wird. Der Algorithmus I<simple> funktioniert nur bei ausgezeichnetem
+TV-Empfang, hat jedoch den Vorteil, sehr wenig CPU-Ressourcen zu
+verbrauchen. Der Algorithmus I<elaborate> (aus Zappings libzvbi
+zapping.sourceforge.net und ursprünglich für den Linux-Teletextviewer
+I<alevt> entwickelt) ist wesentlich fehlertoleranter. Wenn Sie
+I<automatic> wählen, wird die Akquisition immer mit dem einfachen
+Algorithmus starten, jedoch auf den aufwendigeren umschalten, wenn die
+Fehlerrate bestimmte Grenzwerte übersteigt (siehe auch
+L<"STATISTICS: Teletext Grabber Statistics">).
 
-B<Nur Windows:> am unteren Rand der Dialogbox sind weitere Optionen, die nur benötigt werden, wenn überprüft werden soll, ob die Akquisition nicht korrekt arbeitet.
-
+B<Nur Windows:>
 Sollten Sie Datenverlust während hoher Systemauslastung feststellen, können Sie die Priorität des Akquisitions-Threads erhöhen (dies kann in einigen Windows-Versionen spezielle Privilegien erfordern). Standard ist I<normal>, d.h. die gleiche wie für alle Benutzeranwendungen.
-
-Die zweite Checkbox erlaubt eine Protokollierung des Treiberstarts und -stopps. Die Ausgabe wird an eine Datei mit Namen I<dsdrv.log> im Arbeitsverzeichnis von nxtvepg angehängt. Aktivieren Sie diese Option, wenn der Treiberstart fehlschlägt und Sie die Ursache nicht finden können. Sehen Sie sich aber zuerst die Erklärung der Treiberfehlermeldungen in der README-Datei an. Zu bemerken ist, dass die Logging-Option zwischen den Programmstarts vergessen wird, d.h. um davon Gebrauch zu machen, müssen Sie die Akquisition über das Control-Menü aktivieren und nicht indem Sie nxtvepg neu starten.
-
-Die dritte Option betrifft im Moment nur CX23881-basierte Karten: sie erlaubt das Deaktivieren eines WDM-Treibers eines Händlers für dieselbe Karte. Dies ist eine Hilfskonstruktion (Workaround) für den Umstand, dass CX23881-WDM-Treiber dafür bekannt sind, auf die TV-Karte sogar dann zuzugreifen, wenn keine Applikation diese verwendet. Sie sollten diese Option nur als Notlösung anwenden, d.h. wenn Sie nur damit die Karte überhaupt zum Laufen bekommen. Es ist lediglich ein experimentelles Feature und einige Benutzer haben berichtet, dass Ihre Karten-Konfiguration verloren ging oder die WDM-Treiber sogar nach dem Beenden von nxtvepg deaktiviert blieben (in beiden Fällen werden andere Anwendungen möglicherweise nicht mehr richtig funktionieren). Sie können verifizieren, ob die WDM-Treiber Akquisitionsprobleme verursachen, indem Sie sie deinstallieren, das System neu starten und dann nxtvepg noch mal testen (beachten Sie, nxtvepg benötigt keine von Händlern mitgelieferten Treiber).
 
 =head2 Client/Server
 
 Öffnet einen Dialog, der die Konfiguration der Verbindung zwischen Browser und einem Akquisitions-Daemon erlaubt (d.h. eine separate Instanz von nxtvepg, die im Server-Modus läuft, siehe Befehlszeilenschalter I<-daemon> in L<"OPTIONS">). Der Daemon erlaubt es, alle neu erhaltenen EPG-Daten an einen oder mehrere verbundenen Browser weiterzuleiten und deren Akquisitions-Fortschritt zu beobachten.
 
-Der Dialog enthält Einstellungen, von denen sich manche nur auf die Serverseite, manche nur auf die Clientseite und manche auf beide Parteien beziehen. Um Klarheit zu schaffen, gibt es die drei Radiobuttons am oberen Rand des Fenster: Damit können Sie die sich nicht auf Client bzw. Server beziehenden Parameter ausgrauen. Beachten Sie: damit eine Server-Konfiguration aktiv wird, muss der Daemon neu gestartet werden. Läuft dieser lokal, können Sie dies über das Control-Menü erledigen (siehe L<"CONTROL: Connect to acq. daemon">).
+Der Dialog enthält Einstellungen, von denen sich manche nur auf die
+Serverseite, manche nur auf die Clientseite und manche auf beide
+Parteien beziehen. Um Klarheit zu schaffen, gibt es die drei
+Radiobuttons am oberen Rand des Fenster: Damit können Sie die sich nicht
+auf Client bzw. Server beziehenden Parameter ausgrauen. Beachten Sie:
+damit eine Server-Konfiguration aktiv wird, muss der Daemon neu
+gestartet werden. Läuft dieser lokal, können Sie dies über das
+Control-Menü erledigen (siehe L<"CONTROL MENU: Connect to acq. daemon">).
 
 =over 8
 
@@ -1049,17 +1789,74 @@ Falls diese Option aktiviert ist, wird nxtvepg TV-Kanal-Wechsel überwachen. Wenn
 
 Nach einem Kanalwechsel oder dem Wechsel des aktuellen Programmtitels wird die Info über den im Moment laufenden Titel innerhalb der TV-Anwendung angezeigt. Auf Windows liegt es vollständig in der Hand der TV-Anwendung, wie diese Information dargestellt wird.
 
-Auf UNIX kann das Anzeigeformat durch Auswählen der folgenden Radiobuttons festgelegt werden:
+Auf UNIX kann das Anzeigeformat durch Auswählen der folgenden
+Radiobuttons festgelegt werden:
 
-Mit "I<Separate popup>" wird nxtvepg ein kleines Popupfenster erzeugen und es genau neben dem xawtv-Fenster platzieren. Die blaue Fläche in dem kleinen Streifen am oberen Rand gibt an, welcher Anteil der (nominalen) Laufzeit in der Vergangenheit liegt. Mit "I<Video overlay>" wird nxtvepg ein ähnliches Popup generieren, jedoch wird dies über das Videobild gelegt (bitte beachten Sie, dass diese Option nur mit XFree86 Version 4 und der Erweiterung XVideo ordentlich funktioniert; verwenden Sie den Befehl B<xvinfo>, um zu überprüfen, ob Ihr Server dieses Feature unterstützt). Sie können Schriftart und -farbe in diesem Popup über die X Resources ändern (siehe L<"FILES"> für Details). "I<Video overlay, 2 lines>" ist identisch, ausgenommen dass es Laufzeit und Titel auf zwei separate Zeilen verteilt und zusätzlich den Prozentsatz der abgelaufenen Laufzeit angibt. Mit "I<Xawtv window title>" wird die Info an xawtv gesendet und im Fenstertitel dargestellt. Außer für diese letzte Option können Sie die gewünschte Anzeigedauer mit einem Schieberegler am unteren Ende des Dialogs konfigurieren. Eine Dauer von Null bedeutet dass die Anzeige endlos stehen bleibt.  Mit I<Use external application> kann eine beliebige externe Applikation zur Anzeige verwendet werden. Titel und Laufzeit des aktuellen Programms können auf der Kommandozeile übergeben werden. Die Syntax ist dieselbe wie beim Aufruf externer Applikationen im Kontextmenü (siehe L<"CONFIGURATION">, Kapitel "Context menu configuration")
+=over 8
+
+=item I<Separate popup>
+
+Mit dieser Option wird nxtvepg ein kleines Popupfenster erzeugen
+und es genau neben dem xawtv-Fenster platzieren. Die blaue Fläche in dem
+kleinen Streifen am oberen Rand gibt an, welcher Anteil der (nominalen)
+Laufzeit in der Vergangenheit liegt.
+
+=item I<Video overlay>
+
+Mit dieser Option wird nxtvepg
+ein ähnliches Popup generieren, jedoch wird dies über das Videobild
+gelegt (bitte beachten Sie, dass diese Option nur mit XFree86 Version 4
+und der Erweiterung XVideo ordentlich funktioniert; verwenden Sie den
+Befehl B<xvinfo>, um zu überprüfen, ob Ihr Server dieses Feature
+unterstützt). Sie können Schriftart und -farbe in diesem Popup über die
+X Resources ändern (siehe L<"FILES"> für Details).
+
+=item I<Video overlay, 2 lines>
+
+Diese Option ist identisch zur vorherigenaußer ausgenommen dass es
+Laufzeit und Titel auf zwei separate Zeilen verteilt und zusätzlich den
+Prozentsatz der abgelaufenen Laufzeit angibt.
+
+=item I<Xawtv window title>
+
+Mit dieser Option wird die Info an xawtv gesendet und im Fenstertitel
+dargestellt. Außer für diese letzte Option können Sie die gewünschte
+Anzeigedauer mit einem Schieberegler am unteren Ende des Dialogs
+konfigurieren. Eine Dauer von Null bedeutet dass die Anzeige endlos
+stehen bleibt.
+
+=item I<Use external application>
+
+Mit dieser Option kann eine beliebige externe Applikation zur Anzeige
+verwendet werden.  Titel und Laufzeit des aktuellen Programms können auf
+der Kommandozeile übergeben werden. Die Syntax ist dieselbe wie beim
+Aufruf externer Applikationen im Kontextmenü (siehe L<"CONFIGURE MENU">,
+Kapitel "Context menu configuration")
+
+=back
 
 =back
 
 In der Mitte des Dialogs befindet sich eine Zeile, die den aktuellen Verbindungsstatus der TV-Anwendung anzeigt. Sie enthält den Namen der verbundenen Applikation oder "I<not connected>". Letztere Meldung erscheint wenn keine TV-Anwendung läuft oder eine die nicht mit nxtvepg interagiert (siehe auch L<"GETTING STARTED: Configuring a TV application">). Sie können mit anderen Applikationen als unten konfiguriert Verbindung aufnehmen, sind jedoch die Sendernamen nicht mit nxtvepg synchronisiert, wird die Interaktion nicht optimal funktionieren (d.h. nxtvepg könnte nicht in der Lage dazu sein, alle Sender zu identifizieren, und daher keine Sendungstitel bereitstellen).
 
-Im unteren Teil des Dialogfensters können Sie Typ und (auf Windows) den Installationspfad Ihrer bevorzugten TV-Anwendung konfigurieren. Diese Information wird genutzt, um auf die Kanalliste der TV-Anwendung (d.h. Frequenzen und Stationsnamen des TV-Tuners) während des EPG-Provider-Suchlaufs zuzugreifen (siehe L<"CONFIGURATION">, Kapitel "TV channel scan") und im Dialog zur Konfiguration der Sendernamen (siehe L<"CONFIGURATION">, Kapitel "Network names").
+Im unteren Teil des Dialogfensters können Sie Typ und den
+Installationspfad Ihrer bevorzugten TV-Anwendung konfigurieren. Diese
+Information wird genutzt, um die Kanalliste der TV-Anwendung (d.h.
+Frequenzen und Stationsnamen des TV-Tuners) zu laden. Die Kanalliste
+wird vom Teletext EPG Grabber, dem "TV channel scan" (siehe
+vohergehendes Kapitel) und dem Dialog zur Konfiguration der Sendernamen
+verwendet (siehe folgendes Kapitel "Network names").
 
-Nachdem Sie die Einstellungen geändert haben, können Sie den Button I<Test> drücken, um zu überprüfen, ob nxtvepg die Kanaltabelle korrekt einlesen kann. Eine Fehlermeldung wird ausgegeben, wenn die Datei oder (auf Windows) der Registry-Schlüssel nicht geöffnet werden kann, oder wenn keine TV-Kanäle gefunden werden. Nachdem der Test erfolgreich abgeschlossen ist, sollten Sie den Dialog zur Konfiguration der Sendernamen öffnen und diese mit nxtvepg synchronisieren.
+Nachdem Sie die Einstellungen geändert haben, können Sie den Button
+I<Test> drücken, um zu überprüfen, ob nxtvepg die Kanaltabelle korrekt
+einlesen kann. Eine Fehlermeldung wird ausgegeben, wenn die Datei oder
+(auf Windows) der Registry-Schlüssel nicht geöffnet werden kann, oder
+wenn keine TV-Kanäle gefunden werden. Nachdem der Test erfolgreich
+abgeschlossen ist, sollten Sie den Dialog zur Konfiguration der
+Sendernamen öffnen und diese mit nxtvepg synchronisieren. (Letzteres ist
+bei Verwendung des Teletext-EPG Grabbers nicht erfoderlich, da der
+Grabber von vornherein die Sendernamen aus der hier eingestellten
+Kanalliste übernimmt.)
 
 Wird Ihre TV-Anwendung nicht unterstützt, wählen Sie I<none>. (Ist es eine Freeware-Anwendung, tun Sie sich keinen Zwang an und mailen Sie mir eine Download-URL und ich werde überlegen, ob ich diese unterstützen werde. Nichtsdestotrotz werde ich keine proprietäre Closed-Source-Software unterstützen, außer auf Anfrage des Autors selbst.)
 
@@ -1071,13 +1868,27 @@ Zu bemerken ist, dass nicht alle TV-Anwendungen, die im Popupmenü aufgelistet we
 
 Das Listenfeld zur Rechten enthält die Typen, die aktuell zur Anzeige ausgewählt sind. Der oberste Eintrag erscheint im "single list"-Layout auf der Linken Seite des Listenfelds; im tabellarischen "grid"-Layout erscheint entsprechend der oberste Eintrag in der ersten Zeile usw.  Drücken Sie I<Apply>, um das Browserlistenfeld mit der neuen Spaltenauswahl aktualisieren zu lassen.
 
-Im "single list"-Layout (siehe L<"CONFIGURATION">, Kapitel "List layout") besitzt jedes Attribut seine eigene Spalte in TV-Programmübersicht und ein damit verbundenes Filtermenü im Button oberhalb der Spalte (vorausgesetzt die Spaltenköpfe wurden nicht deaktiviert, siehe L<"CONFIGURATION">, Kapitel "Show/Hide"). Sie können die Breite jeder Spalte ändern, indem Sie den Mauspfeil an die rechte Seite jedes Menüeintrages bewegen bis ein Pfeil an einem senkrechten Strich zu sehen ist und diesen dann mit gedrückter Maustaste an die neue Position ziehen.
+Im "single list"-Layout (siehe L<"CONFIGURE MENU">, Kapitel "List
+layout") besitzt jedes Attribut seine eigene Spalte in
+TV-Programmübersicht und ein damit verbundenes Filtermenü im Button
+oberhalb der Spalte (vorausgesetzt die Spaltenköpfe wurden nicht
+deaktiviert, siehe L<"CONFIGURE MENU">, Kapitel "Show/Hide"). Sie können
+die Breite jeder Spalte ändern, indem Sie den Mauspfeil an die rechte
+Seite jedes Menüeintrages bewegen bis ein Pfeil an einem senkrechten
+Strich zu sehen ist und diesen dann mit gedrückter Maustaste an die neue
+Position ziehen.
 
 Im "separate network columns"-Layout werden die Attribute untereinander in separaten Zeilen der Spalten des TV-Programmübersicht ausgedruckt, es sei denn Sie wählen "I<No new line after element>" während das jeweilig Attribut im rechten Listenfeld gewählt ist. Leere Zeilen werden automatisch unterdrückt, sodass im Gegensatz zum "single list"-Layout die tatsächlich gezeigte Anzahl an Attributen variieren kann. Dies ist insbesondere bei benutzerdefinierten Attributen nützlich: So könnten Sie z.B. das Attribut so definieren, dass Themen-Kategorien nur für Filme ausgedruckt werden, um die Auflistung kompakter zu halten.
 
 =head2 Attribute composition
 
-Öffnet den Konfigurations-Dialog für "I<composite attributes>", welcher erlaubt, neue Spaltentypen für das "single list"-Layout der TV-Programmübersicht zu erstellen (siehe L<"CONFIGURATION">, Kapitel "List layout") beziehungsweise neue Zeilen im "spearate network columns"-Layout, die danach zusätzlich zu den vorgegebenen Attributtypen gewählt werden können (z.B. "Titel" und "Thema") wie im vorherigen Kapitel beschrieben.
+Öffnet den Konfigurations-Dialog für "I<composite attributes>", welcher
+erlaubt, neue Spaltentypen für das "single list"-Layout der
+TV-Programmübersicht zu erstellen (siehe L<"CONFIGURE MENU">, Kapitel
+"List layout") beziehungsweise neue Zeilen im "spearate network
+columns"-Layout, die danach zusätzlich zu den vorgegebenen Attributtypen
+gewählt werden können (z.B. "Titel" und "Thema") wie im vorherigen
+Kapitel beschrieben.
 
 Für eine allgemeine Beschreibung von Composite-Attributen siehe L<"COMPOSITE ATTRIBUTES">. Dieses Kapitel beschreibt lediglich den Gebrauch des Konfigurations-Dialoges. Dieses Kapitel geht auch davon aus, dass Sie mit dem Konzept der Filter-Shortcuts (siehe L<"FILTER SHORTCUTS">) und Reminder vertraut sind (siehe L<"REMINDERS">).
 
@@ -1085,7 +1896,14 @@ Der Dialog besteht aus drei Sektionen: ganz oben rechts befindet sich ein Dropdo
 
 Zu bemerken ist, dass es Abhängigkeiten der Sektionen untereinander gibt: wenn Sie mit dem Dropdown-Menü oben zu einer anderen Attribut-Definition wechseln, wird der Rest des Dialogs augenblicklich aktualisiert und zeigt die aktuelle Definition des Composite-Attributs (Sie werden eine Warnung erhalten, sollten Änderungen an der vorherigen Zuordnung noch nicht per "Apply"-Button gespeichert worden sein). Ebenso werden die Anzeigeformat-Optionen zur Rechten aktualisiert, wenn Sie einen Shortcut im Listenfeld wählen.
 
-Um ein neues Composite-Attribut zu erstellen, beginnen Sie mit dem Befehl "I<Create new definition>" im Menü oben rechts im Dialogfenster. Sie sollten dem Attribut möglichst sofort eine Kennung geben, sodass Sie Ihre Definition wieder finden, siehe L<"CONFIGURATION">, Kapitel "Select attributes". Ebenso sollten Sie der Kennung einen Text für den Spaltenkopf zuordnen (nur im "single list"-Layout), der oberhalb der Sendungsliste im Hauptfenster auftauchen wird; wenn möglich sollten Sie hier einen kürzeren Text verwenden als in der Kennung.
+Um ein neues Composite-Attribut zu erstellen, beginnen Sie mit dem
+Befehl "I<Create new definition>" im Menü oben rechts im Dialogfenster.
+Sie sollten dem Attribut möglichst sofort eine Kennung geben, sodass Sie
+Ihre Definition wieder finden, siehe L<"CONFIGURE MENU">, Kapitel
+"Select attributes". Ebenso sollten Sie der Kennung einen Text für den
+Spaltenkopf zuordnen (nur im "single list"-Layout), der oberhalb der
+Sendungsliste im Hauptfenster auftauchen wird; wenn möglich sollten Sie
+hier einen kürzeren Text verwenden als in der Kennung.
 
 Danach fügen Sie einen oder mehrere Filter zur Liste hinzu, indem Sie die Dropdown-Menüs "I<Add shortcut>" oder "I<Add reminder>" links des Listenfeldes verwenden. Neue Einträge werden immer an das Ende der Liste angefügt, jedoch können Sie die Sortierreihenfolge mit Hilfe der auf/ab-Pfeil-Buttons verändern. Um einen Shortcut oder eine Reminder-Gruppe aus der Liste zu entfernen, markieren Sie den Eintrag zuerst, dann klicken Sie den Button I<Delete> oder die I<Entf>-Taste. Beachten Sie: die Reihenfolge wird dann relevant, wenn eine Sendung auf mehrere der ausgewählten Shortcuts zutrifft oder wenn Sie Shortcuts mit Reminder-Gruppen mischen.  Denn das Anzeigeformat wird vom ersten zutreffenden Eintrag in der Liste, von oben beginnend, bestimmt (siehe auch Einführung in L<"COMPOSITE ATTRIBUTES">).
 
@@ -1111,7 +1929,11 @@ B<Tipp:> Sie können diesen Dialog (und alle anderen Dialoge mit vergleichbaren L
 
 Öffnet einen Dialog zur Konfiguration der Sendernamen. Dessen Hauptzweck ist, die Sendernamen zwischen nxtvepg und Ihrer TV-Anwendungen zu synchronisieren. Dies ist notwendig, weil der Sendername der Kommunikation dient, wenn Sie die "I<Tune TV>"-Fernbedienung verwenden und ebenso für die Bekanntgaben der Kanalwechsel von Seiten der TV-Anwendungen. Bei vielen Sendern muss nichts verändert werden, bei anderen jedoch bestehen mehrere Varianten, z.B. in Deutschland "Super RTL" versus "S-RTL" oder "MDR3" versus "MDR".
 
-Zuerst sollten Sie auswählen, mit welcher TV-Anwendung Sie synchronisieren wollen und wo sich die Konfigurationsdateien befinden. Dies geschieht über den Dialog "I<TV app. interaction>" im Configure-Menü (siehe L<"CONFIGURATION">, Kapitel "TV application interaction").
+Zuerst sollten Sie auswählen, mit welcher TV-Anwendung Sie
+synchronisieren wollen und wo sich die Konfigurationsdateien befinden.
+Dies geschieht über den Dialog "I<TV app. interaction>" im
+Configure-Menü (siehe L<"CONFIGURE MENU">, Kapitel "TV application
+interaction").
 
 Ein weiterer Zweck dieses Dialoges ist es, die Namen der Sender über alle XMLTV Quellen hinweg einheitlich zu machen. Die hier angegebenen Namen, werden unabhängig vom Provider, in der Programmübersicht und allen Filter-Menüs verwendet.
 
@@ -1143,7 +1965,13 @@ Im Eingabefeld I<Titel> geben Sie den Namen an, der später im Kontextmenü ersche
 
 =item B<TV application remote command>
 
-Sendet die angegebene Befehlszeile an eine verbundene TV-Anwendung, z.B. um den TV-Sender umzuschalten. Auch hier können sie Parametersubstitution verwenden.  Auf welchem Weg das Kommando zur TV-Anwendung übertragen wird hängt von der Anwendung ab. Wenn keine TV-Anwendung verbunden ist, erscheinen die Einträge dieses Typs ausgegraut (siehe auch L<"CONFIGURATION">, Kapitel "TV application interaction").
+Sendet die angegebene Befehlszeile an eine verbundene TV-Anwendung, z.B.
+um den TV-Sender umzuschalten. Auch hier können sie
+Parametersubstitution verwenden.  Auf welchem Weg das Kommando zur
+TV-Anwendung übertragen wird hängt von der Anwendung ab. Wenn keine
+TV-Anwendung verbunden ist, erscheinen die Einträge dieses Typs
+ausgegraut (siehe auch L<"CONFIGURE MENU">, Kapitel "TV application
+interaction").
 
 Beispiel:
 
@@ -1253,7 +2081,12 @@ Versteckt oder zeigt das Senderfilter-Listenfeld zwischen Shortcut- und Programm
 
 =item I<Show layout button>
 
-Versteckt oder zeigt die Checkbox "I<Grid layout>" unterhalb Shortcuts- oder Senderliste im Hauptfenster (siehe auch L<"CONFIGURATION">, Kapitel "List layout"). Sollten Sie das eine oder das andere Layout permanent verwenden, wollen Sie womöglich diese Box verstecken (sie ist hauptsächlich präsent, um Benutzer, die von älteren Versionen upgraden, von dieser neuen Option wissen zu lassen).
+Versteckt oder zeigt die Checkbox "I<Grid layout>" unterhalb Shortcuts-
+oder Senderliste im Hauptfenster (siehe auch L<"CONFIGURE MENU">,
+Kapitel "List layout"). Sollten Sie das eine oder das andere Layout
+permanent verwenden, wollen Sie womöglich diese Box verstecken (sie ist
+hauptsächlich präsent, um Benutzer, die von älteren Versionen upgraden,
+von dieser neuen Option wissen zu lassen).
 
 =item I<Show status line>
 
@@ -1269,7 +2102,13 @@ Versteckt oder zeigt die Wochentags-Skala zur Rechten der Programmliste (beachte
 
 =item I<Hide on minimize>
 
-Nur Windows: Ist diese Option aktiviert, wird in der Taskleiste der Eintrag des Hauptfensters entfernt, wenn dieses minimiert wird oder das Programm mit dem Befehlszeilenschalter I<-iconic> gestartet wird. Stattdessen wird ein Icon in das Systemtray der Taskleiste gelegt. Ein Klick darauf mit der rechten Maustaste öffnet ein kleines Popupmenü. Die Einträge in diesem Menü haben dieselbe Bedeutung, wie die gleichnamigen im Control-Menü (siehe L<"CONTROL">).
+Nur Windows: Ist diese Option aktiviert, wird in der Taskleiste der
+Eintrag des Hauptfensters entfernt, wenn dieses minimiert wird oder das
+Programm mit dem Befehlszeilenschalter I<-iconic> gestartet wird.
+Stattdessen wird ein Icon in das Systemtray der Taskleiste gelegt. Ein
+Klick darauf mit der rechten Maustaste öffnet ein kleines Popupmenü. Die
+Einträge in diesem Menü haben dieselbe Bedeutung, wie die gleichnamigen
+im Control-Menü (siehe L<"CONTROL MENU">).
 
 =back
 
@@ -1287,7 +2126,13 @@ Dies ist das Original-Layout (das einzige Layout bis nxtvepg Version 2.4) in dem
 
 In diesem Layout werden die Sendungen immer nach Startzeit sortiert, aber in getrennten Spalten für jeden Sender präsentiert. Die TV-Programme der verschiedenen Sender werden so angeordnet, dass Programme die gleichzeitig laufen, annähernd auf gleicher Höhe stehen.
 
-Sie können über das I<Control>-Menü mehrere Spalten zu einer einzigen verbinden (gedacht für Sender, die sich den selben Kanal teilen; verwenden Sie dies im Zusammenhang mit der "I<air times restriction>" wie in L<"CONFIGURATION">, Kapitel "Select networks" beschrieben). Das Control-Menü ist Teil des Dropdown-Menüs unterhalb des Buttons am oberen Ende der Spalte. Dieses Menü beinhaltet ebenso Befehle, um die Anzahl sichtbarer Spalten zu erhöhen oder zu senken.
+Sie können über das I<Control>-Menü mehrere Spalten zu einer einzigen
+verbinden (gedacht für Sender, die sich den selben Kanal teilen;
+verwenden Sie dies im Zusammenhang mit der "I<air times restriction>"
+wie in L<"CONFIGURE MENU">, Kapitel "Select networks" beschrieben). Das
+Control-Menü ist Teil des Dropdown-Menüs unterhalb des Buttons am oberen
+Ende der Spalte. Dieses Menü beinhaltet ebenso Befehle, um die Anzahl
+sichtbarer Spalten zu erhöhen oder zu senken.
 
 =back
 
@@ -1324,9 +2169,22 @@ Alternativ kann man sich zum Mitglied einer Gruppe in F</etc/groups> - die Zugri
 
 =item B</dev/video0>, B</dev/video1>, etc.
 
-In Linux-Kernelserien 2.4 und früher (d.h. vor Revision 2 der video4linux API) werden diese Gerätedateien dazu benutzt, die Input-Quelle (z.B. TV-Tuner oder einen der Composite- oder S-Video-Anschlüsse) und die Tunerfrequenz auszuwählen, solange Sie nicht den passiven Akquisitionsmodus wählen. Der Index kann mit der Befehlszeilenoption B<-card> angegeben werden. Sie müssen Lese- und Schreibrechte für das Gerät haben.
+In Linux-Kernelserien 2.4 und früher (d.h. vor Revision 2 der
+video4linux API) werden diese Gerätedateien dazu benutzt, die
+Input-Quelle (z.B. TV-Tuner oder einen der Composite- oder
+S-Video-Anschlüsse) und die Empfangsfrequenz auszuwählen, solange Sie
+nicht den passiven Akquisitionsmodus wählen. Der Index kann mit der
+Befehlszeilenoption B<-card> angegeben werden. Sie müssen Lese- und
+Schreibrechte für das Gerät haben.
 
-Das Gerät wird nur während der Providersuche geöffnet gehalten (siehe L<"CONFIGURATION">, Kapitel "TV channel scan"). Ansonsten wird es nur kurzeitig geöffnet, um die Input-Quelle und die Tunerfrequenz zu setzen. Ist das Gerät belegt (z.B. durch eine TV-Anwendung), startet die Akquisition auf dem momentan ausgewählten Kanal und folgt automatisch jeder Kanaländerung (dies wird z.B. in der Statuszeile am unteren Ende des Browserfensters als Akquisitionsmodus "I<forced passive>" gemeldet, siehe L<"STATISTICS: Status line">).
+Das Gerät wird nur während der Teletextanbietersuche geöffnet gehalten
+(siehe L<"CONFIGURE MENU">, Kapitel "TV channel scan"). Ansonsten wird
+es nur kurzeitig geöffnet, um die Input-Quelle und die Empfangsfrequenz
+zu setzen. Ist das Gerät belegt (z.B. durch eine TV-Anwendung), startet
+die Akquisition auf dem momentan ausgewählten Kanal und folgt
+automatisch jeder Kanaländerung (dies wird z.B. in der Statuszeile am
+unteren Ende des Browserfensters als Akquisitionsmodus
+"I<forced passive>" gemeldet, siehe L<"STATISTICS: Status line">).
 
 Beachten Sie: das Video-Gerät muss zwingend denselben Index wie das VBI-Gerät besitzen. Haben Sie ein Video-Gerät an index 0, das kein Teletext unterstützt (eine Webcam zum Beispiel), kann das zum Video-Gerät 1 gehörende VBI-Gerät an index 0 auftauchen. Sie sollten den Treiber dazu zwingen, das Gerät an index 1 des VBI-Index zu setzen. Auf Linux ist dies mittels der Parameter I<insmod> in I</etc/modules.conf> möglich, z.B. für bttv:
 
@@ -1348,12 +2206,24 @@ Um die Akquisition im Nicht-Daemon-Modus neu zu starten, signalisieren Sie entwe
 
 =item B</tmp/nxtvepg.0>
 
-Diese nicht-reguläre Datei wird vom Daemon erzeugt, um dem lokalen Client Verbindungen über UNIX-Domain-Sockets zu erlauben. Derselbe Socket kann zu mehr als einer Client-Verbindung genutzt werden. Er wird gelöscht, wenn der Daemon beendet wird (es sei denn der Daemon stürzt ab oder empfängt ein nicht-empfangbares Signal wie das berüchtigte Signal 9, auch KILL genannt). Siehe auch L<"CONTROL: Connect to acq. daemon">.
+Diese nicht-reguläre Datei wird vom Daemon erzeugt, um dem lokalen
+Client Verbindungen über UNIX-Domain-Sockets zu erlauben. Derselbe
+Socket kann zu mehr als einer Client-Verbindung genutzt werden. Er wird
+gelöscht, wenn der Daemon beendet wird (es sei denn der Daemon stürzt ab
+oder empfängt ein nicht-empfangbares Signal wie das berüchtigte Signal
+9, auch KILL genannt). Siehe auch L<"CONTROL MENU: Connect to acq. daemon">.
 
 =item B<.../channels.conf>
 
-Nur mit DVB: Der Teletext EPG Grabber benötigt eine TV-Kanaltabelle mit den Namen, Frequenzen und Teletext PID aller empfangbaren TV Sender. nxtvepg kann die TV-Kanaltabelle nicht selber erzeugen. Sie benötigen daher eine externe Applikation die die DVB Kanalsuche durchführt und eine solche Datei erzeugt. (Empfehlenswert dafür ist B<w_scan>.) nxtvepg understützt sowohl das von VDR definierte Format als auch das von diversen anderen Applikationen wie I<mplayer>, I<Kaffeine>,
-I<xine>, und I<Totem> gemeinsam verwendete Format. Siehe auch L<"CONFIGURATION">, Kapitel "TV application interaction".
+Nur mit DVB: Der Teletext EPG Grabber benötigt eine TV-Kanaltabelle mit
+den Namen, Frequenzen und Teletext PID aller empfangbaren TV Sender.
+nxtvepg kann die TV-Kanaltabelle nicht selber erzeugen. Sie benötigen
+daher eine externe Applikation die die DVB Kanalsuche durchführt und
+eine solche Datei erzeugt. (Empfehlenswert dafür ist B<w_scan>.) nxtvepg
+understützt sowohl das von VDR definierte Format als auch das von
+diversen anderen Applikationen wie I<mplayer>, I<Kaffeine>, I<xine>, und
+I<Totem> gemeinsam verwendete Format. Siehe auch L<"CONFIGURE MENU">,
+Kapitel "TV application interaction".
 
 =item B<$HOME/.Xdefaults>
 
@@ -1389,7 +2259,14 @@ Das Verzeichnis in dem der Teletext EPG Grabber die XMLTV Dateien speichert kann
 
 =item B<vbi_map.dat>
 
-Diese versteckte Datei wird verwendet, um gemeinsam genutzten Arbeitsspeicher einzurichten, der Informationsaustausch zwischen nxtvepg und der angeschlossenen TV-Anwendung erlaubt. Sie wird beim Beenden von nxtvepg automatisch entfernt und es sollte nie mit externen Anwendungen auf sie zugegriffen werden (d.h. indem in sie überschrieben oder gelöscht wird). Die Datei wird nicht erzeugt, wenn die Interaktion mit der TV-Anwendung deaktiviert ist (siehe L<"CONFIGURATION">, Kapitel "TV application interaction").
+Diese versteckte Datei wird verwendet, um gemeinsam genutzten
+Arbeitsspeicher einzurichten, der Informationsaustausch zwischen nxtvepg
+und der angeschlossenen TV-Anwendung erlaubt. Sie wird beim Beenden von
+nxtvepg automatisch entfernt und es sollte nie mit externen Anwendungen
+auf sie zugegriffen werden (d.h. indem in sie überschrieben oder
+gelöscht wird). Die Datei wird nicht erzeugt, wenn die Interaktion mit
+der TV-Anwendung deaktiviert ist (siehe L<"CONFIGURE MENU">, Kapitel "TV
+application interaction").
 
 =back
 

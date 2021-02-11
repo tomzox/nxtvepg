@@ -219,7 +219,7 @@ proc NetworkNamingPopup {} {
 
       # bottom row: command buttons
       frame .netname.ctrl.cmd
-      button .netname.ctrl.cmd.help -text "Help" -width 7 -command {PopupHelp $helpIndex(Configuration) "Network names"}
+      button .netname.ctrl.cmd.help -text "Help" -width 7 -command {PopupHelp $helpIndex(Configure menu) "Network names"}
       button .netname.ctrl.cmd.abort -text "Abort" -width 7 -command {NetworkNamesQuit 1}
       button .netname.ctrl.cmd.ok -text "Ok" -width 7 -command {NetworkNamesQuit 0} -default active
       bind .netname.ctrl.cmd.ok <Return> {tkButtonInvoke .netname.ctrl.cmd.ok}
@@ -229,7 +229,7 @@ proc NetworkNamingPopup {} {
 
       pack .netname.ctrl -side left -anchor n -pady 10 -padx 10 -fill both -expand 1
 
-      bind .netname <Key-F1> {PopupHelp $helpIndex(Configuration) "Network names"}
+      bind .netname <Key-F1> {PopupHelp $helpIndex(Configure menu) "Network names"}
       bind .netname.ctrl <Destroy> {+ set netname_popup 0}
       wm protocol .netname WM_DELETE_WINDOW {NetworkNamesQuit 1}
       focus .netname.ctrl.myname

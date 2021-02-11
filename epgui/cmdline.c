@@ -435,10 +435,6 @@ static bool CmdLine_GetDumpMode( char * argv[], int argIdx )
          else
             MainOptionError(argv[0], argv[argIdx + 1], "parse error in HTML dump format");
       }
-      else if (strcasecmp("raw", pModeStr) == 0)
-      {
-         mainOpts.optDumpMode = EPG_DUMP_RAW;
-      }
       else
          MainOptionError(argv[0], argv[argIdx + 1], "illegal mode keyword for -dump");
    }

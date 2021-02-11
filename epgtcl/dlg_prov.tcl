@@ -144,15 +144,15 @@ proc ProvWin_Create {} {
 
       # buttons at the bottom of the window
       frame .provwin.cmd
-      button .provwin.cmd.help -text "Help" -width 5 -command {PopupHelp $helpIndex(Control) "Load XMLTV file"}
+      button .provwin.cmd.help -text "Help" -width 5 -command {PopupHelp $helpIndex(Control menu) "Load XMLTV file"}
       button .provwin.cmd.abort -text "Abort" -width 5 -command {destroy .provwin}
-      button .provwin.cmd.ok -text "Ok" -width 5 -command ProvWin_Exit -default active
+      button .provwin.cmd.ok -text "Ok" -width 5 -command ProvWin_Exit -default active -state disabled
       bind .provwin.cmd.ok <Return> {tkButtonInvoke .provwin.cmd.ok}
       bind .provwin <Escape> {tkButtonInvoke .provwin.cmd.abort}
       pack .provwin.cmd.help .provwin.cmd.abort .provwin.cmd.ok -side left -padx 10
       pack .provwin.cmd -side top -pady 5
 
-      bind .provwin <Key-F1> {PopupHelp $helpIndex(Configuration) "Load XMLTV file"}
+      bind .provwin <Key-F1> {PopupHelp $helpIndex(Configure menu) "Load XMLTV file"}
       bind .provwin.n <Destroy> {+ set provwin_popup 0}
       focus .provwin.cmd.ok
 
@@ -186,13 +186,6 @@ proc ProvWin_UpdateList {} {
    # sort CNI list by provider name
    set provwin_ailist [lsort -command ProvWin_NameSortCmp $provwin_ailist]
 
-   if {[llength $provwin_ailist] == 0} {
-      # no providers found -> abort
-      #tk_messageBox -type ok -icon info -message "There are no providers available yet.\nPlease start a provider scan from the Configure menu."
-      #return
-      #TODO
-   }
-
    .provwin.n.b.list delete 0 end
 
    # fill the listbox with the provider's network names
@@ -204,8 +197,8 @@ proc ProvWin_UpdateList {} {
    set index [lsearch -exact $provwin_ailist [C_GetCurrentDatabaseCni]]
    if {$index >= 0} {
       .provwin.n.b.list selection set $index
-      ProvWin_Select
    }
+   ProvWin_Select
 }
 
 # callback for quick-link for selecting grabber directory
@@ -246,7 +239,7 @@ proc ProvWin_Select {} {
    .provwin.n.info.oimsg delete 1.0 end
 
    set index [.provwin.n.b.list curselection]
-   if {[string length $index] > 0} {
+   if {$index ne ""} {
       set names [C_GetProvServiceInfos [lindex $provwin_ailist $index]]
       # display service name in entry widget
       set provwin_servicename [lindex $names 0]
@@ -260,6 +253,9 @@ proc ProvWin_Select {} {
             .provwin.n.info.net.list insert end ", $netwop"
          }
       }
+      .provwin.cmd.ok configure -state normal
+   } else {
+      .provwin.cmd.ok configure -state disabled
    }
 }
 
@@ -268,7 +264,7 @@ proc ProvWin_Exit {} {
    global provwin_ailist
 
    set index [.provwin.n.b.list curselection]
-   if {[string length $index] > 0} {
+   if {$index ne ""} {
       C_ChangeProvider [lindex $provwin_ailist $index]
    }
    destroy .provwin
@@ -614,7 +610,7 @@ proc PopupEpgScan {} {
       # control commands
       button .epgscan.cmd.start -text "Start scan" -width 12 -command EpgScan_Start
       button .epgscan.cmd.stop -text "Abort scan" -width 12 -command C_StopEpgScan -state disabled
-      button .epgscan.cmd.help -text "Help" -width 12 -command {PopupHelp $helpIndex(Configuration) "TV channel scan"}
+      button .epgscan.cmd.help -text "Help" -width 12 -command {PopupHelp $helpIndex(Configure menu) "TV channel scan"}
       button .epgscan.cmd.ok -text "Ok" -width 12 -command {destroy .epgscan}
       pack .epgscan.cmd.start .epgscan.cmd.stop .epgscan.cmd.help .epgscan.cmd.ok -side top -padx 10 -pady 10
       pack .epgscan.cmd -side left
@@ -660,7 +656,7 @@ proc PopupEpgScan {} {
 
       pack .epgscan.all -side top -fill both -expand 1
       bind .epgscan.all <Destroy> EpgScan_Quit
-      bind .epgscan <Key-F1> {PopupHelp $helpIndex(Configuration) "TV channel scan"}
+      bind .epgscan <Key-F1> {PopupHelp $helpIndex(Configure menu) "TV channel scan"}
 
       .epgscan.all.fmsg.msg insert end "Press the <Start scan> button"
 
@@ -728,7 +724,6 @@ proc EpgScanButtonControl {is_start} {
       # disable options and command buttons, enable the "Abort" button
       .epgscan.cmd.start configure -state disabled
       .epgscan.cmd.stop configure -state normal
-      .epgscan.cmd.help configure -state disabled
       .epgscan.cmd.ok configure -state disabled
       .epgscan.all.ftable.tab0 configure -state disabled
       .epgscan.all.ftable.tab1 configure -state disabled
@@ -745,7 +740,6 @@ proc EpgScanButtonControl {is_start} {
          # disable "Abort" button, re-enable others
          .epgscan.cmd.start configure -state normal
          .epgscan.cmd.stop configure -state disabled
-         .epgscan.cmd.help configure -state normal
          .epgscan.cmd.ok configure -state normal
          if {!$is_unix} {
             .epgscan.all.opt.cfgtvcard configure -state normal

@@ -600,7 +600,7 @@ proc StatsWinTtx_Create {wname ttx_rows ttx_cols} {
    relief_ridge_v84 $wname.fupp.qmark
    bind $wname.fupp.qmark <ButtonRelease-1> {PopupHelp $helpIndex(Statistics) "Teletext grabber statistics"}
    pack $wname.fupp.qmark -side left -anchor n
-   bind $wname <Key-F1> {PopupHelp $helpIndex(Configuration) "Teletext grabber"}
+   bind $wname <Key-F1> {PopupHelp $helpIndex(Configure menu) "Teletext grabber"}
    pack $wname.fupp -side top -fill both
 
    frame $wname.flow -relief sunken -borderwidth 2

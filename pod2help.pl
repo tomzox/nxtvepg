@@ -31,8 +31,23 @@ require "ctime.pl";
 $started = 0;
 $sectIndex = 0;
 
+sub ReplaceEntity {
+   my ($tag) = @_;
+
+   if    ($tag eq "lt")     { return "<"; }
+   elsif ($tag eq "gt")     { return ">"; }
+   elsif ($tag eq "auml")   { return "ae"; }
+   elsif ($tag eq "eacute") { return "e"; }
+   else {
+      print STDERR "Unknown entity E<$tag>\n";
+      exit(1);
+   }
+}
+
 sub PrintParagraph {
    local($str, $indent) = @_;
+
+   $str =~ s/E<([a-z]+)>/&ReplaceEntity($1)/ge;
 
    # Pre-process POD formatting expressions, e.g. I<some text>: replace pair
    # of opening and closing bracket with uniform separation character '#' and

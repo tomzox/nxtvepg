@@ -305,13 +305,13 @@ proc ContextMenuConfigPopup {} {
 
       # section #4: standard dialog buttons: Ok, Abort, Help
       frame .ctxmencf.cmd
-      button .ctxmencf.cmd.help -text "Help" -width 5 -command {PopupHelp $helpIndex(Configuration) "Context menu configuration"}
+      button .ctxmencf.cmd.help -text "Help" -width 5 -command {PopupHelp $helpIndex(Configure menu) "Context menu configuration"}
       button .ctxmencf.cmd.abort -text "Abort" -width 5 -command {ContextMenuConfigQuit 1}
       button .ctxmencf.cmd.save -text "Ok" -width 5 -command {ContextMenuConfigQuit 0}
       pack .ctxmencf.cmd.help .ctxmencf.cmd.abort .ctxmencf.cmd.save -side left -padx 10
       pack .ctxmencf.cmd -side top -pady 5
 
-      bind .ctxmencf <Key-F1> {PopupHelp $helpIndex(Configuration) "Context menu configuration"}
+      bind .ctxmencf <Key-F1> {PopupHelp $helpIndex(Configure menu) "Context menu configuration"}
       bind .ctxmencf <Alt-KeyPress> [bind Menubutton <Alt-KeyPress>]
       bind .ctxmencf.cmd <Destroy> {+ set ctxmencf_popup 0}
       wm protocol .ctxmencf WM_DELETE_WINDOW {ContextMenuConfigQuit 1}
