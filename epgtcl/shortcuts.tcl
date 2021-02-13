@@ -37,59 +37,49 @@ proc PreloadShortcuts {} {
    if {([string compare -nocase -length 2 $user_language de] == 0) || \
        ([string compare -nocase -length 3 $user_language ger] == 0)} {
       # Germany
-      set shortcuts(10000) {Spielfilme themes {theme_class1 16} {} merge {}}
-      set shortcuts(10010) {Sport themes {theme_class1 64} {} merge {}}
-      set shortcuts(10011) {{Ohne Sport} themes {theme_class1 64} theme_class1 and {}}
-      set shortcuts(10020) {Serien themes {theme_class1 128} {} merge {}}
-      set shortcuts(10030) {Kinder themes {theme_class1 80} {} merge {}}
-      set shortcuts(10040) {Shows themes {theme_class1 48} {} merge {}}
-      set shortcuts(10050) {News themes {theme_class1 32} {} merge {}}
-      set shortcuts(10060) {Sozial themes {theme_class1 37} {} merge {}}
-      set shortcuts(10070) {Wissen themes {theme_class1 86} {} merge {}}
-      set shortcuts(10080) {Hobby themes {theme_class1 52} {} merge {}}
-      set shortcuts(10090) {Musik themes {theme_class1 96} {} merge {}}
-      set shortcuts(10100) {Kultur themes {theme_class1 112} {} merge {}}
-      set shortcuts(10110) {Adult themes {theme_class1 24} {} merge {}}
-      set shortcuts(10120) {Abends timsel {timsel {0 0 1215 1410 -1}} {} merge {}}
-      set shortcuts(10130) {{>15 min.} dursel {dursel {16 1435}} {} merge {}}
+      set shortcuts(10010) {Abends timsel {timsel {0 0 1215 1410 -1}} {} merge {}}
+      set shortcuts(10020) {{Nächste...} progidx {progidx {1 1}} {} merge {}}
+      set shortcuts(10030) {{Heute} timsel {timsel {0 1 0 1439 0}} {} merge {}}
+      set shortcuts(10100) {{} {} {} {} merge separator}
+      set shortcuts(10110) {{>15 Minuten} dursel {dursel {16 1435}} {} merge {}}
+      set shortcuts(10120) {{>80 Minuten} dursel {dursel {80 1435}} {} merge {}}
+      set shortcuts(10130) {{Untertitel} features {features {256 256}} {} merge {}}
+      set shortcuts(10140) {{Zweikanalton} features {features {3 1}} {} merge {}}
+      set shortcuts(10200) {{} {} {} {} merge separator}
+      set shortcuts(10210) {Spielfilm substr {substr {{film 0 1 0 0 0 0}}} {} merge {}}
+      set shortcuts(10220) {Serie substr {substr {{serie 0 1 0 0 0 0}}} {} merge {}}
+      set shortcuts(10230) {tagesschau substr {substr {{Tagesschau 1 0 1 1 0 0}}} {} merge {}}
       set shortcut_tree [lsort -integer [array names shortcuts]]
+
    } elseif {[string compare -nocase -length 2 $user_language fr] == 0} {
       # France
-      set shortcuts(10000) {Films themes {theme_class1 {16 24}} {} merge {}}
-      set shortcuts(10010) {{Films de + 2heures} {themes dursel} {theme_class1 {16 24} dursel {120 1435}} {} merge {}}
-      set shortcuts(10020) {{Films pour Adulte} themes {theme_class1 24} {} merge {}}
-      set shortcuts(10030) {Sports themes {theme_class1 64} {} merge {}}
-      set shortcuts(10031) {{pas de sports} themes {theme_class1 64} theme_class1 and {}}
-      set shortcuts(10040) {Jeunesse themes {theme_class1 80} {} merge {}}
-      set shortcuts(10050) {Spectacle/Jeu themes {theme_class1 48} {} merge {}}
-      set shortcuts(10060) {Journal themes {theme_class1 32} {} merge {}}
-      set shortcuts(10070) {Documentaire themes {theme_class1 38} {} merge {}}
-      set shortcuts(10080) {Musique themes {theme_class1 96} {} merge {}}
-      set shortcuts(10090) {Religion themes {theme_class1 112} {} merge {}}
-      set shortcuts(10100) {Variétés themes {theme_class1 50} {} merge {}}
-      set shortcuts(10110) {Météo substr {substr {{Météo 1 0 0 0 0 0}}} {} merge {}}
-      set shortcuts(10120) {{12 ans et +} parental {parental 5} parental merge {}}
-      set shortcuts(10130) {{16 ans et +} parental {parental 7} parental merge {}}
-      set shortcuts(10140) {{45 minutes et +} dursel {dursel {45 1435}} {} merge {}}
-      set shortcuts(10150) {{3h00 et +} dursel {dursel {180 1435}} {} merge {}}
+      set shortcuts(10010) {{le soir} timsel {timsel {0 0 1215 1410 -1}} {} merge {}}
+      set shortcuts(10020) {{prochaine} progidx {progidx {1 1}} {} merge {}}
+      set shortcuts(10030) {{aujourd'hui} timsel {timsel {0 1 0 1439 0}} {} merge {}}
+      set shortcuts(10100) {{} {} {} {} merge separator}
+      set shortcuts(10110) {{45 minutes et +} dursel {dursel {45 1435}} {} merge {}}
+      set shortcuts(10120) {{80 minutes et +} dursel {dursel {80 1435}} {} merge {}}
+      set shortcuts(10130) {{12 ans et +} parental {parental 5} parental merge {}}
+      set shortcuts(10140) {{16 ans et +} parental {parental 7} parental merge {}}
+      set shortcuts(10150) {{sous-titre} features {features {256 256}} {} merge {}}
+      set shortcuts(10200) {{} {} {} {} merge separator}
+      set shortcuts(10210) {Films substr {substr {{film 0 1 0 0 0 0}}} {} merge {}}
+      set shortcuts(10220) {Série substr {substr {{série 0 1 0 0 0 0}}} {} merge {}}
+      set shortcuts(10230) {Météo substr {substr {{Météo 1 0 0 0 0 0}}} {} merge {}}
       set shortcut_tree [lsort -integer [array names shortcuts]]
    } else {
       # generic
-      set shortcuts(10000) {movies themes {theme_class1 16} {} merge {}}
-      set shortcuts(10010) {sports themes {theme_class1 64} {} merge {}}
-      set shortcuts(10011) {{no sports} themes {theme_class1 64} theme_class1 and {}}
-      set shortcuts(10020) {series themes {theme_class1 128} {} merge {}}
-      set shortcuts(10030) {kids themes {theme_class1 80} {} merge {}}
-      set shortcuts(10040) {shows themes {theme_class1 48} {} merge {}}
-      set shortcuts(10050) {news themes {theme_class1 32} {} merge {}}
-      set shortcuts(10060) {social themes {theme_class1 37} {} merge {}}
-      set shortcuts(10070) {science themes {theme_class1 86} {} merge {}}
-      set shortcuts(10080) {hobbies themes {theme_class1 52} {} merge {}}
-      set shortcuts(10090) {music themes {theme_class1 96} {} merge {}}
-      set shortcuts(10100) {culture themes {theme_class1 112} {} merge {}}
-      set shortcuts(10110) {adult themes {theme_class1 24} {} merge {}}
-      set shortcuts(10120) {evening timsel {timsel {0 0 1215 1410 -1}} {} merge {}}
-      set shortcuts(10130) {{>15 minutes} dursel {dursel {16 1435}} {} merge {}}
+      set shortcuts(10010) {{evening} timsel {timsel {0 0 1215 1410 -1}} {} merge {}}
+      set shortcuts(10020) {{next up} progidx {progidx {1 1}} {} merge {}}
+      set shortcuts(10030) {{today} timsel {timsel {0 1 0 1439 0}} {} merge {}}
+      set shortcuts(10100) {{} {} {} {} merge separator}
+      set shortcuts(10110) {{>15 minutes} dursel {dursel {16 1435}} {} merge {}}
+      set shortcuts(10120) {{>80 minutes} dursel {dursel {80 1435}} {} merge {}}
+      set shortcuts(10130) {{subtitled} features {features {256 256}} {} merge {}}
+      set shortcuts(10140) {{2-channel} features {features {3 1}} {} merge {}}
+      set shortcuts(10200) {{} {} {} {} merge separator}
+      set shortcuts(10210) {movies substr {substr {{movie 0 1 0 0 0 0}}} {} merge {}}
+      set shortcuts(10220) {series substr {substr {{series 0 1 0 0 0 0}}} {} merge {}}
       set shortcut_tree [lsort -integer [array names shortcuts]]
    }
 }

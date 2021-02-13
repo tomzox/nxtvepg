@@ -348,7 +348,7 @@ proc CreateMainWindow {} {
    .ctx_shortcuts add command -label "Edit..." -command {EditFilterShortcuts $ctxmen_sctag}
    .ctx_shortcuts add command -label "Add new..." -command {AddFilterShortcut $ctxmen_sctag}
 
-   Tree:create .all.shortcuts.list -width 0 -cursor top_left_arrow \
+   Tree:create .all.shortcuts.list -height 2 -width 0 -cursor top_left_arrow \
                                    -font $sctree_font -selectbackground $sctree_selbg \
                                    -selectmode extended -selectforeground $sctree_selfg \
                                    -foreground $text_fg -background $text_bg
@@ -770,7 +770,7 @@ proc CreateMenubar {} {
    .menubar.config.show_hide add checkbutton -label "Show shortcuts" -command {ShowOrHideShortcutList showShortcutListbox; UpdateRcFile} -variable showShortcutListbox
    .menubar.config.show_hide add checkbutton -label "Show networks (left)" -command {ShowOrHideShortcutList showNetwopListboxLeft; UpdateRcFile} -variable showNetwopListboxLeft
    .menubar.config.show_hide add checkbutton -label "Show networks (middle)" -command {ShowOrHideShortcutList showNetwopListbox; UpdateRcFile} -variable showNetwopListbox
-   .menubar.config.show_hide add checkbutton -label "Show layout button" -command {ShowOrHideShortcutList showLayoutButton; UpdateRcFile} -variable showLayoutButton
+   .menubar.config.show_hide add checkbutton -label "Show \"Grid layout\" button" -command {ShowOrHideShortcutList showLayoutButton; UpdateRcFile} -variable showLayoutButton
    .menubar.config.show_hide add checkbutton -label "Show \"Tune TV\" button" -command {ShowOrHideShortcutList showTuneTvButton; UpdateRcFile} -variable showTuneTvButton
    .menubar.config.show_hide add checkbutton -label "Show status line" -command ToggleStatusLine -variable showStatusLine
    .menubar.config.show_hide add checkbutton -label "Show column headers" -command ToggleColumnHeader -variable showColumnHeader
@@ -1261,6 +1261,7 @@ proc ShowOrHideShortcutList {{changed {}}} {
    }
    if $showNetwopListboxLeft {
       grid .all.shortcuts.netwops -row 4 -column 0 -sticky news
+      grid rowconfigure .all.shortcuts 4 -weight 1
    }
 
    if {$showShortcutListbox || $showNetwopListboxLeft || $showNetwopListbox} {
@@ -1574,7 +1575,8 @@ proc UpdateNetwopFilterBar {} {
          }
          incr nlidx
       }
-      .all.shortcuts.netwops configure -height [expr [llength $ailist] + 1]
+      #.all.shortcuts.netwops configure -height [expr [llength $ailist] + 1]
+      .all.shortcuts.netwops configure -height 2
       .menubar.filter.netwops add separator
       .menubar.filter.netwops add checkbutton -label Invert -variable filter_invert(netwops) -command InvertFilter
    } else {

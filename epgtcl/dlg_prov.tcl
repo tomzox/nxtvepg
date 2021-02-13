@@ -62,7 +62,7 @@ proc ProvWin_Create {} {
    global provwin_popup
    global font_normal entry_disabledforeground
    global provwin_servicename
-   global provwin_dir
+   global provwin_dir provwin_dir_hist
 
    if {$provwin_popup == 0} {
       CreateTransientPopup .provwin "Load XMLTV file"
@@ -71,6 +71,7 @@ proc ProvWin_Create {} {
       # directory selection is kept across dialog being closed/reopened
       if {![info exists provwin_dir]} {
          set provwin_dir [file normalize "."]
+         set provwin_dir_hist [list $provwin_dir]
       }
 
       # entry field for directory
@@ -85,7 +86,7 @@ proc ProvWin_Create {} {
                                    -command {ProvWin_ShowDirDropDown .provwin.dir.cfrm.ent ProvWin_SelectTeletextDir}
       bind   .provwin.dir.cfrm.ent <Key-Up> {ProvWin_ShowDirDropDown .provwin.dir.cfrm.ent ProvWin_SelectTeletextDir}
       bind   .provwin.dir.cfrm.ent <Key-Down> {ProvWin_ShowDirDropDown .provwin.dir.cfrm.ent ProvWin_SelectTeletextDir}
-      bind   .provwin.dir.cfrm.ent <Return> ProvWin_UpdateList
+      bind   .provwin.dir.cfrm.ent <Return> {ProvWin_PushDirectory $provwin_dir; ProvWin_UpdateList}
       pack   .provwin.dir.cfrm.ent -side left -fill x -expand 1
       pack   .provwin.dir.cfrm.ddb -side left -fill y
       pack   .provwin.dir.cfrm -side left -fill x -expand 1
@@ -94,7 +95,7 @@ proc ProvWin_Create {} {
          set dir [tk_chooseDirectory -initialdir $provwin_dir -mustexist 1 -parent .provwin \
                                      -title "Select directory for loading XMLTV files"]
          if {$dir ne ""} {
-            set provwin_dir $dir
+            ProvWin_PushDirectory $dir
             ProvWin_UpdateList
          }
       }
@@ -202,14 +203,34 @@ proc ProvWin_UpdateList {} {
 }
 
 # callback for quick-link for selecting grabber directory
-proc ProvWin_SelectTeletextDir {} {
-   global provwin_dir
-   set provwin_dir [C_GetTtxDbDir]
+proc ProvWin_SelectTeletextDir {path} {
+   ProvWin_PushDirectory $path
    ProvWin_UpdateList
 }
 
+# maintain history of directories (for use in drop-down menu)
+proc ProvWin_PushDirectory {path} {
+   global provwin_dir provwin_dir_hist
+
+   # remove path if already in the list, as it is appended below
+   set idx [lsearch -exact $provwin_dir_hist $path]
+   if {$idx >= 0} {
+      set provwin_dir_hist [lreplace $provwin_dir_hist $idx $idx]
+   }
+   # limit length of history
+   if {[llength $provwin_dir_hist] >= 20} {
+      set provwin_dir_hist [lreplace $provwin_dir_hist 19 19]
+   }
+   # push the path to the front of the history list
+   set provwin_dir_hist [linsert $provwin_dir_hist 0 $path]
+
+   # finally switch to the new path
+   set provwin_dir $path
+}
+
+# create & display drop-down menu below directory entry field
 proc ProvWin_ShowDirDropDown {wid cmd} {
-   global provwin_dir
+   global provwin_dir provwin_dir_hist
 
    if {![winfo exists .men_popup]} {
       menu .men_popup -tearoff 0
@@ -217,9 +238,18 @@ proc ProvWin_ShowDirDropDown {wid cmd} {
       .men_popup delete 0 end
    }
 
+   foreach path $provwin_dir_hist {
+      .men_popup add command -label $path -command [list $cmd $path]
+   }
+
    C_GetTtxConfig ttxgrab_tmpcf
    if {$ttxgrab_tmpcf(enable)} {
-      .men_popup add command -label "Teletext grabber XMLTV directory" -command $cmd
+      if {[llength $provwin_dir_hist] > 0} {
+         .men_popup add separator
+      }
+      set path [C_GetTtxDbDir]
+      .men_popup add command -label "Teletext grabber XMLTV directory" \
+                             -command [list $cmd $path]
    }
 
    set rootx [winfo rootx $wid]
@@ -277,13 +307,14 @@ proc ProvWin_Exit {} {
 proc PopupProviderMerge {} {
    global provmerge_popup
    global provmerge_ailist provmerge_selist provwin_names provmerge_cf
-   global provwin_dir provmerge_ttx
+   global provwin_dir provwin_dir_hist provmerge_ttx
    global ProvmergeOptLabels
 
    if {$provmerge_popup == 0} {
       # directory selection is kept across dialog being closed/reopened
       if {![info exists provwin_dir]} {
          set provwin_dir [file normalize "."]
+         set provwin_dir_hist [list $provwin_dir]
       }
       set provmerge_ailist {}
       set provmerge_selist {}
@@ -328,7 +359,7 @@ proc PopupProviderMerge {} {
                                    -command {ProvWin_ShowDirDropDown .provmerge.dir.cfrm.ent ProvMerge_SelectTeletextDir}
       bind   .provmerge.dir.cfrm.ent <Key-Up> {ProvWin_ShowDirDropDown .provmerge.dir.cfrm.ent ProvMerge_SelectTeletextDir}
       bind   .provmerge.dir.cfrm.ent <Key-Down> {ProvWin_ShowDirDropDown .provmerge.dir.cfrm.ent ProvMerge_SelectTeletextDir}
-      bind   .provmerge.dir.cfrm.ent <Return> ProvMerge_UpdateList
+      bind   .provmerge.dir.cfrm.ent <Return> {ProvWin_PushDirectory $provwin_dir; ProvMerge_UpdateList}
       pack   .provmerge.dir.cfrm.ent -side left -fill x -expand 1
       pack   .provmerge.dir.cfrm.ddb -side left -fill y
       pack   .provmerge.dir.cfrm -side left -fill x -expand 1
@@ -337,7 +368,7 @@ proc PopupProviderMerge {} {
          set dir [tk_chooseDirectory -initialdir $provwin_dir -mustexist 1 -parent .provmerge \
                                      -title "Select directory for loading XMLTV files"]
          if {$dir ne ""} {
-            set provwin_dir $dir
+            ProvWin_PushDirectory $dir
             ProvMerge_UpdateList
          }
       }
@@ -421,7 +452,7 @@ proc PopupProviderMerge {} {
 
 # callback for directory changes
 proc ProvMerge_UpdateList {} {
-   global provmerge_ailist provwin_names
+   global provmerge_ailist provmerge_selist provwin_names
    global provwin_dir
 
    set provmerge_ailist {}
@@ -436,9 +467,8 @@ proc ProvMerge_UpdateList {} {
 }
 
 # callback for quick-link for selecting grabber directory
-proc ProvMerge_SelectTeletextDir {} {
-   global provwin_dir
-   set provwin_dir [C_GetTtxDbDir]
+proc ProvMerge_SelectTeletextDir {path} {
+   ProvWin_PushDirectory $path
    ProvMerge_UpdateList
 }
 
@@ -544,7 +574,8 @@ proc ProvMerge_Quit {cause} {
                      } else {
                         set provname {}
                      }
-                     tk_messageBox -type ok -icon error -parent .provmerge -message "The provider list for [string tolower $ProvmergeOptLabels($name)] contains a database$provname that's not in the main selection. Either remove the provider or use 'Reset' to reset the configuration."
+                     tk_messageBox -type ok -icon error -parent .provmerge \
+                                   -message "The provider list for [string tolower $ProvmergeOptLabels($name)] contains a database$provname that's not in the provider selection (right list). Either remove the provider or use 'Reset' to reset the configuration."
                      return
                   }
                }

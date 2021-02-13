@@ -5,14 +5,9 @@ boost any item's priority, find more points that need to be fixed or if
 you have ideas for additional features.
 
 Mandatory fixes for release 3.0.0:
-- Replace default shortcut definitions (i.e. remove use of categories)
-- Tcl error merge option config dialog
-   foreach item $selist { $lbox.sel.selist insert end $names($item) }
-- merge option config: after merging with restrictions, next merge pops
-  up error: incorrect display "not in the main selection"
-- height of netwop filter listbox in main window;
-  same for height of provider list in merge dialog
-- increase or remove merge limit to 64
+- teletext limit overview date range (also for first page)
+- update changelog 2.9.0 & 3.0; write release notes
+- update WWW: news, provider list
 
 Post-Nextview EPG:
 - bad error message when using "Load teletext EPG" and no files available yet
@@ -25,7 +20,6 @@ Post-Nextview EPG:
 - stats acquisition/teletext: add overall acq. runtime (i.e. in addition to per-channel time)
 - stats acquisition/teletext: VPS output for all 10 channels
 - move USE_TTX_GRABBER to exclude all acqusition if not set -> use for WIN32?
-- merge & load dialog: directory drop-down: add history
 - merge dialog, "configure" sub-menu: simplify to single list with
   "extended" selection (i.e. allow multiple selections)
 - merge dialog: use multi-col table & display networks
@@ -33,7 +27,9 @@ Post-Nextview EPG:
 - remove use of PDC theme table: create table from themes found in XMLTV
 - change AI/OI/PI to hold original XMLTV info elements (i.e. reduce conversion)
 - allow merge of different channel ID from different providers
+- increase or remove merge provider limit of 64
 - EPG scan: print if Teletext was found instead of "no network ID"; print NoF TTX in summary
+  skip channel if PMT scan found no TTX PID
 - EPG scan: concurrency
 - caching of WintvCfg_GetFreqTab() results
 - XMLTV service name: when merging teletext-only use "Merged teletext (%d networks)"

@@ -302,12 +302,15 @@ proc SelBoxCreate {lbox arr_ailist arr_selist arr_names lwidth do_scrollbar} {
    if {$lbox_height > 20} {
       set lbox_height 20
       set do_scrollbar 1
+   } elseif {$lbox_height < 4} {
+      # must not set height 0 - else listbox height is unbound in case of later updates
+      set lbox_height 4
    }
 
    ## first column: listbox with all netwops in AI order
    frame $lbox.ai
    scrollbar $lbox.ai.sb -orient vertical -command [list $lbox.ai.ailist yview] -takefocus 0
-   if $do_scrollbar { pack $lbox.ai.sb -fill y -side left }
+   if {$do_scrollbar} { pack $lbox.ai.sb -fill y -side left }
    listbox $lbox.ai.ailist -exportselection false -height $lbox_height -width $lwidth \
                            -selectmode extended -yscrollcommand [list $lbox.ai.sb set]
    relief_listbox $lbox.ai.ailist
@@ -337,7 +340,7 @@ proc SelBoxCreate {lbox arr_ailist arr_selist arr_names lwidth do_scrollbar} {
    listbox $lbox.sel.selist -exportselection false -height $lbox_height -width $lwidth \
                             -selectmode extended -yscrollcommand [list $lbox.sel.sb set]
    relief_listbox $lbox.sel.selist
-   if $do_scrollbar { pack $lbox.sel.sb -fill y -side left }
+   if {$do_scrollbar} { pack $lbox.sel.sb -fill y -side left }
    pack $lbox.sel.selist -side left -fill both -expand 1
    pack $lbox.sel -anchor nw -side left -pady 10 -padx 10 -fill both -expand 1
    bind $lbox.sel.selist <<ListboxSelect>> [list + after idle [list SelBoxButtonPress $lbox sel]]
@@ -366,7 +369,23 @@ proc SelBoxUpdateList {lbox arr_ailist arr_selist arr_names} {
    foreach item $ailist {
       $lbox.ai.ailist insert end $names($item)
    }
-   $lbox.ai.ailist configure -height 20
+
+   set prev_height [$lbox.ai.ailist cget -height]
+   set lbox_height [llength $ailist]
+   if {[llength $selist] > $lbox_height} {
+      set lbox_height [llength $selist]
+   }
+   if {$lbox_height > $prev_height} {
+      set do_scrollbar 0
+      if {$lbox_height > 20} {
+         set lbox_height 20
+         set do_scrollbar 1
+      }
+      $lbox.ai.ailist configure -height $lbox_height
+      $lbox.sel.selist configure -height $lbox_height
+      if {$do_scrollbar} { pack $lbox.ai.sb -fill y -side left }
+      if {$do_scrollbar} { pack $lbox.sel.sb -fill y -side left }
+   }
 }
 
 # selected items in the AI CNI list are appended to the selection list
