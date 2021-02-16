@@ -1610,40 +1610,50 @@ geladen werden: C<tv_grab_ttx -debug -verify FILENAME.dat>.
 =head2 TV channel scan
 
 Öffnet einen Dialog mit dem alle TV-Kanäle auf Teletextübertragung
-geprüft werden können. Dies ist jedoch nur informativ und für die
-Funktion des Teletext EPG Grabbers nicht erforderlich. Bedenken Sie,
-dass der Scan nur funktionieren kann, wenn sie den internen TV-Tuner als
-Video-Input eingestellt haben. Siehe auch L<"GETTING STARTED"> und die
-folgenden Kapitel zur Konfiguration der TV-Karte.
+geprüft werden können. Der Scan kann auch dafür verwendet werden den
+Empfang aller TV-Kanäle zu prüfen. Die Ergebnisse des Scans sind nur zu
+Ihrer Information und werden innerhalb nxtvepg nicht weiterverwendet.
 
-Der Button "I<Use TV app.>" wird automatisch ausgewählt, wenn eine
-TV-Anwendung im Dialog "I<TV app. interaction>" eingestellt wurde.
-nxtvepg wird dann lediglich die dort definierten TV-Kanäle
-überprüfen. So wird die Suche nicht nur verkürzt, sondern auch
-zuverlässiger. Für DVB wird nur dieser Modus unterstützt.
+Bevor Sie den Scan starten, sollten Sie die TV-Karte und eine
+TV-Kanaltabelle konfigurieren. Die dazu notwendigen beiden
+Konfigurationsdialoge können Sie direkt über die beiden Knöpfe in der
+unteren rechten Ecke des Dialogfensters erreichen. Beachten Sie daß für
+den Betrieb des Scan der interne TV-Tuner als Video-Input eingestellt
+werden muß. (Siehe dazu auch Kapitel L<"GETTING STARTED">.)
 
-Für analoge TV-Karten wird die Suche wenn keine TV-Sendertabelle
-konfiguriert wurde auf allen möglichen Empfangsfrequenzen in
-verschiedenen Frequenzbändern durchgeführt. In Frankreich sollte die
-französische
-Frequenztabelle (welche gleichzeitig die I<Secam L> TV-Norm impliziert)
-für die Sendersuche ausgewählt werden. In allen anderen Ländern sollte
-die Standard-Frequenztabelle ausgewählt werden. Letztere deckt alle
-üblichen westeuropäischen Frequenzen in Kabel- und Antennenausstrahlung
-mit PAL TV-Norm ab. Andere Länder werden für diesen Modus zurzeit nicht
-unterstützt. In einer Gegend, in der sowohl PAL- als auch SECAM-Sender
-empfangen werden können, sollte die Suche zweimal mit verschiedenen
-Frequenztabellen ausgeführt werden.
+Für alte analoge TV-Karten unterstützt der Scan noch einen
+Frequenzbandmodus der über die I<Channel table> Optionsknöpfe "Western
+Europe" (PAL) bzw. "France" (SECAM) angewählt wird. In diesem Modus wird
+in allen in der gewählten Zone definierten TV-Frequenzbändern nach
+TV-Signalen gesucht; für jede Frequenz auf der ein Signal detektiert wurde
+wird dann versucht den Kanal mittels VPS/PDC und Teletext zu
+identifizieren; das Ergebnis wird im Mitteilungsfenster ausgegeben. Diese
+Prozedur entspricht dem initialen Kanalsuchlauf auf früheren analogen
+Fernsehern. Für nxtvepg ist dieser Modus nicht mehr sinnvoll, da die
+Ergebnisse nicht verwendet werden können.
+
+Daher sollten die die Option I<Load from TV app> einschalten und dann den
+I<Start scan> Knopf drücken. Falls der Teletext EPG grabber aktiv ist,
+wird dieser für die Zeit des Scans suspendiert und danach neu gestarted.
+In diesem auf Kanaltabelle basierendem Modus untersucht der Scan nur genau
+die in der TV-Kanaltabelle aufgeführten TV-Frequenzen. Für jeden dieser
+Kanäle wird versucht Teletext und VPS/PDC zu empfangen und das Ergebnis
+mit Mitteilungsfenster ausgegeben. Für DVB TV-Karten wird zuerst noch die
+"PID" des Teletextdatenstroms ermittelt; ist keine im
+Transponderverzeichnis angegeben, strahlt dieser Sender definitiv kein
+Teletext aus. Bei DVB können Ergebnisse in nicht aufsteigender Reihenfolge
+erscheinen, da der Scan Kanäle die auf derselben Transponderfrequenz
+liegen zusammenfaßt um den Scan zu beschleunigen. Am Ende des Scans
+erscheint noch eine Zusammenfassung mit der Zahl der gefundenen Sender mit
+Teletext.
 
 Setzen Sie ein Häkchen an der Checkbox I<Slow>, wenn Sie auf manchen
 Kanälen einen schlechten Empfang haben. Im Slow-Modus wird der Suchlauf
 Kanäle mit "instabilem" Videosignal nicht überspringen (d.h. kein PLL
 H-lock innerhalb 150 Millisekunden) und auf alles doppelt so lange als
-sonst warten, d.h. bis zu 4 Sekunden auf eine VPS/PDC
+sonst warten, d.h. bis zu 12 Sekunden auf eine VPS/PDC
 Kanalidentifikation. Zu bemerken ist, dass Sie die Einstellung "Slow"
 auch während des Suchlaufs ändern können.
-
-Technische Details des EPG-Suchlaufs: Der Suchlauf wird jede physikalische TV-Frequenz (oder Teilmengen davon, wenn Sie eine der unten beschriebenen Optionen verwenden) aufsuchen und auf ein TV-Signal überprüfen. Wird ein solches innerhalb 150 ms erkannt oder wurde mindestens ein Teletext-Paket empfangen, wird der Suchlauf bis zu zwei Sekunden auf eine gültige VPS/PDC-Kanal-Identifizierung warten. Diese Information erscheint dann im Protokollfenster. Die gefundenen Informationen werden von nxtvepg aktuell nicht ausgewertet, sind also nur zur Information des Benutzers.
 
 =head2 TV card input
 

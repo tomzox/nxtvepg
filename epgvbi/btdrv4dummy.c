@@ -120,6 +120,11 @@ void BtDriver_TuneDvbPid( const int * pidList, const int * sidList, uint pidCoun
 {
 }
 
+uint BtDriver_GetDvbPid( int * pidList )
+{
+   return 0;
+}
+
 void BtDriver_CloseDevice( void )
 {
 }

@@ -1,5 +1,5 @@
 /*
- *  Scan TV channels for Nextview EPG content providers
+ *  Scan TV channels for teletext service
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License Version 2 as
@@ -14,19 +14,14 @@
  *
  *  Description:
  *
- *    The purpose of the EPG scan is to find all Nextview EPG providers.
- *   
- *    The scan is designed to perform as fast as possible. We stay max. 2 secs
- *    on each channel. If a CNI is found and it's a known and loaded provider,
- *    we go on immediately. If no CNI is found or if it's not a known provider,
- *    we wait if any syntactically correct packets are received on any of the
- *    8*24 possible EPG teletext pages. If yes, we try for 45 seconds to
- *    receive the BI and AI blocks. This period is chosen that long, because
- *    some providers have gaps of over 45 seconds between cycles (e.g. RTL-II)
- *    and others do not transmit on the default page 1DF, so we have to wait
- *    for the MIP, which usually is transmitted about every 30 seconds. For
- *    any provider that's found, a database is created and the frequency
- *    saved in its header.
+ *    Originally, the purpose of the EPG scan was finding providers and
+ *    creating an initial database for each, so that the user could be prsented
+ *    with choices in the provider selection dialog. This is no longer needed
+ *    for the Teletext EPG grabber as new databased can be merged on the fly.
+ *    Therefore this functionality is currently looking for a purpose. At best,
+ *    it can serve for allowing the user to check which networks transmit
+ *    teletext, maybe to determine which channel count to enter into the
+ *    Teletext grabber configuration dialog.
  *
  *  Author: Tom Zoerner
  *
@@ -64,30 +59,47 @@
 // ---------------------------------------------------------------------------
 // Declaration of module state variables
 
+#define TTX_DETECTION(PKG,PAG) (((PKG) >= 15) && ((PAG) >= 2))
+
+typedef enum
+{
+   SCAN_STATE_DONE,
+   SCAN_STATE_RESET,
+   SCAN_STATE_WAIT_SIGNAL,
+   SCAN_STATE_WAIT_DVB_PID,
+   SCAN_STATE_WAIT_ANY,
+   SCAN_STATE_WAIT_NI,
+} EPGSCAN_STATE;
+
 typedef struct
 {
-   EPGSCAN_STATE    state;            // state machine
+   bool             isActive;         // state machine
    bool             acqWasEnabled;    // flag if acq was active before start of scan
    uint             inputSrc;         // driver input source (only TV tuner is allowed)
-   uint             channel;          // currently scanned channel
-   uint             channelIdx;       // index of channel currently checked
-   uint             signalFound;      // number of channels with signal detected
+   uint             actChannelCnt;    // number of channels currently checked
+   struct {
+      EPGSCAN_STATE    state;            // state machine
+      uint             channel;          // currently scanned channel
+   } act[MAX_VBI_DVB_STREAMS];
+   uint             sumSignalFound;   // number of channels with signal detected
+   uint             sumTtxFound;      // number of channels with teletext
    time_t           startTime;        // start of acq for the current channel
-   time_t           extraWait;        // extra seconds to wait until timeout
    bool             doSlow;           // user option: do not skip channels w/o reception
    bool             useXawtv;         // user option: work on predefined channel list
    uint             provFreqCount;    // number of known frequencies (xawtv and refresh mode)
+   uint             chnDoneCnt;       // number of scanned frequencies
+   bool           * chnDone;          // flag marking each channel pending/done
    char           * chnNames;         // table of channel names (xawtv mode), or NULL
    EPGACQ_TUNER_PAR * provFreqTab;    // list of known frequencies (xawtv and refresh mode)
-   uint           * provCniTab;       // list of known provider CNIs (refresh mode)
-   bool             foundBi;          // TRUE when BI found on current channel
    EPGSCAN_MSGCB  * MsgCallback;      // callback function to print messages
 } EPGSCANCTL_STATE;
 
 static EPGSCANCTL_STATE scanCtl;
 
 // ----------------------------------------------------------------------------
-// Tune the next channel
+// Get tuner parameters for the next channel to be scanned
+// - for table based search, this simply retrieves the next item from the table
+// - for band scan, the next frequency is determined from external module
 //
 static bool EpgScan_NextChannel( EPGACQ_TUNER_PAR * pFreq )
 {
@@ -95,11 +107,20 @@ static bool EpgScan_NextChannel( EPGACQ_TUNER_PAR * pFreq )
 
    if (scanCtl.provFreqCount > 0)
    {
-      if (scanCtl.channelIdx < scanCtl.provFreqCount)
+      uint idx;
+
+      for (idx = 0; idx < scanCtl.provFreqCount; ++idx)
+         if (scanCtl.chnDone[idx] == FALSE)
+            break;
+
+      if (idx < scanCtl.provFreqCount)
       {
-         *pFreq = scanCtl.provFreqTab[scanCtl.channelIdx];
-         scanCtl.channelIdx += 1;
-         scanCtl.channel = scanCtl.channelIdx;
+         *pFreq = scanCtl.provFreqTab[idx];
+         scanCtl.chnDoneCnt += 1;
+         scanCtl.chnDone[idx] = TRUE;
+         scanCtl.act[0].channel = idx;
+         scanCtl.act[0].state = SCAN_STATE_RESET;
+         scanCtl.actChannelCnt = 1;
          result = TRUE;
       }
    }
@@ -107,12 +128,15 @@ static bool EpgScan_NextChannel( EPGACQ_TUNER_PAR * pFreq )
    {
       uint freq = 0;
 
-      if (TvChannels_GetNext(&scanCtl.channel, &freq))
+      if (TvChannels_GetNext(&scanCtl.act[0].channel, &freq))
       {
          pFreq->freq = TV_CHAN_GET_FREQ(freq);
          pFreq->norm = TV_CHAN_GET_NORM(freq);
 
-         scanCtl.channelIdx += 1;
+         scanCtl.chnDoneCnt += 1;
+         //scanCtl.act[0].channel: already set in query above
+         scanCtl.act[0].state = SCAN_STATE_RESET;
+         scanCtl.actChannelCnt = 1;
          result = TRUE;
       }
    }
@@ -120,43 +144,254 @@ static bool EpgScan_NextChannel( EPGACQ_TUNER_PAR * pFreq )
 }
 
 // ---------------------------------------------------------------------------
-// Helper function which looks up a channel's name
+// Helper function which looks up a name in the channel table
 // - name table is available only when freq table was loaded from TV-app
 // - name table is a concatenation of zero-terminated strings
 //
-static const char * EpgAcqTtx_GetChannelName( uint channelIdx )
+static const char * EpgScan_GetNameFromTable( uint chnIdx )
 {
-   const char * pNames = NULL;
+   const char * pNames = "*unknown*";
    assert(scanCtl.chnNames != NULL);  // to be checked by caller
 
-   if (channelIdx <= scanCtl.provFreqCount)
+   if (chnIdx <= scanCtl.provFreqCount)
    {
       pNames = scanCtl.chnNames;
-      for (uint idx = 0; idx < channelIdx; idx++)
+      for (uint idx = 0; idx < chnIdx; idx++)
          pNames += strlen(pNames) + 1;
    }
    else
-      debug1("EpgScan-GetChannelName: invalid idx:%d", channelIdx);
+      debug1("EpgScan-GetChannelName: invalid idx:%d", chnIdx);
 
    return pNames;
 }
 
-// ----------------------------------------------------------------------------
-// EPG scan timer event handler - called every 250ms
-// 
-uint EpgScan_EvHandler( void )
+// ---------------------------------------------------------------------------
+// Helper function which return a channel's name
+//
+static const char * EpgScan_AcqChannelName( uint actIdx )
+{
+   static char chanName[64];
+
+   if (scanCtl.provFreqCount == 0)
+      TvChannels_GetName(scanCtl.act[actIdx].channel, chanName, sizeof(chanName));
+   else if (scanCtl.chnNames != NULL)
+      sprintf(chanName, "#%d (\"%.40s\")", scanCtl.act[actIdx].channel, EpgScan_GetNameFromTable(scanCtl.act[actIdx].channel));
+   else
+      sprintf(chanName, "#%d", scanCtl.act[actIdx].channel);
+
+   chanName[sizeof(chanName) - 1] = 0;
+
+   return chanName;
+}
+
+// ---------------------------------------------------------------------------
+// Tune DVB PID & piggy-back PIDs from the channel table on the same transponder
+//
+static void EpgScan_TunePid( EPGACQ_TUNER_PAR * par )
+{
+   int pidList[MAX_VBI_DVB_STREAMS];
+   int serviceIds[MAX_VBI_DVB_STREAMS];
+   uint pidCount;
+
+   if (EPGACQ_TUNER_NORM_IS_DVB(par->norm))
+   {
+      assert (scanCtl.actChannelCnt == 1);
+
+      pidCount = 1;
+      pidList[0] = par->ttxPid;
+      serviceIds[0] = par->serviceId;
+
+      for (uint idx = 0; (idx < scanCtl.provFreqCount) && (pidCount < MAX_VBI_DVB_STREAMS); ++idx)
+      {
+         if ( (scanCtl.provFreqTab[idx].freq == par->freq) &&
+              (scanCtl.chnDone[idx] == FALSE) &&
+              (idx != scanCtl.act[0].channel) )
+         {
+            dprintf4("EpgScan-TunePid: piggy-backing srv:%d PID:%d channel %d (%s)\n", scanCtl.provFreqTab[idx].serviceId, scanCtl.provFreqTab[idx].ttxPid, idx, EpgScan_GetNameFromTable(idx));
+            pidList[pidCount] = scanCtl.provFreqTab[idx].ttxPid;
+            serviceIds[pidCount] = scanCtl.provFreqTab[idx].serviceId;
+
+            scanCtl.act[pidCount].channel = idx;
+            scanCtl.act[pidCount].state = SCAN_STATE_RESET;
+
+            scanCtl.chnDoneCnt += 1;
+            scanCtl.chnDone[idx] = TRUE;
+            pidCount += 1;
+         }
+      }
+      scanCtl.actChannelCnt = pidCount;
+
+      BtDriver_TuneDvbPid(pidList, serviceIds, pidCount);
+   }
+}
+
+// ---------------------------------------------------------------------------
+// Per-channel state machine
+//
+static uint EpgScan_HandleChannel( uint actIdx, time_t now )
 {
    const char * pName, * pCountry;
-   time_t now = time(NULL);
-   char chanName[64], msgbuf[300], dispText[PDC_TEXT_LEN + 1];
-   EPGACQ_TUNER_PAR freq;
    TTX_DEC_STATS ttxStats;
    time_t ttxStart;
    uint cni;
    time_t delay;
+   bool niWait;
+   char msgbuf[300];
+   char dispText[PDC_TEXT_LEN + 1];
+   uint rescheduleMs = 0;
+
+   TtxDecode_GetStatistics(actIdx, &ttxStats, &ttxStart);
+   dispText[0] = 0;
+
+   if (scanCtl.act[actIdx].state == SCAN_STATE_RESET)
+   {  // reset state again 50ms after channel change
+      scanCtl.act[actIdx].state = SCAN_STATE_WAIT_SIGNAL;
+      dprintf2("Channel[%d] %d: WAIT_SIGNAL\n", actIdx, scanCtl.act[actIdx].channel);
+   }
+   else if (scanCtl.act[actIdx].state == SCAN_STATE_WAIT_SIGNAL)
+   {  // skip this channel if there's no stable signal
+      if ( scanCtl.doSlow || scanCtl.useXawtv ||
+           BtDriver_IsVideoPresent() || (ttxStats.ttxPkgCount > 0) )
+      {
+         if (BtDriver_IsVideoPresent())
+            scanCtl.sumSignalFound += 1;
+
+         if ( (scanCtl.provFreqTab != NULL) &&
+              EPGACQ_TUNER_NORM_IS_DVB(scanCtl.provFreqTab[scanCtl.act[actIdx].channel].norm) &&
+              (scanCtl.provFreqTab[scanCtl.act[actIdx].channel].ttxPid <= 0) )
+         {
+            dprintf2("Channel[%d] %d: WAIT for TTX PID\n", actIdx, scanCtl.act[actIdx].channel);
+            scanCtl.act[actIdx].state = SCAN_STATE_WAIT_DVB_PID;
+         }
+         else
+         {
+            dprintf3("Channel[%d] %d: WAIT for data (%d ttx pkgs)\n", actIdx, scanCtl.act[actIdx].channel, ttxStats.ttxPkgCount);
+            scanCtl.act[actIdx].state = SCAN_STATE_WAIT_ANY;
+         }
+      }
+      else
+      {
+         dprintf2("Channel[%d] %d: DONE: neither video signal nor ttx data\n", actIdx, scanCtl.act[actIdx].channel);
+         scanCtl.act[actIdx].state = SCAN_STATE_DONE;
+      }
+   }
+   else if (scanCtl.act[actIdx].state == SCAN_STATE_WAIT_DVB_PID)
+   {
+      int pid[MAX_VBI_DVB_STREAMS];
+      if (BtDriver_GetDvbPid(pid) > actIdx)
+      {
+         dprintf3("Channel[%d]: %d: DVB-PID=%d\n", actIdx, scanCtl.act[actIdx].channel, pid[actIdx]);
+         if (pid[actIdx] <= 0)
+         {
+            sprintf(msgbuf, "Channel %s: no teletext DVB stream", EpgScan_AcqChannelName(actIdx));
+            scanCtl.MsgCallback(msgbuf, FALSE);
+            scanCtl.act[actIdx].state = SCAN_STATE_DONE;
+         }
+         else
+         {
+            scanCtl.act[actIdx].state = SCAN_STATE_WAIT_ANY;
+            scanCtl.startTime = now;
+         }
+      }
+      else
+         dprintf2("Channel[%d]: %d: Keep waiting for PID\n", actIdx, scanCtl.act[actIdx].channel);
+   }
+   else if (scanCtl.act[actIdx].state != SCAN_STATE_DONE)
+   {
+      TtxDecode_GetScanResults(actIdx, &cni, &niWait, dispText, sizeof(dispText));
+
+      if ((cni != 0) && (scanCtl.act[actIdx].state <= SCAN_STATE_WAIT_NI))
+      {
+         dprintf3("Channel[%d] %d: Found VPS/PDC/NI 0x%04X\n", actIdx, scanCtl.act[actIdx].channel, cni);
+         // determine network name (e.g. "EuroNews") and country
+         pName = CniGetDescription(cni, &pCountry);
+         // determine channel name (e.g. "SE10")
+         if (pName != NULL)
+         {
+            sprintf(msgbuf, "Channel %s: teletext ID %04X %s", EpgScan_AcqChannelName(actIdx), cni, pName);
+            // append country if available
+            if ((pCountry != NULL) && (strstr(pName, pCountry) == NULL))
+               sprintf(msgbuf + strlen(msgbuf), " (%s)", pCountry);
+         }
+         else if (dispText[0] != 0)
+            sprintf(msgbuf, "Channel %s: teletext ID %04X (unknown), ID text \"%s\"", EpgScan_AcqChannelName(actIdx), cni, dispText);
+         else
+            sprintf(msgbuf, "Channel %s: teletext ID %04X", EpgScan_AcqChannelName(actIdx), cni);
+         scanCtl.MsgCallback(msgbuf, FALSE);
+
+         scanCtl.sumTtxFound += 1;
+         scanCtl.act[actIdx].state = SCAN_STATE_DONE;
+      }
+      else if ((scanCtl.act[actIdx].state < SCAN_STATE_WAIT_NI) && niWait)
+      {
+         dprintf2("Channel[%d] %d: WAIT_NI\n", actIdx, scanCtl.act[actIdx].channel);
+         scanCtl.act[actIdx].state = SCAN_STATE_WAIT_NI;
+      }
+   }
+
+   if (scanCtl.act[actIdx].state != SCAN_STATE_DONE)
+   {
+      bool haveTtx = TTX_DETECTION(ttxStats.scanPkgCount, ttxStats.scanPagCount);
+
+      // determine timeout for the current state
+      switch (scanCtl.act[actIdx].state)
+      {
+         case SCAN_STATE_WAIT_SIGNAL:    delay =  2; break;
+         case SCAN_STATE_WAIT_DVB_PID:   delay =  4; break;
+         case SCAN_STATE_WAIT_ANY:
+            if ((ttxStats.scanPkgCount > 1) && !haveTtx)
+               delay                           =  4;
+            else
+               delay                           =  2;
+            break;
+         case SCAN_STATE_WAIT_NI:        delay =  6; break;
+         default:                        delay =  0; break;
+      }
+      if (scanCtl.doSlow)
+         delay *= 2;
+
+      if (now >= scanCtl.startTime + delay)
+      {  // max wait exceeded -> next channel
+         dprintf4("Channel[%d] %d: TIMEOUT in state:%d TTX?:%d\n", actIdx, scanCtl.act[actIdx].channel, scanCtl.act[actIdx].state, haveTtx);
+
+         if ( (scanCtl.useXawtv) &&
+              (scanCtl.act[actIdx].state <= SCAN_STATE_WAIT_NI) )
+         {  // no CNI found on a predefined channel -> inform user
+            if (dispText[0] != 0)
+               sprintf(msgbuf, "Channel %s: teletext ID text \"%s\"", EpgScan_AcqChannelName(actIdx), dispText);
+            else if (haveTtx)
+               sprintf(msgbuf, "Channel %s: teletext detected (but no ID)", EpgScan_AcqChannelName(actIdx));
+            else
+               sprintf(msgbuf, "Channel %s: no teletext detected", EpgScan_AcqChannelName(actIdx));
+            scanCtl.MsgCallback(msgbuf, FALSE);
+         }
+
+         if (haveTtx)
+            scanCtl.sumTtxFound += 1;
+         scanCtl.act[actIdx].state = SCAN_STATE_DONE;
+      }
+      else
+      {  // continue scan on current channel
+         //dprintf5("Channel[%d] %d: Continue waiting... state %d waited %d of max. %d secs\n", actIdx, scanCtl.act[actIdx].channel, scanCtl.act[actIdx].state, (int)(now - scanCtl.startTime), (int)delay);
+         if (scanCtl.act[actIdx].state == SCAN_STATE_WAIT_SIGNAL)
+            rescheduleMs = 100;
+         else
+            rescheduleMs = 250;
+      }
+   }
+   return rescheduleMs;
+}
+
+// ----------------------------------------------------------------------------
+// EPG scan timer event handler - called every 250ms
+//
+uint EpgScan_EvHandler( void )
+{
+   time_t now = time(NULL);
+   char msgbuf[300];
+   EPGACQ_TUNER_PAR freq;
    uint rescheduleMs;
    bool isTuner;
-   bool niWait;
    bool stopped;
 
    // Process all available lines from VBI and check for BI and AI blocks
@@ -177,116 +412,26 @@ uint EpgScan_EvHandler( void )
       EpgScan_Stop();
    }
 
-   dispText[0] = 0;
    rescheduleMs = 0;
-   if (scanCtl.state != SCAN_STATE_OFF)
+   if (scanCtl.isActive)
    {
-      if (scanCtl.state == SCAN_STATE_RESET)
-      {  // reset state again 50ms after channel change
-         scanCtl.state = SCAN_STATE_WAIT_SIGNAL;
-         dprintf1("WAIT_SIGNAL channel %d\n", scanCtl.channel);
-      }
-      else if (scanCtl.state == SCAN_STATE_WAIT_SIGNAL)
-      {  // skip this channel if there's no stable signal
-         TtxDecode_GetStatistics(0, &ttxStats, &ttxStart);
-         if ( scanCtl.doSlow || scanCtl.useXawtv ||
-              BtDriver_IsVideoPresent() || (ttxStats.ttxPkgCount > 0) )
-         {
-            dprintf2("WAIT for data on channel %d (%d ttx pkgs)\n", scanCtl.channel, ttxStats.ttxPkgCount);
-            if (BtDriver_IsVideoPresent())
-               scanCtl.signalFound += 1;
-            scanCtl.state = SCAN_STATE_WAIT_ANY;
-         }
-         else
-         {
-            dprintf1("DONE with %d: neither video signal nor ttx data\n", scanCtl.channel);
-            scanCtl.state = SCAN_STATE_DONE;
-         }
-      }
-      else
+      for (uint actIdx = 0; actIdx < scanCtl.actChannelCnt; ++actIdx)
       {
-         TtxDecode_GetScanResults(&cni, &niWait, dispText, sizeof(dispText));
-
-         if ((cni != 0) && (scanCtl.state <= SCAN_STATE_WAIT_NI))
-         {
-            dprintf2("Found VPS/PDC/NI 0x%04X on channel %d\n", cni, scanCtl.channel);
-            // determine network name (e.g. "EuroNews") and country
-            pName = CniGetDescription(cni, &pCountry);
-            // determine channel name (e.g. "SE10")
-            if (scanCtl.provFreqCount == 0)
-               TvChannels_GetName(scanCtl.channel, chanName, sizeof(chanName));
-            else if (scanCtl.chnNames != NULL)
-               snprintf(chanName, sizeof(chanName), "#%d (\"%.40s\")", scanCtl.channel, EpgAcqTtx_GetChannelName(scanCtl.channel - 1));
-            else
-               snprintf(chanName, sizeof(chanName), "#%d", scanCtl.channel);
-            chanName[sizeof(chanName) - 1] = 0;
-            if (pName != NULL)
-            {
-               sprintf(msgbuf, "Channel %s: CNI 0x%04X %s", chanName, cni, pName);
-               // append country if available
-               if ((pCountry != NULL) && (strstr(pName, pCountry) == NULL))
-                  sprintf(msgbuf + strlen(msgbuf), " (%s)", pCountry);
-            }
-            else if (dispText[0] != 0)
-               sprintf(msgbuf, "Channel %s: CNI 0x%04X \"%s\"", chanName, cni, dispText);
-            else
-               sprintf(msgbuf, "Channel %s: CNI 0x%04X", chanName, cni);
-            scanCtl.MsgCallback(msgbuf, FALSE);
-
-            scanCtl.state = SCAN_STATE_DONE;
-         }
-         else if ((scanCtl.state < SCAN_STATE_WAIT_NI) && niWait)
-         {
-            dprintf1("WAIT_NI on channel %d\n", scanCtl.channel);
-            scanCtl.state = SCAN_STATE_WAIT_NI;
-         }
+         uint ms = EpgScan_HandleChannel(actIdx, now);
+         if (ms > rescheduleMs)
+            rescheduleMs = ms;
       }
 
-      // determine timeout for the current state
-      switch (scanCtl.state)
+      if (rescheduleMs == 0)
       {
-         case SCAN_STATE_WAIT_SIGNAL:    delay =  2; break;
-         case SCAN_STATE_WAIT_ANY:       delay =  2; break;
-         case SCAN_STATE_WAIT_NI:        delay =  6; break;
-         default:                        delay =  0; break;
-      }
-      if (scanCtl.doSlow)
-         delay *= 2;
-
-      if ( (scanCtl.state == SCAN_STATE_DONE) ||
-           ((now - scanCtl.startTime - scanCtl.extraWait) >= delay) )
-      {  // max wait exceeded -> next channel
-
-         if ( (scanCtl.useXawtv) &&
-              (scanCtl.state <= SCAN_STATE_WAIT_NI) )
-         {  // no CNI found on a predefined channel -> inform user
-            if (scanCtl.provFreqCount == 0)
-               TvChannels_GetName(scanCtl.channel, chanName, sizeof(chanName));
-            else if (scanCtl.chnNames != NULL)
-               sprintf(chanName, "#%d (\"%.40s\")", scanCtl.channel, EpgAcqTtx_GetChannelName(scanCtl.channel - 1));
-            else
-               sprintf(chanName, "#%d", scanCtl.channel);
-            chanName[sizeof(chanName) - 1] = 0;
-            if (dispText[0] != 0)
-               sprintf(msgbuf, "Channel %s: CNI 0x0000 \"%s\"", chanName, dispText);
-            else
-               sprintf(msgbuf, "Channel %s: no network ID received", chanName);
-            scanCtl.MsgCallback(msgbuf, FALSE);
-         }
-
          if ( EpgScan_NextChannel(&freq) )
          {
             if ( BtDriver_TuneChannel(scanCtl.inputSrc, &freq, TRUE, &isTuner) )
             {
-               BtDriver_TuneDvbPid(&freq.ttxPid, &freq.serviceId, 1);  // TODO concurrency
+               EpgScan_TunePid(&freq);
                TtxDecode_StartScan();
 
-               dprintf1("RESET channel %d\n", scanCtl.channel);
                scanCtl.startTime = now;
-               scanCtl.extraWait = 0;
-               scanCtl.state = SCAN_STATE_RESET;
-               scanCtl.foundBi = FALSE;
-
                rescheduleMs = 50;
             }
             else
@@ -308,22 +453,20 @@ uint EpgScan_EvHandler( void )
             dprintf0("EPG scan finished\n");
             EpgScan_Stop();
             scanCtl.MsgCallback("EPG scan finished.", FALSE);
-            if (scanCtl.signalFound == 0)
+
+            if (scanCtl.sumSignalFound == 0)
             {
-               scanCtl.MsgCallback("No signal found on any channels!\n"
-                                   "Please check your settings in the\n"
-                                   "TV card input popup (Configure menu)\n"
+               scanCtl.MsgCallback("\nNo signal found on any channels!\n"
+                                   "Check your TV card setup (click the button below),\n"
                                    "or check your antenna cable.", FALSE);
             }
+            else
+            {
+               sprintf(msgbuf, "\nFound teletext on %d of %d channels.\n",
+                       scanCtl.sumTtxFound, scanCtl.chnDoneCnt);
+               scanCtl.MsgCallback(msgbuf, FALSE);
+            }
          }
-      }
-      else
-      {  // continue scan on current channel
-         dprintf3("Continue waiting... state %d waited %d of max. %d secs\n", scanCtl.state, (int)(now - scanCtl.startTime - scanCtl.extraWait), (int)delay);
-         if (scanCtl.state == SCAN_STATE_WAIT_SIGNAL)
-            rescheduleMs = 100;
-         else
-            rescheduleMs = 250;
       }
    }
    else
@@ -353,7 +496,7 @@ EPGSCAN_START_RESULT EpgScan_Start( int inputSource, bool doSlow, bool useXawtv,
    EPGACQ_TUNER_PAR  freq;
    bool  isTuner;
    EPGSCAN_START_RESULT result;
-   char chanName[10], msgbuf[300];
+   char msgbuf[300];
    uint rescheduleMs;
 
    scanCtl.inputSrc      = inputSource;
@@ -364,6 +507,8 @@ EPGSCAN_START_RESULT EpgScan_Start( int inputSource, bool doSlow, bool useXawtv,
    scanCtl.provFreqTab   = freqTab;
    scanCtl.chnNames      = chnNames;
    scanCtl.MsgCallback   = pMsgCallback;
+   scanCtl.chnDone       = NULL;
+   scanCtl.chnDoneCnt    = 0;
    result = EPGSCAN_OK;
 
    rescheduleMs = 0;
@@ -396,8 +541,18 @@ EPGSCAN_START_RESULT EpgScan_Start( int inputSource, bool doSlow, bool useXawtv,
 
    if (result == EPGSCAN_OK)
    {
-      scanCtl.channelIdx = 0;
-      scanCtl.channel = 0;
+      scanCtl.isActive = TRUE;
+      scanCtl.sumSignalFound = 0;
+      scanCtl.sumTtxFound = 0;
+      scanCtl.act[0].channel = 0;
+      scanCtl.actChannelCnt = 0;
+
+      if (scanCtl.provFreqCount > 0)
+      {
+         scanCtl.chnDone = xmalloc(freqCount * sizeof(bool));
+         memset(scanCtl.chnDone, 0, freqCount * sizeof(bool));
+      }
+
       if (EpgScan_NextChannel(&freq))
       {
          BtDriver_SetChannelProfile(VBI_CHANNEL_PRIO_INTERACTIVE);
@@ -407,26 +562,16 @@ EPGSCAN_START_RESULT EpgScan_Start( int inputSource, bool doSlow, bool useXawtv,
          {
             if (isTuner)
             {
-               BtDriver_TuneDvbPid(&freq.ttxPid, &freq.serviceId, 1);  // TODO concurrency
+               EpgScan_TunePid(&freq);
                TtxDecode_StartScan();
 
-               dprintf1("RESET channel %d\n", scanCtl.channel);
-               scanCtl.state = SCAN_STATE_RESET;
                scanCtl.startTime = time(NULL);
-               scanCtl.extraWait = 0;
-               scanCtl.foundBi = FALSE;
                rescheduleMs = 50;
-               scanCtl.signalFound = 0;
 
                if (scanCtl.provFreqCount == 0)
-               {
-                  TvChannels_GetName(scanCtl.channel, chanName, sizeof(chanName));
-                  sprintf(msgbuf, "Starting scan on channel %s", chanName);
-               }
+                  sprintf(msgbuf, "Starting scan on channel %s", EpgScan_AcqChannelName(0));
                else
-               {
                   sprintf(msgbuf, "Starting scan on %d known TV channels", scanCtl.provFreqCount);
-               }
                scanCtl.MsgCallback(msgbuf, FALSE);
             }
             else
@@ -463,15 +608,15 @@ EPGSCAN_START_RESULT EpgScan_Start( int inputSource, bool doSlow, bool useXawtv,
          xfree(scanCtl.provFreqTab);
          scanCtl.provFreqTab = NULL;
       }
-      if (scanCtl.provCniTab != NULL)
-      {
-         xfree(scanCtl.provCniTab);
-         scanCtl.provCniTab = NULL;
-      }
       if (scanCtl.chnNames != NULL)
       {
          xfree(scanCtl.chnNames);
          scanCtl.chnNames = NULL;
+      }
+      if (scanCtl.chnDone != NULL)
+      {
+         xfree(scanCtl.chnDone);
+         scanCtl.chnDone = NULL;
       }
    }
 
@@ -489,24 +634,24 @@ EPGSCAN_START_RESULT EpgScan_Start( int inputSource, bool doSlow, bool useXawtv,
 //
 void EpgScan_Stop( void )
 {
-   if (scanCtl.state != SCAN_STATE_OFF)
+   if (scanCtl.isActive)
    {
       if (scanCtl.provFreqTab != NULL)
       {
          xfree(scanCtl.provFreqTab);
          scanCtl.provFreqTab = NULL;
       }
-      if (scanCtl.provCniTab != NULL)
-      {
-         xfree(scanCtl.provCniTab);
-         scanCtl.provCniTab = NULL;
-      }
       if (scanCtl.chnNames != NULL)
       {
          xfree(scanCtl.chnNames);
          scanCtl.chnNames = NULL;
       }
-      scanCtl.state = SCAN_STATE_OFF;
+      if (scanCtl.chnDone != NULL)
+      {
+         xfree(scanCtl.chnDone);
+         scanCtl.chnDone = NULL;
+      }
+      scanCtl.isActive = FALSE;
 
       BtDriver_CloseDevice();
       if (scanCtl.acqWasEnabled == FALSE)
@@ -529,7 +674,7 @@ void EpgScan_SetSpeed( bool doSlow )
 
 // ----------------------------------------------------------------------------
 // Return progress percentage for the progress bar
-// 
+//
 double EpgScan_GetProgressPercentage( void )
 {
    uint count;
@@ -540,15 +685,15 @@ double EpgScan_GetProgressPercentage( void )
       count = TvChannels_GetCount();
 
    if (count != 0)
-      return (double)scanCtl.channelIdx / count;
+      return (double)scanCtl.chnDoneCnt / count;
    else
       return 100.0;
 }
 
 // ----------------------------------------------------------------------------
 // Return if EPG scan is currently running
-// 
+//
 bool EpgScan_IsActive( void )
 {
-   return (scanCtl.state != SCAN_STATE_OFF);
+   return scanCtl.isActive;
 }

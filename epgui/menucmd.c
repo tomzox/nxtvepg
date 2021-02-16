@@ -1664,18 +1664,28 @@ static int MenuCmd_GetAutoMergeTtx( ClientData ttp, Tcl_Interp *interp, int objc
 static void MenuCmd_AddEpgScanMsg( const char * pMsg, bool bold )
 {
    Tcl_DString cmd_dstr;
+   Tcl_Obj * pMsgObj;
 
    if (pMsg != NULL)
    {
-      Tcl_DStringInit(&cmd_dstr);
-      Tcl_DStringAppend(&cmd_dstr, "EpgScanAddMessage ", -1);
-      // append message (plus a newline) as list element, so that '{' etc. is escaped properly
-      Tcl_DStringAppendElement(&cmd_dstr, pMsg);
-      Tcl_DStringAppend(&cmd_dstr, (bold ? " bold" : " {}"), -1);
+      // messages may contain CNI description which is in Latin-1, not UTF-8
+      pMsgObj = TranscodeToUtf8(EPG_ENC_ISO_8859_1, NULL, pMsg, NULL);
+      if (pMsgObj != NULL)
+      {
+         Tcl_IncrRefCount(pMsgObj);
+         Tcl_DStringInit(&cmd_dstr);
+         Tcl_DStringAppend(&cmd_dstr, "EpgScanAddMessage ", -1);
+         // append message as list element, so that '{' etc. is escaped properly
+         Tcl_DStringAppendElement(&cmd_dstr, Tcl_GetStringFromObj(pMsgObj, NULL));
+         Tcl_DStringAppend(&cmd_dstr, (bold ? " bold" : " {}"), -1);
 
-      eval_check(interp, Tcl_DStringValue(&cmd_dstr));
+         eval_check(interp, Tcl_DStringValue(&cmd_dstr));
 
-      Tcl_DStringFree(&cmd_dstr);
+         Tcl_DStringFree(&cmd_dstr);
+         Tcl_DecrRefCount(pMsgObj);
+      }
+      else
+         debug1("MenuCmd-AddEpgScanMsg: UTF conversion failed for '%s'", pMsg);
    }
    else
       debug0("MenuCmd-AddEpgScanMsg: illegal NULL ptr param");
@@ -1783,9 +1793,7 @@ static int MenuCmd_StartEpgScan( ClientData ttp, Tcl_Interp *interp, int objc, T
 
             case EPGSCAN_NO_TUNER:
                sprintf(comm, "tk_messageBox -type ok -icon error -parent .epgscan "
-                             "-message {The provider search cannot be used for external video sources. "
-                                       "Quit the scan dialog and tune an EPG provider's TV channel "
-                                       "manually (e.g. in your satellite receiver or set-top box.)}\n");
+                             "-message {The TV channel scan can only be used for input sources with a TV tuner.");
                eval_check(interp, comm);
                break;
 

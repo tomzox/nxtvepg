@@ -34,17 +34,6 @@ typedef enum
    EPGSCAN_START_RESULT_COUNT
 } EPGSCAN_START_RESULT;
 
-// internal state during epg scan
-typedef enum
-{
-   SCAN_STATE_OFF,
-   SCAN_STATE_RESET,
-   SCAN_STATE_WAIT_SIGNAL,
-   SCAN_STATE_WAIT_ANY,
-   SCAN_STATE_WAIT_NI,
-   SCAN_STATE_DONE
-} EPGSCAN_STATE;
-
 // callback function which is used by the scan handler to give user feedback
 typedef void (EPGSCAN_MSGCB) ( const char * pMsg, bool bold );
 typedef void (EPGSCAN_DELCB) ( uint cni );

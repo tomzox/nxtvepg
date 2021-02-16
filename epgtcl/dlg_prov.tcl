@@ -33,7 +33,7 @@ proc EpgScan_UpdateTvApp {} {
    global epgscan_opt_ftable
    global epgscan_popup
 
-   if $epgscan_popup {
+   if {$epgscan_popup} {
       if {![C_Tvapp_Enabled]} {
          .epgscan.all.ftable.tab0 configure -state disabled
          if {$epgscan_opt_ftable == 0} {
@@ -710,18 +710,23 @@ proc EpgScan_Start {} {
       return
    }
 
-   if {$epgscan_opt_ftable != 0} {
+   set hwcfg [C_GetHardwareConfig]
+   # check $::hwcf_ret_drvsrc_idx for BTDRV_SOURCE_NONE
+   if {[lindex $hwcfg 2] == -1} {
+      # may occur when card type is changed while the dialog is open
+      tk_messageBox -type ok -icon error -parent .epgscan -message "Please configure a TV card via \"Card setup\" before starting the EPG scan."
+      return
+
+   } elseif {$epgscan_opt_ftable != 0} {
       # check $::hwcf_ret_drvsrc_idx for BTDRV_SOURCE_DVB
-      set hwcfg [C_GetHardwareConfig]
       if {[lindex $hwcfg 2] == 1} {
          if {![C_Tvapp_Enabled]} {
             set answer [tk_messageBox -type okcancel -icon error -parent .epgscan -message "Scanning physical frequencies is not supported for digital TV cards. Please use \"Select TV app\" for configuring a channel table before starting the EPG scan."]
             if {[string compare $answer ok] == 0} {
                XawtvConfigPopup
             }
-            return
          } else {
-            tk_messageBox -type ok -icon error -parent .epgscan -message "Scanning physical frequencies is not supported for digital TV cards. Please check option \"Load from TV app\"."
+            tk_messageBox -type ok -icon error -parent .epgscan -message "Scanning physical frequencies is not supported for digital TV cards. Please check option \"Load from...\"."
          }
          return
       }
@@ -759,10 +764,8 @@ proc EpgScanButtonControl {is_start} {
       .epgscan.all.ftable.tab0 configure -state disabled
       .epgscan.all.ftable.tab1 configure -state disabled
       .epgscan.all.ftable.tab2 configure -state disabled
-      if {!$is_unix} {
-         .epgscan.all.opt.cfgtvcard configure -state disabled
-         .epgscan.all.opt.cfgtvpp configure -state disabled
-      }
+      .epgscan.all.opt.cfgtvcard configure -state disabled
+      .epgscan.all.opt.cfgtvpp configure -state disabled
    } else {
       # check if the popup window still exists
       if {[string length [info commands .epgscan.cmd]] > 0} {
@@ -772,10 +775,9 @@ proc EpgScanButtonControl {is_start} {
          .epgscan.cmd.start configure -state normal
          .epgscan.cmd.stop configure -state disabled
          .epgscan.cmd.ok configure -state normal
-         if {!$is_unix} {
-            .epgscan.all.opt.cfgtvcard configure -state normal
-            .epgscan.all.opt.cfgtvpp configure -state normal
-         }
+         .epgscan.all.opt.cfgtvcard configure -state normal
+         .epgscan.all.opt.cfgtvpp configure -state normal
+
          # enable option checkboxes only if they were enabled before the scan
          if {[C_Tvapp_Enabled]} {
             .epgscan.all.ftable.tab0 configure -state normal

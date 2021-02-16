@@ -10,6 +10,7 @@ Mandatory fixes for release 3.0.0:
 - update WWW: news, provider list
 
 Post-Nextview EPG:
+- XMLTV service name: when merging teletext-only use "Merged teletext (%d networks)"
 - bad error message when using "Load teletext EPG" and no files available yet
 - daemon mode: ? make work independent of TV app & ttx grabber cfg. (e.g. windows)
 - stats db histogram, merged db: show percentage of DBs updated during last 12-24 hours
@@ -28,13 +29,10 @@ Post-Nextview EPG:
 - change AI/OI/PI to hold original XMLTV info elements (i.e. reduce conversion)
 - allow merge of different channel ID from different providers
 - increase or remove merge provider limit of 64
-- EPG scan: print if Teletext was found instead of "no network ID"; print NoF TTX in summary
-  skip channel if PMT scan found no TTX PID
-- EPG scan: concurrency
 - caching of WintvCfg_GetFreqTab() results
-- XMLTV service name: when merging teletext-only use "Merged teletext (%d networks)"
 - DVB TTX stream decoding issues: "Illegal line order", "Unknown data_unit_id"
 - DVB: update channel list in epgacqttx with TTX PIDs returned by PAT/PMT scan
+- DVB: suppress TTX header change detection
 - replace "now" acq phase with DVB EPG (EIT) except for analog TV cards
 - mplayer, VLC & VDR plugin for EPG display
 - teletext: use separate thread for post-processing (takes long time for 10 DBs)
@@ -43,6 +41,7 @@ Post-Nextview EPG:
 - teletext acq stats: percentage cycle loaded (i.e. cycles done vs. max. sub-page count)
 - teletext configuration dialog: allow channel-specific config of page range, exclusion & duration
 - teletext emit XML encoding UTF-8
+- netwop name config start: for after auto-config message, do not count names that were exactly the same
 - port to WIN32: "Broadcast Driver Architecture" (filter graph)
 
 Missing documentation:
@@ -128,7 +127,7 @@ Possible future reminder options:
 - simplify use of shortcuts in reminders (e.g. combine shortcut creation
   with reminder addition in "Add reminder for filter" menu entry)
 
-Recently suggested fixes & changes:
+Recently (anno 2006) suggested fixes & changes:
 - TV app shm: resend info for same channel (req. by zoomin)
   also: add more EPG info to shared memory; add video norm to shm
   also: synchronize timer list with ZoomOut
@@ -168,7 +167,7 @@ Recently suggested fixes & changes:
 - epgdbfil.c: clean solution for text search string length limit
 
 
-New "NetBox" layout: open issues/known problems:
+"NetBox" aka "grid" layout: open issues/known problems:
 - refresh may leave excessive gaps between items
 - special marker row between different days?
 - changing column count/width by resizing outer window?
@@ -177,14 +176,9 @@ New "NetBox" layout: open issues/known problems:
   + align text: left/center/right
 
 Acquisition daemon:
-- when dump is aborted, keep the old modification time on client-side
 - VPS: trigger check device access via remove cmd (upon xawtv start/exit)
-- limit queue max length on server side (e.g. when bandwidth too low
-  or client hangs)
-- client-side db mgmt during dump state: lock merge & PI listbox?
 optional:
 - cmdline option -non-shared-dbdir: suck the complete db through the pipe
-- avoid copying memory each forwarded EPG block for each connected client
 win32 port:
 - install daemon as a service, possibly with helper app. in the systray
   to check acquisition status.
@@ -199,10 +193,6 @@ xawtv TV app interaction:
 
 WIN32 port fixes:
 - use TV app directory in shared memory for auto-configuration
-- dump stream feature: must use window or file instead of stdout
-  note: output to stdout works when started inside a GNU/Cygwin bash
-- need to debug source of main window crash in Windows MessageBox()
-- better workaround for dynamic menus (e.g. "Navigate" filer menu) needed
 - allow manual horizontal resizing for grid layout
 - menubutton popups does not work when invoked for the 2nd time via
   ALT key binding (Thierry)
@@ -210,7 +200,7 @@ WIN32 port fixes:
 - start with main window maximized when requested in Windows shortcut properties
   (requested by Thierry; I've no idea how to query these properties though)
 - systray popup menu should close by any mouse click outside of it
-- Tcl/Tk panic after desktop resulution change (e.g. to start fullscreen game)
+- Tcl/Tk panic after desktop resolution change (e.g. to start fullscreen game)
   Tk panic in color palette handling, leads to program abort
   possibly use WM_DISPLAYCHANGE to restart
 - catch WM_POWERBROADCAST, PBT_APMRESUMESUSPEND to catch power mode changes
@@ -228,25 +218,14 @@ WDM:
 merged database fixes:
 - fine control for provider merge
   (e.g. average editorial rating instead of first)
-- database statistics popup: need some estimation for % of completeness
-- merged database: block index handling (for statistics)
-- more intelligent redundancy check for merged descriptions:
-  break up into substrings at any non-alnum except space
-- user-defined mapping of CNIs in case of CNI mismatch between providers
 
 other required fixes:
 - epgdbmerge.c: AI merge: design fixes (don't modify caller's CNI array)
-- advance ranges of expired PI in timescale popup every minute
-- TI & LI (subtitle and language information blocks): implement output methods
-  and search filters
 - automatically show expired PI in the database when still running
   (according to VPS/PDC) when following TV channel changes
 - netwop name config: counts names to "automatic selection"
   even if there was just one provider (or just one with that netwop)
   note: no xawtv sync is done, so it must only appear if there's more than one provider
-- during very bad reception acq restarts every 2-4 secs
-  due to ttx page header decoding error (falsely detected channel change)
-- AdvanceCyclePhase: limit number of tries to update provider (first "if")
 - startup: if nxtvepg version is incompatible don't recommend prov selection
 
 possible new features: (in order of decreasing priority)

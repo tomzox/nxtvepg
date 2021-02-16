@@ -1304,27 +1304,54 @@ bool BtDriver_IsVideoPresent( void )
 //
 void BtDriver_TuneDvbPid( const int * pidList, const int * sidList, uint pidCount )
 {
-   dprintf2("BtDriver-TuneDvbPid: pid:%d count:%d\n", pidList[0], pidCount);
-   assert((pidCount > 0) && (pidCount <= MAX_VBI_DVB_STREAMS));
+   if (vbiCfg.drvType == BTDRV_SOURCE_DVB)
+   {
+      dprintf2("BtDriver-TuneDvbPid: pid:%d count:%d\n", pidList[0], pidCount);
+      assert((pidCount > 0) && (pidCount <= MAX_VBI_DVB_STREAMS));
+
+      pthread_mutex_lock(&vbi_start_mutex);
+      for (uint idx = 0; idx < pidCount; ++idx)
+      {
+         vbiCfg.dvbPid[idx] = pidList[idx];
+         vbiCfg.dvbSid[idx] = sidList[idx];
+      }
+      vbiCfg.dvbPidCnt = pidCount;
+
+      // finally change request seq.no. so that VBI threads picks up the parameters
+      vbiCfg.drvCfgReqNo += 1;
+      pthread_mutex_unlock(&vbi_start_mutex);
+
+      // interrupt the slave thread if blocked in read() or select()
+      if (vbiCfg.vbiSlaveRunning)
+      {
+         if (pthread_kill(vbi_thread_id, SIGUSR1) != 0)
+            debug2("BtDriver-TuneDvbPid: failed to notify slave thread (%d) %s", errno, strerror(errno));
+      }
+   }
+   else
+      ifdebug2(pidCount > 0, "BtDriver-TuneDvbPid: ignoring PID:%d srv:%d for analog card", pidList[0], sidList[0]);
+}
+
+// ---------------------------------------------------------------------------
+// Query DVB demux PID after PMT scan
+// - returns 0 until PMT scan is finished; else returns PID count
+//
+uint BtDriver_GetDvbPid( int * pidList )
+{
+   uint result = 0;
 
    pthread_mutex_lock(&vbi_start_mutex);
-   for (uint idx = 0; idx < pidCount; ++idx)
+   if (dvbScanActive == FALSE)
    {
-      vbiCfg.dvbPid[idx] = pidList[idx];
-      vbiCfg.dvbSid[idx] = sidList[idx];
+      for (uint bufIdx = 0; bufIdx < vbiInCount; ++bufIdx)
+      {
+         pidList[bufIdx] = vbiIn[bufIdx].dvbPid;
+      }
+      result = vbiInCount;
    }
-   vbiCfg.dvbPidCnt = pidCount;
-
-   // finally change request seq.no. so that VBI threads picks up the parameters
-   vbiCfg.drvCfgReqNo += 1;
    pthread_mutex_unlock(&vbi_start_mutex);
 
-   // interrupt the slave thread if blocked in read() or select()
-   if (vbiCfg.vbiSlaveRunning)
-   {
-      if (pthread_kill(vbi_thread_id, SIGUSR1) != 0)
-         debug2("BtDriver-TuneDvbPid: failed to notify slave thread (%d) %s", errno, strerror(errno));
-   }
+   return result;
 }
 
 // ---------------------------------------------------------------------------

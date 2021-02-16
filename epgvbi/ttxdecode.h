@@ -55,7 +55,7 @@ void TtxDecode_StartTtxAcq( bool enableScan, uint startPageNo, uint stopPageNo )
 void TtxDecode_StopTtxAcq( void );
 void TtxDecode_StartScan( void );
 void TtxDecode_StopScan( void );
-void TtxDecode_GetScanResults( uint *pCni, bool *pNiWait, char *pDispText, uint textMaxLen );
+void TtxDecode_GetScanResults( uint bufIdx, uint *pCni, bool *pNiWait, char *pDispText, uint textMaxLen );
 uint TtxDecode_GetDateTime( uint bufIdx, sint * pLto );
 bool TtxDecode_GetPageHeader( uint bufIdx, uchar * pBuf, uint * pPgNum, uint pkgOff );
 bool TtxDecode_GetMagStats( uint bufIdx, uint * pMagBuf, sint * pPgDirection, bool reset );

@@ -290,6 +290,7 @@ bool BtDriver_IsVideoPresent( void );
 bool BtDriver_QueryChannel( EPGACQ_TUNER_PAR * pFreqPar, uint * pInput, bool * pIsTuner );
 bool BtDriver_TuneChannel( int inputIdx, const EPGACQ_TUNER_PAR * pFreqPar, bool keepOpen, bool * pIsTuner );
 void BtDriver_TuneDvbPid( const int * pidList, const int * sidList, uint pidCount );
+uint BtDriver_GetDvbPid( int * pidList );
 
 #ifdef WIN32
 bool BtDriver_Restart( void );

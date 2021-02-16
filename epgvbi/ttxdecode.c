@@ -88,17 +88,18 @@ static time32_t        ttxStatsStart;
 //
 void TtxDecode_StartScan( void )
 {
-   const uint bufIdx = 0;
-
    dprintf0("TtxDecode-StartScan\n");
 
    // enable ttx processing in the slave process/thread
    pVbiBuf->scanEnabled = TRUE;
 
    // skip first VBI frame, reset ttx decoder, then set reader idx to writer idx
-   if (pVbiBuf->buf[bufIdx].chanChangeReq == pVbiBuf->buf[bufIdx].chanChangeCnf)
+   for (uint bufIdx = 0; bufIdx < MAX_VBI_DVB_STREAMS; ++bufIdx)
    {
-      pVbiBuf->buf[bufIdx].chanChangeReq = pVbiBuf->buf[bufIdx].chanChangeCnf + 2;
+      if (pVbiBuf->buf[bufIdx].chanChangeReq == pVbiBuf->buf[bufIdx].chanChangeCnf)
+      {
+         pVbiBuf->buf[bufIdx].chanChangeReq = pVbiBuf->buf[bufIdx].chanChangeCnf + 2;
+      }
    }
 }
 
@@ -155,12 +156,11 @@ void TtxDecode_StopTtxAcq( void )
 // - result values are not invalidized, b/c the caller will change the
 //   channel after a value was read anyways
 //
-void TtxDecode_GetScanResults( uint *pCni, bool *pNiWait, char *pDispText, uint textMaxLen )
+void TtxDecode_GetScanResults( uint bufIdx, uint *pCni, bool *pNiWait, char *pDispText, uint textMaxLen )
 {
    uint     type;  // CNI_TYPE
    uint     idx;
    uint     cni;
-   const uint bufIdx = 0;
    bool     niWait  = FALSE;
 
    cni     = 0;
@@ -203,14 +203,20 @@ void TtxDecode_GetScanResults( uint *pCni, bool *pNiWait, char *pDispText, uint 
                // skip spaces from beginning of string
                const uint8_t * p = (const uint8_t *) pVbiBuf->buf[bufIdx].cnis[type].outText;
                for (idx=textMaxLen; idx > 0; idx--, p++)
-                  if (*p != ' ')
+                  if ((*p > ' ') && (*p < 0x7f))
                      break;
                // skip spaces at end of string
-               while ((idx > 1) && (p[idx - 2] <= ' '))
+               while ((idx > 1) && ((p[idx - 2] <= ' ') || (p[idx - 2] >= 0x7f)))
                   idx -= 1;
                if (idx > 1)
                {  // copy the trimmed string into the output array
-                  memcpy(pDispText, p, idx - 1);
+                  for (uint j = 0; j < idx - 1; ++j)
+                  {
+                     if ((p[j] >= ' ') && (p[j] < 0x7f))
+                        pDispText[j] = p[j];
+                     else
+                        pDispText[j] = ' ';
+                  }
                   pDispText[idx - 1] = 0;
                }
             }
@@ -228,7 +234,7 @@ void TtxDecode_GetScanResults( uint *pCni, bool *pNiWait, char *pDispText, uint 
       *pNiWait = niWait;
 
    if ((cni != 0) || (niWait) || ((pDispText != NULL) && (pDispText[0] != 0)))
-      dprintf3("TtxDecode-GetScanResults: cni=%04X niWait=%d text=%s\n", cni, niWait, pDispText);
+      dprintf4("TtxDecode-GetScanResults[%d]: cni=%04X niWait=%d text=%s\n", bufIdx, cni, niWait, pDispText);
 }
 
 // ---------------------------------------------------------------------------
@@ -293,7 +299,7 @@ bool TtxDecode_GetCniAndPil( uint bufIdx, uint * pCni, uint * pPil, CNI_TYPE * p
                {
                   *pCniType = (CNI_TYPE) type;
                }
-               dprintf7("TtxDecode-GetCniAndPil: type:%d CNI?:%d 0x%04X, PIL?:%d %X (Ind:%d,%d)\n", type, pThisVbiBuf->buf[bufIdx].cnis[type].haveCni, pThisVbiBuf->buf[bufIdx].cnis[type].havePil, pThisVbiBuf->buf[bufIdx].cnis[type].outCni, pThisVbiBuf->buf[bufIdx].cnis[type].outPil, pThisVbiBuf->buf[bufIdx].cnis[type].outCniInd, pThisVbiBuf->buf[bufIdx].cnis[type].outPilInd);
+               dprintf8("TtxDecode-GetCniAndPil[%d]: type:%d CNI?:%d 0x%04X, PIL?:%d %X (Ind:%d,%d)\n", bufIdx, type, pThisVbiBuf->buf[bufIdx].cnis[type].haveCni, pThisVbiBuf->buf[bufIdx].cnis[type].havePil, pThisVbiBuf->buf[bufIdx].cnis[type].outCni, pThisVbiBuf->buf[bufIdx].cnis[type].outPil, pThisVbiBuf->buf[bufIdx].cnis[type].outCniInd, pThisVbiBuf->buf[bufIdx].cnis[type].outPilInd);
                result = TRUE;
                break;
             }
@@ -315,13 +321,13 @@ static void TtxDecode_AddCni( uint bufIdx, CNI_TYPE type, uint cni, uint pil )
          if (!CNI_IS_INVALID(cni) && !CNI_IS_BLOCKED(cni))
          {
             DBGONLY( if (pVbiBuf->buf[bufIdx].cnis[type].cniRepCount == 0) )
-               dprintf3("TtxDecode-AddCni: new CNI 0x%04X, PIL=%X, type %d\n", cni, pil, type);
+               dprintf4("TtxDecode-AddCni[%d]: new CNI 0x%04X, PIL=%X, type %d\n", bufIdx, cni, pil, type);
 
             if ( (pVbiBuf->buf[bufIdx].cnis[type].cniRepCount > 0) &&
                  (pVbiBuf->buf[bufIdx].cnis[type].lastCni != cni) )
             {  // comparison failure -> reset repetition counter
                #if DEBUG_SWITCH_STREAM == ON
-               debug3("TtxDecode-AddCni: %s CNI error: last %04X != %04X", ((type == CNI_TYPE_VPS) ? "VPS" : ((type == CNI_TYPE_PDC) ? "PDC" : "NI")), pVbiBuf->buf[bufIdx].cnis[type].lastCni, cni);
+               debug4("TtxDecode-AddCni[%d]: %s CNI error: last %04X != %04X", bufIdx, ((type == CNI_TYPE_VPS) ? "VPS" : ((type == CNI_TYPE_PDC) ? "PDC" : "NI")), pVbiBuf->buf[bufIdx].cnis[type].lastCni, cni);
                #endif
                pVbiBuf->buf[bufIdx].cnis[type].cniRepCount = 0;
             }
@@ -588,7 +594,7 @@ void TtxDecode_AddVpsData( uint bufIdx, const uchar * data )
          hour   =  (data[12 - 3] & 0x1f);
          minute =  (data[13 - 3] >> 2);
 
-         dprintf5("AddVpsData: CNI 0x%04X, PIL %d.%d. %02d:%02d\n", cni, mday, month, hour, minute);
+         dprintf6("AddVpsData[%d]: CNI 0x%04X, PIL %d.%d. %02d:%02d\n", bufIdx, cni, mday, month, hour, minute);
 
          // check the date and time and assemble them to a PIL
          pil = TtxDecode_AssemblePil(mday, month, hour, minute);
@@ -707,7 +713,7 @@ static void TtxDecode_GetP830Cni( uint bufIdx, const uchar * data )
       }
       #if DEBUG_SWITCH_STREAM == ON
       else
-         debug1("TtxDecode-GetP830Cni: unknown DC %d - discarding packet", dc);
+         debug2("TtxDecode-GetP830Cni[%d]: unknown DC %d - discarding packet", bufIdx, dc);
       #endif
    }
 }
@@ -1011,7 +1017,7 @@ static void TtxDecode_BufferAdd( uint bufIdx, uint pageNo, uint ctrl, uchar pkgn
 //
 void TtxDecode_NotifyChannelChange( uint bufIdx, volatile EPGACQ_BUF * pThisVbiBuf )
 {
-   dprintf0("TtxDecode-NotifyChannelChange\n");
+   dprintf1("TtxDecode-NotifyChannelChange[%d]\n", bufIdx);
 
    if (pThisVbiBuf == NULL)
    {
@@ -1104,7 +1110,7 @@ bool TtxDecode_NewVbiFrame( uint bufIdx, uint frameSeqNo )
          if ((frameSeqNo != acqSlaveState[bufIdx].frameSeqNo + 1) && (frameSeqNo != 0))
          {  // mising frame (0 is special case: no support for seq.no.)
             #if DEBUG_SWITCH_STREAM == ON
-            debug1("TtxDecode-NewVbiFrame: lost vbi frame #%u", acqSlaveState[bufIdx].frameSeqNo + 1);
+            debug2("TtxDecode-NewVbiFrame[%d]: lost vbi frame #%u", bufIdx, acqSlaveState[bufIdx].frameSeqNo + 1);
             #endif
             memset(&acqSlaveState[bufIdx].mags, 0, sizeof(acqSlaveState[bufIdx].mags));
          }

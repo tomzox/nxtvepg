@@ -2384,43 +2384,49 @@ C<tv_grab_ttx -debug -verify FILENAME.dat>.
 =head2 TV channel scan
 
 Open a dialog that allows to start a scan across all TV channels for
-Teletext transmissions. However this is for your information only; the
-scan is not required for operation of the Teletext EPG grabber.
-Note that the provider scan only works if you use the internal tuner
-as input source (see also L<"GETTING STARTED"> and the subsequent
-chapter on TV card configuration).
+detecting Teletext transmission. The scan can also serve for checking
+reception on all channels. Results of the scan are for your information
+only; the scan is not required for operation of the Teletext EPG grabber
+and its result are not used internally.
 
-The I<Use TV app.> button is automatically checked if
-a TV application was set up in the I<TV app. interaction> dialog.
-In this mode nxtvepg just checks the TV channels defined in the
-TV-application's channel table, which usually saves a lot of time and
-is also more reliable. For DVB this is the only option.
+Before starting the TV channel scan, you should configure the TV card and
+a TV channel table. For convenience, two buttons for opening these dialogs
+are included at the lower right corner of the dialog window. Note that
+the TV channel scan only works if you configure the internal tuner
+as input source in the TV card configuration dialog. (See also chapter
+L<"GETTING STARTED">.)
 
-When using an analog TV-card, if no TV-application's channel table is
-configured, the scan is performed on all possible TV transmission
-frequencies in multiple frequency bands.
-If you live in France, select the French frequency table
-(which implies the I<Secam L> TV norm) to be used for the TV channel scan;
-else use the default frequency table which covers common cable network
-frequencies in Western Europe with the PAL TV norm. Other countries are
-currently not supported for this mode of scanning. If you live in an area
-where you receive both PAL and SECAM stations, you should perform the TV
-channel scan twice with different channel tables.
+For old analog TV cards, the scan still supports a frequency band search
+mode which is selected by checking I<Channel table> radio buttons "Western
+Europe" (PAL) or "France" (SECAM). In this mode the scan will perform
+signal detection on all known analog transmission bands and for each one
+that is found, try to identify the received channel by means of received
+VPS/PDC and teletext packets. The result is printed for each channel in
+the message area of the dialog window. This procedure is equivalent to how
+the initial channel setup in analog TV sets used to work. The mode is not
+useful though for nxtvepg, as the list of found channels is not stored by
+nxtvepg.
+
+Therefore, select the option I<Load from TV app> instead. Press I<Start scan>
+to start the scan; this will temprarily suspend the Teletext EPG
+grabber for the duration of the scan, if it was running. In channel
+table-based mode the scan will visit exactly the frequencies of the TV
+channels listed in the configuration of the TV application you selected.
+For each of the channels, nxtvepg will spend a few seconds receiving
+teletext and VPS/PDC and then print what it found in the message area. In
+case of DVB, it may also report if the channel does not contain a PID for
+a teletext stream, which means it definitely does not transmit teletext.
+Note for DVB, channel results may appear out of order in the message
+window as nxtvepg will combine channels on the same transponder frequency
+for speeding up the scan. After the end of the scan, there is a summary
+about how many channels with teletext were found.
 
 Check the I<Slow> button if you have bad reception on some channels.
 In slow mode the scanner will not skip channels with "unstable"
 video signal (i.e. no PLL H-lock within 0.150 seconds) and wait
-twice as long as normal for everything (e.g. up to 4 seconds for a VPS/PDC
-channel identification). Note that you can change this setting while the
-scan is running.
-
-Technical background information on how the TV channel scan works:
-The scan will visit every physical TV frequency (or subsets thereof if
-you use one of the options described above) and check for a TV signal.
-If one is detected within 150 ms or if at least one teletext packet
-was received, the scan waits up to two seconds for a valid VPS/PDC
-channel identification. This information is then printed. Currently
-the results of the scan are not used by the application.
+twice as long as normal for everything (e.g. up to 12 seconds for a
+VPS/PDC channel identification). Note that you can change this setting
+while the scan is running.
 
 
 =head2 TV card input

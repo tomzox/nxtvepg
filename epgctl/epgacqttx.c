@@ -324,32 +324,35 @@ static void EpgAcqTtx_TunePid( void )
    int serviceIds[MAX_VBI_DVB_STREAMS];
    uint pidCount = 1;
 
-   pidList[0] = par->ttxPid;
-   serviceIds[0] = par->serviceId;
-
-   if (acqCtl.ttxActiveCount == 1)
+   if (EPGACQ_TUNER_NORM_IS_DVB(par->norm))
    {
-      // first add only PIDs that are not done yet; afterwards any remaining
-      // interation is needed in case there are more than MAX number of channels on same transponder
-      for (uint loop = 0; (loop < 2) && (pidCount < MAX_VBI_DVB_STREAMS); ++loop)
+      pidList[0] = par->ttxPid;
+      serviceIds[0] = par->serviceId;
+
+      if (acqCtl.ttxActiveCount == 1)
       {
-         for (uint idx = 0; (idx < acqCtl.ttxSrcCount) && (pidCount < MAX_VBI_DVB_STREAMS); ++idx)
+         // first add only PIDs that are not done yet; afterwards any remaining
+         // iteration is needed in case there are more than MAX number of channels on same transponder
+         for (uint loop = 0; (loop < 2) && (pidCount < MAX_VBI_DVB_STREAMS); ++loop)
          {
-            if ( (acqCtl.pSources[idx].freq.freq == par->freq) &&
-                 (acqCtl.pSources[idx].srcDone == (loop ==1)) &&
-                 (idx != acqCtl.ttxSrcIdx[0]) )
+            for (uint idx = 0; (idx < acqCtl.ttxSrcCount) && (pidCount < MAX_VBI_DVB_STREAMS); ++idx)
             {
-               dprintf3("EpgAcqTtx-TunePid: piggy-backing PID:%d channel %d (%s)\n", acqCtl.pSources[idx].freq.ttxPid, idx, EpgAcqTtx_GetChannelName(idx));
-               pidList[pidCount] = acqCtl.pSources[idx].freq.ttxPid;
-               serviceIds[pidCount] = acqCtl.pSources[idx].freq.serviceId;
-               acqCtl.ttxSrcIdx[pidCount] = idx;
-               pidCount += 1;
+               if ( (acqCtl.pSources[idx].freq.freq == par->freq) &&
+                    (acqCtl.pSources[idx].srcDone == (loop ==1)) &&
+                    (idx != acqCtl.ttxSrcIdx[0]) )
+               {
+                  dprintf3("EpgAcqTtx-TunePid: piggy-backing PID:%d channel %d (%s)\n", acqCtl.pSources[idx].freq.ttxPid, idx, EpgAcqTtx_GetChannelName(idx));
+                  pidList[pidCount] = acqCtl.pSources[idx].freq.ttxPid;
+                  serviceIds[pidCount] = acqCtl.pSources[idx].freq.serviceId;
+                  acqCtl.ttxSrcIdx[pidCount] = idx;
+                  pidCount += 1;
+               }
             }
          }
+         acqCtl.ttxActiveCount = pidCount;
       }
-      acqCtl.ttxActiveCount = pidCount;
+      BtDriver_TuneDvbPid(pidList, serviceIds, pidCount);
    }
-   BtDriver_TuneDvbPid(pidList, serviceIds, pidCount);
 }
 
 // ---------------------------------------------------------------------------
