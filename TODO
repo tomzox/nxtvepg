@@ -19,7 +19,6 @@ Post-Nextview EPG:
 - stats timescale: keep network names visible even when scrolling
 - stats timescale: scroll to make "now" visible upon opening
 - stats acquisition/teletext: add overall acq. runtime (i.e. in addition to per-channel time)
-- stats acquisition/teletext: VPS output for all 10 channels
 - move USE_TTX_GRABBER to exclude all acqusition if not set -> use for WIN32?
 - merge dialog, "configure" sub-menu: simplify to single list with
   "extended" selection (i.e. allow multiple selections)

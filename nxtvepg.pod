@@ -1155,13 +1155,17 @@ statistical information for each of the channel in the respective columns.
 
 =item I<Channel VPS/PDC:>
 
-The VPS/PDC code that has last been received on the respective TV channel.
-Source may be PDC (packet 8/30/2), NI (packet 8/30/1), or VPS. The given
-CNI is the equivalent PDC code, if defined, or else the NI code.
+The VPS/PDC channel identification code that has last been received on the
+respective TV channel. Source may be PDC (packet 8/30/2), NI (packet
+8/30/1), or VPS. The given CNI is the equivalent PDC code, if defined, or
+else the NI code.
 
 If a valid VPS PIL (Programme Identification Label) was received, this is
 appended in decoded format (i.e. DD.MM HH:MM with day, month, hour and
-minute).
+minute). Note this label indicates the original starting time of the
+programme that is currently broadcast by the network. This was
+traditionally used by  video recorders to start and stop recording exactly
+at start and stop of a programme, even when not matching the TV schedule.
 
 =item I<Capture range:>
 

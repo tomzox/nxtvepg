@@ -15,16 +15,15 @@
  *  Description:
  *
  *    This module contains the interface between the slave and control
- *    processes (or threads), i.e. there are two execution threads running
- *    in here:
+ *    threads, i.e. there are two execution threads running in here:
  *
- *    The acquisition slave process/thread puts all teletext packets of a
+ *    The acquisition slave thread puts all teletext packets of a
  *    given page (e.g. default page 1DF) into a ring buffer. Additionally
  *    Magazine Inventory Pages (MIP) and channel identification codes (VPS,
  *    PDC, Packet 8/30/1) are decoded. This data is passed via shared memory
  *    to the master.
  *
- *    The master process/thread extracts the packets from the ring buffer and
+ *    The master thread extracts the packets from the ring buffer and
  *    hands them to the streams module for assembly to Nextview blocks. The
  *    interface to the higher level acquisition control consists of functions
  *    to start and stop acquisition, get statistics values and detect
@@ -55,7 +54,7 @@
 // Internal decoder status
 //
 
-// struct that holds the state of the slave process, i.e. ttx decoder
+// struct that holds the state of the slave thread, i.e. ttx decoder
 static struct
 {
    bool       magParallel;       // 0: serial page mode; 1: parallel (invert of header bit C11)
@@ -90,7 +89,7 @@ void TtxDecode_StartScan( void )
 {
    dprintf0("TtxDecode-StartScan\n");
 
-   // enable ttx processing in the slave process/thread
+   // enable ttx processing in the slave thread
    pVbiBuf->scanEnabled = TRUE;
 
    // skip first VBI frame, reset ttx decoder, then set reader idx to writer idx
@@ -112,7 +111,7 @@ void TtxDecode_StartTtxAcq( bool enableScan, uint startPageNo, uint stopPageNo )
 
    for (uint bufIdx = 0; bufIdx < MAX_VBI_DVB_STREAMS; ++bufIdx)
    {
-      // pass the configuration variables to the ttx process via shared memory
+      // pass the configuration variables to the slave thread via shared memory
       pVbiBuf->startPageNo[bufIdx] = startPageNo;
       pVbiBuf->stopPageNo[bufIdx] = stopPageNo;
 
@@ -124,19 +123,19 @@ void TtxDecode_StartTtxAcq( bool enableScan, uint startPageNo, uint stopPageNo )
          pVbiBuf->buf[bufIdx].chanChangeReq = pVbiBuf->buf[bufIdx].chanChangeCnf + 2;
       }
    }
-   // enable ttx processing in the slave process/thread
+   // enable ttx processing in the slave thread
    pVbiBuf->ttxEnabled = TRUE;
 }
 
 // ----------------------------------------------------------------------------
 // Stop EPG acquisition
-// - the external process may continue to collect data
+// - the slave thread may continue to collect data
 //
 void TtxDecode_StopScan( void )
 {
    dprintf0("TtxDecode-StopScan\n");
 
-   // inform writer process/thread
+   // inform writer thread
    pVbiBuf->scanEnabled = FALSE;
 }
 
@@ -147,7 +146,7 @@ void TtxDecode_StopTtxAcq( void )
 {
    dprintf0("TtxDecode-StopTtxAcq\n");
 
-   // inform writer process/thread
+   // inform writer thread
    pVbiBuf->ttxEnabled = FALSE;
 }
 
@@ -310,7 +309,7 @@ bool TtxDecode_GetCniAndPil( uint bufIdx, uint * pCni, uint * pPil, CNI_TYPE * p
 }
 
 // ---------------------------------------------------------------------------
-// Save CNI and PIL from the VBI process/thread
+// Save CNI and PIL from the slave thread
 //
 static void TtxDecode_AddCni( uint bufIdx, CNI_TYPE type, uint cni, uint pil )
 {
@@ -719,14 +718,22 @@ static void TtxDecode_GetP830Cni( uint bufIdx, const uchar * data )
 }
 
 // ---------------------------------------------------------------------------
-// Return reception statistics collected by slave process/thread
+// Return reception statistics collected by slave thread
 //
 void TtxDecode_GetStatistics( uint bufIdx, TTX_DEC_STATS * pStats, time_t * pStatsStart )
 {
+   CNI_TYPE cniType;
+
    // check if initialization for the current channel is complete
    if (pVbiBuf->buf[bufIdx].chanChangeReq == pVbiBuf->buf[bufIdx].chanChangeCnf)
    {
       *pStats = *(TTX_DEC_STATS*) &pVbiBuf->buf[bufIdx].ttxStats;  // cast to remove volatile
+
+      if (TtxDecode_GetCniAndPil(bufIdx, &pStats->cni, &pStats->pil, &cniType, NULL, NULL, NULL) == FALSE)
+      {
+         pStats->cni = FALSE;
+         pStats->pil = FALSE;
+      }
       *pStatsStart = ttxStatsStart;
    }
    else
@@ -878,8 +885,8 @@ bool TtxDecode_GetMagStats( uint bufIdx, uint * pMagBuf, sint * pPgDirection, bo
 
 // ---------------------------------------------------------------------------
 // Retrieve the next available teletext packet from the ring buffer
-// - at this point the EPG database process/thread takes the data from the
-//   teletext acquisition process
+// - at this point the EPG database control thread takes the data from the
+//   teletext acquisition slave thread
 // - note that the buffer slot is not yet freed in this function;
 //   that has to be done separately after the packet was processed
 //
@@ -957,7 +964,7 @@ bool TtxDecode_CheckForPackets( bool * pStopped )
 
       if ((result == FALSE) && (pVbiBuf->hasFailed))
       {  // vbi slave has stopped acquisition -> inform master control
-         debug0("TtxDecode-CheckForPackets: slave process has disabled acq");
+         debug0("TtxDecode-CheckForPackets: slave thread has disabled acq");
          stopped = TRUE;
       }
    }
@@ -1033,7 +1040,7 @@ void TtxDecode_NotifyChannelChange( uint bufIdx, volatile EPGACQ_BUF * pThisVbiB
 
 // ---------------------------------------------------------------------------
 // Notification of the start of VBI processing for a new video field
-// - Executed inside the teletext slave process/thread
+// - Executed inside the teletext slave thread
 // - Must be called by the driver before any VBI lines of a new video fields
 //   are processed (the driver may bundle the even/odd fields into one frame)
 // - This function has two purposes:
@@ -1125,8 +1132,8 @@ bool TtxDecode_NewVbiFrame( uint bufIdx, uint frameSeqNo )
 
 // ---------------------------------------------------------------------------
 // Process a received teletext packet, check if it belongs to EPG
-// - note that this procedure is called by the teletext decoder process/thread
-//   and hence can not access the state variables of the EPG process/thread
+// - note that this procedure is called by the teletext decoder slave thread
+//   and hence must not access the state variables of the EPG control thread
 //   except for the shared buffer
 //
 void TtxDecode_AddPacket( uint bufIdx, const uchar * data, uint line )

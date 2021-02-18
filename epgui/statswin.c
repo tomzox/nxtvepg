@@ -528,7 +528,6 @@ static void StatsWin_UpdateTtxStats( ClientData clientData )
 {
    EPGACQ_DESCR acqState;
    EPG_ACQ_STATS sv;
-   EPG_ACQ_VPS_PDC vpsPdc;
    const char * pAcqModeStr;
    const char * pAcqPasvStr;
    const char * pAcqStateStr;
@@ -602,29 +601,6 @@ static void StatsWin_UpdateTtxStats( ClientData clientData )
       StatsWin_ConfigureLabelText(STATS_WIN_TTX_WNAM ".flow.stat_5", "Decoding errors:");
       StatsWin_ConfigureLabelText(STATS_WIN_TTX_WNAM ".flow.stat_6", "TTX data rate [baud]:");
 
-      // VPS
-      // TODO move into stats array
-      if (EpgAcqCtl_GetVpsPdc(&vpsPdc, VPSPDC_REQ_STATSWIN, FALSE) && (vpsPdc.cni != 0))
-      {
-         if ( VPS_PIL_IS_VALID(vpsPdc.pil) )
-         {
-            sprintf(comm, "CNI %04X\nPIL %02d.%02d.\n    %02d:%02d",
-                          vpsPdc.cni,
-                          (vpsPdc.pil >> 15) & 0x1F, (vpsPdc.pil >> 11) & 0x0F,
-                          (vpsPdc.pil >>  6) & 0x1F, (vpsPdc.pil) & 0x3F);
-         }
-         else
-         {
-            sprintf(comm, "CNI %04X", vpsPdc.cni);
-         }
-      }
-      else
-         strcpy(comm, "---");
-
-      sprintf(idxBuf, "%d", 1 * MAX_VBI_DVB_STREAMS + 0);
-      Tcl_SetVar2Ex(interp, "stats_ttx_tab", idxBuf, Tcl_NewStringObj(comm, -1), 0);
-
-
       char * pTtxNames = NULL;
       uint chanCount = 0;
       WintvCfg_GetFreqTab(&pTtxNames, NULL, &chanCount, NULL);
@@ -637,6 +613,25 @@ static void StatsWin_UpdateTtxStats( ClientData clientData )
          else
             sprintf(comm, "channel #%d", acqState.ttxGrabIdx[srcIdx]);
          sprintf(idxBuf, "%d", 0 * MAX_VBI_DVB_STREAMS + srcIdx);
+         Tcl_SetVar2Ex(interp, "stats_ttx_tab", idxBuf, Tcl_NewStringObj(comm, -1), 0);
+
+         // VPS
+         if (sv.ttx_dec[srcIdx].cni != 0)
+         {
+            if ( VPS_PIL_IS_VALID(sv.ttx_dec[srcIdx].pil) )
+            {
+               sprintf(comm, "CNI %04X\nPIL %02d.%02d.\n    %02d:%02d",
+                             sv.ttx_dec[srcIdx].cni,
+                             (sv.ttx_dec[srcIdx].pil >> 15) & 0x1F, (sv.ttx_dec[srcIdx].pil >> 11) & 0x0F,
+                             (sv.ttx_dec[srcIdx].pil >>  6) & 0x1F, (sv.ttx_dec[srcIdx].pil) & 0x3F);
+            }
+            else
+               sprintf(comm, "CNI %04X", sv.ttx_dec[srcIdx].cni);
+         }
+         else
+            strcpy(comm, "---");
+
+         sprintf(idxBuf, "%d", 1 * MAX_VBI_DVB_STREAMS + srcIdx);
          Tcl_SetVar2Ex(interp, "stats_ttx_tab", idxBuf, Tcl_NewStringObj(comm, -1), 0);
 
          // Captured range

@@ -839,9 +839,17 @@ Informationen für jeden der Sender in der entsprechenden Spalte:
 
 =item I<Channel VPS/PDC:>
 
-Die Senderkennung (CNI) welche zuletzt auf dem jeweiligen TV-Sender empfangen wurde. Quelle dafür kann PDC (Packet 8/30/2), NI (Packet 8/30/1), oder VPS sein. Die ausgegebene CNI ist das PDC Äquivalent, falls vorhanden, sonst NI.
+Der Senderidentifikationscode (CNI) welche zuletzt auf dem jeweiligen
+TV-Sender empfangen wurde. Quelle dafür kann PDC (Packet 8/30/2), NI
+(Packet 8/30/1), oder VPS sein. Die ausgegebene CNI ist das PDC
+Äquivalent, falls vorhanden, sonst NI.
 
-Wurde ein Programme Identification Label (PIL) empfangen, wird er nach der CNI in dekodiertem Format (z.B. DD.MM HH:MM mit Tag, Monat, Stunde und Minute) angehängt.
+Wurde ein Programme Identification Label (PIL) empfangen, wird er nach der
+CNI in dekodiertem Format (z.B. DD.MM HH:MM mit Tag, Monat, Stunde und
+Minute) angehängt. Das PIL identifiziert die aktuell ausgestrahlte Sendung
+mittels deren originaler Startzeit. Das VPS Label wurde in Videorekordern
+verwendet um den Start und Dauer der Aufzeichnung mit der Sendung zu
+Synchonisieren, unabhängig von Programmänderungen.
 
 =item I<Capture range:>
 

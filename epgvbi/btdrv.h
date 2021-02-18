@@ -150,7 +150,9 @@ typedef struct
    uint32_t  scanPagCount;      // number of ttx pages received for scan
    uint32_t  ttxPkgGrab;        // number of ttx packets grabbed (for non-scan)
    uint32_t  ttxPagGrab;        // number of ttx pages grabbed (for non-scan)
-   uint32_t  reserved_0[4];     // unused, always 0
+   uint32_t  cni;               // best detected VPS/PDC CNI
+   uint32_t  pil;               // VPS/PDC programme identification label from same source
+   uint32_t  reserved_0[2];     // unused, always 0
 } TTX_DEC_STATS;
 
 // ---------------------------------------------------------------------------
