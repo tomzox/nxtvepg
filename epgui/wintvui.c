@@ -262,13 +262,13 @@ static int WintvUi_GetDefaultApp( ClientData ttp, Tcl_Interp *interp, int objc, 
 // Add a channel name to a Tcl result list
 // - assumes that leading and trailing spaces have already been stripped
 //
-static void WintvUi_TclAddChannelName( Tcl_Interp * interp, char * pName, bool enableSplit )
+static void WintvUi_TclAddChannelName( Tcl_Interp * interp, const char * pChanName, bool enableSplit )
 {
    Tcl_DString dstr;
-   char *ps, *pc, *pe, c;
+   char *pName, *ps, *pc, *pe, c;
 
    // convert string from system encoding into UTF-8
-   Tcl_ExternalToUtfDString(NULL, pName, -1, &dstr);
+   Tcl_ExternalToUtfDString(NULL, pChanName, -1, &dstr);
    pName = Tcl_DStringValue(&dstr);
 
    // append the name as-is to the result
@@ -317,9 +317,8 @@ static void WintvUi_TclAddChannelName( Tcl_Interp * interp, char * pName, bool e
 static int WintvUi_GetStationNames( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
 {
    const char * const pUsage = "Usage: C_Tvapp_GetStationNames <split=0/1>";
-   char  * pTtxNameTab;
-   uint    ttxFreqCount;
-   char  * pName;
+   const TVAPP_CHAN_TAB * pChanTab;
+   const char * pName;
    uint    chanIdx;
    int     enableSplit;
    int     result;
@@ -332,13 +331,12 @@ static int WintvUi_GetStationNames( ClientData ttp, Tcl_Interp *interp, int objc
    }
    else
    {
-      ttxFreqCount = 0;
-      pTtxNameTab = NULL;
-      if ( WintvCfg_GetFreqTab(&pTtxNameTab, NULL, &ttxFreqCount, NULL) )
+      pChanTab = WintvCfg_GetFreqTab(NULL);
+      if (pChanTab != NULL)
       {
          // copy the names into a Tcl result list
-         pName = pTtxNameTab;
-         for (chanIdx = 0; chanIdx < ttxFreqCount; chanIdx++)
+         pName = pChanTab->pNameTab;
+         for (chanIdx = 0; chanIdx < pChanTab->chanCount; chanIdx++)
          {
             if ( (*pName != 0) || (enableSplit == FALSE) )
             {
@@ -346,7 +344,6 @@ static int WintvUi_GetStationNames( ClientData ttp, Tcl_Interp *interp, int objc
             }
             pName += strlen(pName) + 1;
          }
-         xfree((void *)pTtxNameTab);
       }
 
       result = TCL_OK;
@@ -551,7 +548,6 @@ static int WintvUi_GetConfig( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_
 static int WintvUi_UpdateConfig( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
 {
    const char * const pUsage = "Usage: C_Tvapp_UpdateConfig: <tvAppIdx> <path>";
-   const char * pAppName;
    int appIdx;
    int result;
 
@@ -563,8 +559,10 @@ static int WintvUi_UpdateConfig( ClientData ttp, Tcl_Interp *interp, int objc, T
    }
    else
    {
-      if (WintvCfg_QueryApp(appIdx, &pAppName, NULL))
+      if (WintvCfg_QueryApp(appIdx, NULL, NULL))
       {
+         WintvCfg_InvalidateCache();
+
          // note: destinction between UNIX and WIN32 config is inside
          RcFile_SetTvApp(appIdx, Tcl_GetString(objv[2]));
 

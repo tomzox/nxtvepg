@@ -68,6 +68,11 @@
 
 
 // ----------------------------------------------------------------------------
+// Cache for channel table of currently configured TV app. / path
+//
+static TVAPP_CHAN_TAB wintvChanTabCache;
+
+// ----------------------------------------------------------------------------
 // Structure which is filled with a TV channel table read from a config file
 // - dynamically growing if more channels than fit the default max. table size
 // - channel names are concatenated (zero separated) into one buffer
@@ -996,7 +1001,7 @@ static bool WintvCfg_GetVdrChanTab( TV_CHNTAB_BUF * pChanTab, const char * pChan
                      par.freq *= 1000;
 
                   par.ttxPid     = atol(fields[CCNF_VDR_PID_TTX]);  // implicitly ignore ";" and following
-                  par.serviceId  = atol(fields[CCNF_VDR_SYMBOL_RATE]);
+                  par.serviceId  = atol(fields[CCNF_VDR_SERVICE_ID]);
 
                   par.symbolRate = atol(fields[CCNF_VDR_SYMBOL_RATE]) * 1000;
                   par.modulation = QAM_AUTO;
@@ -2345,13 +2350,13 @@ bool WintvCfg_GetChanTab( uint appIdx, const char * pChanTabPath, char ** ppErrM
 // ----------------------------------------------------------------------------
 // Extract a channel name from the table returned by WintvCfg-GetFreqTab()
 //
-void WintvCfg_ExtractName( const char * pNameTab, uint count, uint chanIdx, char * pBuf, uint bufSize )
+void WintvCfg_ExtractName( const TVAPP_CHAN_TAB * pChanTab, uint chanIdx, char * pBuf, uint bufSize )
 {
-   const char * pName = pNameTab;
+   const char * pName = pChanTab->pNameTab;
 
    if ((pBuf != NULL) && (bufSize > 0))
    {
-      if (chanIdx < count)
+      if (chanIdx < pChanTab->chanCount)
       {
          for (uint idx = 0; idx < chanIdx; idx++)
          {
@@ -2366,7 +2371,7 @@ void WintvCfg_ExtractName( const char * pNameTab, uint count, uint chanIdx, char
       }
       else
       {
-         fatal2("WintvCfg-ExtractName: illegal idx:%d >=%d", chanIdx, count);
+         fatal2("WintvCfg-ExtractName: illegal idx:%d >=%d", chanIdx, pChanTab->chanCount);
          pBuf[0] = 0;
       }
    }
@@ -2375,40 +2380,90 @@ void WintvCfg_ExtractName( const char * pNameTab, uint count, uint chanIdx, char
 }
 
 // ----------------------------------------------------------------------------
-// Get TV channel names and frequencies
+// Get table of TV channel names and frequencies
 //
-bool WintvCfg_GetFreqTab( char ** ppNameTab, EPGACQ_TUNER_PAR ** ppFreqTab, uint * pCount, char ** ppErrMsg )
+const TVAPP_CHAN_TAB * WintvCfg_GetFreqTab( char ** ppErrMsg )
 {
    const char * pTvAppPath;
    const char * pChanTabPath;
    TVAPP_NAME appIdx;
-   bool    result = FALSE;
+   const TVAPP_CHAN_TAB * result = NULL;
 
    appIdx = WintvCfg_GetAppIdx();
    if (appIdx != TVAPP_NONE)
    {
-      // keep WIN and UNIX paths separate to support use of multi-boot
+      if (appIdx != wintvChanTabCache.tvAppIdx)
+      {
+         dprintf2("WintvCfg-GetFreqTab: cached:%d, reloading from file: app:%d\n", wintvChanTabCache.tvAppIdx, appIdx);
+         WintvCfg_InvalidateCache();
+
+         // keep WIN and UNIX paths separate to support use of multi-boot
 #ifdef WIN32
-      pTvAppPath = RcFile_Query()->tvapp.tvpath_win;
+         pTvAppPath = RcFile_Query()->tvapp.tvpath_win;
 #else
-      pTvAppPath = RcFile_Query()->tvapp.tvpath_unix;
+         pTvAppPath = RcFile_Query()->tvapp.tvpath_unix;
 #endif
 
-      if ( (tvAppList[appIdx].needPath == FALSE) ||
-           ((pTvAppPath != NULL) && (pTvAppPath[0] != 0)) )
-      {
-         pChanTabPath = WintvCfg_GetRcPath(pTvAppPath, appIdx);
+         if ( (tvAppList[appIdx].needPath == FALSE) ||
+              ((pTvAppPath != NULL) && (pTvAppPath[0] != 0)) )
+         {
+            pChanTabPath = WintvCfg_GetRcPath(pTvAppPath, appIdx);
+            if (pChanTabPath != NULL)
+            {
+               if ( WintvCfg_GetChanTab(appIdx, pChanTabPath, ppErrMsg,
+                                        (char**)&wintvChanTabCache.pNameTab,
+                                        (EPGACQ_TUNER_PAR**)&wintvChanTabCache.pFreqTab,
+                                        &wintvChanTabCache.chanCount) )
+               {
+                  wintvChanTabCache.tvAppIdx = appIdx;
+                  result = &wintvChanTabCache;
+               }
 
-         result = WintvCfg_GetChanTab(appIdx, pChanTabPath, ppErrMsg, ppNameTab, ppFreqTab, pCount);
-
-         if (pChanTabPath != NULL)
-            xfree((void *)pChanTabPath);
+               xfree((void *)pChanTabPath);
+            }
+            else
+               debug1("WintvCfg-GetFreqTab: failed to determine path for app #%d", appIdx);
+         }
+         else
+            debug1("WintvCfg-GetFreqTab: no TV app dir specified for app #%d", appIdx);
       }
-      else
-         debug1("WintvCfg-GetFreqTab: no TV app dir specified for app #%d", appIdx);
+      else  // cache is valid
+      {
+         dprintf1("WintvCfg-GetFreqTab: using cache app:%d\n", wintvChanTabCache.tvAppIdx);
+         result = &wintvChanTabCache;
+      }
    }
    else
       debug0("WintvCfg-GetFreqTab: no TV app configured");
 
    return result;
+}
+
+// ----------------------------------------------------------------------------
+// Discard cached TV channel table
+// - must be called after change of TV app selection or channel table path
+//
+void WintvCfg_InvalidateCache( void )
+{
+   if (wintvChanTabCache.pNameTab != NULL)
+   {
+      xfree((void*)wintvChanTabCache.pNameTab);
+      wintvChanTabCache.pNameTab = NULL;
+   }
+   if (wintvChanTabCache.pFreqTab != NULL)
+   {
+      xfree((void*)wintvChanTabCache.pFreqTab);
+      wintvChanTabCache.pFreqTab = NULL;
+   }
+
+   wintvChanTabCache.chanCount = 0;
+   wintvChanTabCache.tvAppIdx = TVAPP_NONE;
+}
+
+// ----------------------------------------------------------------------------
+// Shut the module down: free resources
+//
+void WintvCfg_Destroy( void )
+{
+   WintvCfg_InvalidateCache();
 }

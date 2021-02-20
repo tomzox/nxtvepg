@@ -60,7 +60,7 @@
 #include "xmltv/xmltv_cni.h"
 
 #ifdef USE_TTX_GRABBER
-static bool EpgSetup_GetTtxConfig( uint * pCount, char ** ppNames, EPGACQ_TUNER_PAR ** ppFreq );
+static bool EpgSetup_GetTtxConfig( uint * pCount, const char ** ppNames, const EPGACQ_TUNER_PAR ** ppFreq );
 #endif
 
 // ----------------------------------------------------------------------------
@@ -371,8 +371,8 @@ static bool EpgSetup_GetMergeDbNetwops( uint provCniCount, const uint * pProvCni
 //
 void EpgSetup_AppendTtxProviders( uint *pCniCount, uint * pCniTab )
 {
-   EPGACQ_TUNER_PAR * pTtxFreqs = NULL;
-   char * pTtxNames = NULL;
+   const EPGACQ_TUNER_PAR * pTtxFreqs = NULL;
+   const char * pTtxNames = NULL;
    uint ttxFreqCount = 0;
    uint idx2;
 
@@ -394,16 +394,13 @@ void EpgSetup_AppendTtxProviders( uint *pCniCount, uint * pCniTab )
                *pCniCount += 1;
             }
          }
+         dprintf2("EpgSetup-AppendTtxProviders: 0x%X %s\n", provCni, pTtxPath);
 
          while(*(pNames++) != 0)
             ;
          xfree(pTtxPath);
       }
    }
-   if (pTtxNames != NULL)
-      xfree(pTtxNames);
-   if (pTtxFreqs != NULL)
-      xfree(pTtxFreqs);
 }
 
 // ----------------------------------------------------------------------------
@@ -595,8 +592,9 @@ void EpgSetup_OpenUiDb( void )
 // Get XML file name table and frequencies for teletext grabber
 // - note: the caller must free the returned pointers, if non-NULL
 //
-static bool EpgSetup_GetTtxConfig( uint * pCount, char ** ppNames, EPGACQ_TUNER_PAR ** ppFreq )
+static bool EpgSetup_GetTtxConfig( uint * pCount, const char ** ppNames, const EPGACQ_TUNER_PAR ** ppFreq )
 {
+   const TVAPP_CHAN_TAB * pChanTab;
    const RCFILE * pRc;
    bool result = FALSE;
 
@@ -610,13 +608,18 @@ static bool EpgSetup_GetTtxConfig( uint * pCount, char ** ppNames, EPGACQ_TUNER_
    {
       if (pRc->ttx.ttx_chn_count > 0)
       {
-         if ( WintvCfg_GetFreqTab(ppNames, ppFreq, pCount, NULL) && (*pCount > 0) )
+         pChanTab = WintvCfg_GetFreqTab(NULL);
+         if ( (pChanTab != NULL) && (pChanTab->chanCount > 0) )
          {
-            if (*pCount > pRc->ttx.ttx_chn_count)
-            {
+            if (pChanTab->chanCount > pRc->ttx.ttx_chn_count)
                *pCount = pRc->ttx.ttx_chn_count;
-            }
-            dprintf1("EpgSetup-GetTtxConfig: TTX acq config on %d channels\n", *pCount);
+            else
+               *pCount = pChanTab->chanCount;
+
+            *ppNames = pChanTab->pNameTab;
+            *ppFreq = pChanTab->pFreqTab;
+
+            dprintf2("EpgSetup-GetTtxConfig: TTX acq config on %d of %d channels\n", *pCount, pChanTab->chanCount);
             result = TRUE;
          }
          else
@@ -641,8 +644,8 @@ bool EpgSetup_AcquisitionMode( NETACQ_SET_MODE netAcqSetMode )
    bool result = FALSE;
 #ifdef USE_TTX_GRABBER
    const RCFILE * pRc;
-   EPGACQ_TUNER_PAR * pTtxFreqs;
-   char       * pTtxNames;
+   const EPGACQ_TUNER_PAR * pTtxFreqs;
+   const char * pTtxNames;
    uint         ttxFreqCount;
    bool         isNetAcqDefault;
    bool         doNetAcq;
@@ -688,9 +691,6 @@ bool EpgSetup_AcquisitionMode( NETACQ_SET_MODE netAcqSetMode )
    if (doNetAcq)
       mode = ACQMODE_NETWORK;
 
-   pTtxFreqs = NULL;
-   pTtxNames = NULL;
-   ttxFreqCount = 0;
    if (EpgSetup_GetTtxConfig(&ttxFreqCount, &pTtxNames, &pTtxFreqs))
    {
       // pass the params to the acquisition control module
@@ -699,11 +699,6 @@ bool EpgSetup_AcquisitionMode( NETACQ_SET_MODE netAcqSetMode )
                                     pRc->ttx.ttx_start_pg, pRc->ttx.ttx_end_pg,
                                     pRc->ttx.ttx_duration);
    }
-
-   if (pTtxNames != NULL)
-      xfree(pTtxNames);
-   if (pTtxFreqs != NULL)
-      xfree(pTtxFreqs);
 #endif
    return result;
 }
@@ -720,8 +715,8 @@ bool EpgSetup_DaemonAcquisitionMode( bool forcePassive, int maxPhase )
 #ifdef USE_DAEMON
    const RCFILE * pRc = RcFile_Query();
    EPGACQ_MODE   mode;
-   EPGACQ_TUNER_PAR * pTtxFreqs;
-   char        * pTtxNames;
+   const EPGACQ_TUNER_PAR * pTtxFreqs;
+   const char  * pTtxNames;
    uint          ttxFreqCount;
 
    if (forcePassive)
@@ -737,9 +732,6 @@ bool EpgSetup_DaemonAcquisitionMode( bool forcePassive, int maxPhase )
 
    if (mode < ACQMODE_COUNT)
    {
-      pTtxFreqs = NULL;
-      pTtxNames = NULL;
-      ttxFreqCount = 0;
       if (EpgSetup_GetTtxConfig(&ttxFreqCount, &pTtxNames, &pTtxFreqs))
       {
          // pass the params to the acquisition control module
@@ -748,11 +740,6 @@ bool EpgSetup_DaemonAcquisitionMode( bool forcePassive, int maxPhase )
                                        pRc->ttx.ttx_start_pg, pRc->ttx.ttx_end_pg,
                                        pRc->ttx.ttx_duration);
       }
-
-      if (pTtxNames != NULL)
-         xfree(pTtxNames);
-      if (pTtxFreqs != NULL)
-         xfree(pTtxFreqs);
    }
 #endif  // USE_DAEMON
 #endif  // USE_TTX_GRABBER
@@ -912,8 +899,8 @@ bool EpgSetup_IsAcqWorkingForUiDb( void )
    uint dbIdx;
    uint provCniTab[MAX_MERGED_DB_COUNT];
    uint provCount;
-   EPGACQ_TUNER_PAR * pTtxFreqs;
-   char * pTtxNames;
+   const EPGACQ_TUNER_PAR * pTtxFreqs;
+   const char * pTtxNames;
    uint ttxFreqCount;
    uint idx;
    bool acqWorksOnUi = FALSE;
@@ -929,7 +916,7 @@ bool EpgSetup_IsAcqWorkingForUiDb( void )
       provCniTab[0] = EpgDbContextGetCni(pUiDbContext);
    }
 
-   if (EpgSetup_GetTtxConfig(&ttxFreqCount, &pTtxNames, &pTtxFreqs) && (pTtxNames != NULL))
+   if (EpgSetup_GetTtxConfig(&ttxFreqCount, &pTtxNames, &pTtxFreqs))
    {
       for (dbIdx=0; (dbIdx < provCount) && !acqWorksOnUi; dbIdx++)
       {
@@ -954,11 +941,6 @@ bool EpgSetup_IsAcqWorkingForUiDb( void )
          }
       }
    }
-
-   if (pTtxNames != NULL)
-      xfree(pTtxNames);
-   if (pTtxFreqs != NULL)
-      xfree(pTtxFreqs);
 
    return acqWorksOnUi;
 }

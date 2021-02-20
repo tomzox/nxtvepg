@@ -339,8 +339,7 @@ static void StatsWin_PrintAcqStats( EPGDB_CONTEXT * dbc, EPGACQ_DESCR * pAcqStat
 {
    const char * pAcqModeStr;
    const char * pAcqPasvStr;
-   char * pTtxNames = NULL;
-   uint chanCount = 0;
+   const TVAPP_CHAN_TAB * pChanTab;
    char * commBuf;
    int strOff;
 
@@ -396,21 +395,21 @@ static void StatsWin_PrintAcqStats( EPGDB_CONTEXT * dbc, EPGACQ_DESCR * pAcqStat
    if (pAcqState->ttxGrabCount > 0)
    {
       strOff += sprintf(commBuf + strOff, "Receiving from:   ");
-      WintvCfg_GetFreqTab(&pTtxNames, NULL, &chanCount, NULL);
-      for (uint srcIdx = 0; srcIdx < pAcqState->ttxGrabCount; ++srcIdx)
+      pChanTab = WintvCfg_GetFreqTab(NULL);
+      if (pChanTab != NULL)
       {
-         if (pAcqState->ttxGrabIdx[srcIdx] < chanCount)
+         for (uint srcIdx = 0; srcIdx < pAcqState->ttxGrabCount; ++srcIdx)
          {
-            // NOTE length of leading space and name length limit need to match xalloc above!
-            if (srcIdx != 0)
-               strOff += sprintf(commBuf + strOff, "\n                  ");
-            WintvCfg_ExtractName(pTtxNames, chanCount,
-                                 pAcqState->ttxGrabIdx[srcIdx], commBuf + strOff, 50);
-            strOff += strlen(commBuf + strOff);
+            if (pAcqState->ttxGrabIdx[srcIdx] < pChanTab->chanCount)
+            {
+               // NOTE length of leading space and name length limit need to match xalloc above!
+               if (srcIdx != 0)
+                  strOff += sprintf(commBuf + strOff, "\n                  ");
+               WintvCfg_ExtractName(pChanTab, pAcqState->ttxGrabIdx[srcIdx], commBuf + strOff, 50);
+               strOff += strlen(commBuf + strOff);
+            }
          }
       }
-      if (pTtxNames != NULL)
-         xfree(pTtxNames);
    }
 
    // finally configure the popup text to show the string
@@ -528,6 +527,7 @@ static void StatsWin_UpdateTtxStats( ClientData clientData )
 {
    EPGACQ_DESCR acqState;
    EPG_ACQ_STATS sv;
+   const TVAPP_CHAN_TAB * pChanTab;
    const char * pAcqModeStr;
    const char * pAcqPasvStr;
    const char * pAcqStateStr;
@@ -601,15 +601,13 @@ static void StatsWin_UpdateTtxStats( ClientData clientData )
       StatsWin_ConfigureLabelText(STATS_WIN_TTX_WNAM ".flow.stat_5", "Decoding errors:");
       StatsWin_ConfigureLabelText(STATS_WIN_TTX_WNAM ".flow.stat_6", "TTX data rate [baud]:");
 
-      char * pTtxNames = NULL;
-      uint chanCount = 0;
-      WintvCfg_GetFreqTab(&pTtxNames, NULL, &chanCount, NULL);
+      pChanTab = WintvCfg_GetFreqTab(NULL);
 
       for (uint srcIdx = 0; srcIdx < acqState.ttxGrabCount; ++srcIdx)
       {
          // channel name
-         if (acqState.ttxGrabIdx[srcIdx] < chanCount)
-            WintvCfg_ExtractName(pTtxNames, chanCount, acqState.ttxGrabIdx[srcIdx], comm, 18);
+         if (acqState.ttxGrabIdx[srcIdx] < pChanTab->chanCount)
+            WintvCfg_ExtractName(pChanTab, acqState.ttxGrabIdx[srcIdx], comm, 18);
          else
             sprintf(comm, "channel #%d", acqState.ttxGrabIdx[srcIdx]);
          sprintf(idxBuf, "%d", 0 * MAX_VBI_DVB_STREAMS + srcIdx);
@@ -666,8 +664,6 @@ static void StatsWin_UpdateTtxStats( ClientData clientData )
          sprintf(idxBuf, "%d", 6 * MAX_VBI_DVB_STREAMS + srcIdx);
          Tcl_SetVar2Ex(interp, "stats_ttx_tab", idxBuf, Tcl_NewStringObj(comm, -1), 0);
       }
-      if (pTtxNames != NULL)
-         xfree(pTtxNames);
 
       // make newly used columns visible
       for (uint srcIdx = statsWinTtx.usedCols; srcIdx < acqState.ttxGrabCount; ++srcIdx)
@@ -726,6 +722,7 @@ static void StatsWin_UpdateMainStatusLine( ClientData clientData )
    EPGDB_BLOCK_COUNT count;
    EPGACQ_DESCR acqState;
    const AI_BLOCK *pAi;
+   const TVAPP_CHAN_TAB * pChanTab;
    char  provName[40];
    uint  curTotal;
    time_t dbAge;
@@ -792,19 +789,12 @@ static void StatsWin_UpdateMainStatusLine( ClientData clientData )
       EpgAcqCtl_DescribeAcqState(&acqState);
       provName[0] = 0;
 
+      pChanTab = WintvCfg_GetFreqTab(NULL);
+      if ( (pChanTab != NULL) &&
+           (acqState.ttxGrabIdx[0] >= 0) && (acqState.ttxGrabIdx[0] < (int)pChanTab->chanCount))
       {
-         char * pTtxNames = NULL;
-         uint chanCount;
-
-         if ( WintvCfg_GetFreqTab(&pTtxNames, NULL, &chanCount, NULL) &&
-              (acqState.ttxGrabIdx[0] >= 0) && (acqState.ttxGrabIdx[0] < (int)chanCount))
-         {
-            WintvCfg_ExtractName(pTtxNames, chanCount, acqState.ttxGrabIdx[0], provName, sizeof(provName));
-         }
-         if (pTtxNames != NULL)
-            xfree(pTtxNames);
+         WintvCfg_ExtractName(pChanTab, acqState.ttxGrabIdx[0], provName, sizeof(provName));
       }
-
 
       #ifdef USE_DAEMON
       if (acqState.isNetAcq)

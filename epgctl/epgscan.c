@@ -489,7 +489,7 @@ uint EpgScan_EvHandler( void )
 //              skip video signal test; warn about missing CNIs
 //
 EPGSCAN_START_RESULT EpgScan_Start( int inputSource, bool doSlow, bool useXawtv,
-                                    char * chnNames, EPGACQ_TUNER_PAR *freqTab,
+                                    const char * chnNames, const EPGACQ_TUNER_PAR *freqTab,
                                     uint freqCount, uint * pRescheduleMs,
                                     EPGSCAN_MSGCB * pMsgCallback )
 {
@@ -498,14 +498,15 @@ EPGSCAN_START_RESULT EpgScan_Start( int inputSource, bool doSlow, bool useXawtv,
    EPGSCAN_START_RESULT result;
    char msgbuf[300];
    uint rescheduleMs;
+   uint nameTabLen;
 
    scanCtl.inputSrc      = inputSource;
    scanCtl.doSlow        = doSlow;
    scanCtl.useXawtv      = useXawtv;
    scanCtl.acqWasEnabled = EpgAcqCtl_IsActive();
    scanCtl.provFreqCount = freqCount;
-   scanCtl.provFreqTab   = freqTab;
-   scanCtl.chnNames      = chnNames;
+   scanCtl.provFreqTab   = NULL;
+   scanCtl.chnNames      = NULL;
    scanCtl.MsgCallback   = pMsgCallback;
    scanCtl.chnDone       = NULL;
    scanCtl.chnDoneCnt    = 0;
@@ -549,6 +550,19 @@ EPGSCAN_START_RESULT EpgScan_Start( int inputSource, bool doSlow, bool useXawtv,
 
       if (scanCtl.provFreqCount > 0)
       {
+         // determine total length of name table
+         nameTabLen = 0;
+         for (uint idx = 0; idx < freqCount; ++idx)
+            nameTabLen += strlen(chnNames + nameTabLen) + 1;
+
+         // copy names
+         scanCtl.chnNames = xmalloc(nameTabLen);
+         memcpy(scanCtl.chnNames, chnNames, nameTabLen);
+
+         // copy frequency table
+         scanCtl.provFreqTab = xmalloc(freqCount * sizeof(*freqTab));
+         memcpy(scanCtl.provFreqTab, freqTab, freqCount * sizeof(*freqTab));
+
          scanCtl.chnDone = xmalloc(freqCount * sizeof(bool));
          memset(scanCtl.chnDone, 0, freqCount * sizeof(bool));
       }

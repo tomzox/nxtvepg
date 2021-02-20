@@ -28,8 +28,18 @@
 #include "epgui/rcfile.h"
 #endif
 
-void WintvCfg_ExtractName( const char * pNameTab, uint count, uint chanIdx, char * pBuf, uint bufSize );
-bool WintvCfg_GetFreqTab( char ** ppNameTab, EPGACQ_TUNER_PAR ** ppFreqTab, uint * pCount, char ** ppErrMsg );
+typedef struct
+{
+   const char             * pNameTab;
+   const EPGACQ_TUNER_PAR * pFreqTab;
+   uint                     chanCount;
+   uint                     tvAppIdx;
+} TVAPP_CHAN_TAB;
+
+const TVAPP_CHAN_TAB * WintvCfg_GetFreqTab( char ** ppErrMsg );
+void WintvCfg_ExtractName( const TVAPP_CHAN_TAB * pChanTab, uint chanIdx, char * pBuf, uint bufSize );
+void WintvCfg_InvalidateCache( void );
+
 bool WintvCfg_GetChanTab( uint appIdx, const char * pChanTabPath, char ** ppErrMsg,
                           char ** ppNameTab, EPGACQ_TUNER_PAR ** ppFreqTab, uint * pCount );
 char * WintvCfg_GetRcPath( const char * pBase, uint appIdx );
@@ -37,6 +47,7 @@ bool WintvCfg_QueryApp( uint appIdx, const char ** ppAppName, int * pNeedPath );
 TVAPP_NAME WintvCfg_GetAppIdx( void );
 bool WintvCfg_IsEnabled( void );
 const char * WintvCfg_GetName( void );
+void WintvCfg_Destroy( void );
 
 
 #endif  // __WINTVCFG_H

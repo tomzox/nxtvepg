@@ -77,6 +77,7 @@
 #include "epgui/wmhooks.h"
 #include "epgui/wintv.h"
 #include "epgui/wintvui.h"
+#include "epgui/wintvcfg.h"
 #include "epgui/uidump.h"
 #include "epgui/shellcmd.h"
 #include "epgui/loadtcl.h"
@@ -2409,6 +2410,7 @@ int main( int argc, char *argv[] )
       WintvUi_Destroy();
       WinSystrayIcon(FALSE);
       #endif
+      WintvCfg_Destroy();
       #ifdef USE_DAEMON
       EpgAcqClient_Destroy();
       #endif

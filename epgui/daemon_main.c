@@ -48,6 +48,7 @@
 #include "epgvbi/syserrmsg.h"
 #include "epgctl/epgacqctl.h"
 #include "epgctl/epgctxctl.h"
+#include "epgui/wintvcfg.h"
 #include "epgui/uictrl.h"
 #include "epgui/cmdline.h"
 #include "epgui/rcfile.h"
@@ -229,6 +230,7 @@ int main( int argc, char *argv[] )
       EpgAcqCtl_Destroy(FALSE);
    }
 
+   WintvCfg_Destroy();
    EpgContextCtl_Destroy();
    #ifdef WIN32
    xfree(argv);

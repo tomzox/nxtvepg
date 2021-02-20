@@ -94,9 +94,7 @@ void Daemon_SystemClockCmd( EPG_CLOCK_CTRL_MODE clockMode )
    uint  waitCnt;
    sint  lto;
    time_t ttxTime;
-   char * pNameList;
-   EPGACQ_TUNER_PAR * pFreqTab;
-   uint   freqCount;
+   const TVAPP_CHAN_TAB * pChanTab;
    char * pErrMsg;
 
    BtDriver_SelectSlicer(VBI_SLICER_ZVBI);
@@ -105,23 +103,24 @@ void Daemon_SystemClockCmd( EPG_CLOCK_CTRL_MODE clockMode )
    if ( EpgSetup_CardDriver(mainOpts.videoCardIndex) &&
         BtDriver_StartAcq() )
    {
-      if (WintvCfg_GetFreqTab(&pNameList, &pFreqTab, &freqCount, &pErrMsg) == FALSE)
+      pChanTab = WintvCfg_GetFreqTab(&pErrMsg);
+      if (pChanTab == NULL)
       {
          fprintf(stderr, "nxtvepg: FATAL: failed to load channel table: %s\n", pErrMsg);
          exit(1);
       }
-      else if (freqCount == 0)
+      else if (pChanTab->chanCount == 0)
       {
          fprintf(stderr, "nxtvepg: FATAL: no valid channels found in TV channel table\n");
          exit(1);
       }
 
-      if (BtDriver_TuneChannel(RcFile_Query()->tvcard.input, &pFreqTab[0], FALSE, &isTuner) == FALSE)
+      if (BtDriver_TuneChannel(RcFile_Query()->tvcard.input, &pChanTab->pFreqTab[0], FALSE, &isTuner) == FALSE)
       {
-         fprintf(stderr, "nxtvepg: FATAL: Tuning channel \"%s\": %s\n", pNameList, BtDriver_GetLastError());
+         fprintf(stderr, "nxtvepg: FATAL: Tuning channel \"%s\": %s\n", pChanTab->pNameTab, BtDriver_GetLastError());
          exit(1);
       }
-      BtDriver_TuneDvbPid(&pFreqTab[0].ttxPid, &pFreqTab[0].serviceId, 1);
+      BtDriver_TuneDvbPid(&pChanTab->pFreqTab[0].ttxPid, &pChanTab->pFreqTab[0].serviceId, 1);
 
       ttxTime = 0;
       waitCnt = 0;
@@ -200,9 +199,6 @@ void Daemon_SystemClockCmd( EPG_CLOCK_CTRL_MODE clockMode )
          fprintf(stderr, "No time packets received from teletext - giving up.\n");
 
       BtDriver_StopAcq();
-
-      xfree(pNameList);
-      xfree(pFreqTab);
    }
    else
       fprintf(stderr, "Failed to start acquisition: %s\n", BtDriver_GetLastError());

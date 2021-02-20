@@ -1835,9 +1835,8 @@ static int TclCb_GrantTuner( ClientData ttp, Tcl_Interp *interp, int argc, CONST
 static int TclCb_TuneChan( ClientData ttp, Tcl_Interp *interp, int argc, CONST84 char *argv[] )
 {
    const char * const pUsage = "C_TuneChan <idx> <name>";
+   const TVAPP_CHAN_TAB * pChanTab;
    char  * pErrMsg;
-   EPGACQ_TUNER_PAR * pFreqTab;
-   uint    freqCount;
    int     freqIdx;
    bool    isTuner;
    int     result;
@@ -1854,13 +1853,13 @@ static int TclCb_TuneChan( ClientData ttp, Tcl_Interp *interp, int argc, CONST84
       {
          // read frequencies & norms from channel table file
          pErrMsg = NULL;
-         if ( WintvCfg_GetFreqTab(NULL, &pFreqTab, &freqCount, &pErrMsg) &&
-              (pFreqTab != NULL) && (freqCount > 0))
+         pChanTab = WintvCfg_GetFreqTab(&pErrMsg);
+         if ((pChanTab != NULL) && (pChanTab->chanCount > 0))
          {
-            if ((freqIdx < freqCount) && (freqIdx >= 0))
+            if ((freqIdx < pChanTab->chanCount) && (freqIdx >= 0))
             {
                // Change the tuner frequency via the BT8x8 driver
-               BtDriver_TuneChannel(TVSIM_INPUT_IDX, &pFreqTab[freqIdx], FALSE, &isTuner);
+               BtDriver_TuneChannel(TVSIM_INPUT_IDX, &pChanTab->pFreqTab[freqIdx], FALSE, &isTuner);
                BtDriver_SelectSlicer(VBI_SLICER_ZVBI);
 
                #ifdef WIN32
@@ -1879,14 +1878,14 @@ static int TclCb_TuneChan( ClientData ttp, Tcl_Interp *interp, int argc, CONST84
                   // - input source is hard-wired to TV tuner in this simulation
                   // - channel ID is hard-wired to 0 too (see comments in the winshmclnt.c)
                   WinSharedMemClient_SetStation(argv[2], -1, 0,
-                                                isTuner, pFreqTab[freqIdx].freq,
-                                                pFreqTab[freqIdx].norm, piCount);
+                                                isTuner, pChanTab->pFreqTab[freqIdx].freq,
+                                                pChanTab->pFreqTab[freqIdx].norm, piCount);
                }
                #else
                // Xawtv: provide station name and frequency (FIXME channel code omitted)
                if (IPC_XAWTV_ENABLED)
                {
-                  TvSim_XawtvSetStation(pFreqTab[freqIdx].freq, "-", argv[2]);
+                  TvSim_XawtvSetStation(pChanTab->pFreqTab[freqIdx].freq, "-", argv[2]);
                }
                if (IPC_ICCCM_ENABLED)
                {
@@ -1901,7 +1900,7 @@ static int TclCb_TuneChan( ClientData ttp, Tcl_Interp *interp, int argc, CONST84
                      if (pPiCountStr == NULL)
                         pPiCountStr = "1";
 
-                     sprintf(freq_buf, "%ld", pFreqTab[freqIdx].freq);
+                     sprintf(freq_buf, "%ld", pChanTab->pFreqTab[freqIdx].freq);
 
                      Xiccc_BuildArgv(&pArgv, &arg_len, ICCCM_PROTO_VSTR, argv[2], freq_buf, "-", "", "Text/Tabular", pPiCountStr, "1", NULL);
                      Xiccc_SendQuery(&xiccc, pArgv, arg_len, xiccc.atoms._NXTVEPG_SETSTATION,
@@ -1921,7 +1920,6 @@ static int TclCb_TuneChan( ClientData ttp, Tcl_Interp *interp, int argc, CONST84
                //Tcl_SetResult(interp, "C_TuneChan: invalid channel index", TCL_STATIC);
                //result = TCL_ERROR;
             }
-            xfree(pFreqTab);
          }
          else
          {

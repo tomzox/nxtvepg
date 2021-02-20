@@ -1700,8 +1700,9 @@ static int MenuCmd_StartEpgScan( ClientData ttp, Tcl_Interp *interp, int objc, T
    const char * const pUsage = "Usage: C_StartEpgScan <slow=0/1> <ftable>";
    EPGSCAN_START_RESULT scanResult;
    char * pErrMsg;
-   char * chnNames;
-   EPGACQ_TUNER_PAR * freqTab;
+   const TVAPP_CHAN_TAB * pChanTab;
+   const EPGACQ_TUNER_PAR * freqTab;
+   const char * chnNames;
    uint freqCount;
    int isOptionSlow, ftableIdx;
    uint rescheduleMs;
@@ -1723,7 +1724,8 @@ static int MenuCmd_StartEpgScan( ClientData ttp, Tcl_Interp *interp, int objc, T
          if (ftableIdx == 0)
          {  // in this mode only channels which are defined in the .xawtv file are visited
             pErrMsg = NULL;
-            if (WintvCfg_GetFreqTab(&chnNames, &freqTab, &freqCount, &pErrMsg) == FALSE)
+            pChanTab = WintvCfg_GetFreqTab(&pErrMsg);
+            if (pChanTab == NULL)
             {
                sprintf(comm, "tk_messageBox -type ok -icon error -parent .epgscan -message {"
                              "%s "
@@ -1736,7 +1738,7 @@ static int MenuCmd_StartEpgScan( ClientData ttp, Tcl_Interp *interp, int objc, T
                Tcl_ResetResult(interp);
                return TCL_OK;
             }
-            else if ( (freqTab == NULL) || (freqCount == 0) )
+            else if (pChanTab->chanCount == 0)
             {
                sprintf(comm, "tk_messageBox -type ok -icon error -parent .epgscan -message {"
                              "No channel assignments found. "
@@ -1746,6 +1748,12 @@ static int MenuCmd_StartEpgScan( ClientData ttp, Tcl_Interp *interp, int objc, T
 
                Tcl_ResetResult(interp);
                return TCL_OK;
+            }
+            else
+            {
+               chnNames = pChanTab->pNameTab;
+               freqTab = pChanTab->pFreqTab;
+               freqCount = pChanTab->chanCount;
             }
          }
          else

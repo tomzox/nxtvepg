@@ -42,7 +42,7 @@ typedef void (EPGSCAN_DELCB) ( uint cni );
 // Interface to main control module and user interface
 //
 EPGSCAN_START_RESULT EpgScan_Start( int inputSource, bool doSlow, bool useXawtv,
-                                    char * chnNames, EPGACQ_TUNER_PAR *freqTab,
+                                    const char * chnNames, const EPGACQ_TUNER_PAR *freqTab,
                                     uint freqCount, uint * pRescheduleMs,
                                     EPGSCAN_MSGCB * pMsgCallback );
 uint EpgScan_EvHandler( void );

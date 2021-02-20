@@ -28,7 +28,6 @@ Post-Nextview EPG:
 - change AI/OI/PI to hold original XMLTV info elements (i.e. reduce conversion)
 - allow merge of different channel ID from different providers
 - increase or remove merge provider limit of 64
-- caching of WintvCfg_GetFreqTab() results
 - DVB TTX stream decoding issues: "Illegal line order", "Unknown data_unit_id"
 - DVB: update channel list in epgacqttx with TTX PIDs returned by PAT/PMT scan
 - DVB: suppress TTX header change detection
