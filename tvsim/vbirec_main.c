@@ -1,6 +1,8 @@
 /*
  *  VBI recording tool and shared memory monitor
  *
+ *  Copyright (C) 2002-2008 T. Zoerner
+ *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License Version 2 as
  *  published by the Free Software Foundation. You find a copy of this
@@ -28,10 +30,6 @@
  *    Windows the recorded data can later be played back with vbiplay,
  *    on UNIX it requires patching of ttxdecode.c  (Plackback is meant
  *    for debugging by developers only anyways.)
- *
- *  Author: Tom Zoerner
- *
- *  $Id: vbirec_main.c,v 1.30 2020/06/17 19:40:07 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_TVSIM

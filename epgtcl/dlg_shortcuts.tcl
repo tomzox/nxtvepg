@@ -1,6 +1,8 @@
 #
 #  Configuration dialogs for filter shortcuts
 #
+#  Copyright (C) 1999-2011, 2020-2021 T. Zoerner
+#
 #  This program is free software; you can redistribute it and/or modify
 #  it under the terms of the GNU General Public License Version 2 as
 #  published by the Free Software Foundation. You find a copy of this
@@ -16,10 +18,6 @@
 #
 #    Implements configuration dialogs which allow to manage user-defined
 #    filter shortcuts.
-#
-#  Author: Tom Zoerner
-#
-#  $Id: dlg_shortcuts.tcl,v 1.19 2020/07/05 19:01:22 tom Exp tom $
 #
 # import constants from other modules
 #=INCLUDE=  "epgtcl/shortcuts.h"

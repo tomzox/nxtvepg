@@ -1,6 +1,9 @@
 /*
  *  Command line argument handling
  *
+ *  Copyright (C) 1999-2011, 2020-2021 T. Zoerner
+ *  Win32 SetArgv() function taken from the Tcl/Tk library, see COPYRIGHT
+ *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License Version 2 as
  *  published by the Free Software Foundation. You find a copy of this
@@ -18,11 +21,6 @@
  *    given on the command line.  Some general options are already
  *    processed here, too.  The code in this module is shared between
  *    GUI and stand-alone acquisition daemon.
- *
- *  Author: Tom Zoerner
- *          Win32 SetArgv() function taken from the Tcl/Tk library
- *
- *  $Id: cmdline.c,v 1.18 2020/06/30 06:32:28 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI

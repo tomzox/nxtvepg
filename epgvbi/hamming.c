@@ -1,6 +1,8 @@
 /*
  *  Hamming and Parity decoder
  *
+ *  Copyright (C) 1999-2011, 2020-2021 T. Zoerner
+ *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License Version 2 as
  *  published by the Free Software Foundation. You find a copy of this
@@ -15,10 +17,6 @@
  *  Description:
  *
  *    Decodes Hamming and Parity error protection.
- *
- *  Author: Tom Zoerner
- *
- *  $Id: hamming.c,v 1.12 2006/07/02 12:03:35 tom Exp tom $
  */
 
 #define __HAMMING_C

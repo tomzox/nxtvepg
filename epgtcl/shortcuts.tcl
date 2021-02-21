@@ -1,6 +1,8 @@
 #
 #  Handling of filter shortcuts
 #
+#  Copyright (C) 1999-2011, 2020-2021 T. Zoerner
+#
 #  This program is free software; you can redistribute it and/or modify
 #  it under the terms of the GNU General Public License Version 2 as
 #  published by the Free Software Foundation. You find a copy of this
@@ -15,10 +17,6 @@
 #  Description:
 #
 #    Implements methods to invoke or undo filter shortcuts.
-#
-#  Author: Tom Zoerner
-#
-#  $Id: shortcuts.tcl,v 1.19 2007/12/29 21:11:12 tom Exp tom $
 #
 #=CONST= ::fsc_name_idx 0
 #=CONST= ::fsc_mask_idx 1

@@ -1,6 +1,8 @@
 /*
  *  Nextview GUI: Export of programme data in various formats
  *
+ *  Copyright (C) 1999-2011, 2020-2021 T. Zoerner
+ *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License Version 2 as
  *  published by the Free Software Foundation. You find a copy of this
@@ -18,10 +20,6 @@
  *    database export modules.  It retrieves parameters from the GUI
  *    configuration file and opens the output files.  (It's split off
  *    from the dump modules to avoid dependencies on Tcl for these.)
- *
- *  Author: Tom Zoerner
- *
- *  $Id: uidump.c,v 1.8 2020/06/17 19:32:20 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI

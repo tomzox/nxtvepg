@@ -1,6 +1,8 @@
 /*
  *  Declaration of interface to WDM
  *
+ *  Author: Gérard Chevalier
+ *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License Version 2 as
  *  published by the Free Software Foundation. You find a copy of this
@@ -16,11 +18,6 @@
  *
  *    This header file declares the interface to the WDM VBI
  *    capture library.
- *
- *
- *  Author: Gérard Chevalier
- *
- *  $Id: wdmdrv.h,v 1.7 2007/02/25 20:01:00 tom Exp tom $
  */
 
 #ifndef __WDMDRV_H

@@ -1,6 +1,8 @@
 /*
  *  PDC themes definition
  *
+ *  Copyright (C) 1999-2011, 2020-2021 T. Zoerner
+ *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License Version 2 as
  *  published by the Free Software Foundation. You find a copy of this
@@ -12,11 +14,7 @@
  *  GNU General Public License for more details.
  *
  *
- *  Description: see according C source file.
- *
- *  Author: Tom Zoerner
- *
- *  $Id: pdc_themes.h,v 1.6 2020/06/17 19:32:20 tom Exp tom $
+ *  Description: see C source file.
  */
 
 #ifndef __PDC_THEMES_H

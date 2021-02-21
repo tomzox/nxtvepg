@@ -167,7 +167,7 @@ extern int yydebug;
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
 union YYSTYPE
 {
-#line 50 "xmltv/xml_prolog.yy"
+#line 48 "xmltv/xml_prolog.yy"
  char * str; 
 
 #line 174 "xmltv/xml_prolog.tab.h"

@@ -1,6 +1,8 @@
 /*
  *  M$ Windows TV application remote control module
  *
+ *  Copyright (C) 1999-2011, 2020-2021 T. Zoerner
+ *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License Version 2 as
  *  published by the Free Software Foundation. You find a copy of this
@@ -18,10 +20,6 @@
  *    applications.  It receives channel change messages from the
  *    TV application and replies with EPG info, e.g. program title
  *    string.
- *
- *  Author: Tom Zoerner
- *
- *  $Id: wintv.c,v 1.32 2020/06/17 19:32:20 tom Exp tom $
  */
 
 #ifndef WIN32

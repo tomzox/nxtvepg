@@ -19,8 +19,6 @@
 
 /* ZVBI #Id: decoder.c,v 1.12 2003/05/17 13:02:04 tomzo Exp # */
 
-/* nxtvepg $Id: zvbidecoder.c,v 1.9 2020/06/15 09:57:45 tom Exp tom $ */
-
 #define DEBUG_SWITCH DEBUG_SWITCH_VBI
 #define DPRINTF_OFF
 

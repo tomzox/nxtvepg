@@ -1,6 +1,8 @@
 #
 #  Configuration dialogs for provider scan, selection and merging
 #
+#  Copyright (C) 1999-2011, 2020-2021 T. Zoerner
+#
 #  This program is free software; you can redistribute it and/or modify
 #  it under the terms of the GNU General Public License Version 2 as
 #  published by the Free Software Foundation. You find a copy of this
@@ -16,10 +18,6 @@
 #
 #    Implements configuration dialogs that allow to select a provider from
 #    the list or merge providers.
-#
-#  Author: Tom Zoerner
-#
-#  $Id: dlg_prov.tcl,v 1.24 2008/10/12 19:18:48 tom Exp tom $
 #
 set provwin_popup 0
 set provmerge_popup 0

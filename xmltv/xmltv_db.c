@@ -1,6 +1,8 @@
 /*
  *  XMLTV content processing
  *
+ *  Copyright (C) 2007-2011, 2020-2021 T. Zoerner
+ *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License Version 2 as
  *  published by the Free Software Foundation. You find a copy of this
@@ -67,10 +69,6 @@
  *    parameters and data.  The structures are forwarded to a database
  *    when the tag is closed.  Also a channel table is generated and
  *    forwarded to the database at the end of the file.
- *
- *  Author: Tom Zoerner
- *
- *  $Id: xmltv_db.c,v 1.19 2020/06/21 08:48:00 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_XMLTV

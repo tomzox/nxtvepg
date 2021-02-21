@@ -1,6 +1,8 @@
 /*
  *  VBI capture driver interface definition
  *
+ *  Copyright (C) 1999-2011, 2020-2021 T. Zoerner
+ *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License Version 2 as
  *  published by the Free Software Foundation. You find a copy of this
@@ -32,10 +34,6 @@
  *    supported.
  *
  *    For an explanations of the functions see the C files.
- *
- *  Author: Tom Zoerner
- *
- *  $Id: btdrv.h,v 1.51 2020/06/21 07:33:46 tom Exp tom $
  */
 
 #ifndef __BTDRV_H

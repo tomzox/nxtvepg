@@ -1,6 +1,8 @@
 /*
  *  Nextview GUI: Call external command with a programme's parameters
  *
+ *  Copyright (C) 1999-2011, 2020-2021 T. Zoerner
+ *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License Version 2 as
  *  published by the Free Software Foundation. You find a copy of this
@@ -18,10 +20,6 @@
  *    context menu (right-click on programme item) and pass them parameters
  *    of the currently selected programme item.  Intended use is for example
  *    and external scheduler or record application.
- *
- *  Author: Tom Zoerner
- *
- *  $Id: shellcmd.c,v 1.20 2020/06/17 19:34:27 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI

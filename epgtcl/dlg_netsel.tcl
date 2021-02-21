@@ -1,6 +1,8 @@
 #
 #  Network selection dialog and management
 #
+#  Copyright (C) 1999-2011, 2020-2021 T. Zoerner
+#
 #  This program is free software; you can redistribute it and/or modify
 #  it under the terms of the GNU General Public License Version 2 as
 #  published by the Free Software Foundation. You find a copy of this
@@ -15,10 +17,6 @@
 #  Description:
 #
 #    Implements a configuration dialog for network selection.
-#
-#  Author: Tom Zoerner
-#
-#  $Id: dlg_netsel.tcl,v 1.15 2008/02/03 19:19:47 tom Exp tom $
 #
 set netsel_popup 0
 

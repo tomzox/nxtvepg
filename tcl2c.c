@@ -1,6 +1,15 @@
 /*
  *  Build tool for inlining Tcl scripts into the executable
  *
+ *  Authors:
+ *
+ *    Originally based on a tool with the same name, which was part of
+ *    Netvideo version 3.2 by Ron Frederick <frederick@parc.xerox.com>
+ *    Copyright (c) Xerox Corporation 1992. All rights reserved.
+ *
+ *    Completely rewritten and functionality added by T. Zoerner
+ *    Copyright (C) 1999-2011, 2020-2021 T. Zoerner
+ *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License Version 2 as
  *  published by the Free Software Foundation. You find a copy of this
@@ -35,16 +44,6 @@
  *    for the C And H output files are derived from the input file name by
  *    replacing .tcl with .c and .h respectively.  Use option -? for short
  *    explanations of command line switches.
- *
- *  Author:
- *
- *    Originally based on a tool with the same name, which was part of
- *    Netvideo version 3.2 by Ron Frederick <frederick@parc.xerox.com>
- *    Copyright (c) Xerox Corporation 1992. All rights reserved.
- *
- *    Completely rewritten and functionality added by Tom Zoerner
- *
- *  $Id: tcl2c.c,v 1.16 2020/06/17 08:18:43 tom Exp tom $
  */
 
 #include <stdlib.h>

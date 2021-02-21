@@ -1,6 +1,8 @@
 /*
  *  TV application interaction simulator for nxtvepg
  *
+ *  Copyright (C) 1999-2011, 2020-2021 T. Zoerner
+ *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License Version 2 as
  *  published by the Free Software Foundation. You find a copy of this
@@ -18,10 +20,6 @@
  *    It's a demonstration of how nxtvepg can interact with TV applications.
  *    Currently supported is a shared memory protocol for WIN32 (implemented
  *    in K!TV) a X11 atoms based protocol for Xawtv (UNIX)
- *
- *  Author: Thorsten Zoerner
- *
- *  $Id: tvsim_main.c,v 1.39 2020/06/24 07:28:04 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_TVSIM

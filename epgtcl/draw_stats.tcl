@@ -1,6 +1,8 @@
 #
 #  Timescale and statistics popup windows
 #
+#  Copyright (C) 1999-2011, 2020-2021 T. Zoerner
+#
 #  This program is free software; you can redistribute it and/or modify
 #  it under the terms of the GNU General Public License Version 2 as
 #  published by the Free Software Foundation. You find a copy of this
@@ -17,10 +19,6 @@
 #    Implements support for drawing timescales and database statistics.
 #    All calculations are done at C level, so this module just contains
 #    display functions.
-#
-#  Author: Tom Zoerner
-#
-#  $Id: draw_stats.tcl,v 1.10 2008/10/19 18:58:13 tom Exp tom $
 #
 
 #=CONST= ::tsc_cv_label_x0        2

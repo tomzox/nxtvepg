@@ -1,6 +1,12 @@
 /*
  *  Retrieve channel table and TV card config from TV app INI files
  *
+ *  Copyright (C) 1999-2011, 2020-2021 T. Zoerner
+ *
+ *    Some parser code fragments have been extracted from TV applications,
+ *    so their respective copyright applies too. Please see the notes in
+ *    functions headers below.
+ *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License Version 2 as
  *  published by the Free Software Foundation. You find a copy of this
@@ -22,14 +28,6 @@
  *    a network name list for the network name configuration dialog, among
  *    other things.  The module is also used by the daemon, hence the
  *    Tcl/Tk interface functions are in a separate module, called wintvui.c
- *
- *  Author: Tom Zoerner
- *
- *    Some parser code fragments have been extracted from TV applications,
- *    so their respective copyright applies too. Please see the notes in
- *    functions headers below.
- *
- *  $Id: wintvcfg.c,v 1.31 2020/06/21 07:37:23 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI

@@ -1,6 +1,8 @@
 /*
  *  General GUI housekeeping
  *
+ *  Copyright (C) 1999-2011, 2020-2021 T. Zoerner
+ *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License Version 2 as
  *  published by the Free Software Foundation. You find a copy of this
@@ -18,10 +20,6 @@
  *    schedules them via the main loop and then displays a text in a
  *    message box.  The module also manages side-effects from switching the
  *    browser database.
- *
- *  Author: Tom Zoerner
- *
- *  $Id: uictrl.c,v 1.61 2020/06/21 07:37:46 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI

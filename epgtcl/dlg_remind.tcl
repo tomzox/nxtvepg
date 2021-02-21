@@ -1,6 +1,8 @@
 #
 #  Reminder handling & dialogs
 #
+#  Copyright (C) 1999-2011, 2020-2021 T. Zoerner
+#
 #  This program is free software; you can redistribute it and/or modify
 #  it under the terms of the GNU General Public License Version 2 as
 #  published by the Free Software Foundation. You find a copy of this
@@ -48,10 +50,6 @@
 #      + en-/disable background match reporting
 #      + en-/disable use of VPS to detect actual start (time off 0 only)
 #        problems: need 2nd TV tuner; nxtvepg doesn't have channel table
-#
-#  Author: Tom Zoerner
-#
-#  $Id: dlg_remind.tcl,v 1.26 2020/06/21 07:39:37 tom Exp tom $
 #
 # import constants from other modules
 #=INCLUDE= "epgtcl/dlg_udefcols.h"

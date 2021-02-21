@@ -1,6 +1,8 @@
 /*
  *  Build a system error message
  *
+ *  Copyright (C) 1999-2011, 2020-2021 T. Zoerner
+ *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License Version 2 as
  *  published by the Free Software Foundation. You find a copy of this
@@ -16,11 +18,6 @@
  *
  *    This module assembles an error message from separate strings and
  *    possibly a system error code.
- *
- *  Author:
- *          Tom Zoerner
- *
- *  $Id: syserrmsg.c,v 1.8 2020/06/17 19:52:15 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_VBI

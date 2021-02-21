@@ -1,6 +1,8 @@
 #
 #  Configuration dialog for TV card
 #
+#  Copyright (C) 1999-2011, 2020-2021 T. Zoerner
+#
 #  This program is free software; you can redistribute it and/or modify
 #  it under the terms of the GNU General Public License Version 2 as
 #  published by the Free Software Foundation. You find a copy of this
@@ -15,10 +17,6 @@
 #  Description:
 #
 #    Implements a GUI for TV card parameters.
-#
-#  Author: Tom Zoerner
-#
-#  $Id: dlg_hwcfg.tcl,v 1.22 2008/08/10 19:14:36 tom Exp tom $
 #
 set hwcfg_popup 0
 set tvcard_popup 0

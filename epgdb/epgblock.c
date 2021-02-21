@@ -1,6 +1,8 @@
 /*
  *  Nextview EPG bit field decoder
  *
+ *  Copyright (C) 1999-2011, 2020-2021 T. Zoerner
+ *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License Version 2 as
  *  published by the Free Software Foundation. You find a copy of this
@@ -17,10 +19,6 @@
  *    Converts Nextview bit fields of all types into C structures
  *    as defined in epgblock.h.  See ETS 300 707 (Nextview Spec.),
  *    chapters 10 to 11 for details.
- *
- *  Author: Tom Zoerner
- *
- *  $Id: epgblock.c,v 1.64 2020/06/17 19:30:47 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB

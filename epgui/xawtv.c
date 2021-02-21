@@ -1,6 +1,13 @@
 /*
  *  Nextview EPG: xawtv remote control module
  *
+ *  Copyright (C) 1999-2011, 2020-2021 T. Zoerner
+ *
+ *     Parts of the code implementing the Xawtv protocol (root and toplevel
+ *     window tree traversal) originates from Netscape (author unknown).
+ *     Those parts have been adapted for xawtv-remote.c by Gerd Knorr
+ *     (kraxel@bytesex.org)  Some functions have been derived from xawtv.
+ *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License Version 2 as
  *  published by the Free Software Foundation. You find a copy of this
@@ -23,15 +30,6 @@
  *    stored in the X server; an event handler is installed both in xawtv and
  *    nxtvepg which is called whenever an atom's value is changed by the other
  *    application.
- *
- *  Author: Tom Zoerner
- *
- *     Parts of the code implementing the Xawtv protocol (root and toplevel
- *     window tree traversal) originates from Netscape (author unknown).
- *     Those parts have been adapted for xawtv-remote.c by Gerd Knorr
- *     (kraxel@bytesex.org)  Some functions have been derived from xawtv.
- *
- *  $Id: xawtv.c,v 1.57 2020/06/17 19:34:45 tom Exp tom $
  */
 
 #ifdef WIN32

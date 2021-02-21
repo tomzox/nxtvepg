@@ -31,8 +31,6 @@
 #package require Tk 8.0
 #package provide mclistbox 1.02
 
-#  nxtvepg $Id: mclistbox.tcl,v 1.3 2007/12/29 21:22:59 tom Exp tom $
-
 #=LOAD=mclistbox_load
 #=DYNAMIC=
 

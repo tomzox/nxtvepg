@@ -1,6 +1,8 @@
 #
 #  GUI for TV interaction simulator
 #
+#  Copyright (C) 2002-2008 T. Zoerner
+#
 #  This program is free software; you can redistribute it and/or modify
 #  it under the terms of the GNU General Public License Version 2 as
 #  published by the Free Software Foundation. You find a copy of this
@@ -20,10 +22,6 @@
 #    selected channel.
 #    When the user changes the channel, the TV tuner is set to
 #    the according frequency and the EPG application is notified.
-#
-#  Author: T. Zoerner
-#
-#  $Id: tvsim_gui.tcl,v 1.18 2020/12/23 17:42:06 tom Exp tom $
 #
 #=CONST= ::pit_netwop_name 0
 #=CONST= ::pit_netwop_idx 1

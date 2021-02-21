@@ -1,6 +1,8 @@
 /*
  *  Communication with external TV application via shared memory
  *
+ *  Copyright (C) 1999-2011, 2020-2021 T. Zoerner
+ *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License Version 2 as
  *  published by the Free Software Foundation. You find a copy of this
@@ -16,10 +18,6 @@
  *
  *    This module implements methods to allow communication with
  *    external applications (mainly TV viewing apps) under M$ Windows.
- *
- *  Author: Tom Zoerner
- *
- *  $Id: winshmsrv.c,v 1.13 2020/06/17 19:30:22 tom Exp tom $
  */
 
 #ifndef WIN32

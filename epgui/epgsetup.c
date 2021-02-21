@@ -1,6 +1,8 @@
 /*
  *  Nextview EPG acquisition and database parameter setup
  *
+ *  Copyright (C) 1999-2011, 2020-2021 T. Zoerner
+ *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License Version 2 as
  *  published by the Free Software Foundation. You find a copy of this
@@ -18,10 +20,6 @@
  *    parameters from the command line and/or config file (rc/ini file)
  *    the various EPG control layer modules.  The functions are used
  *    during initial start-up and re-configuration via GUI dialogs.
- *
- *  Author: Tom Zoerner
- *
- *  $Id: epgsetup.c,v 1.12 2011/01/16 20:27:55 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI

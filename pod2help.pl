@@ -2,6 +2,8 @@
 #
 #  Perl script to convert POD manpage to help menu & popups
 #
+#  Copyright (C) 1999-2011, 2020-2021 T. Zoerner
+#
 #  This program is free software; you can redistribute it and/or modify
 #  it under the terms of the GNU General Public License Version 2 as
 #  published by the Free Software Foundation. You find a copy of this
@@ -20,10 +22,6 @@
 #    texts for the help popups. The script will be compiled into the
 #    executable and eval'ed upon program start. See the Perl manual
 #    page 'perlpod' for details on the POD syntax.
-#
-#  Author: Tom Zoerner
-#
-#  $Id: pod2help.pl,v 1.20 2005/07/17 17:52:12 tom Exp tom $
 #
 
 require "ctime.pl";

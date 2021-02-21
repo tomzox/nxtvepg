@@ -1,6 +1,8 @@
 /*
  *  Debug service module
  *
+ *  Copyright (C) 1999-2011, 2020-2021 T. Zoerner
+ *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License Version 2 as
  *  published by the Free Software Foundation. You find a copy of this
@@ -19,10 +21,6 @@
  *    use the macros defined in the header file. The intention is
  *    that the extent of debugging can easily be controlled, e.g.
  *    debug output easily be turned off in the final release.
- *
- *  Author: Tom Zoerner
- *
- *  $Id: debug.c,v 1.31 2020/06/26 21:52:21 tom Exp tom $
  */
 
 #define __DEBUG_C

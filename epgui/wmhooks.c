@@ -1,6 +1,9 @@
 /*
  *  X11 and Win32 window manager hooks
  *
+ *  X11 code by Gerd Knorr (code copied from xawtv-3.87/x11/wmhooks.c)
+ *  Win32 version and Tcl interface: Copyright (C) 1999-2008 T. Zoerner
+ *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License Version 2 as
  *  published by the Free Software Foundation. You find a copy of this
@@ -17,11 +20,6 @@
  *    This module implements a window manager hook to make a toplevel
  *    window stay on top, i.e. unobscured by any other windows.
  *    Currently only used for reminder message windows.
- *
- *  Author: X11 code by Gerd Knorr (code copied from xawtv-3.87/x11/wmhooks.c)
- *          Win32 version and Tcl interface by Tom Zoerner
- *
- *  $Id: wmhooks.c,v 1.4 2004/12/27 13:47:33 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI

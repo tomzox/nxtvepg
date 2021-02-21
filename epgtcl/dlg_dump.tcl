@@ -1,6 +1,8 @@
 #
 #  Configuration dialog for dumping the database
 #
+#  Copyright (C) 1999-2011, 2020-2021 T. Zoerner
+#
 #  This program is free software; you can redistribute it and/or modify
 #  it under the terms of the GNU General Public License Version 2 as
 #  published by the Free Software Foundation. You find a copy of this
@@ -15,10 +17,6 @@
 #  Description:
 #
 #    Implements a GUI for dumping the database.
-#
-#  Author: Tom Zoerner
-#
-#  $Id: dlg_dump.tcl,v 1.11 2008/09/20 20:28:58 tom Exp tom $
 #
 set dumpdb_pi 1
 set dumpdb_xi 1

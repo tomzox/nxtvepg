@@ -2,6 +2,9 @@
 #
 #  nxtvepg online manual - German version
 #
+#  Copyright (C) 1999-2011, 2020-2021 T. Zoerner
+#  German translation by Kurt Lettmaier & Olaf Nöhring
+#
 #  This program is free software; you can redistribute it and/or modify
 #  it under the terms of the GNU General Public License Version 2 as
 #  published by the Free Software Foundation. You find a copy of this
@@ -17,10 +20,6 @@
 #
 #    See English version
 #
-#  Author: Tom Zoerner (Original)
-#          German translation by Kurt Lettmaier & Olaf Nöhring
-#
-# $Id: nxtvepg-de.pod,v 1.21 2020/06/15 17:35:09 tom Exp tom $
 # ---------------------------------------------------------------------------
 
 =head1 NAME
@@ -2290,8 +2289,7 @@ application interaction").
 
 =head1 AUTHOR
 
-Th. "Tom" Zörner
-C<tomzo (at) users (dot) sourceforge (dot) net>
+T. Zörner (C<tomzo (at) users (dot) sourceforge (dot) net>)
 
 Der beste Weg Feedback zu übermitteln, ist über das Diskussionsforum auf der nxtvepg-Homepage. Sehen Sie in der README-Datei nach Instruktionen darüber, welche Informationen im Bug-Report stehen sollten (z.B. die Meldung "geht nicht" reicht in den seltensten Fällen.)
 
@@ -2317,7 +2315,7 @@ Ursprünglich wurde nxtvepg als Dekoder für das vom European Telecommunications S
 
 =head1 COPYRIGHT
 
-Copyright (C) 1999 - 2009, 2020 - 2021 by Th. Zörner. Alle Rechte vorbehalten.
+Copyright (C) 1999 - 2009, 2020 - 2021 by T. Zörner. Alle Rechte vorbehalten.
 
 Zusätzliche Copyrights gelten für Teile des verwendeten Quelltexts. Bitte in der Datei COPYRIGHT und den Kommentaren im Quelltext nach Details sehen.
 

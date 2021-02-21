@@ -1,6 +1,8 @@
 /*
  *  Nextview EPG block network client & server
  *
+ *  Copyright (C) 1999-2011, 2020-2021 T. Zoerner
+ *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License Version 2 as
  *  published by the Free Software Foundation. You find a copy of this
@@ -18,11 +20,6 @@
  *    (i.e. pipes) or TCP/IP from a server process to connected Nextview
  *    clients. This allows multiple GUIs to use one TV card for data
  *    acquisition.
- *
- *  Author:
- *          Tom Zoerner
- *
- *  $Id: epgnetio.c,v 1.44 2020/06/17 19:33:22 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB

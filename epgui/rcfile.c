@@ -1,6 +1,8 @@
 /*
  *  Reading/writing the .nxtvepgrc / nxtvepg.ini file
  *
+ *  Copyright (C) 1999-2011, 2020-2021 T. Zoerner
+ *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License Version 2 as
  *  published by the Free Software Foundation. You find a copy of this
@@ -22,10 +24,6 @@
  *    belonging to the GUI are read and written separately; a function
  *    is provided to copy through foreign sections during updates in case
  *    the calling application doesn't include the GUI code.
- *
- *  Author: Tom Zoerner
- *
- *  $Id: rcfile.c,v 1.16 2020/06/17 08:20:10 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI

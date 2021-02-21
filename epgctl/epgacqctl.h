@@ -1,6 +1,8 @@
 /*
  *  Acquisition main control
  *
+ *  Copyright (C) 1999-2011, 2020-2021 T. Zoerner
+ *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License Version 2 as
  *  published by the Free Software Foundation. You find a copy of this
@@ -13,10 +15,6 @@
  *
  *
  *  Description: see C source file.
- *
- *  Author: Tom Zoerner
- *
- *  $Id: epgacqctl.h,v 1.49 2020/06/17 19:31:21 tom Exp tom $
  */
 
 #ifndef __EPGACQCTL_H

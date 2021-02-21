@@ -1,6 +1,11 @@
 /*
  *  Decode raw VBI lines to Teletext byte array or VPS CNI
  *
+ *    The teletext scanner in this module is based on vbidecode.c
+ *    which is (was) part of the bttv driver package for Linux.
+ *    Copyright (C) 1996,97 Ralph Metzler  (rjkm@thp.uni-koeln.de)
+ *                        & Marcus Metzler (mocm@thp.uni-koeln.de)
+ *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License Version 2 as
  *  published by the Free Software Foundation. You find a copy of this
@@ -18,15 +23,6 @@
  *    the video image and decodes them according to the
  *    Enhanced Teletext specification (see ETS 300 706, available at
  *    http://www.etsi.org/). Result is 40 data bytes for each line.
- *
- *    The teletext scanner in this module is based on vbidecode.cc
- *    which is (was) part of the bttv driver package for Linux.
- *    Copyright (C) 1996,97 Ralph Metzler  (rjkm@thp.uni-koeln.de)
- *                        & Marcus Metzler (mocm@thp.uni-koeln.de)
- *
- *  Author: Tom Zoerner
- *
- *  $Id: vbidecode.c,v 1.39 2020/06/15 09:57:45 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_VBI

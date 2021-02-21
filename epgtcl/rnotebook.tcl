@@ -61,8 +61,6 @@
 #
 #########################################################
 
-#  nxtvepg $Id: rnotebook.tcl,v 1.1 2003/08/11 12:23:06 tom Exp tom $
-
 #=LOAD=rnotebook_load
 #=DYNAMIC=
 

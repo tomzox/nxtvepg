@@ -1,6 +1,8 @@
 /*
  *  Nextview GUI: Execute commands and control status of the menu bar
  *
+ *  Copyright (C) 1999-2011, 2020-2021 T. Zoerner
+ *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License Version 2 as
  *  published by the Free Software Foundation. You find a copy of this
@@ -14,11 +16,8 @@
  *
  *  Description:
  *
- *    Provide callbacks for various commands in the menu bar.
- *
- *  Author: Tom Zoerner
- *
- *  $Id: menucmd.c,v 1.137 2020/06/17 19:34:20 tom Exp tom $
+ *    This module provides the main C interface to commands in the menu bar
+ *    and dialogs.
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI

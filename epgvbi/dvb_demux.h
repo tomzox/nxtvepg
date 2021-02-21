@@ -20,7 +20,6 @@
  */
 
 /* libzvbi #Id: dvb_demux.h,v 1.11 2008/02/24 14:17:54 mschimek Exp # */
-/* $Id: dvb_demux.h,v 1.1 2020/06/19 18:47:18 tom Exp tom $ */
 
 #ifndef __ZVBI_DVB_DEMUX_H__
 #define __ZVBI_DVB_DEMUX_H__

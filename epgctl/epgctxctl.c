@@ -1,6 +1,8 @@
 /*
  *  Nextview database context management
  *
+ *  Copyright (C) 1999-2011, 2020-2021 T. Zoerner
+ *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License Version 2 as
  *  published by the Free Software Foundation. You find a copy of this
@@ -28,10 +30,6 @@
  *    AI and OI#0 blocks. The peeks are used e.g. by the GUI when a list of
  *    provider names is to be displayed.  Hence when a database is closed,
  *    it's not entirely freed, but instead stripped down to a peek.
- *
- *  Author: Tom Zoerner
- *
- *  $Id: epgctxctl.c,v 1.35 2020/06/24 07:33:41 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGCTL

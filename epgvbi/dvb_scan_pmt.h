@@ -1,6 +1,8 @@
 /*
  *  DVB PAT & PMT scan interface definition
  *
+ *  Copyright (C) 2021 T. Zoerner
+ *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License Version 2 as
  *  published by the Free Software Foundation. You find a copy of this
@@ -16,8 +18,6 @@
  *
  *    This header file defines the interface between the DTV driver
  *    module and the DVB PAT & PMT scan module.
- *
- *  Author: T. Zoerner
  */
 #if !defined (__DVB_SCAN_PMT_H)
 #define __DVB_SCAN_PMT_H

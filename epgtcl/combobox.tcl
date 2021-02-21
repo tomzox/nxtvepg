@@ -30,8 +30,6 @@
 #package require Tk 8.0
 #package provide combobox 2.2.1
 
-#  nxtvepg $Id: combobox.tcl,v 1.1 2003/09/02 20:12:30 tom Exp tom $
-
 #=LOAD=combobox_load
 #=DYNAMIC=
 

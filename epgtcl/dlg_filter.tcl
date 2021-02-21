@@ -1,6 +1,8 @@
 #
 #  Filter dialogs
 #
+#  Copyright (C) 1999-2011, 2020-2021 T. Zoerner
+#
 #  This program is free software; you can redistribute it and/or modify
 #  it under the terms of the GNU General Public License Version 2 as
 #  published by the Free Software Foundation. You find a copy of this
@@ -15,10 +17,6 @@
 #  Description:
 #
 #    Implements dialogs for filter settings.
-#
-#  Author: Tom Zoerner
-#
-#  $Id: dlg_filter.tcl,v 1.17 2007/12/29 21:16:34 tom Exp tom $
 #
 set progidx_first 0
 set progidx_last  0

@@ -1,6 +1,8 @@
 #
 #  Windows Makefile for nxtvepg - A XMLTV browser and Teletext EPG grabber
 #
+#  Copyright (C) 1999-2011, 2020-2021 T. Zoerner
+#
 #  This program is free software; you can redistribute it and/or modify
 #  it under the terms of the GNU General Public License Version 2 as
 #  published by the Free Software Foundation. You find a copy of this
@@ -18,11 +20,6 @@
 #    Windows systems using gcc. This make file requires Cygwin and the
 #    w32api and mingw header files.  In addition to nxtvepg, this
 #    Makefile also generates the TV application simulator and tools.
-#
-#
-#  Author: Tom Zoerner
-#
-#  $Id: Makefile.win32,v 1.81 2020/06/17 19:29:13 tom Exp tom $
 #
 
 ifeq ($(OS),Windows_NT)

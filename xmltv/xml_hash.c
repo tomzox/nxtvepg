@@ -1,6 +1,12 @@
 /*
  *  Helper module implementing a hash array for strings
  *
+ *  Copyright (C) 2007-2008 T. Zoerner
+ *
+ *  Principles derived from tcl 8.4.9 (tclHash.c,v 1.12.2.1 2004/11/11):
+ *    Copyright (c) 1991-1993 The Regents of the University of California.
+ *    Copyright (c) 1994 Sun Microsystems, Inc.
+ *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License Version 2 as
  *  published by the Free Software Foundation. You find a copy of this
@@ -31,15 +37,6 @@
  *    might suffer from a large number of key collisions (i.e. when
  *    multiple strings are mapped to the same list entry by the key
  *    function.)
- *
- *
- *  Author: Tom Zoerner
- *
- *  Principles derived from tcl 8.4.9 (tclHash.c,v 1.12.2.1 2004/11/11):
- *    Copyright (c) 1991-1993 The Regents of the University of California.
- *    Copyright (c) 1994 Sun Microsystems, Inc.
- *
- *  $Id: xml_hash.c,v 1.6 2014/04/23 21:08:46 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_XMLTV

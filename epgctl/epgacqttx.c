@@ -1,6 +1,8 @@
 /*
  *  Teletext EPG acquisition control
  *
+ *  Copyright (C) 1999-2011, 2020-2021 T. Zoerner
+ *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License Version 2 as
  *  published by the Free Software Foundation. You find a copy of this
@@ -18,10 +20,6 @@
  *    covers cycling through the channel table, controlling the teletext
  *    packet grabber and post-processing, monitoring for channel changes
  *    and monitoring the acquisition progress.
- *
- *  Author: Tom Zoerner
- *
- *  $Id: epgacqttx.c,v 1.4 2011/01/09 18:02:36 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGCTL

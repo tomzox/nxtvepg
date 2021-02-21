@@ -1,6 +1,8 @@
 #
 #  Configuration dialog for user-defined entries in the context menu
 #
+#  Copyright (C) 1999-2011, 2020-2021 T. Zoerner
+#
 #  This program is free software; you can redistribute it and/or modify
 #  it under the terms of the GNU General Public License Version 2 as
 #  published by the Free Software Foundation. You find a copy of this
@@ -16,10 +18,6 @@
 #
 #    Implements a configuration dialog that allows to manage user-defined
 #    entries in the context menu in the PI listbox.
-#
-#  Author: Tom Zoerner
-#
-#  $Id: dlg_ctxmencf.tcl,v 1.16 2009/03/29 18:32:04 tom Exp tom $
 #
 set ctxmencf_popup 0
 set ctxmencf [list {pi_context.addfilt {} {}} \

@@ -1,6 +1,8 @@
 !
 !  Nxtvepg resource definitions
 !
+!  Copyright (C) 2000-2007 T. Zoerner
+!
 !  This program is free software; you can redistribute it and/or modify
 !  it under the terms of the GNU General Public License Version 2 as
 !  published by the Free Software Foundation. You find a copy of this
@@ -29,10 +31,6 @@
 !    make small changes without modifying the files by entering:
 !
 !      echo "Nxtvepg*text_bg: #E9E9EC" | xrdb -merge
-!
-!  Author: Tom Zoerner
-!
-!  $Id: Nxtvepg.ad,v 1.6 2007/12/31 20:16:59 tom Exp tom $
 !
 
 ! Remove comment sign ! from values you want to change

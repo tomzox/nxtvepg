@@ -1,6 +1,14 @@
 /*
  *  VBI driver interface for Linux, NetBSD and FreeBSD
  *
+ *  Copyright (C) 1999-2011, 2020-2021 T. Zoerner
+ *
+ *  Authors:
+ *
+ *    Linux:   T. Zoerner
+ *    NetBSD:  Mario Kemper <magick@bundy.zhadum.de>
+ *    FreeBSD: Simon Barner <barner@gmx.de>
+ *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License Version 2 as
  *  published by the Free Software Foundation. You find a copy of this
@@ -36,15 +44,6 @@
  *    to work around these shortcomings, however there are some
  *    cases where the acquisition will stall. For more info ask
  *    Mario or complain directly to the bktr authors.
- *
- *
- *  Authors:
- *
- *    Linux:   Tom Zoerner
- *    NetBSD:  Mario Kemper <magick@bundy.zhadum.de>
- *    FreeBSD: Simon Barner <barner@gmx.de>
- *
- *  $Id: btdrv4linux.c,v 1.79 2020/06/24 07:23:04 tom Exp tom $
  */
 
 #if !defined(linux) && !defined(__NetBSD__) && !defined(__FreeBSD__) 

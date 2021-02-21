@@ -1,6 +1,8 @@
 /*
  *  Nextview GUI: Output of PI data in various formats
  *
+ *  Copyright (C) 1999-2011, 2020-2021 T. Zoerner
+ *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License Version 2 as
  *  published by the Free Software Foundation. You find a copy of this
@@ -12,11 +14,7 @@
  *  GNU General Public License for more details.
  *
  *
- *  Description: see according C source file.
- *
- *  Author: Tom Zoerner
- *
- *  $Id: shellcmd.h,v 1.3 2006/01/29 14:47:55 tom Exp tom $
+ *  Description: see C source file.
  */
 
 #ifndef __SHELLCMD_H

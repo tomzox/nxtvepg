@@ -1,6 +1,8 @@
 #
 #  UNIX Makefile for nxtvepg - A XMLTV browser and Teletext EPG grabber
 #
+#  Copyright (C) 1999-2011, 2020-2021 T. Zoerner
+#
 #  This program is free software; you can redistribute it and/or modify
 #  it under the terms of the GNU General Public License Version 2 as
 #  published by the Free Software Foundation. You find a copy of this
@@ -27,10 +29,6 @@
 #    you may have to adapt some paths below.  Note that "make nxtvepg"
 #    will not work because there are other targets which need to be
 #    built first (read comments below for further explanations.)
-#
-#  Author: T. Zoerner
-#
-#  $Id: Makefile,v 1.114 2020/12/23 17:29:31 tom Exp tom $
 #
 
 ifeq ($(OS),Windows_NT)

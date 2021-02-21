@@ -1,6 +1,8 @@
 /*
  *  Nextview EPG database merging
  *
+ *  Copyright (C) 1999-2011, 2020-2021 T. Zoerner
+ *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License Version 2 as
  *  published by the Free Software Foundation. You find a copy of this
@@ -19,10 +21,6 @@
  *    upper half in the epgctl directory: 1 - merge AI blocks of the source
  *    databases; 2 - merge all PI of all source databases; 3 - insert one
  *    PI from one of the source databases into an existing merged database.
- *
- *  Author: Tom Zoerner
- *
- *  $Id: epgdbmerge.c,v 1.37 2020/06/21 07:33:18 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB

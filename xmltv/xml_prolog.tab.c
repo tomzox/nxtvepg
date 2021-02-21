@@ -66,7 +66,7 @@
 
 
 /* First part of user prologue.  */
-#line 31 "xmltv/xml_prolog.yy"
+#line 29 "xmltv/xml_prolog.yy"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -251,7 +251,7 @@ extern int yydebug;
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
 union YYSTYPE
 {
-#line 50 "xmltv/xml_prolog.yy"
+#line 48 "xmltv/xml_prolog.yy"
  char * str; 
 
 #line 258 "xmltv/xml_prolog.tab.c"
@@ -635,21 +635,21 @@ static const yytype_int8 yytranslate[] =
   /* YYRLINE[YYN] -- Source line where rule number YYN was defined.  */
 static const yytype_uint8 yyrline[] =
 {
-       0,    72,    72,    73,    77,    77,    78,    79,    80,    81,
-      82,    83,    84,    85,    86,    86,    87,    88,    91,    91,
-      92,    92,    92,    93,    94,    95,    98,    98,    99,   100,
-     101,   102,   103,   104,   105,   105,   106,   106,   107,   108,
-     109,   110,   111,   112,   114,   122,   123,   124,   124,   125,
-     125,   128,   128,   129,   130,   131,   131,   132,   132,   133,
-     134,   135,   135,   136,   139,   140,   141,   142,   143,   144,
-     145,   146,   147,   148,   149,   150,   150,   151,   152,   153,
-     153,   154,   155,   156,   159,   159,   160,   161,   161,   162,
-     162,   162,   165,   166,   166,   167,   168,   168,   168,   169,
-     170,   171,   172,   173,   174,   175,   176,   177,   177,   178,
-     179,   179,   180,   181,   181,   182,   183,   184,   185,   185,
-     188,   189,   190,   190,   190,   191,   195,   196,   197,   197,
-     198,   198,   201,   202,   202,   203,   204,   205,   206,   207,
-     208,   210,   211,   212,   213,   215,   216,   217,   218
+       0,    70,    70,    71,    75,    75,    76,    77,    78,    79,
+      80,    81,    82,    83,    84,    84,    85,    86,    89,    89,
+      90,    90,    90,    91,    92,    93,    96,    96,    97,    98,
+      99,   100,   101,   102,   103,   103,   104,   104,   105,   106,
+     107,   108,   109,   110,   112,   120,   121,   122,   122,   123,
+     123,   126,   126,   127,   128,   129,   129,   130,   130,   131,
+     132,   133,   133,   134,   137,   138,   139,   140,   141,   142,
+     143,   144,   145,   146,   147,   148,   148,   149,   150,   151,
+     151,   152,   153,   154,   157,   157,   158,   159,   159,   160,
+     160,   160,   163,   164,   164,   165,   166,   166,   166,   167,
+     168,   169,   170,   171,   172,   173,   174,   175,   175,   176,
+     177,   177,   178,   179,   179,   180,   181,   182,   183,   183,
+     186,   187,   188,   188,   188,   189,   193,   194,   195,   195,
+     196,   196,   199,   200,   200,   201,   202,   203,   204,   205,
+     206,   208,   209,   210,   211,   213,   214,   215,   216
 };
 #endif
 
@@ -1655,139 +1655,139 @@ yyreduce:
   switch (yyn)
     {
   case 24:
-#line 94 "xmltv/xml_prolog.yy"
+#line 92 "xmltv/xml_prolog.yy"
                   { XmltvTags_PiContent(NULL); }
 #line 1661 "xmltv/xml_prolog.tab.c"
     break;
 
   case 31:
-#line 102 "xmltv/xml_prolog.yy"
+#line 100 "xmltv/xml_prolog.yy"
                                                  {XmltvTags_DocIntDtdClose();}
 #line 1667 "xmltv/xml_prolog.tab.c"
     break;
 
   case 32:
-#line 103 "xmltv/xml_prolog.yy"
+#line 101 "xmltv/xml_prolog.yy"
                                    {XmltvTags_DocIntDtdClose();}
 #line 1673 "xmltv/xml_prolog.tab.c"
     break;
 
   case 45:
-#line 122 "xmltv/xml_prolog.yy"
+#line 120 "xmltv/xml_prolog.yy"
                                               {yyerrok;}
 #line 1679 "xmltv/xml_prolog.tab.c"
     break;
 
   case 46:
-#line 123 "xmltv/xml_prolog.yy"
+#line 121 "xmltv/xml_prolog.yy"
                                    {yyerrok;}
 #line 1685 "xmltv/xml_prolog.tab.c"
     break;
 
   case 121:
-#line 189 "xmltv/xml_prolog.yy"
+#line 187 "xmltv/xml_prolog.yy"
                                                         {XmltvTags_Notation(1, (yyvsp[-1].str));}
 #line 1691 "xmltv/xml_prolog.tab.c"
     break;
 
   case 122:
-#line 190 "xmltv/xml_prolog.yy"
+#line 188 "xmltv/xml_prolog.yy"
                                                         {XmltvTags_Notation(2, (yyvsp[-1].str));}
 #line 1697 "xmltv/xml_prolog.tab.c"
     break;
 
   case 123:
-#line 190 "xmltv/xml_prolog.yy"
+#line 188 "xmltv/xml_prolog.yy"
                                                                                                    {XmltvTags_Notation(4, (yyvsp[0].str));}
 #line 1703 "xmltv/xml_prolog.tab.c"
     break;
 
   case 125:
-#line 191 "xmltv/xml_prolog.yy"
+#line 189 "xmltv/xml_prolog.yy"
                                                         {XmltvTags_Notation(3, (yyvsp[-1].str));}
 #line 1709 "xmltv/xml_prolog.tab.c"
     break;
 
   case 135:
-#line 203 "xmltv/xml_prolog.yy"
+#line 201 "xmltv/xml_prolog.yy"
                                         { XmltvTags_Encoding((yyvsp[0].str)); }
 #line 1715 "xmltv/xml_prolog.tab.c"
     break;
 
   case 136:
-#line 204 "xmltv/xml_prolog.yy"
+#line 202 "xmltv/xml_prolog.yy"
                                         { XmltvTags_XmlVersion((yyvsp[0].str)); }
 #line 1721 "xmltv/xml_prolog.tab.c"
     break;
 
   case 137:
-#line 205 "xmltv/xml_prolog.yy"
+#line 203 "xmltv/xml_prolog.yy"
                                         { XmltvTags_DocType((yyvsp[0].str)); }
 #line 1727 "xmltv/xml_prolog.tab.c"
     break;
 
   case 138:
-#line 206 "xmltv/xml_prolog.yy"
+#line 204 "xmltv/xml_prolog.yy"
                                         { XmlScan_EntityDefName((yyvsp[0].str), 0); XmltvTags_CheckName((yyvsp[0].str)); }
 #line 1733 "xmltv/xml_prolog.tab.c"
     break;
 
   case 139:
-#line 207 "xmltv/xml_prolog.yy"
+#line 205 "xmltv/xml_prolog.yy"
                                         { XmlScan_EntityDefName((yyvsp[0].str), 1); XmltvTags_CheckName((yyvsp[0].str)); }
 #line 1739 "xmltv/xml_prolog.tab.c"
     break;
 
   case 140:
-#line 208 "xmltv/xml_prolog.yy"
+#line 206 "xmltv/xml_prolog.yy"
                                         { XmlScan_EntityDefValue((yyvsp[0].str)); XmltvTags_CheckCharset((yyvsp[0].str)); }
 #line 1745 "xmltv/xml_prolog.tab.c"
     break;
 
   case 141:
-#line 210 "xmltv/xml_prolog.yy"
+#line 208 "xmltv/xml_prolog.yy"
                                         { XmltvTags_Notation(0, (yyvsp[0].str)); }
 #line 1751 "xmltv/xml_prolog.tab.c"
     break;
 
   case 142:
-#line 211 "xmltv/xml_prolog.yy"
+#line 209 "xmltv/xml_prolog.yy"
                                         { }
 #line 1757 "xmltv/xml_prolog.tab.c"
     break;
 
   case 143:
-#line 212 "xmltv/xml_prolog.yy"
+#line 210 "xmltv/xml_prolog.yy"
                                         { XmltvTags_PiTarget((yyvsp[0].str)); }
 #line 1763 "xmltv/xml_prolog.tab.c"
     break;
 
   case 144:
-#line 213 "xmltv/xml_prolog.yy"
+#line 211 "xmltv/xml_prolog.yy"
                                         { XmltvTags_PiContent((yyvsp[0].str)); }
 #line 1769 "xmltv/xml_prolog.tab.c"
     break;
 
   case 145:
-#line 215 "xmltv/xml_prolog.yy"
+#line 213 "xmltv/xml_prolog.yy"
                                         { XmltvTags_CheckName((yyvsp[0].str)); }
 #line 1775 "xmltv/xml_prolog.tab.c"
     break;
 
   case 146:
-#line 216 "xmltv/xml_prolog.yy"
+#line 214 "xmltv/xml_prolog.yy"
                                         { XmltvTags_CheckNmtoken((yyvsp[0].str)); }
 #line 1781 "xmltv/xml_prolog.tab.c"
     break;
 
   case 147:
-#line 217 "xmltv/xml_prolog.yy"
+#line 215 "xmltv/xml_prolog.yy"
                                         { XmltvTags_CheckSystemLiteral((yyvsp[0].str)); }
 #line 1787 "xmltv/xml_prolog.tab.c"
     break;
 
   case 148:
-#line 218 "xmltv/xml_prolog.yy"
+#line 216 "xmltv/xml_prolog.yy"
                                         { XmltvTags_CheckCharset((yyvsp[0].str)); }
 #line 1793 "xmltv/xml_prolog.tab.c"
     break;
@@ -2025,7 +2025,7 @@ yyreturn:
 #endif
   return yyresult;
 }
-#line 220 "xmltv/xml_prolog.yy"
+#line 218 "xmltv/xml_prolog.yy"
 
 
 void yyerror( const char * p_msg )

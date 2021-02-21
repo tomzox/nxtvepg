@@ -1,6 +1,8 @@
 /*
  *  Scan TV channels for teletext service
  *
+ *  Copyright (C) 1999-2011, 2020-2021 T. Zoerner
+ *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License Version 2 as
  *  published by the Free Software Foundation. You find a copy of this
@@ -22,10 +24,6 @@
  *    it can serve for allowing the user to check which networks transmit
  *    teletext, maybe to determine which channel count to enter into the
  *    Teletext grabber configuration dialog.
- *
- *  Author: Tom Zoerner
- *
- *  $Id: epgscan.c,v 1.51 2020/06/17 19:31:21 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGCTL

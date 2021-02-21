@@ -1,6 +1,8 @@
 /*
  *  Teletext page grabber
  *
+ *  Copyright (C) 1999-2011, 2020-2021 T. Zoerner
+ *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License Version 2 as
  *  published by the Free Software Foundation. You find a copy of this
@@ -16,10 +18,6 @@
  *
  *    Grabs a given range of teletext pages plus CNIs and forwards
  *    them to an external EPG parser.
- *
- *  Author: Tom Zoerner
- *
- *  $Id: ttxgrab.c,v 1.20 2020/12/23 17:25:31 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB

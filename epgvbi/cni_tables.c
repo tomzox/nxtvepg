@@ -1,6 +1,8 @@
 /*
  *  Network codes and name tables
  *
+ *  Copyright (C) 1999-2011, 2020-2021 T. Zoerner
+ *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License Version 2 as
  *  published by the Free Software Foundation. You find a copy of this
@@ -18,10 +20,6 @@
  *    (the most up-to-date version is available at http://www.ebu.ch/)
  *    The module offers one service: search the table for a name for
  *    the given 16-bit NI or 12-bit VPS value.
- *
- *  Author: Tom Zoerner
- *
- *  $Id: cni_tables.c,v 1.35 2020/06/22 07:10:42 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_VBI

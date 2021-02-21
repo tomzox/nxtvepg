@@ -33,8 +33,6 @@
 #
 # #Revision: 1.7 #
 #
-#  nxtvepg $Id: htree.tcl,v 1.11 2020/06/15 09:58:34 tom Exp tom $
-
 
 
 bind HTree <Button-1> {

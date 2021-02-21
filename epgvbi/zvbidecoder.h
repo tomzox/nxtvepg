@@ -17,8 +17,6 @@
  *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
-/* $Id: zvbidecoder.h,v 1.2 2003/07/06 17:48:33 tom Exp tom $ */
-
 #ifndef ZVBIDECODER_H
 #define ZVBIDECODER_H
 

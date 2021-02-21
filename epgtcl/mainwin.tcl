@@ -1,6 +1,8 @@
 #
 #  Nextview main window handling: PI listbox and menubar
 #
+#  Copyright (C) 1999-2011, 2020-2021 T. Zoerner
+#
 #  This program is free software; you can redistribute it and/or modify
 #  it under the terms of the GNU General Public License Version 2 as
 #  published by the Free Software Foundation. You find a copy of this
@@ -17,10 +19,6 @@
 #    Implements the core functionality for the main window, i.e.
 #    menu bar (including handling of filter setting), shortcut and
 #    network filter lists, programme list (PI list) and short-info.
-#
-#  Author: Tom Zoerner
-#
-#  $Id: mainwin.tcl,v 1.268 2020/12/23 17:27:07 tom Exp tom $
 #
 # import constants from other modules
 #=INCLUDE= "epgtcl/shortcuts.h"

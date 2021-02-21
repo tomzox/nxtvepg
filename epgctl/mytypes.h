@@ -1,6 +1,8 @@
 /*
  *  General type definitions for the Nextview decoder
  *
+ *  Copyright (C) 1999-2011, 2020-2021 T. Zoerner
+ *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License Version 2 as
  *  published by the Free Software Foundation. You find a copy of this
@@ -16,10 +18,6 @@
  *
  *    Platform and compiler independent type definitions
  *    and global debug control.
- *
- *  Author: Tom Zoerner
- *
- *  $Id: mytypes.h,v 1.23 2008/01/21 22:50:31 tom Exp tom $
  */
 
 #ifndef __MYTYPES_H

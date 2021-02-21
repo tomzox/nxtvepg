@@ -1,6 +1,8 @@
 /*
  *  Acquisition main control
  *
+ *  Copyright (C) 1999-2011, 2020-2021 T. Zoerner
+ *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License Version 2 as
  *  published by the Free Software Foundation. You find a copy of this
@@ -21,10 +23,6 @@
  *
  *    This module maintains acquisition parameters, in particular the
  *    list of providers.
- *
- *  Author: Tom Zoerner
- *
- *  $Id: epgacqctl.c,v 1.95 2009/05/02 19:24:12 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGCTL
@@ -50,7 +48,6 @@
 #include "epgctl/epgacqctl.h"
 #include "epgctl/epgacqsrv.h"
 #include "epgctl/epgacqclnt.h"
-#include "epgctl/epgacqnxt.h"
 #include "epgctl/epgacqttx.h"
 
 

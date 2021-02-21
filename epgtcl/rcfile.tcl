@@ -1,6 +1,8 @@
 #
 #  RC/INI file handling
 #
+#  Copyright (C) 1999-2011, 2020-2021 T. Zoerner
+#
 #  This program is free software; you can redistribute it and/or modify
 #  it under the terms of the GNU General Public License Version 2 as
 #  published by the Free Software Foundation. You find a copy of this
@@ -17,10 +19,6 @@
 #    Implements reading and writing the rc (UNIX) or INI (Windows) file.
 #    Since version 2.8.0 this module only manages parameters used by
 #    the GUI.
-#
-#  Author: Tom Zoerner
-#
-#  $Id: rcfile.tcl,v 1.34 2009/03/29 18:31:32 tom Exp tom $
 #
 
 proc LoadRcFile {filename } {

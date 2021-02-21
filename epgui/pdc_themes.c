@@ -1,6 +1,9 @@
 /*
  *  PDC theme names definition
  *
+ *  Copyright (C) 1999-2008, 2020-2021 T. Zoerner
+ *  French translation by mat (mat100@ifrance.com) with help of nash bridges.
+ *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License Version 2 as
  *  published by the Free Software Foundation. You find a copy of this
@@ -17,13 +20,6 @@
  *    This table conforms to the programme type principle of classification
  *    as defined in in ETS 300 231 (PDC) and ETS 300 707 (Nextview EPG)
  *    See http://www.etsi.org/
- *
- *
- *  Author: Tom Zoerner
- *
- *    French translation by mat (mat100@ifrance.com) with help of nash bridges.
- *
- *  $Id: pdc_themes.c,v 1.13 2020/06/17 19:32:20 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI

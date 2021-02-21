@@ -1,6 +1,8 @@
 /*
  *  Teletext EPG acquisition control
  *
+ *  Copyright (C) 1999-2011, 2020-2021 T. Zoerner
+ *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License Version 2 as
  *  published by the Free Software Foundation. You find a copy of this
@@ -13,10 +15,6 @@
  *
  *
  *  Description: see C source file.
- *
- *  Author: Tom Zoerner
- *
- *  $Id: epgacqttx.h,v 1.1 2006/11/25 22:09:28 tom Exp tom $
  */
 
 #ifndef __EPGACQTTX_H

@@ -1,6 +1,11 @@
 /*
  *  Win32 VBI capture driver management
  *
+ *  Copyright (C) 1999-2008, 2020-2021 T. Zoerner
+ *
+ *  Original WDM support:
+ *      February 2004 by Gérard Chevalier (gd_chevalier@hotmail.com)
+ *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License Version 2 as
  *  published by the Free Software Foundation. You find a copy of this
@@ -17,17 +22,6 @@
  *    This module manages M$ Windows WDM drivers. It provides a common interface
  *    to higher-level modules (i.e. shared with Linux), for example for starting
  *    or stopping acquisition or change the channel.
- *
- *  Authors:
- *
- *    Original WDM support
- *      February 2004 by Gérard Chevalier (gd_chevalier@hotmail.com)
- *
- *    The rest
- *      Tom Zoerner
- *
- *
- *  $Id: btdrv4win.c,v 1.63 2020/06/24 07:25:39 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_VBI

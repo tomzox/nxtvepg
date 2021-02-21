@@ -1,6 +1,9 @@
 /*
  *  Byte-swapping utilities for endian conversion
  *
+ *  Copied from utils.h, which is part of the GNU C Library.
+ *  Copyright (C) 1992, 1996, 1997, 2000 Free Software Foundation, Inc.
+ *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License Version 2 as
  *  published by the Free Software Foundation. You find a copy of this
@@ -18,11 +21,6 @@
  *    elements to big endian, and the other way around.  They are used
  *    when an endian wise not matching database is loaded or when
  *    connected to such an acquisition daemon.
- *
- *  Taken from utils.h, which is part of the GNU C Library.
- *  Copyright (C) 1992, 1996, 1997, 2000 Free Software Foundation, Inc.
- *
- *  $Id: epgswap.h,v 1.1 2006/12/22 15:14:02 tom Exp tom $
  */
 
 #ifndef __EPGSWAP_H

@@ -1,6 +1,8 @@
 /*
  *  Debug service module
  *
+ *  Copyright (C) 1999-2011, 2020-2021 T. Zoerner
+ *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License Version 2 as
  *  published by the Free Software Foundation. You find a copy of this
@@ -12,7 +14,7 @@
  *  GNU General Public License for more details.
  *
  *
- *  Description: see also according C source file.
+ *  Description:
  *
  *    Provides macros for debug output and to throw exceptions upon
  *    serious errors. Debug output can be switched on and off for each
@@ -20,10 +22,6 @@
  *    this header file.  Other debug options can be controlled centrally
  *    in mytypes.h.  For general releases all debug options should be
  *    switched off.
- *
- *  Author: Tom Zoerner
- *
- *  $Id: debug.h,v 1.25 2020/06/30 06:32:16 tom Exp tom $
  */
 
 #ifndef __DEBUG_H

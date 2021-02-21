@@ -1,6 +1,8 @@
 /*
  *  Export Nextview database in XMLTV format
  *
+ *  Copyright (C) 1999-2011, 2020-2021 T. Zoerner
+ *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License Version 2 as
  *  published by the Free Software Foundation. You find a copy of this
@@ -15,10 +17,6 @@
  *  Description:
  *
  *    This module implements methods to export the database in XMLTV format.
- *
- *  Author: Tom Zoerner
- *
- *  $Id: dumpxml.c,v 1.27 2020/06/21 07:37:39 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI

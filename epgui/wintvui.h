@@ -1,6 +1,8 @@
 /*
  *  Tcl interface and helper functions to TV app configuration
  *
+ *  Copyright (C) 1999-2011, 2020-2021 T. Zoerner
+ *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License Version 2 as
  *  published by the Free Software Foundation. You find a copy of this
@@ -13,10 +15,6 @@
  *
  *
  *  Description: see C source file.
- *
- *  Author: Tom Zoerner
- *
- *  $Id: wintvui.h,v 1.1 2006/11/26 12:56:10 tom Exp tom $
  */
 
 #ifndef __WINTVUI_H

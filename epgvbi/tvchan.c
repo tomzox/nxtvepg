@@ -1,6 +1,13 @@
 /*
  *  Tuner channel to frequency translation
  *
+ *    The tables in this modules were extracted from xtvscreen 0.5.22,
+ *    which is (was) part of the bttv driver package for Linux.
+ *    Copyright (C) 1996,97 Ralph Metzler  (rjkm@thp.uni-koeln.de)
+ *                        & Marcus Metzler (mocm@thp.uni-koeln.de)
+ *    Updated from xawtv-3.21,
+ *    Copyright (C) Gerd Knorr <kraxel@goldbach.in-berlin.de>
+ *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License Version 2 as
  *  published by the Free Software Foundation. You find a copy of this
@@ -18,17 +25,6 @@
  *    Currently only the European channel division is supported,
  *    but that's enough since Nextview is not transmitted outside
  *    of Europe.
- *
- *    The tables in this modules were extracted from xtvscreen 0.5.22,
- *    which is (was) part of the bttv driver package for Linux.
- *    Copyright (C) 1996,97 Ralph Metzler  (rjkm@thp.uni-koeln.de)
- *                        & Marcus Metzler (mocm@thp.uni-koeln.de)
- *    Updated from xawtv-3.21,
- *    Copyright (C) Gerd Knorr <kraxel@goldbach.in-berlin.de>
- *
- *  Author: Tom Zoerner
- *
- *  $Id: tvchan.c,v 1.11 2020/06/21 07:33:38 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_VBI

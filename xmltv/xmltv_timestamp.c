@@ -1,6 +1,9 @@
 /**
  * Copyright (c) 2003 Billy Biggs <vektor@dumbterm.net>
  *
+ * Optimization and error detection
+ * Copyright 2007, 2008, 2020 by T. Zoerner
+ *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2, or (at your option)
@@ -15,11 +18,6 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
-
-/*
-** Note: optimized, added DTD-0.6 support and error detection [TZO]
-** $Id: xmltv_timestamp.c,v 1.5 2020/06/17 08:58:09 tom Exp tom $
-*/
 
 #define DEBUG_SWITCH DEBUG_SWITCH_XMLTV
 #define DPRINTF_OFF

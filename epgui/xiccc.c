@@ -1,6 +1,8 @@
 /*
  *  Interaction with X11 TV-apps via Inter-Client Communication Conventions
  *
+ *  Copyright (C) 1999-2011, 2020-2021 T. Zoerner
+ *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License Version 2 as
  *  published by the Free Software Foundation. You find a copy of this
@@ -17,10 +19,6 @@
  *    This module implements interaction with TV applications based on the
  *    Inter-Client Communication Conventions (an X Consortium Standard).
  *    The method used is peer-to-peer communication by means of selections.
- *
- *  Author: Tom Zoerner
- *
- *  $Id: xiccc.c,v 1.4 2020/06/17 19:34:45 tom Exp tom $
  */
 
 #ifdef WIN32

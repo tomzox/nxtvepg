@@ -1,6 +1,8 @@
 /*
  *  Software version of the TV application interaction debugging tools
  *
+ *  Copyright (C) 1999-2011, 2020-2021 T. Zoerner
+ *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License Version 2 as
  *  published by the Free Software Foundation. You find a copy of this
@@ -15,10 +17,6 @@
  *  Description:
  *
  *    Defines the software version in various formats.
- *
- *  Author: Tom Zoerner
- *
- *  $Id: tvsim_version.h,v 1.8 2007/12/31 17:00:47 tom Exp tom $
  */
 
 #ifndef __TVSIM_VERSION_H

@@ -1,6 +1,8 @@
 /*
  *  Nextview EPG GUI: Database statistics and main window status line
  *
+ *  Copyright (C) 1999-2011, 2020-2021 T. Zoerner
+ *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License Version 2 as
  *  published by the Free Software Foundation. You find a copy of this
@@ -30,10 +32,6 @@
  *    This module also generates the status line at the bottom of the
  *    main window, which is a single line of text which is assembled from
  *    carefully selected db stats and acq state information.
- *
- *  Author: Tom Zoerner
- *
- *  $Id: statswin.c,v 1.80 2020/06/17 19:32:20 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI

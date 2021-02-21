@@ -1,6 +1,8 @@
 /*
  *  Helper module to map theme strings to PDC codes
  *
+ *  Copyright (C) 2007-2011, 2020-2021 T. Zoerner
+ *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License Version 2 as
  *  published by the Free Software Foundation. You find a copy of this
@@ -20,10 +22,6 @@
  *
  *    To identify a theme, a lot of string comparisons may be necessary,
  *    so the caller should cache the result, e.g. in a hash array.
- *
- *  Author: Tom Zoerner
- *
- *  $Id: xmltv_themes.c,v 1.2 2005/06/05 18:36:37 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_XMLTV

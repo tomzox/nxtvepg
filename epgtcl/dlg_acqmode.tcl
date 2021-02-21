@@ -1,6 +1,8 @@
 #
 #  Configuration dialogs for acquisition
 #
+#  Copyright (C) 1999-2011, 2020-2021 T. Zoerner
+#
 #  This program is free software; you can redistribute it and/or modify
 #  it under the terms of the GNU General Public License Version 2 as
 #  published by the Free Software Foundation. You find a copy of this
@@ -15,10 +17,6 @@
 #  Description:
 #
 #    Implements configuration dialogs for acquisition.
-#
-#  Author: Tom Zoerner
-#
-#  $Id: dlg_acqmode.tcl,v 1.12 2011/01/05 19:13:39 tom Exp tom $
 #
 set netacqcf_popup 0
 set ttxgrab_popup 0

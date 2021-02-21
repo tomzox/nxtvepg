@@ -1,6 +1,8 @@
 /*
  *  Process query message for remote EPG client
  *
+ *  Copyright (C) 1999-2011, 2020-2021 T. Zoerner
+ *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License Version 2 as
  *  published by the Free Software Foundation. You find a copy of this
@@ -12,11 +14,7 @@
  *  GNU General Public License for more details.
  *
  *
- *  Description: see according C source file.
- *
- *  Author: Tom Zoerner
- *
- *  $Id: epgquery.h,v 1.2 2008/10/12 20:00:29 tom Exp tom $
+ *  Description: see C source file.
  */
 
 #ifndef _EPGQUERY_H

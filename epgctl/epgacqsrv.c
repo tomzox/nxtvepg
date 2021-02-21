@@ -1,6 +1,8 @@
 /*
  *  Nextview EPG network acquisition server
  *
+ *  Copyright (C) 1999-2011, 2020-2021 T. Zoerner
+ *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License Version 2 as
  *  published by the Free Software Foundation. You find a copy of this
@@ -16,11 +18,6 @@
  *
  *    This module allows nxtvepg client to connect and request forwarding
  *    of incoming EPG blocks and retrieve current acq state information.
- *
- *  Author:
- *          Tom Zoerner
- *
- *  $Id: epgacqsrv.c,v 1.24 2020/06/17 08:19:39 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGCTL

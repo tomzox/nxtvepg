@@ -2,6 +2,8 @@
 #
 #  Shell-Script to validate XML parser against testsuite
 #
+#  Copyright (C) 2005 T. Zoerner
+#
 #  This program is free software; you can redistribute it and/or modify
 #  it under the terms of the GNU General Public License Version 2 as
 #  published by the Free Software Foundation. You find a copy of this
@@ -11,10 +13,6 @@
 #  BUT WITHOUT ANY WARRANTY; WITHOUT EVEN THE IMPLIED WARRANTY OF
 #  MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE.  See the
 #  GNU General Public License for more details.
-#
-#  Author: Tom Zoerner
-#
-#  $Id: validate.sh,v 1.1 2005/06/30 16:20:22 tom Exp tom $
 #
 
 # set this path to point to the root of the xmlconf package

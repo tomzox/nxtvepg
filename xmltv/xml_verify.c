@@ -1,6 +1,8 @@
 /*
  *  XML scanner/parser backend for verification
  *
+ *  Copyright (C) 2007-2008 T. Zoerner
+ *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License Version 2 as
  *  published by the Free Software Foundation. You find a copy of this
@@ -37,10 +39,6 @@
  *    - report error when entity replacement in content doesn't match
  *      "content" production (e.g. only opening tag inside entity)
  *    - strip whitespace from attribute values not declared as CDATA
- *
- *  Author: Tom Zoerner
- *
- *  $Id: xml_verify.c,v 1.5 2005/12/31 19:31:29 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_XMLTV

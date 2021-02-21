@@ -1,6 +1,8 @@
 /*
  *  Nextview EPG merged context management
  *
+ *  Copyright (C) 1999-2011, 2020-2021 T. Zoerner
+ *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License Version 2 as
  *  published by the Free Software Foundation. You find a copy of this
@@ -32,11 +34,6 @@
  *    this module controls the merged context and source databases. The
  *    'lower' half in the epgdb directory is called for the actual
  *    merging of AI and PI database blocks.
- *
- *
- *  Author: Tom Zoerner
- *
- *  $Id: epgctxmerge.c,v 1.16 2008/10/19 17:51:48 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGCTL

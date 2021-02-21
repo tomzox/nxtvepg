@@ -1,6 +1,8 @@
 /*
  *  Parser for XML 1.0
  *
+ *  Copyright (C) 2007-2008, 2021 T. Zoerner
+ *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License Version 2 as
  *  published by the Free Software Foundation. You find a copy of this
@@ -22,10 +24,6 @@
  *    The content (i.e. all elements and character data) are reduced to
  *    a single token however because the scanner directly passes tags,
  *    attributes and character data to xmltv_tags.c
- *
- *  Author: Tom Zoerner
- *
- *  $Id: xml_prolog.yy,v 1.7 2005/07/07 14:04:30 tom Exp tom $
  */
 
 %{

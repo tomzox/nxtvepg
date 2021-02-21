@@ -1,6 +1,8 @@
 /*
  *  Nextview EPG GUI: PI timescale window
  *
+ *  Copyright (C) 1999-2011, 2020-2021 T. Zoerner
+ *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License Version 2 as
  *  published by the Free Software Foundation. You find a copy of this
@@ -21,10 +23,6 @@
  *    The timescales can be opened separately for the browser and
  *    acquisition database.  While acquisition is running, incoming PI
  *    blocks are added to the scales.
- *
- *  Author: Tom Zoerner
- *
- *  $Id: timescale.c,v 1.19 2020/06/17 19:32:20 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI

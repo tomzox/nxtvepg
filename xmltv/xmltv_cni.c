@@ -1,6 +1,8 @@
 /*
  *  XMLTV provider and network ID mapping
  *
+ *  Copyright (C) 2007-2011, 2020-2021 T. Zoerner
+ *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License Version 2 as
  *  published by the Free Software Foundation. You find a copy of this
@@ -20,10 +22,6 @@
  *    are stored in files to keep them constant across restarts and
  *    to allow to use them for configuration parameters in the
  *    GUI INI file.
- *
- *  Author: Tom Zoerner
- *
- *  $Id: xmltv_cni.c,v 1.8 2020/06/17 08:27:27 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_XMLTV

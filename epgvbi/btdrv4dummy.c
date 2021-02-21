@@ -1,6 +1,8 @@
 /*
  *  VBI driver interface dummy
  *
+ *  Copyright (C) 1999-2011, 2020-2021 T. Zoerner
+ *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License Version 2 as
  *  published by the Free Software Foundation. You find a copy of this
@@ -15,10 +17,6 @@
  *  Description:
  *
  *    This is a dummy interface for systems without a Bt8x8 driver.
- *
- *  Author: Tom Zoerner
- *
- *  $Id: btdrv4dummy.c,v 1.23 2007/12/30 21:43:40 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_VBI

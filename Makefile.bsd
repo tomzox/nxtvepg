@@ -22,8 +22,6 @@
 #    Simon Barner (FreeBSD)
 #    Mario Kemper (NetBSD adaptions)
 #
-#  $Id: Makefile.bsd,v 1.5 2005/01/01 18:35:24 tom Exp tom $
-#
 
 # X11BASE, LOCALBASE and PREFIX are variables used by the ports collection
 # Users of the ports collection may override these values => ifndef foo

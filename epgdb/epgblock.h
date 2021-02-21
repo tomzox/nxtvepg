@@ -1,6 +1,8 @@
 /*
  *  Nextview EPG block database
  *
+ *  Copyright (C) 1999-2011, 2020-2021 T. Zoerner
+ *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License Version 2 as
  *  published by the Free Software Foundation. You find a copy of this
@@ -20,8 +22,6 @@
  *    end of the base structure, and addressed by offsets to the
  *    start of the structure. Do always use the provided macros
  *    to access them.
- *
- *  Author: Tom Zoerner
  */
 
 #ifndef __EPGBLOCK_H

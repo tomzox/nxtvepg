@@ -1,6 +1,8 @@
 /*
  *  Nextview EPG block database search filters
  *
+ *  Copyright (C) 1999-2011, 2020-2021 T. Zoerner
+ *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License Version 2 as
  *  published by the Free Software Foundation. You find a copy of this
@@ -20,10 +22,6 @@
  *    is given to any of the PI search functions in the database
  *    interface module, the match function will be used to return
  *    only PI blocks that match the filter settings.
- *
- *  Author: Tom Zoerner
- *
- *  $Id: epgdbfil.c,v 1.51 2020/06/17 19:30:47 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB

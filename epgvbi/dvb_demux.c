@@ -20,7 +20,6 @@
  */
 
 /* libzvbi #Id: dvb_demux.c,v 1.23 2008/02/19 00:35:15 mschimek Exp # */
-/* $Id: dvb_demux.c,v 1.1 2020/06/19 18:47:18 tom Exp tom $ */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_VBI
 #define DPRINTF_OFF

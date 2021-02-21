@@ -1,6 +1,8 @@
 /*
  *  Nextview GUI: PI listbox in "grid" layout
  *
+ *  Copyright (C) 1999-2011, 2020-2021 T. Zoerner
+ *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License Version 2 as
  *  published by the Free Software Foundation. You find a copy of this
@@ -16,10 +18,6 @@
  *
  *    Implements a listing of programmes, similar to pilistbox but with
  *    separate columns for each network.
- *
- *  Author: Tom Zoerner
- *
- *  $Id: pinetbox.c,v 1.48 2020/06/17 19:32:20 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI

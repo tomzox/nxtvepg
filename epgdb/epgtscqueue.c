@@ -1,6 +1,8 @@
 /*
  *  Nextview EPG PI timescale queue
  *
+ *  Copyright (C) 1999-2011, 2020-2021 T. Zoerner
+ *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License Version 2 as
  *  published by the Free Software Foundation. You find a copy of this
@@ -14,11 +16,7 @@
  *
  *  Description:
  *
- *    Maintains a queue to fill the timescale poup windows.
- *
- *  Author: Tom Zoerner
- *
- *  $Id: epgtscqueue.c,v 1.8 2008/02/03 15:42:36 tom Exp tom $
+ *    Maintains a queue to fill the timescales in the statistical popups.
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB

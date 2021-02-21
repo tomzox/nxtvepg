@@ -1,6 +1,8 @@
 /*
  *  XMLTV character data processing and storage
  *
+ *  Copyright (C) 2007-2011, 2020-2021 T. Zoerner
+ *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License Version 2 as
  *  published by the Free Software Foundation. You find a copy of this
@@ -18,10 +20,6 @@
  *    will automatically grow when new data is appended.  For efficiency
  *    applications should just "reset" the buffer inbetween use, which
  *    just marks the buffer empty but keeps the buffer allocated.
- *
- *  Author: Tom Zoerner
- *
- *  $Id: xml_cdata.c,v 1.9 2020/06/15 15:53:06 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_XMLTV

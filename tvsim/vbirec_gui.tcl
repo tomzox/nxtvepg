@@ -1,6 +1,8 @@
 #
 #  GUI for VBI recording tool and shared memory monitor
 #
+#  Copyright (C) 2002-2008 T. Zoerner
+#
 #  This program is free software; you can redistribute it and/or modify
 #  it under the terms of the GNU General Public License Version 2 as
 #  published by the Free Software Foundation. You find a copy of this
@@ -23,10 +25,6 @@
 #    by the TV app through shared memory.  To enable recording the
 #    the checkbutton has to be enabled (this is caught on C level by
 #    a Tcl variable trace)
-#
-#  Author: T. Zoerner
-#
-#  $Id: vbirec_gui.tcl,v 1.14 2020/12/23 17:42:06 tom Exp tom $
 #
 
 set dumpttx_filename {ttx.dat}

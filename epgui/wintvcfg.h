@@ -1,6 +1,8 @@
 /*
  *  Retrieve channel table and TV card config from TV app INI files
  *
+ *  Copyright (C) 1999-2011, 2020-2021 T. Zoerner
+ *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License Version 2 as
  *  published by the Free Software Foundation. You find a copy of this
@@ -13,10 +15,6 @@
  *
  *
  *  Description: see C source file.
- *
- *  Author: Tom Zoerner
- *
- *  $Id: wintvcfg.h,v 1.5 2006/11/26 12:56:52 tom Exp tom $
  */
 
 #ifndef __WINTVCFG_H

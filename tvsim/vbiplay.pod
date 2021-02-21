@@ -2,6 +2,8 @@
 #
 #  VBI playback tool documentation
 #
+#  Copyright (C) 2002-2008 T. Zoerner
+#
 #  This program is free software; you can redistribute it and/or modify
 #  it under the terms of the GNU General Public License Version 2 as
 #  published by the Free Software Foundation. You find a copy of this
@@ -22,9 +24,6 @@
 #    should contain the converted files, so that the user is not forced
 #    to install Perl.
 #
-#  Author: T. Zoerner
-#
-# $Id: vbiplay.pod,v 1.6 2020/12/23 17:42:06 tom Exp tom $
 # ---------------------------------------------------------------------------
 
 =head1 NAME

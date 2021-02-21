@@ -1,6 +1,8 @@
 /*
  *  Nextview logo images used for window and icon decoration
  *
+ *  Copyright (C) 2004 T. Zoerner
+ *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License Version 2 as
  *  published by the Free Software Foundation. You find a copy of this
@@ -19,9 +21,8 @@
  *    and separate masks aka "alpha channels" (8-bit grayscale too, but
  *    here even only two values are used, i.e. opaque/transparent)
  *
- *  Author: Ownership of the Nextview logo is unknown
- *
- *  $Id: nxtv_wm_ico.h,v 1.2 2004/07/11 18:33:58 tom Exp tom $
+ *  Original creator and owner of the Nextview logo is unknown.
+ *  European trademark registry has expired as of January 2021
  */
 
 #ifndef __NXTV_WM_ICO_C

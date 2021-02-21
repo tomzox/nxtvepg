@@ -1,6 +1,8 @@
 /*
  *  Nextview decoder: main module
  *
+ *  Copyright (C) 1999-2011, 2020-2021 T. Zoerner
+ *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License Version 2 as
  *  published by the Free Software Foundation. You find a copy of this
@@ -17,10 +19,6 @@
  *    Main entry point for nxtvepg (but not nxtvepgd): contains init
  *    of all modules and GUI main loop.
  *    See README in the top level directory for a general description.
- *
- *  Author: Tom Zoerner
- *
- *  $Id: epgmain.c,v 1.168 2020/06/17 19:34:03 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI

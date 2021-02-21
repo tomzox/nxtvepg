@@ -1,6 +1,8 @@
 /*
  *  Nextview GUI: PI search filter control
  *
+ *  Copyright (C) 1999-2011, 2020-2021 T. Zoerner
+ *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License Version 2 as
  *  published by the Free Software Foundation. You find a copy of this
@@ -17,10 +19,6 @@
  *    Provides callbacks to the widgets used for EPG filter settings.
  *    Allows to control the selection of items displayed in the PI
  *    listbox.
- *
- *  Author: Tom Zoerner
- *
- *  $Id: pifilter.c,v 1.97 2020/07/05 19:04:17 tom Exp tom $
  */
 
 #define __PIFILTER_C

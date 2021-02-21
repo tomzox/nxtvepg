@@ -1,6 +1,8 @@
 /*
  *  XMLTV country and network identification mapping
  *
+ *  Copyright (C) 2007-2011, 2020-2021 T. Zoerner
+ *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License Version 2 as
  *  published by the Free Software Foundation. You find a copy of this
@@ -13,10 +15,6 @@
  *
  *
  *  Description: see C source file.
- *
- *  Author: Tom Zoerner
- *
- *  $Id: xmltv_cni.h,v 1.4 2009/03/29 18:19:00 tom Exp tom $
  */
 
 #ifndef __XMLTV_CNI_H

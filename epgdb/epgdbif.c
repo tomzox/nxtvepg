@@ -1,6 +1,8 @@
 /*
  *  Nextview EPG block database interface
  *
+ *  Copyright (C) 1999-2011, 2020-2021 T. Zoerner
+ *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License Version 2 as
  *  published by the Free Software Foundation. You find a copy of this
@@ -21,10 +23,6 @@
  *    GetNext/GetPrev scheme, possibly limited to those PI blocks
  *    matching criteria given in a filter context. For a list of
  *    blocks and their content, see ETS 300 707 (Nextview spec.)
- *
- *  Author: Tom Zoerner
- *
- *  $Id: epgdbif.c,v 1.48 2007/01/20 21:32:24 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB

@@ -1,6 +1,8 @@
 /*
  *  Lexical scanner for XML 1.0
  *
+ *  Copyright (C) 2007-2008 T. Zoerner
+ *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License Version 2 as
  *  published by the Free Software Foundation. You find a copy of this
@@ -35,11 +37,6 @@
  *    passed to xmltv_tags.c via a small set of callback functions.
  *    That module handles the semantic level of tags (e.g. checking if
  *    all opened tags are also closed <tag>...</tag>)
- *
- *
- *  Author: Tom Zoerner
- *
- *  $Id: xml_scan.lex,v 1.14 2020/06/17 19:35:00 tom Exp tom $
  */
 
 %{

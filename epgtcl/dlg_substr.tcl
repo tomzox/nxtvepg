@@ -1,6 +1,8 @@
 #
 #  Text search dialog
 #
+#  Copyright (C) 1999-2011, 2020-2021 T. Zoerner
+#
 #  This program is free software; you can redistribute it and/or modify
 #  it under the terms of the GNU General Public License Version 2 as
 #  published by the Free Software Foundation. You find a copy of this
@@ -23,10 +25,6 @@
 #    Then there's a sub-dialog which allows to paste in a text list or
 #    load a list from a file (mainly intended for importing lists of
 #    favorite movie titles.)
-#
-#  Author: Tom Zoerner
-#
-#  $Id: dlg_substr.tcl,v 1.4 2007/12/29 21:12:55 tom Exp tom $
 #
 set substr_grep_title 1
 set substr_grep_descr 1

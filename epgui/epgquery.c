@@ -1,6 +1,8 @@
 /*
  *  Process query message for remote EPG client
  *
+ *  Copyright (C) 1999-2011, 2020-2021 T. Zoerner
+ *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License Version 2 as
  *  published by the Free Software Foundation. You find a copy of this
@@ -16,10 +18,6 @@
  *
  *    Replies with programme data to remote queries sent by attached
  *    EPG clients (e.g. TV applications with integrated EPG browsers.)
- *
- *  Author: Tom Zoerner
- *
- *  $Id: epgquery.c,v 1.4 2020/06/17 19:33:54 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI

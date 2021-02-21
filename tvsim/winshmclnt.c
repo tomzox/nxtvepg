@@ -1,6 +1,8 @@
 /*
  *  TV app. interaction with nxtvepg via shared memory
  *
+ *  Copyright (C) 2002-2008 T. Zoerner
+ *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License Version 2 as
  *  published by the Free Software Foundation. You find a copy of this
@@ -42,10 +44,6 @@
  *    When debugging is enabled, i.e. compiler switches DEBUG_SWITCH_TVSIM
  *    set to ON in mytypes.h and DPRINTF_OFF commented out below, you can 
  *    watch the message exchange with DebugView from sysinternals.com
- *
- *  Author: Tom Zoerner
- *
- *  $Id: winshmclnt.c,v 1.12 2020/06/17 19:39:40 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_TVSIM
