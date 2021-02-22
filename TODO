@@ -6,6 +6,7 @@ you have ideas for additional features.
 
 Mandatory fixes for release 3.0.0:
 - teletext limit overview date range (also for first page)
+- ttx grabber: special rules for magenta dates on WDR
 - update changelog 2.9.0 & 3.0; write release notes
 - update WWW: news, provider list
 
@@ -18,18 +19,19 @@ Post-Nextview EPG:
 - stats timescale: "acq tail": highlight networks/time ranges acq is working for
 - stats timescale: keep network names visible even when scrolling
 - stats timescale: scroll to make "now" visible upon opening
+- stats timescale: window position jumps to 0/0 screen coord upon DB updates
 - stats acquisition/teletext: add overall acq. runtime (i.e. in addition to per-channel time)
 - move USE_TTX_GRABBER to exclude all acqusition if not set -> use for WIN32?
 - merge dialog, "configure" sub-menu: simplify to single list with
   "extended" selection (i.e. allow multiple selections)
 - merge dialog: use multi-col table & display networks
 - netname dialog: add warning that names should be changed in channels.conf?
+- filter expired dialog: allow disabling expired filter entirely
 - remove use of PDC theme table: create table from themes found in XMLTV
 - change AI/OI/PI to hold original XMLTV info elements (i.e. reduce conversion)
 - allow merge of different channel ID from different providers
 - increase or remove merge provider limit of 64
 - DVB TTX stream decoding issues: "Illegal line order", "Unknown data_unit_id"
-- DVB: update channel list in epgacqttx with TTX PIDs returned by PAT/PMT scan
 - DVB: suppress TTX header change detection
 - replace "now" acq phase with DVB EPG (EIT) except for analog TV cards
 - mplayer, VLC & VDR plugin for EPG display

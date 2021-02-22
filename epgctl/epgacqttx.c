@@ -79,7 +79,6 @@ typedef struct
    time_t         acqStartTime;
    time_t         chanChangeTime;
    bool           allSrcDone;
-   sint           lastDoneSrc;
    time_t         lastDoneTime;
    char          *pTtxNames;
    TTXACQ_SOURCE *pSources;
@@ -354,6 +353,47 @@ static void EpgAcqTtx_TunePid( void )
 }
 
 // ---------------------------------------------------------------------------
+// Query if any of the requested channels carry a Teletext stream
+// - returns FALSE when result is not yet available
+// - when result indicates TRUE, output parameter indicates if there is at
+//   least one channel with TTX
+//
+static bool EpgAcqTtx_QueryDvbPid( bool * haveTtx )
+{
+   int pid[MAX_VBI_DVB_STREAMS];
+   uint ok;
+   bool result = TRUE;
+
+   *haveTtx = TRUE;
+
+   if (EPGACQ_TUNER_NORM_IS_DVB(acqCtl.pSources[acqCtl.ttxSrcIdx[0]].freq.norm))
+   {
+      if (BtDriver_GetDvbPid(pid) >= acqCtl.ttxActiveCount)
+      {
+         ok = 0;
+         for (uint idx = 0; idx < acqCtl.ttxActiveCount; ++idx)
+         {
+            uint srcIdx = acqCtl.ttxSrcIdx[idx];
+
+            // update TTX PID in internal list to skip PMT search when the channel is tuned next time
+            if (pid[idx] > 0)
+            {
+               acqCtl.pSources[srcIdx].freq.ttxPid = pid[idx];
+               ok += 1;
+            }
+            else
+               acqCtl.pSources[srcIdx].srcDone = TRUE;
+         }
+         *haveTtx = (ok > 0);
+      }
+      else
+         result = FALSE;
+   }
+   dprintf2("EpgAcqTtx-QueryDvbPid: ready?:%d haveTtx?:%d\n", result, *haveTtx);
+   return result;
+}
+
+// ---------------------------------------------------------------------------
 // Switch database and TV channel to the current acq provider & handle errors
 // - called upon start of acquisition or configuration changes (db or acq mode)
 // - called upon the start of a cycle phase for one db, or to get out of
@@ -428,7 +468,6 @@ void EpgAcqTtx_InitCycle( EPGACQ_PHASE phase )
    acqCtl.ttxSrcIdx[0] = 0;
    acqCtl.ttxActiveCount = 1;
    acqCtl.allSrcDone = FALSE;
-   acqCtl.lastDoneSrc = -1;
    acqCtl.lastDoneTime = 0;
    acqCtl.passiveReason = ACQPASSIVE_NONE;
 }
@@ -677,6 +716,7 @@ bool EpgAcqTtx_MonitorSources( void )
 
    if (acqCtl.state == TTXACQ_STATE_STARTUP)
    {
+      bool haveTtx;
       bool lock;
       bool inRange = EpgAcqTtx_MonitorInRange(now, &lock);
 
@@ -686,7 +726,12 @@ bool EpgAcqTtx_MonitorSources( void )
          assert(acqCtl.ttxActiveCount > 0);
          assert(acqCtl.ttxSrcIdx[0] < acqCtl.ttxSrcCount);
 
-         if (acqCtl.cyclePhase == ACQMODE_PHASE_NOWNEXT)
+         if ((EpgAcqTtx_QueryDvbPid(&haveTtx) == FALSE) || (haveTtx == FALSE))
+         {
+            if (haveTtx == FALSE)
+               advance = TRUE;
+         }
+         else if (acqCtl.cyclePhase == ACQMODE_PHASE_NOWNEXT)
          {
             // NOW mode: query page sequence prediction
             if ( lock && (inRange == FALSE) &&
@@ -823,7 +868,6 @@ bool EpgAcqTtx_MonitorSources( void )
             TtxGrab_PostProcess(idx, (EPGACQ_TUNER_NORM_IS_DVB(acqCtl.pSources[srcIdx].freq.norm) ? acqCtl.pSources[srcIdx].freq.serviceId : 0),
                                 EpgAcqTtx_GetChannelName(srcIdx), TRUE);
             acqCtl.pSources[srcIdx].srcDone = TRUE;
-            acqCtl.lastDoneSrc = srcIdx;
          }
          acqCtl.lastDoneTime = time(NULL);
       }
