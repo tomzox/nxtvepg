@@ -19,7 +19,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: dlg_prov.tcl,v 1.24 2008/10/12 19:18:48 tom Exp tom $
+#  $Id: dlg_prov.tcl,v 1.25 2021/03/19 22:35:51 tom Exp tom $
 #
 set provwin_popup 0
 set provmerge_popup 0
@@ -410,7 +410,8 @@ proc ProvMerge_Quit {cause} {
                      } else {
                         set provname {}
                      }
-                     tk_messageBox -type ok -icon error -parent .provmerge -message "The provider list for [string tolower $ProvmergeOptLabels($name)] contains a database$provname that's not in the main selection. Either remove the provider or use 'Reset' to reset the configuration."
+                     tk_messageBox -type ok -icon error -parent .provmerge \
+                                   -message "The provider list for [string tolower $ProvmergeOptLabels($name)] contains a database$provname that's not in the provider selection (right list). Either remove the provider or use 'Reset' to reset the configuration."
                      return
                   }
                }

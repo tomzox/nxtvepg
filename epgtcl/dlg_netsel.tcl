@@ -18,7 +18,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: dlg_netsel.tcl,v 1.15 2008/02/03 19:19:47 tom Exp tom $
+#  $Id: dlg_netsel.tcl,v 1.16 2021/03/19 22:35:51 tom Exp tom $
 #
 set netsel_popup 0
 
@@ -334,6 +334,9 @@ proc SelBoxCreate {lbox arr_ailist arr_selist arr_names} {
    if {$lbox_height > 20} {
       set lbox_height 15
       set do_scrollbar 1
+   } elseif {$lbox_height < 4} {
+      # must not set height 0 - else listbox height is unbound in case of later updates
+      set lbox_height 4
    }
 
    ## first column: listbox with all netwops in AI order
@@ -369,7 +372,7 @@ proc SelBoxCreate {lbox arr_ailist arr_selist arr_names} {
    listbox $lbox.sel.selist -exportselection false -height $lbox_height -width 12 \
                             -selectmode extended -yscrollcommand [list $lbox.sel.sb set]
    relief_listbox $lbox.sel.selist
-   if $do_scrollbar { pack $lbox.sel.sb -fill y -side left }
+   if {$do_scrollbar} { pack $lbox.sel.sb -fill y -side left }
    pack $lbox.sel.selist -side left -fill both -expand 1
    pack $lbox.sel -anchor nw -side left -pady 10 -padx 10 -fill both -expand 1
    bind $lbox.sel.selist <<ListboxSelect>> [list + after idle [list SelBoxButtonPress $lbox sel]]
