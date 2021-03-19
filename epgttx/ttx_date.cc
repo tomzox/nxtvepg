@@ -14,7 +14,7 @@
  *   You should have received a copy of the GNU General Public License
  *   along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * Copyright 2006-2011,2020 by T. Zoerner (tomzo at users.sf.net)
+ * Copyright 2006-2011,2020-2021 by T. Zoerner (tomzo at users.sf.net)
  */
 
 #include <stdio.h>
@@ -97,6 +97,18 @@ const T_DATE_NAME MonthNames[] =
    {"okt", (1<<1),10, DATE_NAME_ABBRV},
    {"nov", (1<<1)|(1<<0),11, DATE_NAME_ABBRV},
    {"dez", (1<<1),12, DATE_NAME_ABBRV},
+   // Italian
+   {"gennaio", (1<<3),1, DATE_NAME_FULL},
+   {"febbraio", (1<<3),2, DATE_NAME_FULL},
+   {"marzo", (1<<3),3, DATE_NAME_FULL},
+   {"aprile", (1<<3),4, DATE_NAME_FULL},
+   {"giugno", (1<<3),6, DATE_NAME_FULL},
+   {"luglio", (1<<3),7, DATE_NAME_FULL},
+   {"agosto", (1<<3),8, DATE_NAME_FULL},
+   {"settembre", (1<<3),9, DATE_NAME_FULL},
+   {"ottobre ", (1<<3),10, DATE_NAME_FULL},
+   {"novembre", (1<<3),11, DATE_NAME_FULL},
+   {"dicembre", (1<<3),12, DATE_NAME_FULL},
    // French
    {"janvier", (1<<4),1, DATE_NAME_FULL},
    {"février", (1<<4),2, DATE_NAME_FULL},
@@ -153,6 +165,14 @@ const T_DATE_NAME WDayNames[] =
    {"mittwoch", (1<<1),3, DATE_NAME_FULL},
    {"donnerstag", (1<<1),4, DATE_NAME_FULL},
    {"freitag", (1<<1),5, DATE_NAME_FULL},
+   // Italian
+   {"sabato", (1<<3),6, DATE_NAME_FULL},
+   {"domenica", (1<<3),0, DATE_NAME_FULL},
+   {"lunedì", (1<<3),1, DATE_NAME_FULL},
+   {"martedì", (1<<3),2, DATE_NAME_FULL},
+   {"mercoledì", (1<<3),3, DATE_NAME_FULL},
+   {"giovedì", (1<<3),4, DATE_NAME_FULL},
+   {"venerdì ", (1<<3),5, DATE_NAME_FULL},
    // French
    {"samedi", (1<<4),6, DATE_NAME_FULL},
    {"dimanche", (1<<4),0, DATE_NAME_FULL},
@@ -167,12 +187,22 @@ const T_DATE_NAME WDayNames[] =
 // map today, tomorrow etc. to day offsets 0,1,...
 const T_DATE_NAME RelDateNames[] =
 {
+   // English
    {"today", (1<<0),0, DATE_NAME_FULL},
    {"tomorrow", (1<<0),1, DATE_NAME_FULL},
+   // German
    {"heute", (1<<1),0, DATE_NAME_FULL},
    {"morgen", (1<<1),1, DATE_NAME_FULL},
    {"übermorgen", (1<<1),2, DATE_NAME_FULL},
    {"Übermorgen", (1<<1),2, DATE_NAME_FULL},  // hack to work around mismatching locale
+   {"uebermorgen", (1<<1),2, DATE_NAME_FULL},
+   {"Uebermorgen", (1<<1),2, DATE_NAME_FULL},
+   // Italian
+   {"oggi", (1<<4),0, DATE_NAME_FULL},
+   {"domani", (1<<4),1, DATE_NAME_FULL},
+   {"dopodomani", (1<<4),2, DATE_NAME_FULL},
+   {"posdomani", (1<<4),2, DATE_NAME_FULL},
+   // French
    {"aujourd'hui", (1<<4),0, DATE_NAME_FULL},
    {"demain", (1<<4),1, DATE_NAME_FULL},
    {"aprés-demain", (1<<4),2, DATE_NAME_FULL},
@@ -336,11 +366,11 @@ bool T_PG_DATE::ParseOvDate(int page, int sub, int head)
       static regex expr3[8];
       if (!expr3_init[lang]) {
          expr3_init[lang] = true;
-         expr3[lang].assign(string("(^| )(\\d{1,2})\\. ?(") + mname_match + ")( (\\d{2}|\\d{4}))?([ ,:]|$)", regex::icase);
+         expr3[lang].assign(string("(^| )(\\d{1,2})(\\. ?| )(") + mname_match + ")( (\\d{2}|\\d{4}))?([ ,:]|$)", regex::icase);
       }
       if (regex_search(text, whats, expr3[lang])) {
-         if (CheckDate(atoi_substr(whats[2]), -1, atoi_substr(whats[5]),
-                       "", string(whats[3]), pgtext->get_timestamp(),
+         if (CheckDate(atoi_substr(whats[3]), -1, atoi_substr(whats[6]),
+                       "", string(whats[4]), pgtext->get_timestamp(),
                        &mday, &month, &year)) {
             prio = 3;
          }
@@ -773,8 +803,6 @@ time_t T_PG_DATE::convert_time(int hour, int min, int date_off) const
 
 /* ------------------------------------------------------------------------------
  * Calculate delta in days between the given programme slot and a discrete date
- * - works both on program "slot" and "pgdate" which have the same member names
- *   (since Perl doesn't have strict typechecking for structs)
  */
 int T_PG_DATE::calc_date_delta(const T_PG_DATE& slot2) const
 {
@@ -798,13 +826,20 @@ int T_PG_DATE::calc_date_delta(const T_PG_DATE& slot2) const
    time_t date2 = mktime(&tm2);
 
    // add 2 hours to allow for shorter days during daylight saving time change
-   return (date2 + 2*60*60 - date1) / (24*60*60);
+   if (date2 > date1)
+      return (date2 + 2*60*60 - date1) / (24*60*60);
+   else
+      return -(date1 + 2*60*60 - date2) / (24*60*60);
 }
 
+/* ------------------------------------------------------------------------------
+ * Return date in form of a string for debug output
+ * - WARNING: returns pointer to a static buffer
+ */
 const char * T_PG_DATE::trace_str() const
 {
    static char buf[100];
-   sprintf(buf, "%d.%d.%d, DELTA %d", m_mday, m_month, m_year, m_date_off);
+   snprintf(buf, sizeof(buf), "%d.%d.%d, DELTA %d", m_mday, m_month, m_year, m_date_off);
    return buf;
 }
 

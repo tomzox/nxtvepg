@@ -14,7 +14,7 @@
  *   You should have received a copy of the GNU General Public License
  *   along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * Copyright 2006-2011,2020 by T. Zoerner (tomzo at users.sf.net)
+ * Copyright 2006-2011,2020-2021 by T. Zoerner (tomzo at users.sf.net)
  */
 
 #include <stdio.h>
@@ -383,6 +383,20 @@ TTX_PAGE_DB::~TTX_PAGE_DB()
    }
 }
 
+bool TTX_PAGE_DB::is_empty() const
+{
+   return m_db.empty();
+}
+
+time_t TTX_PAGE_DB::get_acq_timestamp() const
+{
+   const_iterator first = m_db.begin();
+   if (first != m_db.end())
+      return first->second->get_timestamp();
+   else
+      return 0;
+}
+
 bool TTX_PAGE_DB::sub_page_exists(unsigned page, unsigned sub) const
 {
    return m_db.find(TTX_PG_HANDLE(page, sub)) != m_db.end();
@@ -515,13 +529,13 @@ double TTX_PAGE_DB::get_acq_rep_stats()
  * - teletext control characters and mosaic is replaced by space
  * - used for -dump option, intended for debugging only
  */
-void DumpTextPages(TTX_DB * db, const char * p_name)
+bool DumpTextPages(TTX_DB * db, const char * p_name)
 {
    if (p_name != 0) {
       FILE * fp = fopen(p_name, "w");
       if (fp == NULL) {
          fprintf(stderr, "Failed to create %s: %s\n", p_name, strerror(errno));
-         exit(1);
+         return false;
       }
 
       db->page_db.dump_db_as_text(fp);
@@ -530,6 +544,7 @@ void DumpTextPages(TTX_DB * db, const char * p_name)
    else {
       db->page_db.dump_db_as_text(stdout);
    }
+   return true;
 }
 
 void TTX_PAGE_DB::dump_db_as_text(FILE * fp)
@@ -555,7 +570,7 @@ void TTX_DB_PAGE::dump_page_as_text(FILE * fp)
  * Dump all loaded teletext data as Perl script
  * - the generated script can be loaded with the -verify option
  */
-void DumpRawTeletext(TTX_DB * db, const char * p_name, int pg_start, int pg_end)
+bool DumpRawTeletext(TTX_DB * db, const char * p_name, int pg_start, int pg_end)
 {
    FILE * fp = stdout;
 
@@ -563,13 +578,12 @@ void DumpRawTeletext(TTX_DB * db, const char * p_name, int pg_start, int pg_end)
       fp = fopen(p_name, "w");
       if (fp == NULL) {
          fprintf(stderr, "Failed to create %s: %s\n", p_name, strerror(errno));
-         exit(1);
+         return false;
       }
    }
 
    fprintf(fp, "#!tv_grab_ttx -verify\n");
 
-   // return TRUE to allow to "require" the file
    db->page_db.dump_db_as_raw(fp, pg_start, pg_end);
 
    db->chn_id.dump_as_raw(fp);
@@ -577,6 +591,7 @@ void DumpRawTeletext(TTX_DB * db, const char * p_name, int pg_start, int pg_end)
    if (fp != stdout) {
       fclose(fp);
    }
+   return true;
 }
 
 void TTX_CHN_ID::dump_as_raw(FILE * fp)
@@ -589,8 +604,7 @@ void TTX_CHN_ID::dump_as_raw(FILE * fp)
 void TTX_PAGE_DB::dump_db_as_raw(FILE * fp, int pg_start, int pg_end)
 {
    // acq start time (for backwards compatibility with Perl version only)
-   const_iterator first = m_db.begin();
-   time_t acq_ts = (first != m_db.end()) ? first->second->get_timestamp() : 0;
+   time_t acq_ts = get_acq_timestamp();
    fprintf(fp, "$VbiCaptureTime = %ld;\n", (long)acq_ts);
 
    for (iterator p = m_db.begin(); p != m_db.end(); p++) {
@@ -650,6 +664,7 @@ void TTX_DB_PAGE::dump_page_as_raw(FILE * fp, int last_sub)
 bool ImportRawDump(TTX_DB * db, const char * p_name)
 {
    FILE * fp;
+   bool result = true;
 
    if ((p_name == 0) || (*p_name == 0)) {
       fp = stdin;
@@ -657,7 +672,7 @@ bool ImportRawDump(TTX_DB * db, const char * p_name)
       fp = fopen(p_name, "r");
       if (fp == NULL) {
          fprintf(stderr, "Failed to open %s: %s\n", p_name, strerror(errno));
-         exit(1);
+         return false;
       }
    }
 
@@ -695,7 +710,8 @@ bool ImportRawDump(TTX_DB * db, const char * p_name)
          found_head = true;
       }
       else if (!found_head) {
-        return false;
+        result = false;
+        break;
       }
       else if (regex_match(buf, what, expr2)) {
          timestamp = atol(string(what[1]).c_str());
@@ -787,11 +803,13 @@ bool ImportRawDump(TTX_DB * db, const char * p_name)
       }
       else {
          fprintf(stderr, "Import parse error in line %d '%s'\n", file_line_no, buf);
-         exit(1);
+         result = false;
+         break;
       }
    }
-   fclose(fp);
-   return true;
+   if (fp != stdin)
+      fclose(fp);
+   return result;
 }
 
 

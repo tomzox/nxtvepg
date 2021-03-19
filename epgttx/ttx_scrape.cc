@@ -14,7 +14,7 @@
  *   You should have received a copy of the GNU General Public License
  *   along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * Copyright 2006-2011,2020 by T. Zoerner (tomzo at users.sf.net)
+ * Copyright 2006-2011,2020-2021 by T. Zoerner (tomzo at users.sf.net)
  */
 
 #include <stdio.h>
@@ -36,6 +36,13 @@ using namespace std;
 #include "ttx_scrape.h"
 
 
+/* Discard overview pages after a large gap to preceding information. This is
+ * needed for catching errors in parsing dates, and for discarding "market
+ * share" and similar tables that refer to titles in the past (which may get
+ * mapped to 364 days in future).
+ */
+#define MAX_OV_PAGE_DATE_DELTA  7
+
 OV_SLOT::OV_SLOT(TTX_PAGE_DB * db, int hour, int min, bool is_tip)
    : mp_db(db)
 {
@@ -48,6 +55,7 @@ OV_SLOT::OV_SLOT(TTX_PAGE_DB * db, int hour, int min, bool is_tip)
    m_end_min = -1;
    m_date_wrap = 0;
    m_ttx_ref = -1;
+   m_ttx_ref_sub = -1;
 }
 
 OV_SLOT::~OV_SLOT()
@@ -256,6 +264,7 @@ void ParseVpsLabel(string& text, const string& text_pred, T_VPS_TIME& vps_data, 
             str_blank(whati[0]);
             if (opt_debug) printf("VPS time found: %s\n", vps_data.m_vps_time.c_str());
          }
+         // FIXME "else": mismatch leads to skipping following checks & final blanking of concealed
       }
       // CNI and date "1D102 120406 F9" (ignoring checksum)
       else if (regex_search(starti, text.end(), whati, expr2)) {
@@ -283,8 +292,6 @@ void ParseVpsLabel(string& text, const string& text_pred, T_VPS_TIME& vps_data, 
          str_blank(whati[0]);
       }
       else if (is_concealed) {
-         if (opt_debug) printf("VPS label unrecognized in line \"%s\"\n", text.c_str());
-
          // replace all concealed text with blanks (may also be non-VPS related, e.g. HR3: "Un", "Ra" - who knows what this means to tell us)
          // FIXME text can also be concealed by setting fg := bg (e.g. on desc pages of MDR)
          static const regex expr6("^[^\\x00-\\x07\\x10-\\x17]*");
@@ -1030,6 +1037,9 @@ void OV_SLOT::parse_desc_page(const T_PG_DATE * pg_date, int ref_count)
             if (!m_ext_desc.empty())
                m_ext_desc += "\n";
             m_ext_desc += ParseDescContent(mp_db, page, sub, head, foot);
+
+            if (m_ttx_ref_sub == -1)
+               m_ttx_ref_sub = sub;
          }
          found = true;
       }
@@ -1049,6 +1059,10 @@ void OV_SLOT::parse_desc_page(const T_PG_DATE * pg_date, int ref_count)
  *  13.00  ARD-Mittagsmagazin ....... 312
  *         mit Tagesschau
  *    VPS  bis 14.00 Uhr
+ *
+ * TODO WDR (ovdate11.in): "bis" preceded by time in magenta
+ *   \x0212.50\x02J}rgen von der Lippe XL\x03UT   \x02312
+ *   \x0512.49\x07bis 14.20 Uhr
  */
 bool OV_PAGE::parse_end_time(const string& text, const string& ctrl, int& hour, int& min)
 {
@@ -1103,7 +1117,7 @@ bool OV_PAGE::parse_slots(int foot_line, const T_OV_LINE_FMT& pgfmt)
       string ctrl = pgctrl->get_ctrl(line);
 
       // extract and remove VPS labels
-      // (labels not asigned here since we don't know yet if a new title starts in this line)
+      // (labels not assigned here since we don't know yet if a new title starts in this line)
       vps_data.m_new_vps_time = false;
       ParseVpsLabel(ctrl, pgctrl->get_ctrl(line - 1), vps_data, false);
 
@@ -1227,7 +1241,6 @@ int GetNextPageNumber(int page)
 
 /* ------------------------------------------------------------------------------
  * Check if two given teletext pages are adjacent
- * - both page numbers must have decimal digits only (i.e. match /[1-8][1-9][1-9]/)
  */
 bool CheckIfPagesAdjacent(TTX_PAGE_DB * db, int page1, int sub1, int sub_skip, int page2, int sub2)
 {
@@ -1260,32 +1273,49 @@ bool OV_PAGE::is_adjacent(const OV_PAGE * prev) const
 
 /* ------------------------------------------------------------------------------
  * Determine dates of programmes on an overview page
- * - TODO: arte: remove overlapping: the first one encloses multiple following programmes; possibly recognizable by the VP label 2500
+ * - TODO: arte: remove overlapping: the first one encloses multiple following programmes; possibly recognizable by the VPS label 2500
  *  "\x1814.40\x05\x182500\x07\x07THEMA: DAS \"NEUE GROSSE   ",
  *  "              SPIEL\"                    ",
  *  "\x0714.40\x05\x051445\x02\x02USBEKISTAN - ABWEHR DER   ",
  *  "            \x02\x02WAHABITEN  (2K)           ",
  */
-bool OV_PAGE::calc_date_off(const OV_PAGE * prev)
+bool OV_PAGE::calc_date_off(const OV_PAGE * prev, const OV_PAGE * first)
 {
    bool result = false;
 
    int date_off = 0;
    if ((prev != 0) && (prev->m_slots.size() > 0)) {
       const OV_SLOT * prev_slot1 = prev->m_slots[0];
+      int prev_delta = 0;
+      // check if there's a date on the current page
+      // if yes, get the delta to the previous one in days (e.g. tomorrow - today = 1)
+      // if not, silently fall back to the previous page's date and assume date delta zero
+      if (m_date.is_valid()) {
+         prev_delta = prev->m_date.calc_date_delta(m_date);
+      }
+
+      if (prev_delta >= MAX_OV_PAGE_DATE_DELTA) {
+         // delta out of limit - either missing page or parser error
+         // note negative delta needs to be accepted as sometime overview tables are in weekday order instead of chronological
+         if (opt_debug) printf("OV DATE %03X.%d: delta:%d to prev page %03X.%04X too large - discarding\n",
+                               m_page, m_sub, prev_delta, prev->m_page, prev->m_sub);
+         m_date.invalidate();
+         prev = 0;
+      }
+      else if ((prev_delta < 0) && (first != this) &&
+               (first->m_date.calc_date_delta(m_date) < 0))
+      {
+         if (opt_debug) printf("OV DATE %03X.%d: delta:%d to prev page %03X.%04X negative and preceding first page date\n",
+                               m_page, m_sub, prev_delta, prev->m_page, prev->m_sub);
+         m_date.invalidate();
+         prev = 0;
+      }
       //FIXME const OV_SLOT * prev_slot2 = prev->m_slots[prev->m_slots.size() - 1];
       // check if the page number of the previous page is adjacent
       // and as consistency check require that the prev page covers less than a day
-      if (   /* (prev_slot2->m_start_t - prev_slot1->m_start_t < 22*60*60) // TODO/FIXME
-          &&*/ is_adjacent(prev))
+      else if (   /* (prev_slot2->m_start_t - prev_slot1->m_start_t < 22*60*60) // TODO/FIXME
+               &&*/ is_adjacent(prev))
       {
-         int prev_delta = 0;
-         // check if there's a date on the current page
-         // if yes, get the delta to the previous one in days (e.g. tomorrow - today = 1)
-         // if not, silently fall back to the previous page's date and assume date delta zero
-         if (m_date.is_valid()) {
-            prev_delta = prev->m_date.calc_date_delta(m_date);
-         }
          if (prev_delta == 0) {
             // check if our start date should be different from the one of the previous page
             // -> check if we're starting on a new date (smaller hour)
@@ -1296,17 +1326,22 @@ bool OV_PAGE::calc_date_off(const OV_PAGE * prev)
                date_off = 1;
             }
          }
+         else if ((prev_delta == -1) && (prev->m_date.get_offset() == 1)) {
+            // current page has the same date when not considering offset.
+            // note calc_date_delta() internally considers the date offset of the preceding page
+            date_off = 1;
+         }
          else {
-            if (opt_debug) printf("OV DATE %03X.%d: prev page %03X.%04X date cleared\n",
-                                  m_page, m_sub, prev->m_page, prev->m_sub);
+            if (opt_debug) printf("OV DATE %03X.%d: prev page %03X.%04X, delta:%d date cleared\n",
+                                  m_page, m_sub, prev->m_page, prev->m_sub, prev_delta);
             prev = 0;
          }
          // TODO: date may also be wrong by +1 (e.g. when starting at 23:55 with date for 00:00)
       }
       else {
-         // not adjacent -> disregard the info
-         if (opt_debug) printf("OV DATE %03X.%d: prev page %03X.%04X not adjacent - not used for date check\n",
-                               m_page, m_sub, prev->m_page, prev->m_sub);
+         // delta within limit but pages not adjacent -> disregard the info
+         if (opt_debug) printf("OV DATE %03X.%d: prev page %03X.%04X not adjacent - delta:%d not used for date check\n",
+                               m_page, m_sub, prev->m_page, prev->m_sub, prev_delta);
          prev = 0;
       }
    }
@@ -1336,7 +1371,7 @@ bool OV_PAGE::calc_date_off(const OV_PAGE * prev)
  * Calculate exact start time for each title: Based on page date and HH::MM
  * - date may wrap inside of the page
  */
-void OV_PAGE::calculate_start_times()
+void OV_PAGE::calculate_start_times(OV_PAGE * prev_ov)
 {
    int date_off = 0;
    int prev_hour = -1;
@@ -1352,6 +1387,15 @@ void OV_PAGE::calculate_start_times()
 
       slot->m_start_t = slot->convert_start_t(&m_date, date_off);
       slot->m_date_wrap = date_off;
+   }
+
+   // detect repetition of last item on pred. page on current page
+   if ( (prev_ov != 0) && (prev_ov->m_slots.size() > 0) && (m_slots.size() > 0) &&
+        (prev_ov->m_slots.back()->m_start_t == m_slots[0]->m_start_t) &&
+        (prev_ov->m_slots.back()->m_ov_title == m_slots[0]->m_ov_title) ) // TODO fuzzy compare
+   {
+      if (opt_debug) printf("OV DATE %03X.%d: dropping duplicate slot %02d:%02d on prev page\n", m_page, m_sub, m_slots[0]->m_hour, m_slots[0]->m_min);
+      prev_ov->m_slots.pop_back();
    }
 }
 
@@ -1464,6 +1508,9 @@ T_TRAIL_REF_FMT OV_PAGE::detect_ov_ttx_ref_fmt(const vector<OV_PAGE*>& ov_pages)
    return T_TRAIL_REF_FMT::select_ttx_ref_fmt(fmt_list);
 }
 
+/* ------------------------------------------------------------------------------
+ * Retrieve TTX page references from all slots on an overview page
+ */
 void OV_PAGE::extract_ttx_ref(const T_TRAIL_REF_FMT& fmt, map<int,int>& ttx_ref_map)
 {
    for (unsigned idx = 0; idx < m_slots.size(); idx++) {
@@ -1472,6 +1519,9 @@ void OV_PAGE::extract_ttx_ref(const T_TRAIL_REF_FMT& fmt, map<int,int>& ttx_ref_
    }
 }
 
+/* ------------------------------------------------------------------------------
+ * Retrieve descriptions from teletext pages referenced on the overview page
+ */
 void OV_PAGE::extract_tv(map<int,int>& ttx_ref_map)
 {
    if (m_slots.size() > 0) {
@@ -1590,15 +1640,23 @@ vector<OV_PAGE*> ParseAllOvPages(TTX_PAGE_DB * db, int ov_start, int ov_end)
       }
 
       for (unsigned idx = 0; idx < ov_pages.size(); ) {
-         if (ov_pages[idx]->calc_date_off((idx > 0) ? ov_pages[idx - 1] : 0)) {
+         OV_PAGE * prev = (idx > 0) ? ov_pages[idx - 1] : 0;
 
-            ov_pages[idx]->calculate_start_times();
+         if (ov_pages[idx]->calc_date_off(prev, ov_pages[0])) {
+            ov_pages[idx]->calculate_start_times(prev);
             idx++;
          }
          else {
             delete ov_pages[idx];
             ov_pages.erase(ov_pages.begin() + idx);
          }
+      }
+
+      // guess missing stop times for the current page
+      // (requires start times for the next page)
+      for (unsigned idx = 0; idx < ov_pages.size(); idx++) {
+         OV_PAGE * next = (idx + 1 < ov_pages.size()) ? ov_pages[idx + 1] : 0;
+         ov_pages[idx]->calc_stop_times(next);
       }
    }
    return ov_pages;
@@ -1610,13 +1668,6 @@ vector<OV_PAGE*> ParseAllOvPages(TTX_PAGE_DB * db, int ov_start, int ov_end)
  */
 void ParseAllContent(vector<OV_PAGE*>& ov_pages)
 {
-   // guess missing stop times for the current page
-   // (requires start times for the next page)
-   for (unsigned idx = 0; idx < ov_pages.size(); idx++) {
-      OV_PAGE * next = (idx + 1 < ov_pages.size()) ? ov_pages[idx + 1] : 0;
-      ov_pages[idx]->calc_stop_times(next);
-   }
-
    // retrieve TTX page references
    T_TRAIL_REF_FMT ttx_ref_fmt = OV_PAGE::detect_ov_ttx_ref_fmt(ov_pages);
    map<int,int> ttx_ref_map;
@@ -1662,6 +1713,59 @@ list<TV_SLOT> OV_PAGE::get_ov_slots(vector<OV_PAGE*> ov_pages)
 }
 
 /* ------------------------------------------------------------------------------
+ * Helper class for sorting the slot list by start time
+ * - Secondary sort criterium is that page number, as we assume schedule overview
+ *   pages precede secondary programme lists (e.g. list of "today's movies")
+ */
+class TV_SLOT_cmp_start_t
+{
+public:
+  bool operator() (const TV_SLOT a, const TV_SLOT b) const {
+     if (a.get_start_t() == b.get_start_t()) {
+        return a.get_ov_page_no() < b.get_ov_page_no();
+     }
+     else {
+        return a.get_start_t() < b.get_start_t();
+     }
+  }
+};
+
+/* ------------------------------------------------------------------------------
+ * Filter out duplicate and overlapping programmes
+ * - as side-effect, sorts the given list by start time
+ * - upon overlap, the earlier starting programme is always preferred
+ */
+void FilterOverlappingSlots(list<TV_SLOT>& Slots)
+{
+   // sort new programmes by start time
+   Slots.sort(TV_SLOT_cmp_start_t());
+
+   if (!Slots.empty()) {
+      time_t prev_stop = 0;
+      for (list<TV_SLOT>::iterator p = Slots.begin(); p != Slots.end(); /*nop*/) {
+         if ((*p).get_start_t() >= prev_stop) {
+            // Ok - no overlap; determine stop time of this title
+            if ((*p).get_stop_t() == -1) {
+               // stop time unknown: assume one second runtime
+               // (needed for catching duplicates with same start time)
+               prev_stop = (*p).get_start_t() + 1;
+            }
+            else {
+               prev_stop = (*p).get_stop_t();
+            }
+            ++p;
+         }
+         else {  // erase overlapping programme from the list
+            if (opt_debug) printf("OVERLAPPING prev end %ld > %ld '%s'\n",
+                                  (long)prev_stop, (long)(*p).get_start_t(),
+                                  (*p).get_title().c_str());
+            Slots.erase(p++);
+         }
+      }
+   }
+}
+
+/* ------------------------------------------------------------------------------
  * Filter out expired programmes
  * - the stop time is relevant for expiry (and this really makes a difference if
  *   the expiry time is low (e.g. 6 hours) since there may be programmes exceeding
@@ -1673,7 +1777,7 @@ void FilterExpiredSlots(list<TV_SLOT>& Slots, int expire_min)
    time_t exp_thresh = time(NULL) - expire_min * 60;
 
    if (!Slots.empty()) {
-      for (list<TV_SLOT>::iterator p = Slots.begin(); p != Slots.end(); ) {
+      for (list<TV_SLOT>::iterator p = Slots.begin(); p != Slots.end(); /*nop*/) {
          if (   (   ((*p).get_stop_t() != -1)
                  && ((*p).get_stop_t() >= exp_thresh))
              || ((*p).get_start_t() + 120*60 >= exp_thresh) )

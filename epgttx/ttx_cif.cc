@@ -14,7 +14,7 @@
  *   You should have received a copy of the GNU General Public License
  *   along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * Copyright 2006-2011,2020 by T. Zoerner (tomzo at users.sf.net)
+ * Copyright 2006-2011,2020-2021 by T. Zoerner (tomzo at users.sf.net)
  */
 
 #include <stdio.h>
@@ -96,6 +96,10 @@ void ttx_db_add_pkg( void * db, int page, int ctrl, int pkgno, const uint8_t * p
  * This function is called once when acquisition is complete to start grabbing
  * EPG data from the previously captured teletext packets. The result is written
  * to the given file.
+ *
+ * Note page numbers specify the range for overview pages (i.e. more pages may
+ * be used when referenced by programme entries on overview pages). Page
+ * numbers are expected in form of HEX BCD (i.e. 0x100 for page "100").
  */
 int ttx_db_parse( void * db, int pg_start, int pg_end, int expire_min,
                   const char * p_xml_in, const char * p_xml_out,
@@ -113,14 +117,17 @@ int ttx_db_parse( void * db, int pg_start, int pg_end, int expire_min,
    // retrieve descriptions from references teletext pages
    list<TV_SLOT> NewSlots = OV_PAGE::get_ov_slots(ov_pages);
 
+   // sort and remove titles with overlapping start/stop times
+   FilterOverlappingSlots(NewSlots);
+
    // remove programmes beyond the expiration threshold
    FilterExpiredSlots(NewSlots, expire_min);
 
    // make sure to never write an empty file
    if (!NewSlots.empty()) {
-      XMLTV xmltv;
+      XMLTV xmltv(ttx_db);
 
-      xmltv.SetChannelName(ttx_db, p_ch_name, p_ch_id);
+      xmltv.SetChannelName(p_ch_name, p_ch_id);
 
       xmltv.SetExpireTime(expire_min);
 
@@ -129,8 +136,9 @@ int ttx_db_parse( void * db, int pg_start, int pg_end, int expire_min,
          xmltv.ImportXmltvFile(p_xml_in);
       }
 
-      xmltv.ExportXmltv(NewSlots, p_xml_out,
-                        "nxtvepg/" EPG_VERSION_STR, NXTVEPG_URL);
+      if ( !xmltv.ExportXmltv(NewSlots, p_xml_out,
+                              "nxtvepg/" EPG_VERSION_STR, NXTVEPG_URL) )
+         result = 1;
    }
    else {
       // return error code to signal abormal termination
@@ -152,5 +160,7 @@ void ttx_db_dump(void * db, const char * p_name, int pg_start, int pg_end)
 {
    TTX_DB * const ttx_db = (TTX_DB*) db;
 
-   DumpRawTeletext(ttx_db, p_name, pg_start, pg_end);
+   if (!ttx_db->page_db.is_empty()) {
+      DumpRawTeletext(ttx_db, p_name, pg_start, pg_end);
+   }
 }
