@@ -30,7 +30,7 @@
 #
 #  Author: T. Zoerner
 #
-#  $Id: Makefile,v 1.115 2021/01/03 12:20:42 tom Exp tom $
+#  $Id: Makefile,v 1.117 2021/03/22 20:20:21 tom Exp tom $
 #
 
 ifeq ($(OS),Windows_NT)
@@ -45,13 +45,19 @@ ifeq ($(OS), NetBSD)
 include Makefile.bsd
 else
 
-ROOT    =
 prefix  = /usr/local
 exec_prefix = ${prefix}
+res_prefix = /etc/X11
+cfg_prefix = /usr/share/nxtvepg
+
+# below shall be used for install target only (ROOT path is used as temporary
+# prefix during building packages - it must not be part of compiled-in paths)
+ROOT    =
 bindir  = $(ROOT)${exec_prefix}/bin
-mandir  = $(ROOT)${prefix}/man/man1
-resdir  = $(ROOT)/etc/X11
-cfgdir  = $(ROOT)/usr/share/nxtvepg
+mandir  = $(ROOT)${prefix}/share/man/man1
+pixdir  = $(ROOT)${prefix}/share/pixmaps
+resdir  = $(ROOT)${res_prefix}
+cfgdir  = $(ROOT)${cfg_prefix}
 
 # if you have perl and/or flex set their path here, else just leave them alone
 PERL    = /usr/bin/perl
@@ -73,15 +79,18 @@ GUILIBS  = -ltk$(TCL_VER) -ltcl$(TCL_VER) -L/usr/X11R6/lib -lX11 -lXmu -ldl
 #GUILIBS += -Ldbglib -static
 
 INCS   += -I. -I/usr/X11R6/include
-DEFS   += -DX11_APP_DEFAULTS=\"$(resdir)/app-defaults/Nxtvepg\"
+DEFS   += -DX11_APP_DEFAULTS=\"$(res_prefix)/app-defaults/Nxtvepg\"
 # path to Tcl/Tk headers, if not properly installed
 #INCS   += -I/usr/local/tcl/tcl8.0/generic -I/usr/local/tcl/tk8.0/generic
 
 # path to Tcl/Tk script library (note Tk is sometimes in X11/lib/tk#.#)
-#TK_LIBRARY_PATH  = /usr/lib/tk$(TCL_VER)
-#TCL_LIBRARY_PATH = /usr/lib/tcl$(TCL_VER)
+ifeq ($(shell test -d /usr/share/tk$(TCL_VER) && echo YES),YES)
+TK_LIBRARY_PATH  = /usr/share/tk$(TCL_VER)
+TCL_LIBRARY_PATH = /usr/share/tcl$(TCL_VER)
+else
 TCL_LIBRARY_PATH = /usr/share/tcltk/tcl$(TCL_VER)
 TK_LIBRARY_PATH = /usr/share/tcltk/tk$(TCL_VER)
+endif
 DEFS   += -DTK_LIBRARY_PATH=\"$(TK_LIBRARY_PATH)\"
 DEFS   += -DTCL_LIBRARY_PATH=\"$(TCL_LIBRARY_PATH)\"
 
@@ -90,10 +99,10 @@ DEFS    += -DUSE_THREADS
 ACQLIBS += -lpthread
 
 # use UTF-8 internally instead of Latin-1 (EXPERIMENTAL)
-#DEFS   += -DUSE_UTF8 -DXMLTV_OUTPUT_UTF8
+DEFS   += -DUSE_UTF8 -DXMLTV_OUTPUT_UTF8
 
 # enable support for importing XMLTV files
-DEFS   += -DUSE_XMLTV_IMPORT -DXMLTV_CNI_MAP_PATH=\"$(cfgdir)\"
+DEFS   += -DUSE_XMLTV_IMPORT -DXMLTV_CNI_MAP_PATH=\"$(cfg_prefix)\"
 
 # enable support for teletext EPG grabber (EXPERIMENTAL)
 # external grabber script is searched for in $PATH (unless you define an absolute path)
@@ -113,8 +122,8 @@ DEFS   += -DUSE_DAEMON
 # The database directory can be either in the user's $HOME (or relative to any
 # other env variable) or at a global place like /var/spool (world-writable)
 # -> uncomment 2 lines below to put the databases in the user's home
-#USER_DBDIR  = .nxtvdb
-#DEFS       += -DEPG_DB_ENV=\"HOME\" -DEPG_DB_DIR=\"$(USER_DBDIR)\"
+USER_DBDIR  = .nxtvdb
+DEFS       += -DEPG_DB_ENV=\"HOME\" -DEPG_DB_DIR=\"$(USER_DBDIR)\"
 ifndef USER_DBDIR
 SYS_DBDIR    = /var/tmp/nxtvdb
 DEFS        += -DEPG_DB_DIR=\"$(SYS_DBDIR)\"
@@ -122,7 +131,8 @@ INST_DB_DIR  = $(ROOT)$(SYS_DBDIR)
 INST_DB_PERM = 0777
 endif
 
-WARN    = -Wall -Werror
+WARN    = -Wall
+#WARN  += -Werror
 WARN   += -Wextra -Wno-sign-compare -Wno-unused-parameter
 WARN   += -Wcast-align -Wpointer-arith
 #WARN  += -Wcast-qual -Wwrite-strings -Wshadow
@@ -248,12 +258,19 @@ ifndef USER_DBDIR
 	test -d $(INST_DB_DIR) || install -d $(INST_DB_DIR)
 	chmod $(INST_DB_PERM) $(INST_DB_DIR)
 endif
-	install -c -m 0755 $(BUILD_DIR)/nxtvepg $(bindir)
-	install -c -m 0755 $(BUILD_DIR)/nxtvepgd $(bindir)
+	test -d $(pixdir) || install -d $(pixdir)
+	install -c -m 0755 -s $(BUILD_DIR)/nxtvepg $(bindir)
+	install -c -m 0755 -s $(BUILD_DIR)/nxtvepgd $(bindir)
 	install -c -m 0644 nxtvepg.1   $(mandir)
 	install -c -m 0644 nxtvepgd.1  $(mandir)
 	install -c -m 0644 Nxtvepg.ad  $(resdir)/app-defaults/Nxtvepg
+	install -c -m 0644 images/nxtvepg.xpm $(pixdir)/nxtvepg.xpm
 	install -c -m 0644 xmltv-etsi.map $(cfgdir)/xmltv-etsi.map
+
+.PHONY: deb
+deb: all
+	rm -rf deb
+	perl mkdebian.pl
 
 .SUFFIXES: .cc .c .o .tcl
 
@@ -367,14 +384,19 @@ endif
 
 .PHONY: clean
 clean:
-	-rm -rf build-*
-	-rm -f core debug.out
+	-rm -rf build-* deb
+	-rm -f nxtvepg_*.deb
+	-rm -f core debug.out tags
 	-rm -f epgtcl/helptexts*.tcl manual*.html nxtvepg*.1 tvsim/*.html tvsim/*.1
 
 .PHONY: depend
 depend:
 	@echo "'make depend' is no longer required:"
 	@echo "dependencies are generated and updated while compiling."
+
+.PHONY: ctags
+ctags:
+	ctags -R
 
 epgtcl/helptexts.tcl: nxtvepg.pod pod2help.pl
 	$(PERL) pod2help.pl -lang en nxtvepg.pod > epgtcl/helptexts.tcl
@@ -385,7 +407,7 @@ epgtcl/helptexts_de.tcl: nxtvepg-de.pod pod2help.pl
 nxtvepg.1: nxtvepg.pod epgctl/epgversion.h
 	EPG_VERSION_STR=`egrep '[ \t]*#[ \t]*define[ \t]*EPG_VERSION_STR' epgctl/epgversion.h | head -1 | sed -e 's#.*"\(.*\)".*#\1#'`; \
 	pod2man -date " " -center "Nextview EPG Decoder" -section "1" \
-	        -release "nxtvepg "$$EPG_VERSION_STR" (C) 2020 T. Zoerner" \
+	        -release "nxtvepg "$$EPG_VERSION_STR" (C) 2021 T. Zoerner" \
 	   nxtvepg.pod > nxtvepg.1
 
 nxtvepgd.1: nxtvepg.1

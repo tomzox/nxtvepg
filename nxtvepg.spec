@@ -1,5 +1,9 @@
-%define    prefix    /usr/local
 %define    version   2.9.0
+
+%define    prefix      /usr
+%define    res_prefix  /usr/share/X11
+
+%define    debug_package %{nil}
 
 Summary:   nexTView EPG decoder and browser
 Name:      nxtvepg
@@ -10,7 +14,6 @@ Source0:   nxtvepg-%{version}.tar.gz
 Group:     Applications/Multimedia
 License:   GPL
 URL:       http://prdownloads.sourceforge.net/nxtvepg/nxtvepg-%{version}.tar.gz
-BuildRoot: /tmp/nxtvepg-build
 
 %description
 The nxtvepg EPG software package supports receiving and browsing Nextview EPG
@@ -39,24 +42,28 @@ data obtained in XMLTV format from other sources.
 %prep
 %setup
 
+%pre
+
+%post
+
 %build
-make ROOT="$RPM_BUILD_ROOT" prefix="%{prefix}" daemon
+make ROOT="$RPM_BUILD_ROOT" prefix="%{prefix}" res_prefix="%{res_prefix}" all
 
 %install
-make ROOT="$RPM_BUILD_ROOT" install
+make ROOT="$RPM_BUILD_ROOT" prefix="%{prefix}" res_prefix="%{res_prefix}" install
 
 %files
 %defattr(-,root,root)
 %doc README CHANGES COPYRIGHT TODO manual.html manual-de.html
-%dir /var/tmp/nxtvdb
-%attr(777,root,root) /var/tmp/nxtvdb
+#%dir /var/tmp/nxtvdb
+#%attr(777,root,root) /var/tmp/nxtvdb
 /%{prefix}/bin/nxtvepg
 /%{prefix}/bin/nxtvepgd
-/%{prefix}/man/man1/nxtvepg.1
-/%{prefix}/man/man1/nxtvepgd.1
+/%{prefix}/share/man/man1/nxtvepg.1.gz
+/%{prefix}/share/man/man1/nxtvepgd.1.gz
+/%{prefix}/share/pixmaps/nxtvepg.xpm
 /%{prefix}/share/nxtvepg/xmltv-etsi.map
-/%{prefix}/share/nxtvepg/tv_grab_ttx.pl
-/etc/X11/app-defaults/Nxtvepg
+/usr/share/X11/app-defaults/Nxtvepg
 
 %clean
-make clean
+rm -rf $RPM_BUILD_ROOT

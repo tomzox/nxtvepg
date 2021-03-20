@@ -24,8 +24,10 @@
 #
 #  Author: Tom Zoerner
 #
-# $Id: nxtvepg.pod,v 1.138 2021/01/03 12:25:00 tom Exp tom $
+# $Id: nxtvepg.pod,v 1.139 2021/03/20 09:02:15 tom Exp tom $
 # ---------------------------------------------------------------------------
+
+=encoding iso-8859-15
 
 =head1 NAME
 

@@ -23288,3 +23288,149 @@ www/pre-releases.html [rev:1.96, 2020-12-23T18:45:01]:
 - replaced description of 2.9.0pre4 with 2.9.0pre5; added pre5 changelog
 - added links to github for sources
 - moved section on WDM drivers to below changelog
+#>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> RELEASE_2_9_0pre5 <<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+Makefile [rev:1.115, 2021-01-03T12:20:42]:
+- Compile-fixes for gcc-9
+- added missing $(WARN) for C++ compiler
+tcl2c.c [rev:1.17, 2021-01-03T12:20:42]:
+- Compile-fixes for gcc-9
+- sprintf buffer size: use snprintf to detect overflow
+dsdrv/wintuner.c [rev:1.33, 2021-01-03T12:20:42]:
+- Compile-fixes for gcc-9
+- replaced abs() with labs() & signed constants
+epgctl/epgacqttx.c [rev:1.5, 2021-01-03T12:20:42]:
+- Compile-fixes for gcc-9
+- strncpy(): reduced len by -1 when last byte is zeroed afterward anyway
+epgdb/epgdbmerge.c [rev:1.38, 2021-01-03T12:20:42]:
+- Compile-fixes for gcc-9
+- labs() needed when working on time_t delta
+epgui/wintvcfg.c [rev:1.32, 2021-01-03T12:20:42]:
+- Compile-fixes for gcc-9
+- WintvCfg_ParseTvtimeStations(): debug print: limit len of copied str
+epgui/xawtv.c [rev:1.58, 2021-01-03T12:20:42]:
+- Compile-fixes for gcc-9
+- strncpy(): reduced len by -1 when last byte is zeroed afterward anyway
+epgui/xiccc.c [rev:1.5, 2021-01-03T12:20:42]:
+- Compile-fixes for gcc-9
+- strncpy(): reduced len by -1 when last byte is zeroed afterward anyway
+tvsim/winshmclnt.c [rev:1.13, 2021-01-03T12:20:42]:
+- Compile-fixes for gcc-9
+- strncpy(): reduced len by -1 when last byte is zeroed afterward anyway
+nxtvepg-de.pod [rev:1.22, 2021-01-03T12:25:00]:
+- updated copyright for 2021
+nxtvepg.pod [rev:1.138, 2021-01-03T12:25:00]:
+- updated copyright for 2021
+epgctl/epgacqctl.c [rev:1.96, 2021-01-03T12:25:00]:
+- Merge-back of bug-fixes from release 3.0
+- EpgAcqCtl_Start() left acq. enabled within driver despite internal
+  state DISABLED upon error in nxtvepg or TTX sub-module
+epgtcl/mainwin.tcl [rev:1.269, 2021-01-03T12:25:00]:
+- updated copyright for 2021
+epgui/epgmain.c [rev:1.169, 2021-01-03T12:25:00]:
+- Merge-back of bug-fixes from release 3.0
+- SIGHUP does not re-enable acquisition
+xmltv/xml_prolog.yy [rev:1.8, 2021-01-03T12:25:00]:
+- Merge-back of bug-fixes from release 3.0
+- xml_prolog.yy: compile-fix YYDEBUG; (also note generated code
+  crashed with intermediate versions of yacc; now works again)
+xmltv/xmltv_db.c [rev:1.20, 2021-01-03T12:25:00]:
+- Merge-back of bug-fixes from release 3.0
+- xmltv_db.c: fixed failed assert() after loading corrupt XMLTV
+pod2help.pl [rev:1.21, 2021-02-11T20:40:47]:
+- Merge-back of bug-fixes from release 3.0, pt. 2
+- added decoding for "E<...>" already used in nxtvepg.pod
+epgtcl/dlg_acqmode.tcl [rev:1.13, 2021-02-11T20:40:47]:
+- Merge-back of bug-fixes from release 3.0, pt. 2
+- bugfix TTX cfg. dialog: conversion of pg. numbers > 0x800
+epgui/epgsetup.c [rev:1.13, 2021-02-11T20:40:47]:
+- Merge-back of bug-fixes from release 3.0, pt. 2
+- Fix: Networks of added provider missing after merge
+- EpgSetup_UpdateProvCniTable(): enabled automatic addition of
+  non-selected/non-deselected networks to CNI table
+- EpgSetup_GetMergeDbNetwops(): instead of simply using list of
+  use-selected CNIs in RC file for CNI table, calculate list of CNI
+  equivalently to EpgSetup_UpdateProvCniTable(), i.e. list of
+  user-selected networks (in that order) plus non-deselected
+- EpgSetup_InitMergeDbNetwops(): now redundant to _GetMergeDbNetwops()
+  thus removed
+- bugfix: wrong enum value ACQMODE_COUNT passed as phase parameter
+  to EpgAcqCtl_SelectMode()
+epgui/menucmd.c [rev:1.138, 2021-02-11T20:40:47]:
+- Merge-back of bug-fixes from release 3.0, pt. 2
+- bugfix MenuCmd_AddEpgScanMsg with switch USE_UTF8:
+  message text is in Latin-1 -> must not use "#ifndef USE_UTF8" for conv
+epgui/rcfile.h [rev:1.10, 2021-02-11T20:40:47]:
+- Merge-back of bug-fixes from release 3.0, pt. 2
+- increased TTXGRAB_DFLT_DURATION from 90 to 120
+epgui/wintvcfg.c [rev:1.33, 2021-02-11T20:40:47]:
+- Merge-back of bug-fixes from release 3.0, pt. 2
+- WintvCfg_GetRcPath: ignore path in RC for TV-apps
+  marked "needPath == FALSE"; use $HOME instead
+epgvbi/btdrv4linux.c [rev:1.80, 2021-02-11T20:40:47]:
+- Merge-back of bug-fixes from release 3.0, pt. 2
+- BtDriver_GetDevicePath() static buffer not MT-safe
+COPYRIGHT [rev:1.23, 2021-03-19T19:50:01]:
+- Updated copyright for 2021
+Makefile.win32 [rev:1.82, 2021-03-19T19:51:25]:
+- Added linker flags: -static-libgcc -static-libstdc++
+- to avoid need for packaging these DLLs
+epgtcl/dlg_netsel.tcl [rev:1.16, 2021-03-19T22:35:51]:
+- Merge-back of fixes from release 3.0: GUI quirks
+- SelBoxCreate/UpdateList: bugfix height limitation
+epgtcl/dlg_prov.tcl [rev:1.25, 2021-03-19T22:35:51]:
+- Merge-back of fixes from release 3.0: GUI quirks
+- merge & load: added drop-down manu to dir entry with history
+epgtcl/mainwin.tcl [rev:1.270, 2021-03-19T22:35:51]:
+- Merge-back of fixes from release 3.0: GUI quirks
+- Main window height could not be made smaller than netsel list:
+  - set fixed height (dummy) for network selection list
+  - for "netsel (left)": give equal weight to shortcut and netsel lists
+nxtvepg-de.pod [rev:1.23, 2021-03-20T09:02:15]:
+nxtvepg.pod [rev:1.139, 2021-03-20T09:02:15]:
+- Release preparation
+- nxtvepg-de.pod: bugfix: added missing "=encoding" (for German Umlaut)
+epgctl/debug.h [rev:1.26, 2021-03-20T09:16:12]:
+- Replaced empty macros with "do/while" trick to avoid compiler warning
+- needed for disabling debug output for release
+epgui/cmdline.c [rev:1.19, 2021-03-20T09:18:51]:
+epgui/daemon.c [rev:1.22, 2021-03-20T09:18:51]:
+epgui/epgmain.c [rev:1.170, 2021-03-20T09:19:02]:
+epgdb/epgnetio.c [rev:1.45, 2021-03-20T09:19:19]:
+xmltv/xmltv_tags.c [rev:1.14, 2021-03-20T09:20:01]:
+- Fixed compiler warnings when building release version without debug output
+- fixed warnings variables only used in ifdebug and assert
+Makefile [rev:1.116, 2021-03-20T09:39:02]:
+- Release preparation
+- enabled USER_DBDIR: move database into user home
+- enabled UTF-8
+- added nxtvepg.xpm to "install" rule
+- added "deb" rule for running the new mkdebian.pl
+- added "ctags" rule
+CHANGES.version [rev:1.21, 2021-03-22T19:06:29]:
+- adapted rue to UTF-8: enable for release
+- added commenting and re-enabling "-Werror" in Makefile
+README [rev:1.51, 2021-03-22T19:16:52]:
+- Release preparation
+- allow Tcl/Tk version 8.6
+- added package dependency list for Fedora
+mkdebian.pl [rev:1.1, 2021-03-22T19:17:35]:
+- Initial revision
+nxtvepg.spec [rev:1.30, 2021-03-22T19:28:21]:
+- removed obsolete tv_grab_ttx.pl
+- changed install target from /usr/local to /usr
+- split %resdir variable so that $BUILDROOT part of path is not compiled-in
+- updated path to app-defaults (%resdir) from /etc to /usr/share
+- removed /var/tmp from %files
+- added XPM to %files
+- added .gz postfix to manuals
+Makefile [rev:1.117, 2021-03-22T20:20:21]:
+- Corrected "install" target (for use in RPM build)
+- split variables so that $ROOT oart of path is not part of variables
+  that get compiled into the executable
+- auto-detect TK_LIBRARY_PATH: needed for compilation on Fedora
+- strip installed executables via "install -s"
+CHANGES [rev:1.61, 2021-03-22T19:33:39]:
+- merged 2.9.0 pre-releases into one entry & added release date
+epgctl/epgversion.h [rev:1.98, 2021-03-22T19:34:59]:
+- set version number to 2.9.0
+#>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> RELEASE_2_9_0 <<<<<<<<<<<<<<<<<<<<<<<<<<<<<

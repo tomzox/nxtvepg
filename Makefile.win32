@@ -22,7 +22,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: Makefile.win32,v 1.81 2020/06/17 19:29:13 tom Exp tom $
+#  $Id: Makefile.win32,v 1.82 2021/03/19 19:51:25 tom Exp tom $
 #
 
 ifeq ($(OS),Windows_NT)
@@ -93,11 +93,11 @@ DEFS   += -DWIN32
 
 WARN    = -Wall -Wpointer-arith -Wnested-externs -Wmissing-prototypes
 WARN   += -Wextra -Wno-sign-compare -Wno-unused-parameter
-WARN   += -Werror
+#WARN  += -Werror
 #WARN  += -Wstrict-prototypes
 CFLAGS  = -pipe $(WARN) $(INCS) $(DEFS) -g -O2
 CPPFLAGS = -pipe $(INCS) $(DEFS) -g -O2
-LDFLAGS = -mwindows -Wl,--subsystem,windows
+LDFLAGS = -mwindows -Wl,--subsystem,windows -static-libgcc -static-libstdc++
 LDFLAGS_CONSOLE = -mconsole -Wl,--subsystem,console
 
 BUILD_DIR  = build-win32

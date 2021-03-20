@@ -20,8 +20,10 @@
 #  Author: Tom Zoerner (Original)
 #          German translation by Kurt Lettmaier & Olaf Nöhring
 #
-# $Id: nxtvepg-de.pod,v 1.22 2021/01/03 12:25:00 tom Exp tom $
+# $Id: nxtvepg-de.pod,v 1.23 2021/03/20 09:02:15 tom Exp tom $
 # ---------------------------------------------------------------------------
+
+=encoding iso-8859-15
 
 =head1 NAME
 

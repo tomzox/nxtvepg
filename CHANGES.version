@@ -1,4 +1,4 @@
-## $Id: CHANGES.version,v 1.20 2020/12/23 17:29:35 tom Exp tom $ ##
+## $Id: CHANGES.version,v 1.21 2021/03/22 19:06:29 tom Exp tom $ ##
 
 Steps to prepare new distribution:
 
@@ -39,7 +39,7 @@ Makefile AND Makefile.win
 - set CFLAGS optimization to -O2
 - replace constant assignment to TCL_VER with dynamic query
 - enable USE_THREADS
-- disable USE_UTF8
+- enable USE_UTF8
 - comment out rules for libt*.def in Makefile.win32
 
 adapt epgctl/mytypes.h
@@ -51,3 +51,9 @@ in release package:
 - remove CHANGES.version
 - remove .nroff .gdbinit
 - compare with previous package: double-check added/deleted files
+- comment out "-Werror" in Makefile and Makefile.win
+
+after release:
+- increment version in epgversion.h
+- re-enable debug output
+- re-enable -Werror

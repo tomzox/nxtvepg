@@ -67,8 +67,7 @@ Linux software requirements:
 - ZVBI library, for support of DVB capture cards with nxtvepg 2.x.
   Sources are available at http://zapping.sourceforge.net/ZVBI/index.html
 - GNU C++ Compiler with support for C++14
-- Tcl/Tk version 8.5. (Note use of later Tcl/Tk releases is *not*
-  recommended due to changes in keyboard event handling.)
+- Tcl/Tk version 8.5 or 8.6.
   Sources available for download from http://www.tcl.tk/
 - Any release of X11R5 or X11R6
   Note: X11 and Tcl/Tk are not required if you only build the daemon
@@ -126,8 +125,10 @@ UNIX installation procedure (when compiling from source):
     have to comment out nxtvepg's definition.
   + If compilation fails due to missing "include files", you probably lack
     development versions of standard libraries. On Debian/Ubuntu you need:
-    apt-get install tcl8.4 tcl8.4-dev tk8.4 tk8.4-dev
+    apt-get install tcl8.5 tcl8.5-dev tk8.5 tk8.5-dev
     apt-get install libx11-dev libxmu6 libxmu-dev
+    For Fedora and other RPM-based systems you need:
+    `yum install tcl-devel tk-devel libXmu-devel perl-Pod-Html`
   + To build the "nxtvepgd" executable type "make daemon" or "make all".
     This will compile one extra module and otherwise just link a smaller
     executable which does not contain the graphical user interface.
