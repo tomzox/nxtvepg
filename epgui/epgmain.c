@@ -20,7 +20,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgmain.c,v 1.169 2021/01/03 12:25:00 tom Exp tom $
+ *  $Id: epgmain.c,v 1.170 2021/03/20 09:19:02 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -1122,7 +1122,10 @@ bool EpgMain_StartDaemon( void )
             snprintf(fd_buf, sizeof(fd_buf) - 1, "ERR=%d\n", errno);
             fd_buf[sizeof(fd_buf) - 1] = 0;
             wstat = write(pipe_fd[1], fd_buf, strlen(fd_buf) + 1);
-            ifdebug1(wstat < 0, "EpgMain-StartDaemon: failed to return errno to GUI err:%d", errno);
+            if (wstat < 0)
+            {
+               debug1("EpgMain-StartDaemon: failed to return errno to GUI err:%d", errno);
+            }
             close(pipe_fd[1]);
             exit(1);
             // never reached

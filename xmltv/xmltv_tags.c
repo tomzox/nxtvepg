@@ -32,7 +32,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: xmltv_tags.c,v 1.13 2020/06/17 08:27:36 tom Exp tom $
+ *  $Id: xmltv_tags.c,v 1.14 2021/03/20 09:20:01 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_XMLTV
@@ -1631,9 +1631,7 @@ void XmltvTags_StartScan( FILE * fp, XMLTV_DTD_VERSION dtdVersion )
    // check if all tags were closed, i.e. if the stack is empty
    if ((xps.stackIdx > 0) && (xps.earlyStop == FALSE))
    {
-      XMLTV_TAG  state;
-      state = xps.tagStack[xps.stackIdx];
-      debug1("XmltvTag-StartScan: at end-of-file: tag not closed: '%s'", xmltv_tag_def[state].pTagName);
+      debug1("XmltvTag-StartScan: at end-of-file: tag not closed: '%s'", xmltv_tag_def[xps.tagStack[xps.stackIdx]].pTagName);
       xps.syntaxError = TRUE;
    }
    XmlScan_Destroy();

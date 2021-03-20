@@ -23,7 +23,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: debug.h,v 1.25 2020/06/30 06:32:16 tom Exp tom $
+ *  $Id: debug.h,v 1.26 2021/03/20 09:16:12 tom Exp tom $
  */
 
 #ifndef __DEBUG_H
@@ -49,8 +49,8 @@
 #define SHOULD_NOT_BE_REACHED do{sprintf(debugStr,"branch should not have been reached in %s, line %d\n",__FILE__,__LINE__);DebugLogLine(TRUE);}while(0)
 
 #else
-#define assert(X)
-#define SHOULD_NOT_BE_REACHED
+#define assert(X) do{}while(0)
+#define SHOULD_NOT_BE_REACHED do{}while(0)
 #endif
 
 #if defined(__GNUC__)
@@ -275,7 +275,7 @@ char * xstrdup( const char * pSrc );
    Tcl_EvalEx((INTERP), (CMD), -1, 0)
 #define eval_global(INTERP,CMD) \
    Tcl_EvalEx((INTERP), (CMD), -1, TCL_EVAL_GLOBAL)
-#define debugTclErr(INTERP,STR)
+#define debugTclErr(INTERP,STR) do{}while(0)
 #endif
 #endif
 
