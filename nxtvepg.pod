@@ -26,6 +26,8 @@
 #
 # ---------------------------------------------------------------------------
 
+=encoding iso-8859-15
+
 =head1 NAME
 
 nxtvepg - Browsing EPG data in XMLTV files and grabbing EPG from teletext

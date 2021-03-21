@@ -77,19 +77,19 @@ typedef time_t         time32_t;
 
 // en-/disable debugging
 #define HALT_ON_FAILED_ASSERTION OFF
-#define DEBUG_GLOBAL_SWITCH      ON
-#define DEBUG_SWITCH_EPGDB       ON
-#define DEBUG_SWITCH_EPGCTL      ON
-#define DEBUG_SWITCH_EPGUI       ON
-#define DEBUG_SWITCH_VBI         ON
+#define DEBUG_GLOBAL_SWITCH      OFF
+#define DEBUG_SWITCH_EPGDB       OFF
+#define DEBUG_SWITCH_EPGCTL      OFF
+#define DEBUG_SWITCH_EPGUI       OFF
+#define DEBUG_SWITCH_VBI         OFF
 #define DEBUG_SWITCH_STREAM      OFF
-#define DEBUG_SWITCH_TCL_BGERR   ON
-#define DEBUG_SWITCH_TVSIM       ON
-#define DEBUG_SWITCH_DSDRV       ON
-#define DEBUG_SWITCH_XMLTV       ON
+#define DEBUG_SWITCH_TCL_BGERR   OFF
+#define DEBUG_SWITCH_TVSIM       OFF
+#define DEBUG_SWITCH_DSDRV       OFF
+#define DEBUG_SWITCH_XMLTV       OFF
 
 // enable memory leak detection for debugging
-#define CHK_MALLOC               ON
+#define CHK_MALLOC               OFF
 
 // Macro to cast (void *) to (int) and backwards without compiler warning
 // (note: 64-bit compilers warn when casting a pointer to an int)

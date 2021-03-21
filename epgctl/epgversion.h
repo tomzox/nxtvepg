@@ -29,9 +29,9 @@
 
 #define EPG_VERSION_MAJOR   3   // major revision
 #define EPG_VERSION_MINOR   0   // minor revision
-#define EPG_VERSION_PL   0xA0   // bugfix revision / patch level
+#define EPG_VERSION_PL      0   // bugfix revision / patch level
 
-#define EPG_VERSION_STR     "3.0.0pre0"
+#define EPG_VERSION_STR     "3.0.0"
 
 // Pseudo-RCS id to be included to the object code for ident(1)
 #define EPG_VERSION_RCS_ID  "$Compiledate: " __DATE__ " " __TIME__" $";

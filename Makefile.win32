@@ -83,11 +83,11 @@ DEFS   += -DWIN32
 
 WARN    = -Wall -Wpointer-arith -Wnested-externs -Wmissing-prototypes
 WARN   += -Wextra -Wno-sign-compare -Wno-unused-parameter
-WARN   += -Werror
+#WARN  += -Werror
 #WARN  += -Wstrict-prototypes
 CFLAGS  = -pipe $(WARN) $(INCS) $(DEFS) -g -O2
 CPPFLAGS = -pipe $(INCS) $(DEFS) -g -O2
-LDFLAGS = -mwindows -Wl,--subsystem,windows
+LDFLAGS = -mwindows -Wl,--subsystem,windows -static-libgcc -static-libstdc++
 LDFLAGS_CONSOLE = -mconsole -Wl,--subsystem,console
 
 BUILD_DIR  = build-win32
@@ -328,8 +328,7 @@ zip: all
 	$(STRIP) $(BUILD_DIR)/nxtvepgd.exe; \
 	zip -9 -j $$ARCHIVE $(BUILD_DIR)/nxtvepg.exe $(BUILD_DIR)/nxtvepgd.exe; \
 	zip -9 $$ARCHIVE tcl$(TCL_L).dll tk$(TCL_L).dll NextViewPlugin.dll nxtvepg.ico; \
-	zip -9 $$ARCHIVE -l manual.html manual-de.html Nxtvepg.ad \
-	                    xmltv-etsi.map; \
+	zip -9 $$ARCHIVE -l manual.html manual-de.html Nxtvepg.ad; \
 	for v in TODO README.md CHANGES COPYRIGHT; do \
 	   mv $$v $${v}.txt; \
 	   zip -9 -l $$ARCHIVE $${v}.txt; \

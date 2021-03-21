@@ -1,12 +1,11 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/HTMLlat1.ent">
 <HTML lang="de">
-<!-- $Id: index-de.html,v 1.105 2020/06/14 15:49:00 tom Exp tom $ -->
 <HEAD>
-<TITLE>nxtvepg - nexTView EPG Dekoder Software</TITLE>
+<TITLE>nxtvepg - Browser für TV-Programmübersicht im XMLTV Dateiformat</TITLE>
 <META http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
 <META name="language" content="de">
-<META name="keywords" lang="de" content="nxtvepg, Software, Freeware, GPL, nexTView, EPG, Teletext, Brooktree, Bt878, Philips, SAA7134, Conexant, CX23881, Electronischer Programmführer, TV-Programmführer, TV-Programm, Programmvorschau, Linux, NetBSD, FreeBSD, bttv, video4linux, bktr, VBI, Austastlücke, Multimedia, Datenübertragung, kostenlos, TV-Karte, Browser, nexttview, VPS, PDC, VCD, VDR, nextview-link, AV-Link, Megalogic">
-<META name="description" lang="de" content="Homepage von 'nxtvepg' - Ein nexTView EPG Dekoder für den PC. Nextview EPG ist eine kostenlose elektronische Programmzeitschrift die im (analogen) TV-Signal übertragen wird und u.a. alle überregionalen deutschen TV-Sender abdeckt.">
+<META name="keywords" lang="de" content="nxtvepg, Software, Freeware, GPL, EPG, Teletext, Elektronischer Programmführer, TV-Programmführer, TV-Programmübersicht, TV-Programmvorschau, Linux, NetBSD, FreeBSD, video4linux, 4vl2, bktr, VBI, Austastlücke, Multimedia, Datenübertragung, kostenlos, TV-Karte, Browser, VPS, PDC, VDR, DVB">
+<META name="description" lang="de" content="Homepage von 'nxtvepg' - Ein Browser für TV-Programminformationen die in Dateien im XMLTV Format gespeichert sind. Mittels einer TV-Karte kann nxtvepg eine TV-Programmübersicht auch direkt aus dem Teletext extrahieren.">
 <META name="author" content="Tom Zoerner">
 <META name="copyright" content="Tom Zoerner">
 <META name="robots" content="index, follow">
@@ -28,8 +27,7 @@
 
 <H2 class="navhead">News</H2>
 <P>
-Letzter Release war 2008 (<A HREF="changelog.html">Release 2.8.1</A>),
-jedoch aktuell in <A HREF="pre-releases.html">Weiterentwicklung</A>.
+22. März 2021: <A HREF="index.html#releases">Release 3.0.0</A>
 </P>
 
 <H2 class="navhead">Dokumentation</H2>
@@ -40,25 +38,26 @@ jedoch aktuell in <A HREF="pre-releases.html">Weiterentwicklung</A>.
 <A HREF="links.html">Links</A><BR>
 <A HREF="faq.html">FAQ</A><BR>
 <BR>
-<A HREF="man-de.html">nxtvepg manual</A><BR>
-<A HREF="ttx_grab.html">teletext grabber</A><BR>
+<A HREF="man-de.html">Dokumentation</A><BR>
+<A HREF="ttx_grab.html">Teletext grabber</A><BR>
 </P>
 
 <H2 class="navhead">Download</H2>
 <P>
 <A HREF="download.html">Download</A><BR>
 <A HREF="download.html#requirements">Systemanforderungen</A><BR>
-<A HREF="changelog.html">Change-Log</A><BR>
+<A HREF="changelog.html">Änderungen</A><BR>
 </P>
 
 <H2 class="navhead">Screenshots</H2>
 <P>
-<A HREF="screenshot-274.png">Main window</A><BR>
-<A HREF="screenshot-grid1.png">"Grid" layout</A><BR>
-<A HREF="screenshot-reminder.png">Reminders</A><BR>
-<A HREF="screenshot-stats.png">Reception statistics</A><BR>
-<A HREF="screenshot-series.png">Series menu</A><BR>
-<A HREF="screenshot-xawtv.jpg">xawtv with EPG OSD</A><BR>
+<A HREF="screenshot-274.png">Programmübersicht</A><BR>
+<A HREF="screenshot-grid1.png">Tabellarisches Layout</A><BR>
+<A HREF="screenshot-reminder.png">Erinnerungen</A><BR>
+<A HREF="screenshot-timescales.png">Programmzeitskalen</A><BR>
+<A HREF="screenshot-stats.png">Statistik-Fenster</A><BR>
+<A HREF="screenshot-series.png">Serien Menü</A><BR>
+<A HREF="screenshot-xawtv.jpg">xawtv mit Einblendung</A><BR>
 </P>
 <span class="center"><span class="logo"><a href="http://sourceforge.net"><img
 src="http://sourceforge.net/sflogo.php?group_id=64430&amp;type=4"
@@ -70,38 +69,44 @@ width="125" height="37" alt="SourceForge.net Logo"></a></span></span>
 <SPAN CLASS="center">
 <IMG ALT="" SRC="nxtv_logo.png" WIDTH=66 HEIGHT=66>
 </SPAN>
-<H1><SPAN CLASS="center">nexTView
-<BR>EPG Dekoder Software</SPAN></H1>
+<H1><SPAN CLASS="center">nxtvepg
+<BR>Browser für TV-Programmlisten
+<BR>im XMLTV Format</SPAN></H1>
 
 <P>
-Herzlich willkommen auf der Homepage von <I>nxtvepg</I> - einer Software
-die es ermöglicht Nextview EPG am PC zu nutzen.  Nextview ist ein
-<A HREF="http://www.etsi.org/">ETSI</A>-Standard zur Übertragung von
-elektronischen Programmzeitschriften im (analogen) TV-Signal. Im
-Vergleich zu Teletext mit seinen fixen Programmtabellen ist Nextview EPG
-deutlich flexibler in der Bedienung, da es intern auf einer Datenbank
-basiert, die das TV-Programm mehrerer, oder meist aller lokal verfügbaren,
-TV-Sender abdeckt.
+Herzlich willkommen auf der Homepage von <I>nxtvepg</I> - einer Software zur
+Darstellung von TV-Programminformationen ("Elektronischer Programmführer" aka
+EPG) die im <A HREF="http://xmltv.org/">XMLTV</A> Format gespeichert sind.
+nxtvepg ermöglicht ein flexibles Zusammenführen von Programminformationen aus
+verschiedenen Quellen und deren Anzeige in Form einer Liste oder in Form einer
+Tabelle ähnlich TV-Programmzeitschriften auf Papier. nxtvepg erlaubt dabei
+Eingrenzung (aka "Filterung") der angezeigten Programme anhand einer Vielzahl
+von Kriterien, die Speicherung solcher Eingrenzung als "Shortcuts" und deren
+Verwendung zur Markierung ausgewählter Programme in der Übersicht mittels
+selbstdefinierter Spalten. Erinnerungen können für einzelne Sendungen als auch
+basierend auf Shortcuts programiert werden.
 </P><P>
-Dieser kostenlose Service wurde von verschiedenen
-<A HREF="provnets.html">Anbietern</A> in Deutschland, Österreich,
-der Schweiz, Frankreich, Belgien und der Türkei ausgestrahlt.
-Zusammengnommen deckten sie das tägliche Fernsehprogramm aller überregionalen
-Sender in diesen Ländern ab. Durch den Wechsel auf digitale TV-Standards
-(<A HREF="intro-de.html#DVB">DVB</A>) deren EPG von dieser Software nicht
-unterstützt wird, ist die Software aktuell fast nur noch von historischem
-Interesse. <A HREF="intro-de.html">Weiter...</A>.
+nxtvepg enthält außerdem einen "Teletext EPG Grabber", der mittels einer
+TV-Karte Programminformationen aus der TV-Programmübersicht im Teletext
+ausgewählter
+<A HREF="provnets.html">deutscher TV-Sender</A> extrahieren kann. Die so erzeugten
+Programmlisten können direkt in nxtvepg angezeigt werden, oder für Verwendung
+in anderen Programmen in Dateien im <A HREF="http://xmltv.org/">XMLTV</A> Format
+exportiert werden.
 </P><P>
-Einsetzbar ist die Software noch um TV-Daten aus Teletext zu laden
-(siehe <A HREF="ttx_grab.html">teletext grabber</A>)
-sowie um via <A HREF="http://xmltv.org/">XMLTV</A> grabber geladene
-TV-Programme anzuzeigen.
+<I>Historie:</I> In den Jahren 2000-2008 wurde nxtvepg ursprünlich entwickelt
+zur Dekodierung und Anzeige von Nextview EPG. Dies war ein Europäischer
+Standard zur Übertragung von Elektronischen Programmzeitschriften im analogen
+TV-Signal. Durch den weltweiten Wechsel auf digitale Übertragungsstandards wie
+DVB ist dieser Standard jedoch obsolet und wurde daher im nxtvepg release 3.0
+entfernt.
+<A HREF="intro-de.html">Mehr dazu...</A>.
 </P>
 
 <H2>Navigation</H2>
 <UL>
-<LI><A HREF="intro-de.html">Mehr über Nextview EPG</A>
-<LI><A HREF="provnets.html">Liste aller Nextview EPG Anbieter</A>
+<LI><A HREF="man-de.html">Dokumentation</A>
+<LI><A HREF="provnets.html">Liste unterstützter Programme des Teletext EPG Grabbers</A>
 <P></P>
 <LI><A HREF="download.html">Software Download</A>
 <LI><A HREF="download.html#requirements">SystemAnforderungen</A>
@@ -111,44 +116,93 @@ TV-Programme anzuzeigen.
 <LI><A HREF="index-de.html#copyright">Copyright</A>
 </UL>
 
+<H2><A NAME="releases">Aktueller release 3.0 (22. März 2021)</A></H2>
+<P>
+Nach einer 10-jährigen Entwicklunspause wurde nxtvepg aktualisiert um zum
+einen obsolete Features wie "Nextview" und analoge TV-Kartentreiber (Windows)
+zu entfernen, und im Gegenzug die verbleibenden Features zu optimieren,
+insbesondere den Import aus XMLTV Dateien und den Teletext EPG Grabber.
+Details:
+</P>
+<UL>
+<LI>Der Teletext EPG Grabber unterstützt nun auch den Empfang über digitale
+  TV-Karten (DVB-C/S/T; nur für Linux).
+<LI>Die Geschwindigkeit des Teletext Grabbers wurde erheblich erhöht durch
+  paralleles Laden von mehreren TV-Sendern auf demselben DVB Transponder.
+<LI>Die Verwendung des Teletext EPG Grabbers wurde vereinfacht durch ein neues
+  Kommando im "Control" Menü, das automatisch alle aus Teletext geladenen
+  Programminformationen zusammenführt und anzeigt.
+<LI>Der obsolete Nextview-EPG-spezifische "Serien" Filter wurde durch einen
+  neuen Filter "Wiederkehrende Sendungen" ersetzt.
+<LI>Statistik-Fenster für zusammengeführte Datenbanken und Teletext EPG
+  wurden erweitert gleichwertig zu den früher für Nextview EPG vorhandenen
+  Informationen (u.a. Tortendiagramm und Akquisitionshistorie)
+<LI>Import aus XMLTV wurde vereinfacht zum einen indem nun mehrere Dateien
+  auf der Kommandozeile angegeben werden können, und zum anderen über
+  erweitere Verzeichnisauswahl in den interaktiven Dialogen.
+<LI>Die interne Textkodierung wurde auf UTF-8 umgestellt damit auch Texte
+  von Ländern außerhalb Westeuropas korrekt dargestellt werden.
+<LI>Unterstützung des Nextview EPG Standards wurde komplett entfernt, da
+  dieser Service nicht mehr übertragen wird.
+<LI>Der zuvor integrierte Treiber für analoge TV-Karten auf MS Windows wurde
+entfernt.
+</UL>
+<P>
+Zum Herunterladen siehe die <A HREF="download-de.html">Download Sektion</A>.
+<BR>Für weitere Details siehe auch die komplette, detaillierte Liste aller
+Änderungen im <A HREF="changelog.html">Änderungsprotokoll</A>.
+</P>
+
+<H2>Release 2.9.0 (22. März 2021) - Letzter release mit Nextview EPG</H2>
+<P>
+Dieser Release enthält Verbesserungen aus den Jahren 2008 bis 2011, die vormals
+in Form von "Pre-Releases" 2.9.0pre0-pre4 veröffentlicht wurden. Für den
+jetzigen Release wurde neben kleinen Korrekturen lediglich eine Aktualisierung
+vorgenommen die den Software-Build mit aktuellen Tools erlaubt und den Betrieb
+mit aktuellen Linux Treibern. Der Grund für die Veröffentlichung dieses
+älteren Softwarestands zur gleichen Zeit wie Release 3.0.0 ist einen letzten
+Stand mit Nextview EPG zur Verfügung zu stellen, bevor die Unterstützung dieses
+Standards entfernt wird.
+</P><P>
+Details zu dem Release finden Sie im
+<A HREF="changelog.html#release_2_9_0">Änderungsprotokoll</A>.
+Diesen Release sollten Sie nur verwenden falls Sie noch Nextview EPG
+empfangen. Der Release kann von der
+<A HREF="http://sourceforge.net/project/showfiles.php?group_id=64430">SourceForge File List</A>
+heruntergeladen werden.
+</P>
+
 
 <H2><A NAME="feedback">Feedback</A></H2>
 <P>
 Feedback jeglicher Art ist jederzeit willkommen, sowohl in Form von Fragen,
-Verbesserungsvorschlägen, Feature requests oder bug reports.  Folgende
-Möglichkeiten stehen dafür zur Verfügung:
+Verbesserungsvorschlägen, Feature requests oder bug reports. nxtvepg hat
+aktuell sehr wenige Nutzer, daher sollten Sie nicht darauf hoffen dass Bugs
+behoben werden ohne sie selber zu melden. Folgende Möglichkeiten stehen dafür
+zur Verfügung:
 </P>
 <UL>
 <LI>Liste der <A HREF="faq.html">häufig gestellten Fragen (FAQ)</A>
-(inklusive Antworten)
+(inklusive Antworten - Stand 2008)
 <LI><A HREF="http://sourceforge.net/forum/forum.php?forum_id=217872">Diskussionsforum</A>:
 die einfachste Möglichkeit (erfordert keine Sourceforge Registrierung). Wenn möglich
 bitte in Englisch schreiben, oder ansonsten ein [de] dem Titel voranstellen.
 <LI><A HREF="http://lists.sourceforge.net/lists/listinfo/nxtvepg-users">Mailing list</A>:
-Auf dieser Liste werden hauptsächlich Software-Releases angekündigt,
-einschließlich Testversionen (Alpha- und Beta Releases) sie steht aber auch
-zur Diskussion zwischen Entwickler(n) und Anwendern zur Verfügung.
-Die Listensprache ist Englisch, Anmeldung erforderlich.
-<LI>Um über neue releases auf dem Laufenden zu bleiben, kann das nxtvepg
-Projekt auf <A HREF="http://freshmeat.net/projects/nxtvepg/">freshmeat.net</A>
-abonniert werden.
+Diese Mailing Liste wurde in der Vergangenheit hauptsächlich zur Ankündigung von
+Software-Releases verwendet. Aufgrund der geringen Nutzerzahl wird die Liste
+aktuell nicht mehr verwendet. Bitte verwenden Sie stattdessen das Forum.
 </UL>
 <P>
 Bevor Sie eine Frage stellen überlegen Sie bitte ob sie durch das
 <A HREF="man-de.html">manual</A> geklärt wird und sehen Sie im
-<A HREF="http://sourceforge.net/mailarchive/forum.php?forum_id=14102">mailing list Archiv</A>
-als auch im <A HREF="http://sourceforge.net/forum/forum.php?forum_id=217872">Forum</A>
-nach ob dieselbe Frage eventuell bereits kürzlich beantwortet wurde.
+<A HREF="http://sourceforge.net/forum/forum.php?forum_id=217872">Forum</A>
+nach ob dieselbe Frage bereits beantwortet wurde.
 </P>
 
 
 <H2><A NAME="copyright">Copyright</A></H2>
 <P>
 &copy; Copyright 1999 - 2011, 2020 - 2021 T. Z&ouml;rner (und andere).
-</P><P>
-Der Autor dieser Software ist kein Mitglied der
-<A HREF="http://www.etsi.org">ETSI</A> - hofft aber trotzdem dass seine
-Anstrengungen Nextview bekannt zu machen toleriert werden.
 </P><P>
 Diese Software ist kostenlos; Weiterverbreitung und/oder Modifikation
 ist erlaubt, solange Sie die Richtlinien der

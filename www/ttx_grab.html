@@ -1,6 +1,5 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/HTMLlat1.ent">
 <HTML lang="en">
-<!-- $Id: ttx_grab.html,v 1.8 2020/12/23 17:07:34 tom Exp tom $ -->
 <HEAD>
 <TITLE>Teletext EPG Grabber Software</TITLE>
 <META http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
@@ -62,7 +61,7 @@ the overviews.
 </P><P>
 The grabber can be used stand-alone, but is best used as addition to the
 <A HREF="intro.html">Nextview EPG</A> grabber
-nxtvepg (<A HREF="pre-releases.html#pre_rel_nxtvepg">version 2.9.x</A>)
+nxtvepg (<A HREF="index.html#releases">3.0.0 and 2.9.0</A>)
 which can also be used to view the programme listings in the generated
 XMLTV files.  The grabber is integrated into the nxtvepg acquisition
 control and can be activated via the configuration menus. The main intent
@@ -104,9 +103,9 @@ You can download the latest sources directly from the git repository
 instead of using the release package below.
 </P>
 
-<H3>Latest Release: Version 2.2 from December 22nd 2020</H3>
+<H3>Latest Release: Version 2.3 from March 21st 2021</H3>
 <P>
-Development was resumed with release 2.0 after a 9 year gap. The first release
+Development was resumed with release 2.1 after a 9 year gap. The first release
 mainly focused on enhancing working with digital TV capture cards (e.g. by
 adapting the `capall.pl` example automation script). Also tools have been
 updated (e.g. removed the need for the Boost regex library by requiring C++11)
@@ -114,31 +113,14 @@ and the parser was slightly enhanced and adapted to changes in teletext content
 by networks. Subsequent releases provided further enhancements and fixes in
 parser and tools, as well as interface adaption for integration in nxtvepg.
 </P><P>
-Detailed change log:
-</P>
-<UL>
-<LI> Replaced use of boost_regex library with C++11 std::regex
-<LI> Changed default from analog to digital TV capture device
-<LI> Added command line option "-pgstat" for monitoring capture progress
-<LI> Added optional tool for tuning DVB channels in util/ directory
-<LI> Fixes of merge tool to improve robustness
-<LI> Enhanced example capture script capall.pl: receive concurrently
-    from channels sharing a transponder; can speed-up overall duration
-    of acquisition significantly (e.g. by factor 4)
-<LI> Enhanced interface to nxtvepg to support concurrent capture
-     (used from nxtvepg-3.0 onwards)
-<LI> Minor parser enhancements
-</UL>
-<P>
-This new release will be included in upcoming releases (see
-<A HREF="pre-releases.html#pre_rel_nxtvepg">nxtvepg pre-releases</A>).
+The latest release is included in nxtvepg releases
+<A HREF="index.html#releases">3.0.0 and 2.9.0</A>.
 </P>
 
 <DIV CLASS="box">
 <H3><A NAME="download_source">Sources</A></H3>
 <P>
-Note the grabber is no longer implemented in Perl, thus a compiler is
-required to compile. Specifically, a C++ compiler supporting C++11 is required.
+Note the grabber requires a C++ compiler supporting C++11.
 The grabber additionally requires the
 <A HREF="http://zapping.sourceforge.net/doc/libzvbi/index.html">ZVBI library</A>
 for capturing teletext. Since this library only supports Linux and BSD, the
@@ -147,14 +129,74 @@ even though cross-compilation for Window using MinGW is supported.
 </P>
 <UL>
 <LI>Teletext grabber sources:
-    <A HREF="http://nxtvepg.sourceforge.net/tmp/tv_grab_ttx-2.2.tar.gz">tv_grab_ttx-2.2.tar.gz</A> (apx. 320 kB)
+    <A HREF="http://nxtvepg.sourceforge.net/tmp/tv_grab_ttx-2.3.tar.gz">tv_grab_ttx-2.3.tar.gz</A> (apx. 320 kB)
 </UL>
-</DIV>
 
 <P>
 For further information on usage, dependencies and installation please
 refer to the <A HREF="https://github.com/tomzox/tv_grab_ttx">homepage on github</A>
 </P>
+</DIV>
+
+<DIV CLASS="box">
+<H3><A NAME="changelog">Change log</A></H3>
+<H4><A NAME="release_2_3">Changes from 2.2 to 2.3 (Mar/21/2021)</A></H4>
+<UL>
+<LI>Filter overlapping TV programmes from XMLTV output.
+<LI>Filter TV programmes too far in the future (likely result of misdetection)
+<LI>Fixed a bug that lead to gaps in TV schedule output for TV programmes
+    after midnight.
+<LI>Added the teletext page number of the teletext overview page it originates
+    from as comment for each <programme> element in XMLTV output.
+<LI>Added a "date" attribute to the <tv> tag, specifying time of acquisition.
+<LI>Added translation for Italian month &amp; weekday names.
+<LI>Extended the time_dvb tool to support "mplayer" channels.conf format
+    and tuning of DVB-T and DVB-S channels.
+<LI>Added auto-detection for the teletext PID to the tune_dvb tool.
+<LI>Source code was adapted for compiling with gcc version 9.
+</UL>
+
+<H4><A NAME="release_2_2">Changes from 2.1 to 2.2 (Dec/22/2020)</A></H4>
+<UL>
+<LI>Adapted internal C interface used by nxtvepg branch "devel_3_0_0" for
+    allowing capturing concurrently from multiple DVB channels
+<LI>Bugfix "capall" to use TTX page numbers given in config
+<LI>Enhanced robustness of merge script (e.g. duplicate channel names)
+<LI>Enhanced parsing of series indices in programme titles
+</UL>
+
+<H4><A NAME="release_2_1">Changes from 2.0 to 2.1 (Jun/30/2020)</A></H4>
+<UL>
+<LI>Replaced use of boost_regex library with C++11 std::regex
+<LI>Changed default from analog to digital TV capture device
+<LI>Added command line option "-pgstat" for monitoring capture progress
+<LI>Added optional tool for tuning DVB channels in util/ directory
+<LI>Enhanced example capture script capall.pl: receive concurrently
+    from channels sharing a transponder; can speed-up overall duration
+    of acquisition significantly (e.g. by factor 4)
+<LI>Minor parser enhancements
+</UL>
+
+<H4><A NAME="release_2_0">Changes in 2.0 (Jan/09/2011)</A></H4>
+<UL>
+<LI>Complete re-implemenation in C++ based on the
+    <A HREF="https://www.boost.org/">boost_regex</A> library.
+<LI>Added support for new "HD" feature attribute
+<LI>Updated XMLTV output to DTD 0.5.56: "bilingual", "HDTV"
+<LI>Map "audio-descriptive" feature flag to bilingual
+<LI>Remove redundancy from descriptions on multiple sub-pages
+<LI>Improved fuzzy-matching on dates on description page dates
+<LI>Include description text even upon missing or unreadable date
+    of the page is referenced by a single programme
+<LI>Improve separation between programme titles and sub-titles in
+    overwiew pages using lin-breaks found on description pages
+<LI>Bug-fix end-time parser for ARTE
+<LI>Fixed TTX page ref matching: avoid false matches
+<LI>Improved rubustness of cast table parser and support more table formats
+<LI>Implementation switched from Perl to C++ (code design improvement)
+<LI>Improved merge to avoid losing descriptions or feature flags
+</UL>
+</DIV>
 
 </DIV>
 </BODY>

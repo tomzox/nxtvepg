@@ -1,16 +1,26 @@
 # nxtvepg - XMLTV EPG browser & Teletext EPG grabber
 
-*Today*, nxtvepg is a browser for TV programme schedules (EPG) stored in XMLTV
-files. Additionally, nxtvepg comes with an integrated Teletext EPG grabber,
-which allows extracting TV schedules from programme tables in Teletext and
-browsing them immediately in the nxtvepg GUI, or exporting them to XMLTV
-format for use in another browser.
+nxtvepg is a browser for TV programme schedules (EPG) stored in XMLTV format.
+nxtvepg supports flexible merging EPG from multiple sources and displaying the
+result in a compact table view, or a grid view. It supports filtering the TV
+schedule based on a large number of attributes, a filter shortcut list in the
+main window, adding custom columns to the view to mark programmes matching
+predefined filters, and reminders for individual programmes or filter
+shortcuts.
 
-*Historically*, nxtvepg was developed for receiving and browsing Nextview EPG.
-Nextview is an ETSI standard for transmission of Electronic TV Program Guides
-within (analog) TV broadcasts. However, as the world has switched to digital
-TV broadcast since, it is no longer in use today. Since version 3.0.0, nxtvepg
-no longer supports the standard, despite keeping the name of the SW package.
+nxtvepg also features an integrated Teletext EPG grabber, which uses a TV
+capture card for automatically extracting TV schedules from programme tables in
+Teletext from a given list of channels. Acquired EPG data can be merged and
+browsed immediately in the nxtvepg GUI, or exported to files in XMLTV format
+for use in another browser. Currently, only German TV networks are supported
+well by the grabber; support for other networks can be added on request,
+provided they transmit Teletext with usable TV schedules.
+
+*Historically*, nxtvepg was developed for receiving and browsing Nextview
+EPG. Nextview was an European standard for transmission of Electronic TV
+Program Guides within analog TV broadcasts. However, as the world has switched
+to digital TV broadcast since, it is no longer transmitted today. Therefore,
+support for this standard has been removed from nxtvepg in release 3.0.
 
 For a comprehensive description of features of this software, please refer
 to the manual page: In the source package, see [nxtvepg.pod](./nxtvepg.pod);
@@ -21,31 +31,33 @@ pre-compiled package in a Web browser, or open
 
 ## System requirements
 
-Hardware minimum requirements are a PC or workstation with performance
-equivalent to a 90 MHz Intel Pentium CPU and 128 MB of RAM (note nxtvepg is
-also known to work fine on Power-PC and Ultra-Sparc platforms.) For teletext
-grabber, a DVB or analog TV tuner card is required and you need to be able
-to receive a network that transmits Teletext service with programme tables.
+For browsing XMLTV files, any PC sold in the past 20 years will do.
+
+For the Teletext EPG grabber, a DVB or analog TV tuner card is required
+and you need to be able to receive a network that transmits Teletext
+service with programme tables.
+
+The Linux version supports all Digital TV (DVB) cards and analog cards
+for which a v4l2 ("video 4 linux, version 2") compatible driver exists
+that supports teletext reception via /dev/vbi (e.g. bttv, saa7134,
+cx8800, possibly even USB TV boxes).  NetBSD and FreeBSD versions
+supports all cards which are supported by the bktr driver.
 
 The MS Windows version supports only analog TV cards that are supported via
 the separately provided WDM driver interface DLL `VbiAcqWdmDrv.dll`.
 Pre-requisite for that is a vendor-provided WDM driver module that supports
 "VBI" decoding (e.g. teletext). Digital TV cards (DVB) ard currently not
-supported for Windows.
-
-The Linux version supports all cards for which a "video4linux" or v4l2
-compatible driver exists (e.g. bttv, saa7134, cx8800, possibly even USB
-TV boxes) that supports teletext decoding via /dev/vbi.  NetBSD and FreeBSD
-versions supports all cards which are supported by the bktr driver.
+supported for MS Windows.
 
 ### Linux software requirements
 
 - For the Teletext EPG grabber (optional): Either V4L2 drivers (i.e. video for
   Linux, API 2) when using analog TV capture cards, or Digital TV drivers for
   DVB capture cards.
-- GNU C++ Compiler with support for C++14
-- Tcl/Tk version 8.5. (Note use of later Tcl/Tk releases is *not* recommended
-  due to incompatible changes in keyboard event handling.)
+- When compiling from source: GNU C++ Compiler with support for C++14.
+  You'll also need development (i.e. "-dev") versions of various
+  packages such as "xorg" so that header files are available.
+- Tcl/Tk version 8.5 or 8.6.
   Sources available for download from <http://www.tcl.tk/>
 - Any release of X11R5 or X11R6
   Note: X11 and Tcl/Tk are not required if you only build the daemon
@@ -58,9 +70,9 @@ versions supports all cards which are supported by the bktr driver.
 
 ### Windows software requirements
 
-- For the Teletext EPG grabber (optional): A WDM driver for your TV card
-  that supports VBI decoding. Use of the WDM driver (based on DirectShow)
-  requires DirectX 9 or later.
+- For the Teletext EPG grabber (optional): A WDM driver for your analog
+  TV card that supports VBI decoding. Use of the WDM driver (based on
+  DirectShow) requires DirectX 9 or later.
 - Windows 95: the winsock2 DLL is required (`ws2_32.dll`, for the daemon
   feature) which - in contrary to newer Windows versions - was not included
   with this OS.
@@ -98,8 +110,10 @@ cards.
       have to comment out nxtvepg's definition.
     * If compilation fails due to missing "include files", you probably lack
       development versions of standard libraries. On Debian/Ubuntu you need:
-      `apt-get install tcl8.4 tcl8.4-dev tk8.4 tk8.4-dev`
+      `apt-get install tcl8.6 tcl8.6-dev tk8.6 tk8.6-dev`
       `apt-get install libx11-dev libxmu6 libxmu-dev`
+      For Fedora and other RPM-based systems you need:
+      `yum install tcl-devel tk-devel libXmu-devel perl-Pod-Html`
     * To build the "nxtvepgd" executable type `make daemon` or `make all`.
       This will compile one extra module and otherwise just link a smaller
       executable which does not contain the graphical user interface.
@@ -111,14 +125,16 @@ cards.
 
 - `make install`:
   This will copy the nxtvepg and nxtvepgd executables and their respective
-  manual pages into system directories and set up a directory where the
-  databases are stored.  Usually you need to "su root" to have permission
+  manual pages into the system directories configured in the Makefile
+  via variable `prefix`. Usually you need to "su root" to have permission
   to do so.
 
-- Invoke the application with the name of a pre-existing XMLTV file name on
-  the command line. If you plan to use the EPG grabberm start nxtvepg without
-  command line parameters and follow the instructions in the main window, or
-  read manual chapter "Getting Started".
+- Invoke the build executable build/nxtvepg. For browsing XMLTV files,
+  simply add their path on the command line to load and display their
+  content. When started without arguments nxtvepg will initialls show an
+  screen with the nxtvepg logo and a small help text. Follow the help to
+  enable the Teletext EPG grabber, or read manual chapter "Getting
+  Started".
 
 If the GUI shows up but does not react to any input, you probably
 need to tell Tcl/Tk where to find its libraries. To do so, correct
@@ -132,17 +148,17 @@ know about it (i.e. send me the diffs)
 - Unpack the zip file into an empty directory.
 
 - When intending to use the Teletext EPG grabber: Make sure you've stopped
-  your TV viewing application and any other video applications. (You always
-  need to do this before you start nxtvepg, because only one application may
-  use the TV card at the same time.)
+  your TV viewing application and any other video applications, else
+  nxtvepg willl not be able to load data, because only one application
+  may use the TV card at the same time.)
 
 - Invoke the executable nxtvepg.exe
 
     * For browsing pre-existing XMLTV files, simply load them via the
       Control menu.
     * For acquiring Teletext EPG, set up the TV card driver via the
-      "TV card input" and the "Teletext grabber" dialogs in the Configuration
-      menu.
+      "TV card input" and then enable the "Teletext grabber". Both
+      dialogs can be found in the Configuration menu.
 
 ### Compilation from source for Windows
 

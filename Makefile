@@ -43,13 +43,17 @@ ifeq ($(OS), NetBSD)
 include Makefile.bsd
 else
 
-ROOT    =
 prefix  = /usr/local
 exec_prefix = ${prefix}
+res_prefix = /etc/X11
+
+# below shall be used for install target only (ROOT path is used as temporary
+# prefix during building packages - it must not be part of compiled-in paths)
+ROOT    =
 bindir  = $(ROOT)${exec_prefix}/bin
-mandir  = $(ROOT)${prefix}/man/man1
-resdir  = $(ROOT)/etc/X11
-cfgdir  = $(ROOT)/usr/share/nxtvepg
+mandir  = $(ROOT)${prefix}/share/man/man1
+pixdir  = $(ROOT)${prefix}/share/pixmaps
+resdir  = $(ROOT)${res_prefix}
 
 # if you have perl and/or flex set their path here, else just leave them alone
 PERL    = /usr/bin/perl
@@ -71,15 +75,18 @@ GUILIBS  = -ltk$(TCL_VER) -ltcl$(TCL_VER) -L/usr/X11R6/lib -lX11 -lXmu -ldl
 #GUILIBS += -Ldbglib -static
 
 INCS   += -I. -I/usr/X11R6/include
-DEFS   += -DX11_APP_DEFAULTS=\"$(resdir)/app-defaults/Nxtvepg\"
+DEFS   += -DX11_APP_DEFAULTS=\"$(res_prefix)/app-defaults/Nxtvepg\"
 # path to Tcl/Tk headers, if not properly installed
 #INCS   += -I/usr/local/tcl/tcl8.0/generic -I/usr/local/tcl/tk8.0/generic
 
 # path to Tcl/Tk script library (note Tk is sometimes in X11/lib/tk#.#)
-#TK_LIBRARY_PATH  = /usr/lib/tk$(TCL_VER)
-#TCL_LIBRARY_PATH = /usr/lib/tcl$(TCL_VER)
+ifeq ($(shell test -d /usr/share/tk$(TCL_VER) && echo YES),YES)
+TK_LIBRARY_PATH  = /usr/share/tk$(TCL_VER)
+TCL_LIBRARY_PATH = /usr/share/tcl$(TCL_VER)
+else
 TCL_LIBRARY_PATH = /usr/share/tcltk/tcl$(TCL_VER)
 TK_LIBRARY_PATH = /usr/share/tcltk/tk$(TCL_VER)
+endif
 DEFS   += -DTK_LIBRARY_PATH=\"$(TK_LIBRARY_PATH)\"
 DEFS   += -DTCL_LIBRARY_PATH=\"$(TCL_LIBRARY_PATH)\"
 
@@ -99,7 +106,8 @@ DEFS   += -DUSE_DAEMON
 # enable if you have both 32-bit and 64-bit systems
 #DEFS   += -DUSE_32BIT_COMPAT
 
-WARN    = -Wall -Werror
+WARN    = -Wall
+#WARN  += -Werror
 WARN   += -Wextra -Wno-sign-compare -Wno-unused-parameter
 WARN   += -Wcast-align -Wpointer-arith
 #WARN  += -Wcast-qual -Wwrite-strings -Wshadow
@@ -216,13 +224,18 @@ install: daemon Nxtvepg.ad nxtvepgd.1
 	test -d $(bindir) || install -d $(bindir)
 	test -d $(mandir) || install -d $(mandir)
 	test -d $(resdir)/app-defaults || install -d $(resdir)/app-defaults
-	test -d $(cfgdir) || install -d $(cfgdir)
-	install -c -m 0755 $(BUILD_DIR)/nxtvepg $(bindir)
-	install -c -m 0755 $(BUILD_DIR)/nxtvepgd $(bindir)
+	test -d $(pixdir) || install -d $(pixdir)
+	install -c -m 0755 -s $(BUILD_DIR)/nxtvepg $(bindir)
+	install -c -m 0755 -s $(BUILD_DIR)/nxtvepgd $(bindir)
 	install -c -m 0644 nxtvepg.1   $(mandir)
 	install -c -m 0644 nxtvepgd.1  $(mandir)
 	install -c -m 0644 Nxtvepg.ad  $(resdir)/app-defaults/Nxtvepg
-	install -c -m 0644 xmltv-etsi.map $(cfgdir)/xmltv-etsi.map
+	install -c -m 0644 images/nxtvepg.xpm $(pixdir)/nxtvepg.xpm
+
+.PHONY: deb
+deb: all
+	rm -rf deb
+	perl mkdebian.pl
 
 .SUFFIXES: .cc .c .o .tcl
 
@@ -336,14 +349,19 @@ endif
 
 .PHONY: clean
 clean:
-	-rm -rf build-*
-	-rm -f core debug.out
+	-rm -rf build-* deb
+	-rm -f nxtvepg_*.deb
+	-rm -f core debug.out tags
 	-rm -f epgtcl/helptexts*.tcl manual*.html nxtvepg*.1 tvsim/*.html tvsim/*.1
 
 .PHONY: depend
 depend:
 	@echo "'make depend' is no longer required:"
 	@echo "dependencies are generated and updated while compiling."
+
+.PHONY: ctags
+ctags:
+	ctags -R
 
 epgtcl/helptexts.tcl: nxtvepg.pod pod2help.pl
 	$(PERL) pod2help.pl -lang en nxtvepg.pod > epgtcl/helptexts.tcl

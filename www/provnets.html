@@ -1,6 +1,5 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/HTMLlat1.ent">
 <html lang="en">
-<!-- $Id: provnets.html,v 1.56 2020/06/14 15:48:23 tom Exp tom $ -->
 <head>
 <title>nexTView Provider Table</title>
 <META http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
@@ -60,7 +59,8 @@
 <A HREF="screenshot-274.png">Main window</A><BR>
 <A HREF="screenshot-grid1.png">"Grid" layout</A><BR>
 <A HREF="screenshot-reminder.png">Reminders</A><BR>
-<A HREF="screenshot-stats.png">Reception statistics</A><BR>
+<A HREF="screenshot-timescales.png">Network timescales</A><BR>
+<A HREF="screenshot-stats.png">Statistics windows</A><BR>
 <A HREF="screenshot-series.png">Series menu</A><BR>
 <A HREF="screenshot-xawtv.jpg">xawtv with EPG OSD</A><BR>
 </P>
@@ -70,14 +70,86 @@ width="125" height="37" alt="SourceForge.net Logo"></a></span></span>
 </DIV>
 
 <DIV class="mainBlock">
-<H1>Nextview EPG providers and supported networks</H1>
+
+<H1>EPG provider lists</H1>
+
+<H2>Teletext EPG providers</H2>
+
 <P>
-The following table lists which networks are covered by each of the
+The following networks broadcast TV schedules in teletext as of March 2021 and
+are supported well by the Teletext EPG grabber. See also
+<A HREF="screenshot-timescales.png">screenshort of network timescales</A>.
+</P>
+
+<table BORDER=2 CELLPADDING=4>
+<tr VALIGN=TOP>
+<th>Network</th>
+<th>Country</th>
+<!-- <th>Page range</th> -->
+<!-- <th>Sub-pages</th> -->
+<th>Preview</th>
+</tr>
+
+<tr><td>Das Erste                  <td>DE   <td>9 days</tr>
+<tr><td>ZDF                        <td>DE   <td>9 days</tr>
+<tr><td>BR 3                       <td>DE   <td>9 days</tr>
+<tr><td>3sat                       <td>DE   <td>9 days</tr>
+<tr><td>ONE                        <td>DE   <td>9 days</tr>
+<tr><td>ZDF neo                    <td>DE   <td>9 days</tr>
+<tr><td>ZDF info                   <td>DE   <td>9 days</tr>
+<tr><td>rbb Berlin                 <td>DE   <td>9 days</tr>
+<tr><td>NDR                        <td>DE   <td>9 days</tr>
+<tr><td>MDR                        <td>DE   <td>10 days</tr>
+<tr><td>WDR                        <td>DE   <td>7 days</tr>
+<tr><td>SWR                        <td>DE   <td>7 days</tr>
+<tr><td>SR Fernsehen               <td>DE   <td>7 days</tr>
+<tr><td>hr-fernsehen               <td>DE   <td>9 days</tr>
+<tr><td>ARD-alpha                  <td>DE   <td>10 days</tr>
+<tr><td>arte                       <td>DE   <td>7 days</tr>
+<tr><td>KiKA                       <td>DE   <td>7 days</tr>
+<tr><td>phoenix                    <td>DE   <td>7 days</tr>
+<tr><td>tagesschau24               <td>DE   <td>3 days</tr>
+<tr><td>sixx                       <td>DE   <td>3 days</tr>
+<tr><td>RTL                        <td>DE   <td>2 days</tr>
+<tr><td>RTL II                     <td>DE   <td>3 days</tr>
+<tr><td>VOX                        <td>DE   <td>2 days</tr>
+<tr><td>VOXup                      <td>DE   <td>2 days</tr>
+<tr><td>SAT.1                      <td>DE   <td>3 days</tr>
+<tr><td>SAT.1 Gold                 <td>DE   <td>3 days</tr>
+<tr><td>TELE 5                     <td>DE   <td>3 days</tr>
+<tr><td>kabel eins                 <td>DE   <td>3 days</tr>
+<tr><td>kabel eins Doku            <td>DE   <td>3 days</tr>
+<tr><td>ProSieben                  <td>DE   <td>3 days</tr>
+<tr><td>ProSieben MAXX             <td>DE   <td>7 days</tr>
+<tr><td>SUPER RTL                  <td>DE   <td>2 days</tr>
+<tr><td>Disnex Channel             <td>DE   <td>3 days</tr>
+<tr><td>WELT                       <td>DE   <td>3 days</tr>
+<tr><td>NITRO                      <td>DE   <td>2 days</tr>
+<tr><td>TLC                        <td>DE   <td>3 days</tr>
+<tr><td>N24 Doku                   <td>DE   <td>3 days</tr>
+<tr><td>DMAX                       <td>DE   <td>9 days</tr>
+<tr><td>SPORT1                     <td>DE   <td>3 days</tr>
+<tr><td>Eurosport 1                <td>DE   <td>3 days</tr>
+<tr><td>Eurosport 2                <td>DE   <td>3 days</tr>
+<tr><td>HSE24                      <td>DE   <td>3 days</tr>
+<tr><td>HSE24 EXTRA                <td>DE   <td>7 days</tr>
+<tr><td>ServusTV                   <td>DE   <td>3 days</tr>
+</table>
+
+<P>
+If you know a network that's missing in this list or if you find the
+information not to be up to date, please let me know (for my mail address
+see the About popup in the Help menu of nxtvepg).
+</P>
+
+<H2>Former nexTView providers</H2>
+<P>
+The following table lists which networks were covered by each of the
 nexTView provider's programme guide. Note that several networks use the
 same content provider; they differ at most in their network selection.
 </P>
 <P>
-<B>Note:</B> This table has not been updated since 2012.
+<B>Note:</B> This table reflects the state as of 2012.
 Likely all of these providers have stopped operation since then.
 </P>
 
@@ -199,21 +271,14 @@ TGRT, C5, KNLE, NTV, CNNT, TRT1, TRT2, TRT3, TRT4
 
 <P>
 Note: networks which have their name stricken out (<SPAN class="strike">like this</SPAN>)
-are in the provider's network list, but no programme content is transmitted.
-</P><P>
-If you know a provider that's missing in this list or if you find the
-information not to be up to date, please let me know (for my mail address
-see the About popup in the Help menu of nxtvepg).
-</P>
-<P>
-<SPAN class="anno">Thanks to Roland Schilter for the update of Swiss networks in January 2008.</SPAN>
+are in the provider's network list, but no programme content was transmitted.
 </P>
 
 
 
-<h2>Former nexTView providers</h2>
+<!-- <H2>Former nexTView providers (part 2)</H2> -->
 <P>
-These networks are no longer providing nexTView EPG:
+These networks stopped providing nexTView EPG already before end of analog TV transmission:
 </P>
 <table BORDER=2 CELLPADDING=4>
 <tr VALIGN=TOP>
@@ -327,39 +392,31 @@ MTV, BR&nbsp;alpha, TRT-int., N24, Phoenix, Tele5
 
 </table>
 
-<h2><A NAME="TRT-note">Notes about TRT:</A></h2>
 <P>
-The same service is provided via Eurasiasat on the digitally transmitted
+<B><A NAME="TRT-note">Notes about TRT:</A></B>
+The same service was provided via Eurasiasat on the digitally transmitted
 networks <I>FashionTV</I>, <I>NumberOne TV</I> and <I>Discovery Channel TV</I>.
 </P><P>
-This service started in May 2001.  It took them a while to get all the
-network ID codes right, but as of June 2002 only the CNI for NBC is
-incorrect anymore (it's 5 instead of 0x8E71).  One blatant error in this
-service is that all networks that transmit it are identifying themselves
+This service started in May 2001. It took them a while to get all the
+network ID codes right, but as of June 2002 only the CNI for NBC was
+incorrect anymore (CNI values 5 instead of 0x8E71). One blatant error in this
+service was that all networks that transmitted it identified themselves
 as TRT-1 both via packet 8/30/1 and Nextview application inventory, so
-that you'll get wrong programme information for those networks when
+that one got wrong programme information for those networks when
 interacting with a TV application.
-</P><P>
-Besides that, not all Turkish (Latin-5) characters can be displayed by
-nxtvepg.  The difference to latin-1 is only
-6 characters ('g' and 'G' with half circle above, 'I' with dot above,
-'i' without dot, 's' and 'S' with comma beneath). Currently there are no
-plans to support latin-5 in nxtvepg because that would require mixed use
-of fonts. Non-supported characters are replaced by their ASCII counterparts.
 </P>
 
-<h2><A NAME="TV5-note">Notes about TV5:</A></h2>
 <P>
+<B><A NAME="TV5-note">Notes about TV5:</A></B>
 Stopped service on Nov/18/2001, but re-surfaced in November 2002.
-</P><P>
-March 2005 the network list was extended from only 7
-(TV5, TF1, F2, F3, M6, TSR1, TSR2) to the current 29.
+In March 2005 the network list was extended from only 7
+(TV5, TF1, F2, F3, M6, TSR1, TSR2) to 29.
 At the same time the preview was extended from 4 to up to 8 days
 (for selected networks only.)
 </P>
 
-<h2><A NAME="M6-note">Notes about M6:</A></h2>
 <P>
+<B><A NAME="M6-note">Notes about M6:</A></B>
 Stopped service after December/31/2002. Re-surfaced end of March 2003,
 however reduced from 7 days preview to 3 days only.
 </P>

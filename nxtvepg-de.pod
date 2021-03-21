@@ -22,6 +22,8 @@
 #
 # ---------------------------------------------------------------------------
 
+=encoding iso-8859-15
+
 =head1 NAME
 
 nxtvepg - Anzeige von EPG aus XMLTV Dateien und Teletext EPG Grabber

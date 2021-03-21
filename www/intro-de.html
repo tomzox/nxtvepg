@@ -1,12 +1,11 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/HTMLlat1.ent">
 <HTML lang="de">
-<!-- $Id: intro-de.html,v 1.26 2020/06/14 15:48:23 tom Exp tom $ -->
 <HEAD>
 <TITLE>nexTView EPG Einführung</TITLE>
 <META http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
 <META name="language" content="de">
-<META name="keywords" lang="de" content="nexTView, EPG, Elektronischer Programmführer, TV-Guide, TV-Programm, TV-Zeitschrift, Nextview-Dekoder, Austastlücke, TV-Karte">
-<META name="description" lang="de" content="Einführung in die technische Funktionsweise des Elektronischen Programmführers nexTView.">
+<META name="keywords" lang="de" content="Teletext, nexTView, EPG, Elektronischer Programmführer, TV-Guide, TV-Programm, TV-Zeitschrift, Nextview-Dekoder, Austastlücke, TV-Karte">
+<META name="description" lang="de" content="Einführung in die technische Funktionsweise des Elektronischen Programmführers basierend auf Teletext und vormals nexTView.">
 <META name="author" content="Tom Zoerner">
 <META name="copyright" content="Tom Zoerner">
 <META name="robots" content="index, follow">
@@ -45,24 +44,26 @@
 <A HREF="links.html">Links</A><BR>
 <A HREF="faq.html">FAQ</A><BR>
 <BR>
-<A HREF="man-de.html">nxtvepg manual</A><BR>
+<A HREF="man-de.html">Dokumentation</A><BR>
+<A HREF="ttx_grab.html">Teletext grabber</A><BR>
 </P>
 
 <H2 class="navhead">Download</H2>
 <P>
 <A HREF="download.html">Download</A><BR>
 <A HREF="download.html#requirements">Systemanforderungen</A><BR>
-<A HREF="changelog.html">Change-Log</A><BR>
+<A HREF="changelog.html">Änderungen</A><BR>
 </P>
 
 <H2 class="navhead">Screenshots</H2>
 <P>
-<A HREF="screenshot-274.png">Main window</A><BR>
-<A HREF="screenshot-grid1.png">"Grid" layout</A><BR>
-<A HREF="screenshot-reminder.png">Reminders</A><BR>
-<A HREF="screenshot-stats.png">Reception statistics</A><BR>
-<A HREF="screenshot-series.png">Series menu</A><BR>
-<A HREF="screenshot-xawtv.jpg">xawtv with EPG OSD</A><BR>
+<A HREF="screenshot-274.png">Programmübersicht</A><BR>
+<A HREF="screenshot-grid1.png">Tabellarisches Layout</A><BR>
+<A HREF="screenshot-reminder.png">Erinnerungen</A><BR>
+<A HREF="screenshot-timescales.png">Programmzeitskalen</A><BR>
+<A HREF="screenshot-stats.png">Statistik-Fenster</A><BR>
+<A HREF="screenshot-series.png">Serien Menü</A><BR>
+<A HREF="screenshot-xawtv.jpg">xawtv mit Einblendung</A><BR>
 </P>
 <span class="center"><span class="logo"><a href="http://sourceforge.net"><img
 src="http://sourceforge.net/sflogo.php?group_id=64430&amp;type=4"
@@ -70,20 +71,38 @@ width="125" height="37" alt="SourceForge.net Logo"></a></span></span>
 </DIV>
 
 <DIV class="mainBlock">
-<H1>Nextview EPG Einführung</H1>
+<H1>Über den Teletext EPG Grabber</H1>
 <P>
-Die hier zum Download erhältliche Software ermöglicht die Nutzung von
-nexTView EPG - einer kostenlosen elektronischen Programmzeitschrift die
-zusammen mit dem Teletext (Videotext) im analogen TV-Signal übertragen
-wird (Empfang via <A HREF="intro-de.html#DVB">DVB</A> ist jedoch ebenso möglich.)
-Mit nxtvepg erhalten Sie Zugang zum aktuellen Fernsehprogramm aller
-überregionalen Sender in Deutschland, Österreich, der Schweiz und Frankreich.
-Einen ersten
-Eindruck können Sie sich mit den screenshots in der Navigationsleiste
-verschaffen.
+Der Teletext EPG Grabber kann Programminformationen aus dem im Teletext
+vieler Europäischer TV-Sender übertragenen Teletext extrahieren und in
+Dateien im <A HREF="http://xmltv.org/">XMLTV Format</A> exportieren.
+Der Grabber verwendet eine TV-Karte, über die Teletextseiten aller
+ausgewählten TV-Sender empfangen werden. Nachdem alle benötigten Seiten
+empfangen wurden, werden Übersichtsseiten automatisch detektiert und
+daraus Startzeiten und Programmtitel extrahiert. Falls in der Übersicht
+verweise auf weitere Teletextseitennummern enthalten sind, werden die
+dort enthaltenen Informationen wie z.B. Beschreibungstexte ebenfalls
+extrahiert.
 </P><P>
-Der nexTView EPG Standard wurde von den führenden TV Herstellern
-unter Führung des <A HREF="http://www.etsi.org/">European Telecommunications Standards Institute</A> (ETSI)
+In der aktuellen Version werden fast ausschließlich deutsche TV-Sender
+unterstützt. Das liegt in erster Linie daran dass der Autor keine anderen
+Sender empfangen kann (bzw. die wenigen empfangenen französischen und
+italienischen Sender nur insubstanzielle Übersichten übertragen, die der
+Mühe nicht Wert scheinen). Da der Grabber zum einen sprachabhängig ist
+(z.B. Begriffe wie "heute", "morgen" usw.) und zum anderen viele Heuristiken
+für die Detektion verwendet werden ist zu erwarten das zur Unterstützung
+weiterer Sender Anpassungen notwendig sind. Bitte kontaktieren Sie den
+Autor falls Ihnen TV-Sender mit Teletextprogrammvorschau bekannt sind die
+es lohnen würde in nxtvepg zu unterstützen.
+</P><P>
+Der Teletext Grabber ist auch als <A HREF="ttx_grab.html">separates Paket</A>
+erhältlich, das ermöglicht ihn ohne nxtvepg zu betreiben.
+</P>
+
+<H1>Historie: Nextview EPG</H1>
+<P>
+Der nexTView EPG Standard wurde von den führenden TV Herstellern unter Führung
+des <A HREF="http://www.etsi.org/">European Telecommunications Standards Institute</A> (ETSI)
 von 1995-1997 entwickelt und ging erstmals zur Internationalen Funkausstellung
 in Berlin 1997 auf Sendung. Die Absicht war, eine Programmzeitschrift in den
 Fernseher zu integrieren. Die Übertragung basiert deshalb auf Teletext, jedoch
@@ -92,11 +111,10 @@ Der Vorteil gegenüber den normalen Papier-TV-Zeitschriften ist daß man sofort
 einen Überbick über alle gerade laufenden Sendungen erhält und zudem die
 Programmdatenbank nach einer Vielzahl Kriterien durchsuchen kann.
 </P><P>
-Die <I>nxtvepg</I> Software erlaubt es nun, nexTView EPG auch am PC zu nutzen
-und bietet gleichzeitig eine Menge neuer Features, die in einem TV-Gerät
-nicht realisierbar wären. Vorbedingungen für Sie als Nutzer
-sind daß Sie (a) eine TV-Tuner-Karte im PC stecken haben und (b) damit
-einen der Sender empfangen können auf dem nexTView EPG übertragen wird.
+Die <I>nxtvepg</I> Software erlaubte es nexTView EPG auch am PC zu nutzen und
+bot gleichzeitig eine Menge neuer Features, die in einem TV-Gerät nicht
+realisierbar wären. Vorbedingungen war (a) eine TV-Tuner-Karte im PC und (b)
+Empfang mindestens einer der Sender auf dem nexTView EPG übertragen wird.
 </P><P>
 Zu seiner Hochzeit wurde nexTView EPG auf den folgenden Sendern ausgestrahlt:
 </P>
@@ -113,11 +131,6 @@ Zu seiner Hochzeit wurde nexTView EPG auf den folgenden Sendern ausgestrahlt:
 Durch Wechsel auf DVB, das einen anderen EPG Standard verwendet, haben die
 meisten Anbieter ihren Dienst mittlerweile eingestellt.
 Nähere Details finden sich in der <A HREF="provnets.html">Anbietertabelle</A>.
-Sollten Sie keinen Nextview EPG Anbieter empfangen, können Sie mit nxtvepg
-EPG Informationen aus Teletext extrahieren, oder aus von anderen Programmen
-generierten XMLTV Dateien lesen (nxtvepg Version 2.8.0 oder neuer.)
-Mehr Infos dazu und zu allen weiteren Software-Features in der
-<A HREF="man-de.html">nxtvepg Dokumentation</A>
 </P><P>
 nextview EPG wurde von den folgenden TV Herstellern in ihren
 Analog-Fernsehern integriert:
@@ -204,21 +217,7 @@ Nextview EPG Spezifikation (ETS 300 707 und ETS 300 708) von
 <P>
 DVB erlaubt von Haus aus elektronische Programmführer, die auf einer
 völlig anderen Technik als Nextview EPG basieren. nxtvepg ist nicht in
-der Lage digitale EPGs zu dekodieren.  Sie können jedoch umgekehrt
-Nextview EPG u.U. auch nutzen wenn sie Ihre TV-Sender digital empfangen.
-Wie oben erklärt ist Nextview EPG Teil des Teletext Datenstroms. Die
-meisten Sender fügen die Teletextdaten auch der digitalen Ausstrahlung
-bei, also ist auch Nextview EPG enthalten.
-</P><P>
-Voraussetzung zum Empfang ist jedoch bei Verwendung einer externen
-SetTop-Box daß diese am Composite-Ausgang Teletext ausgibt (sogenannte
-<I>VBI Insertion</I>, d.h. die digital übertragenen Daten werden
-wieder in die Austastlücke eingefügt damit sie dort von herkömmlichen
-analogen Geräten gelesen werden können) bzw. bei Verwendung einer
-internen SAT-Karte unter Linux daß der Treiber die <I>video4linux</I>
-VBI API unterstützt (d.h. wenn andere VBI Applikationen wie z.B. alevt
-auch laufen.) Interne SAT-Karten werden in der Windows-Version von
-nxtvepg nicht unterstützt.
+der Lage digitale EPGs zu dekodieren.
 </P>
 
 </DIV>

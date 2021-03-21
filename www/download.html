@@ -1,12 +1,11 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/HTMLlat1.ent">
 <HTML lang="en">
-<!-- $Id: download.html,v 1.33 2020/06/17 08:40:04 tom Exp tom $ -->
 <HEAD>
 <TITLE>Download nxtvepg</TITLE>
 <META http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
 <META name="language" content="en">
-<META name="keywords" lang="en" content="nxtvepg, software, download, freeware, open-source, GPL, installation, Linux, video4linux, upgrade, release, package, distribution, bugfix, source-code, Tcl/Tk">
-<META name="description" lang="en" content="Download page for the free nxtvepg software: A decoder for the nexTView Electronic Program Guide on PCs">
+<META name="keywords" lang="en" content="nxtvepg, software, download, freeware, open-source, GPL, installation, Linux, Digital TV, video4linux, release, package, bugfix, source-code, Tcl/Tk">
+<META name="description" lang="en" content="Download page for the free nxtvepg software: A browser for TV schedues in XMLTV format">
 <META name="author" content="Tom Zoerner">
 <META name="copyright" content="Tom Zoerner">
 <META name="robots" content="index, follow">
@@ -62,45 +61,47 @@
 <A HREF="screenshot-274.png">Main window</A><BR>
 <A HREF="screenshot-grid1.png">"Grid" layout</A><BR>
 <A HREF="screenshot-reminder.png">Reminders</A><BR>
-<A HREF="screenshot-stats.png">Reception statistics</A><BR>
+<A HREF="screenshot-timescales.png">Network timescales</A><BR>
+<A HREF="screenshot-stats.png">Statistics windows</A><BR>
 <A HREF="screenshot-series.png">Series menu</A><BR>
 <A HREF="screenshot-xawtv.jpg">xawtv with EPG OSD</A><BR>
 </P>
 <span class="center"><span class="logo"><a href="http://sourceforge.net"><img
 src="http://sourceforge.net/sflogo.php?group_id=64430&amp;type=4"
 width="125" height="37" alt="SourceForge.net Logo"></a></span></span>
-</DIV>
 
+</DIV>
 <DIV class="mainBlock">
 
 <H1>Download nxtvepg</H1>
 <P>
-The last nxtvepg release is version <B>2.8.1</B> from 2008.
+The last nxtvepg release is version <B>3.0.0</B> from March 2021.
 (See also <A HREF="changelog.html">change history</A>.)
-</P>
-<P>
-More recently, a pre-release of version 2.9.0 is available at
-<A HREF="pre-releases.html">ongoing development</A>. Current work
-on release 3.0 is available in source at the
+</P><P>
+The latest version is at all times accessible as source at the
 <A HREF="https://github.com/tomzox/nxtvepg">nxtvepg github site</A>.
 </P>
 <P>
-When upgrading from older releases on Windows, you should keep a copy of your
-old <KBD>nxtvepg.ini</KBD> file so that you can go back to the old software
-in case of problems (i.e. the older software will not be able to read
-an nxtvepg.ini file which was modified by newer releases.)  Also note
+When upgrading from older releases of nxtvepg, you should keep a copy of your
+old configuration file (i.e. <KBD>nxtvepgrc</KBD> on Linux, or
+<KBD>nxtvepg.ini</KBD> on Windows respectively),
+so that you can go back to the old software version
+in case of problems (i.e. older versions will not be able to read
+configuration file which was modified by newer releases.)  Also note
 if you're using the nxtvepg acquisition daemon together with the
 nxtvepg GUI, both programs need to have the same version.
 </P>
 <P>
 For older releases see the
 <A HREF="http://sourceforge.net/project/showfiles.php?group_id=64430">SourceForge File List</A>.
+</P><P>
+The last version with support for Nextview EPG was 2.9.0. 
 </P>
 
 <DIV CLASS="box">
 <H3><A NAME="download_source">Source distribution</A></H3>
 <UL>
-<LI><A HREF="http://prdownloads.sourceforge.net/nxtvepg/nxtvepg-2.8.1.tar.gz?download">nxtvepg-2.8.1.tar.gz</A>
+<LI><A HREF="http://prdownloads.sourceforge.net/nxtvepg/nxtvepg-3.0.0.tar.gz?download">nxtvepg-3.0.0.tar.gz</A>
 </UL>
 <P>
 These are the sources from which all binary packages can be generated.
@@ -113,7 +114,7 @@ compile the Windows port from these sources; this is explained
 in the README file, section "Compilation procedure for Windows".
 </P><P>
 You can build a RPM package from the source tarball simply by running
-<KBD>rpm -ta nxtvepg-2.8.1.tar.gz</KBD> and install it as usual with
+<KBD>rpm -ta nxtvepg-3.0.0.tar.gz</KBD> and install it as usual with
 <KBD>rpm -i</KBD>.
 </P>
 </DIV>
@@ -129,8 +130,8 @@ The following is a binary package of the latest release for Debian (and
 Debian compatibles such as Ubuntu):
 </P>
 <UL>
-<LI><A HREF="http://prdownloads.sourceforge.net/nxtvepg/nxtvepg_2.8.1-3_i386.deb?download">nxtvepg_2.8.1-3_i386.deb</A>
-  (i386, requires Tcl/Tk version 8.5)
+<LI><A HREF="http://prdownloads.sourceforge.net/nxtvepg/nxtvepg_3.0.0_amd64.deb?download">nxtvepg_3.0.0_amd64.deb</A>
+  (64-bit version, requires Tcl/Tk version 8.6)
 </UL>
 <P>
 Alternatively, pre-compiled packages are provided at the following sites
@@ -144,22 +145,16 @@ Alternatively, pre-compiled packages are provided at the following sites
     <A HREF="http://rpmfind.net/linux/rpm2html/search.php?query=nxtvepg">rpmfind.net</A>
     (OpenSuSE still includes nxtvepg-2.8.1 as of 2020)
 </UL>
-<P><SPAN CLASS="anno">Thanks to Uwe Bugla for the Debian package.</SPAN></P>
 </DIV>
 
 
 <DIV CLASS="box">
 <H3><A NAME="download_windows">Binary distribution for M$ Windows</A></H3>
 <UL>
-<LI CLASS="spaced"><A HREF="http://prdownloads.sourceforge.net/nxtvepg/setup-nxtvepg-2.8.1.exe?download">setup-nxtvepg-2.8.1.exe</A><BR>
+<LI CLASS="spaced"><A HREF="http://prdownloads.sourceforge.net/nxtvepg/nxtvepg-3.0.0-win-setup.exe?download">nxtvepg-3.0.0-win-setup.exe</A><BR>
 <LI CLASS="spaced">If your TV card is not supported by the included <I>dsdrv4</I> driver,
   you may download the <A HREF="pre-releases.html#wdm_if_lib">WDM interface library</A>
   from the nxtvepg pre-release page (this feature is still experimental.)
-<LI CLASS="spaced"> Alternative version for release 2.8.1:
-  <A HREF="http://prdownloads.sourceforge.net/nxtvepg/nxtvepg-2.8.1-win-utf8.zip?download">nxtvepg-2.8.1-win-utf8.zip</A>.
-  This variant uses UTF-8 encoding internally so that XMLTV files from
-  outside of Western Europe can be imported and merged.
-  See below for hints on installing the ZIP file.
 </UL>
 <P>
 When installing nxtvepg from a ZIP archive: Simply unpack the nxtvepg archive
@@ -181,49 +176,44 @@ For developers: A demo application for TV application interaction is available
 <A HREF="screenshot-tvsim.png">tvsim &amp; nxtvepg</A> and
 <A HREF="screenshot-vbirec.png">tvsim &amp; vbirec screenshot</A>)
 </P>
-<P><SPAN class="anno">Thanks to Néo for providing the installer for Windows.</SPAN></P>
 </DIV>
 
 <P><BR></P>
 
 <H1><A NAME="requirements">System Requirements</A></H1>
 <P>
-Hardware minimum requirements are a PC or workstation with performance
-equivalent to a 90 MHz Intel Pentium CPU and 128 MB of RAM (note nxtvepg
-is also known to work fine on Power-PC and Ultra-Sparc platforms.)
-Optionally, for using the Teletext EPG grabber, a digital or analog
-TV capture card is required.
+nxtvepg has no notable requirements for CPU or memory, so it should work fine
+on any PC not older than 15-20 years.
 </P><P>
-The MS Windows version supports only analog TV cards that are supported via
+For using the Teletext EPG grabber, a digital or analog TV capture card is
+required (optional):
+</P>
+<UL>
+<LI>The Linux version supports DVB TV cards (currently limited to cable channels)
+and analog TV cards for which a video4linux driver exists (API version 2).
+<LI>The NetBSD and FreeBSD versions support all cards which are supported by the
+"bktr" driver.
+<LI>The MS Windows version supports only analog TV cards that are supported via
 the provided WDM driver interface DLL (i.e. the included `VbiAcqWdmDrv.dll`).
 Pre-requisite for that is a vendor-provided WDM driver module that supports
 "VBI" decoding (e.g. teletext; see also
 <A HREF="pre-releases.html#wdm_if_lib">WDM interface library</A>).
 Digital TV cards (DVB) ard currently not supported for Windows. (Note the
 integrated DScaler-based PCI driver was removed from nxtvepg in version 3.0.0).
-</P><P>
-The Linux version supports DVB TV cards (currently limited to cable channels)
-and analog TV cards for which a video4linux driver exists (API version 2).
-The NetBSD and FreeBSD versions support all cards which are supported by the
-"bktr" driver.
-</P>
+</UL>
 
 <DIV CLASS="box">
 <H3>Linux software requirements</H3>
 <UL>
-<LI>For the Teletext EPG grabber (optional): <I>v4l2</I> (i.e. "video4linux",
-  version 2) drivers with <I>VBI</I> support for your TV card.
-  Since kernel version 2.6.x, the vanilla kernels include working drivers
-  for the most used analog TV cards, so you'll probably need no extra drivers.
-  Restrictions: bttv drivers in kernel versions 2.6.16 or newer are supported
-  by nxtvepg 2.7.7 or newer only. bttv drivers in kernel versions 2.6.21 or
-  newer require nxtvepg version 2.8.0 or later.<BR>
-<LI>GNU C++ Compiler with support for C++14
-  (unless you got nxtvepg pre-compiled for your platform)
-<LI><A HREF="http://tcl.tk/">Tcl/Tk</A> version 8.5
-  (Note use of later Tcl/Tk releases is <B>not</B> recommended due to incompatible
-  changes in keyboard event handling.)
-<LI>Any release of X11R5 or X11R6.
+<LI>For the Teletext EPG grabber (optional): Either V4L2 drivers (i.e. video for
+  Linux, API 2) when using analog TV capture cards, or Digital TV drivers for
+  DVB capture cards.
+<LI>When compiling from source: GNU C++ Compiler with support for C++14.
+  You'll also need development (i.e. "-dev") versions of various
+  packages such as "xorg" so that header files are available.
+  (See README file for details.)
+<LI><A HREF="http://tcl.tk/">Tcl/Tk</A> version 8.5 or 8.6
+<LI>Any release of X11R5 or X11R6
 </UL>
 <P>
 Note: X11 and Tcl/Tk are not required when building the "nxtvepgd" daemon only.
@@ -277,7 +267,7 @@ Note the Windows version currently does <B>not</B> support Digital TV capture
 cards.
 </P>
 </DIV>
-</DIV>
 
+</DIV> <!-- end mainBlock -->
 </BODY>
 </HTML>

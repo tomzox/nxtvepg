@@ -4,12 +4,18 @@ general:
 - check if all changes for WIN32 are included (or more generally:
   make sure all changes listed in CHANGES made it into the release)
 - check that file permissions are 644/755 (for files copied from NT)
+- check if release of teletext grabber package is needed
 - update release date in CHANGES document
 
 update web pages:
 - import latest man pages generated from POD into www/ equivalents:
   man.html, man-de.html, tvsim.html, vbiplay.html, vbirec.html
+- check for POD errors at the end of the generated HTML files
 - link to tar-ball in index.html and include CHANGES
+
+update github:
+- add RELEASE tag
+- push latest versions
 
 version no contained in:
 - nxtvepg.spec
@@ -26,18 +32,10 @@ copyright date contained in:
 - www/man*html
 - www/man-ttx_grab.html
 
-RCS
-- check in all files, including TODO & CHANGES
-- check in epgversion *BEFORE* making the distribution
-- tag/label all RCS archives
-- after the release: increment version in epgversion.h
-
 Makefile AND Makefile.win
-- remove -Werror
+- comment out -Werror
 - set CFLAGS optimization to -O2
 - replace constant assignment to TCL_VER with dynamic query
-- enable USE_THREADS
-- disable USE_UTF8
 - comment out rules for libt*.def in Makefile.win32
 
 adapt epgctl/mytypes.h
@@ -46,6 +44,12 @@ adapt epgctl/mytypes.h
 - production releases: all debug options from ON to OFF
 
 in release package:
-- remove CHANGES.version
+- remove CHANGES.version and CHANGES.RCS
 - remove .nroff .gdbinit
 - compare with previous package: double-check added/deleted files
+- comment out "-Werror" in Makefile and Makefile.win
+
+after release:
+- increment version in epgversion.h
+- re-enable debug output
+- re-enable -Werror

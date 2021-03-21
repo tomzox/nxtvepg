@@ -1,6 +1,5 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/HTMLlat1.ent">
 <HTML lang="en">
-<!-- $Id: pre-releases.html,v 1.96 2020/12/23 18:45:01 tom Exp tom $ -->
 <HEAD>
 <TITLE>Developers and alpha testers download page</TITLE>
 <META http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
@@ -57,7 +56,8 @@
 <A HREF="screenshot-274.png">Main window</A><BR>
 <A HREF="screenshot-grid1.png">"Grid" layout</A><BR>
 <A HREF="screenshot-reminder.png">Reminders</A><BR>
-<A HREF="screenshot-stats.png">Reception statistics</A><BR>
+<A HREF="screenshot-timescales.png">Network timescales</A><BR>
+<A HREF="screenshot-stats.png">Statistics windows</A><BR>
 <A HREF="screenshot-series.png">Series menu</A><BR>
 <A HREF="screenshot-xawtv.jpg">xawtv with EPG OSD</A><BR>
 </P>
@@ -85,49 +85,22 @@ Please do not redistribute.
 <BR><HR WIDTH="75%">
 
 <H2><A NAME="nxtvepg_3_0_0">nxtvepg 3.0 development line</A></H2>
-
 <P>
-A new major release is currently under development.
-This branch drops support for nexTView EPG due to lack of content providers and
-instead optimizes nxtvepg for use as XMLTV browser and Teletext EPG grabber via
-DVB capture cards. (Note nxtvepg does not support capturing from DVB for MS
-Windows yet.)
+No pre-releases are currently available.
 </P><P>
-You can download the latest sources from the
-<A HREF="https://github.com/tomzox/nxtvepg">nxtvepg github site</A>.
-Use the instructions provided in README for building the executable.
-</P>
-
-<P>
-Note on UNIX the location of the ".nxtvepgrc" configuration file and the
-database directory will change to be compliant with current "freedesktop"
-standards. The configuration file is moved and renamed to
-<CODE>$HOME/.config/nxtvepg/nxtvepgrc</CODE>
-and the database directory containing XMLTV files written by the
-Teletext EPG grabber is moved to <CODE>$HOME/.cache/nxtvepg/</CODE>.
-<!--
-Note the format of the "nxtvepg.rc/ini" configuration storage file will change
-with this release. The file will be automatically upgraded upon
-the first start when using an rc/ini file written by an older version.
-Remember to make a backup copy, so that you can still return to older versions.
-Also note that the protocol between the nxtvepg client and daemon does change,
-hence use the same version of nxtvepg both on client and server side.
--->
+Latest release is 3.0.0 available on the <A HREF="download.html">download page</A>.
 </P>
 
 <!-- ------------------------------------------------------------------------ -->
+<!--
 <BR><HR WIDTH="75%">
 
 <H2><A NAME="pre_rel_nxtvepg">nxtvepg 2.9.0 development line</A></H2>
 <P>
 The packages below contain stable snapshots of development of the 2.9.0 release
-of nxtvepg. Release 2.9 will be the last version of nxtvepg to actually
+of nxtvepg. Release 2.9.0 is be the last version of nxtvepg to actually
 support nexTView EPG.
 </P>
-
-<!--
-<I>no pre-releases are currently available</I>
--->
 
 <H3>nxtvepg pre-release 2.9.0pre5 (2020-Dec-23)</H3>
 <P>
@@ -143,56 +116,47 @@ Details on changes in this and older releases is available in the
 <UL>
 <LI CLASS="spaced">Sources:
     <A HREF="http://nxtvepg.sourceforge.net/tmp/nxtvepg-2.9.0pre5.tar.gz">nxtvepg-2.9.0pre5.tar.gz</A> (apx 1.8 MB)
-<!--
+
 <BR>Note: if you want to test nxtvepg with
 <A HREF="http://nxtvepg.sourceforge.net/tmp/README-proxy.txt">VBI proxy</A>
 (allows multiple simultanuous VBI device users) then enable
 <KBD>-DUSE_LIBZVBI</KBD> in the nxtvepg Makefile and get libzvbi from
 <A HREF="http://zapping.sourceforge.net/">zapping.sourceforge.net</A>.
--->
+
 <LI CLASS="spaced">Win32 executable:
     <A HREF="http://nxtvepg.sourceforge.net/tmp/nxtvepg-2.9.0pre5-win.zip">nxtvepg-2.9.0pre5-win.zip</A> (apx. 3.5 MB)
-<!--
+
 <BR><SPAN CLASS="anno">Does not contain libraries tcl85.dll and tk85.dll and other unchanged files.
    Please unzip the last official release 2.8.1 into the target directory and then
    unzip the pre-release on top of these, into the same directory.</SPAN>
--->
 
-<!--
-<LI>Win32 executable with UTF-8 support:
-    <A HREF="http://nxtvepg.sourceforge.net/tmp/nxtvepg-2.8.1pre3-win-utf8.zip">nxtvepg-2.8.1pre3-win-utf8.zip</A> (apx.. 1.8 MB)
-    <BR>Note this version is for users which want to import XMLTV documents which
-    are encoded in UTF-8 (and cannot be converted to Latin-1 without losses.)
-    UTF-8 support is not complete yet. (Note you can use UTF-8 support on UNIX
-    by uncommenting the line with the two "UTF" switches in "Makefile".)
--->
 <LI CLASS="spaced">To enable use of vendor supplied WDM drivers for analog TV capture cards,
     you need an additional DLL which was developed separately by Gérard Chevalier.
     Download from below.
-<!--
-<BR><B>Attention:</B> Please note that Win32 TV card configuration parameters
-and driver version have changed in pre7.
-See the above link to the mailing list archive for details.
+
 <LI>Win32 TV simulator:
     <A HREF="http://nxtvepg.sourceforge.net/tmp/nxtvepg-2.8.1pre3-tvsim.zip">nxtvepg-2.8.1pre3-tvsim.zip</A><BR>
 Please try to reproduce any problems related to interaction with K!TV with tvsim.exe
 before you report them.
--->
 </UL>
+-->
 
 <P>
-Alternatively you can download the sources from
-<A HREF="https://github.com/tomzox/nxtvepg">github</A>
+Alternatively you can download the sources from the
+<A HREF="https://github.com/tomzox/nxtvepg">nxtvepg github site</A>
 and build the executable yourself using instructions provided there.
 </P>
 
+<!--
 <P>
 Older releases and associated files may still be available in the
 <A HREF="http://nxtvepg.sourceforge.net/tmp/">pre-release data directory</A>
 </P>
+-->
 
 <!-- ------------------------------------------------------------------------ -->
 
+<!--
 <P><BR><P>
 <HR WIDTH="75%">
 
@@ -200,110 +164,8 @@ Older releases and associated files may still be available in the
 
 <H3>Changes between 2.9.0pre4 and 2.9.0pre5 (2020-Dec-23)</H3>
 <UL>
-<LI>The integrated teletext EPG grabber was upgraded to version tv_grab_ttx-2.2:
-  This version include updates and enhancements to scraping of EPG data from
-  teletext pages.
-<LI>A major bug in XMLTV import was fixed, that caused spurious gaps in EPG
-  coverage (i.e. by dropping programme items with no description text).
-<LI>A bug was fixed that caused a crash when merging a very large number of
-  XMLTV files.
-<LI>The Linux driver interface was updated to remove remaining use of the
-  "v4l1" interface ("video for Linux", API version 1), so that channel changes
-  work with device drivers supporting v4l2 only.
-<LI>Several bugs in usage of the ZBI library were fixed (only used when switch
-  USE_LIBZVBI is enabled in the Makefile) that caused "forced passive mode".
-<LI>Network identification tables were updated according to latest ETSI specs.
-<LI>Sources were adapted to compile without errors or warning with latest
-  version of tools. The dependency the "boost-regex" library was removed by
-  using C++11 instead.
 </UL>
-
-<H3>Changes between 2.9.0pre3 and 2.9.0pre4 (2011-Jan-09)</H3>
-<UL>
-<LI>Teletext grabber: The need to an external Perl interpreter was removed by
-  re-implementation in the C++ programming language.
-<LI>Teletext grabber: The "Now &amp; Next" acquisition phase was optimized further
-  so that in up to 30 networks can be scanned in 10 minutes.
-<LI>Teletext grabber: There were many minor updates, enhancements and fixes
-  in overview and description page parsing.
-<LI>A new feature flag "HDTV" was introduced: for teletext or XMLTV sources.
-<LI>The XMLTV export was updated to DTD version 0.5.56, which allow use of
-  the "HDTV" and "audio:bilingual" feature flags.
-<LI>XMLTV channel identifiers for "arte" and "das vierte" were added.
-</UL>
-
-<H3>Changes between 2.9.0pre2 and 2.9.0pre3 (2009-May-03)</H3>
-<UL>
-<LI>Windows: A bug which caused nxtvepg to lock up during auto-detection
-  of SAA7134/SAA7133 based TV cards was fixed.
-<LI>Windows: Bugs in the driver for TV cards based on the Philips SAA7134
-  capture chip and tuner TDA8275/TDA8290 was fixed which prevented TV
-  channel changes with error message "No tuner found on I2C bus"
-<LI>Windows: handle power events (APM) to allow the system to enter standby
-  even while EPG capture is enabled; re-enable capturing automatically
-  upon resume
-<LI>A bug in TV channel identification via VPS/PDC was fixed which sometimes
-  caused endless toggling of EPG on-screen-display in the TV application.
-</UL>
-
-<H3>Changes between 2.9.0pre1 and 2.9.0pre2 (2009-Mar-29)</H3>
-<UL>
-<LI>The XMLTV export was changed to output channel identifiers which
-  match those of other XMLTV grabbers as far as possible. Instead of
-  part-numerical IDs such as "CNI1DC1" the export will now contain DNS-like
-  names such as "ard.de" (the mapping is defined in file "xmltv-etsi.map")
-<LI>The daemon was extended to allow simple remote queries for its EPG
-  acquisition status.  A new command line option "-daemonquery" was
-  added to perform such a query; a demo script was added to the manual
-  to document the protocol and allow direct queries by other applications.
-<LI>An acquisition timeout was added upon stalled reception, even when
-  working on a single provider. This will stop acquisition when working
-  with command line option "-acqonce".
-<LI>A configuration option was added to the "Show/Hide" sub-menu which
-  allows to hide the "Tune TV" button in the main window. (The automatic
-  addition/hiding of this button upon attach of a TV application has been
-  removed to allow for manual control.)
-<LI>MS Windows only: The warning "Tuner not found on I2C bus" will now be
-  suppressed if the tuner is configured as "unknown" as this used to
-  annoy users with partly unsupported TV cards.
-</UL>
-
-<H3>Changes between 2.9.0pre0 and 2.9.0pre1 (2009-Mar-14)</H3>
-<UL>
-<LI>The "time scales" dialog was redesigned to allow scrolling vertically
-  and horizontally (i.e. network list and the scales respectively.)
-<LI>Windows: The TV card configuration database was updated (imported from
-  DScaler) and a fix for cards with TDA9875/TDA8290 tuner was merged.
-<LI>Two bugs affecting expire threshold handling were fixed, which prevented
-  old programmes to be deleted from XMLTV files and kept expire time at
-  zero for all merged databases.
-<LI>The handling of all-expired EPG databases was slightly improved by
-  alloweing to make the expired programmes visible via the expire time
-  filter setting.
-<LI>The "Tune TV" button in reminder message popup was enhanced to use the
-  command specified by the user in "Configure -&gt; Context Menu / Tune-TV"
-<LI>A bug in the protocol between nxtvepg daemon and GUI was fixed which
-  sometimes led to dropped data on client side.
-<LI>The obsolete "-demo" command line option was removed. (XMLTV import can
-  be used instead where no Nextview EPG is available.)
-<LI>Windows: The integrated Tcl/Tk library was upgraded to version 8.5.6 to
-  benefit from bug-fixes and performance improvements since 8.5.0
-</UL>
-
-<H3>Changes between 2.8.1 and 2.9.0pre0 (2008-Oct-12)</H3>
-<UL>
-<LI>Implemented a new command line option "-epgquery FILTER" which allows
-  to restrict programmes during export via "-dump" (see manual.html)
-<LI>Consistency checks were added for incoming "inventory" data blocks to
-  increase probability to catch transmission errors and prevent "ghost
-  providers" or corrupted network lists
-<LI>Extended the EPG scan to include defective database files and providers
-  with unknown TV channel frequency, so that a "remove provider" button
-  is included for these too, although not actually scanned.
-<LI>Fixed the "refresh mode" scan to include a match between found and expected
-  providers so that a "remove provider" button is added for "ghost" providers
-  which don't match the ID of the actually transmitted EPG.
-</UL>
+-->
 
 <!-- ------------------------------------------------------------------------ -->
 
@@ -312,22 +174,23 @@ Older releases and associated files may still be available in the
 <H2><A NAME="wdm_if_lib">WDM support for nxtvepg (analog capture devices)</A></H2>
 <P>
 The WDM interface library was developed by Gerard Chevalier in 2004-2005.
-Afterwards it was maintained by T. Zoerner.
+Afterwards it was maintained by the author of nxtvepg.
 </P><P>
 The following package contains the last release of the WDM interface
 library for Windows. It allows Windows users to optionally use drivers
 supplied by their card's manufacturer instead of the one which comes
 with nxtvepg. Note only analog capture cards are supported (i.e. no DVB).
 </P><P>
-Main goal of development is to help Windows users who cannot use nxtvepg at all because
-their TV card is not supported by nxtvepg's driver.  This is because
-currently VBI acquisition in the Windows port of nxtvepg is based exclusively
+Main goal of development was to help Windows users who cannot use nxtvepg at all because
+their TV card is not supported by nxtvepg's driver. In nxtvepg versions 2.x,
+VBI acquisition in the Windows port of nxtvepg was based exclusively
 on the <A HREF="http://dscaler.org/">DScaler</A> "dsdrv4" driver, which
-supports only cards based on Conexant BT878, CX23881 or Philips
+supports only analog TV cards based on Conexant BT878, CX23881 or Philips
 SAA7134 (and even among these only the ones with supported tuners.)
 Cards with chip sets from vendors which do not disclose specifications
 to support open source driver implementations cannot be supported
-this way.
+this way. Since nxtvepg version 3.0, WDM drivers are the only way to
+use TV cards under Windows, as the dsdrv4 driver was removed.
 </P><P> 
 WDM support is useful for <B>Windows users only.</B>
 UNIX users need not look further.
