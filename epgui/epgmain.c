@@ -1123,7 +1123,10 @@ bool EpgMain_StartDaemon( void )
             snprintf(fd_buf, sizeof(fd_buf) - 1, "ERR=%d\n", errno);
             fd_buf[sizeof(fd_buf) - 1] = 0;
             wstat = write(pipe_fd[1], fd_buf, strlen(fd_buf) + 1);
-            ifdebug1(wstat < 0, "EpgMain-StartDaemon: failed to return errno to GUI err:%d", errno);
+            if (wstat < 0)
+            {
+               debug1("EpgMain-StartDaemon: failed to return errno to GUI err:%d", errno);
+            }
             close(pipe_fd[1]);
             exit(1);
             // never reached

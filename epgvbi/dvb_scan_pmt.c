@@ -65,7 +65,6 @@
 #include <signal.h>
 #include <getopt.h>
 #include <stdint.h>
-#include <stdbool.h>
 #include <errno.h>
 #include <linux/dvb/dmx.h>
 #include <linux/dvb/version.h>
@@ -74,22 +73,21 @@
 #include "dvb_scan_desc.h"
 #include "dvb_scan_pmt.h"
 
-#define FALSE 0   // replacing mytypes.h
-#define TRUE  1
+#include "epgctl/mytypes.h"
 #include "epgctl/debug.h"
+#define false FALSE  // map to nxtvepg version of "bool" type
+#define true TRUE
 
 static const char * demux_devname = "/dev/dvb/adapter0/demux0";
 
+#if DEBUG_SWITCH == ON
 // used within macro dprintf()
 #ifdef DPRINTF_OFF
-#if DEBUG_SWITCH == ON
 static int opt_verbosity = 1;  // errors and warnings
-#else
-static int opt_verbosity = 0;
-#endif  // DEBUG_SWITCH == OFF
 #else   // !DPRINTF_OFF
 static int opt_verbosity = 9;
 #endif
+#endif  // DEBUG_SWITCH == ON
 
 /*******************************************************************************
  * double linked list.
@@ -170,11 +168,15 @@ static bool add_filter(struct section_buf * s);
  * common typedefs && logging.
  ******************************************************************************/
 
+#if DEBUG_SWITCH == ON
 #define dprintf(level, fmt...)   \
    do {                          \
       if (level <= opt_verbosity) {  \
          fprintf(stderr, fmt); } \
    } while (0)
+#else  /* DEBUG_SWITCH == OFF */
+#define dprintf(level, fmt...)   do{}while(0)
+#endif
 
 #define dpprintf(level, fmt, args...) \
         dprintf(level, "%s:%d: " fmt, __FUNCTION__, __LINE__ , ##args)
@@ -1036,6 +1038,7 @@ static int read_filters(void) {
            if (done)
               verbosedebug("filter success: pid 0x%04x\n", s->pid);
            else {
+#if DEBUG_SWITCH == ON
               const char * intro = "        Info: no data from ";
               // timeout waiting for data.
               switch(s->table_id) {
@@ -1043,6 +1046,7 @@ static int read_filters(void) {
                  case TABLE_PMT:       info   ("%sPMT after %lld seconds\n",         intro, (long long) s->timeout); break;
                  default:              info   ("%spid %u after %lld seconds\n",      intro, s->pid, (long long) s->timeout);
                  }
+#endif
              }
            remove_filter(s);
            }

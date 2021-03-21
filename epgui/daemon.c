@@ -794,8 +794,10 @@ void Daemon_ForkIntoBackground( void )
          close(1);
          open("/dev/null", O_WRONLY, 0);
       }
-      close(2);
-      dup(1);
+      if (dup2(1, 2) < 0)
+      {
+         // ignore
+      }
       #endif
       setsid();
    }
@@ -848,7 +850,10 @@ static void Daemon_TriggerGui( void )
       #ifndef WIN32
       // the cmd line param contains the file handle of the pipe between daemon and GUI
       wstat = write(mainOpts.optGuiPipe, "OK", 3);
-      ifdebug1(wstat < 0, "Daemon-TriggerGui: failed to write to pipe: %d", errno);
+      if (wstat < 0)
+      {
+         debug1("Daemon-TriggerGui: failed to write to pipe: %d", errno);
+      }
       close(mainOpts.optGuiPipe);
 
       #else  // WIN32

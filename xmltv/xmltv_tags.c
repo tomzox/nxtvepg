@@ -1083,9 +1083,7 @@ void XmltvTags_StartScan( FILE * fp, bool load )
    // check if all tags were closed, i.e. if the stack is empty
    if ((xps.stackIdx > 0) && (xps.earlyStop == FALSE))
    {
-      XMLTV_TAG  state;
-      state = xps.tagStack[xps.stackIdx];
-      debug1("XmltvTag-StartScan: at end-of-file: tag not closed: '%s'", xmltv_tag_def[state].pTagName);
+      debug1("XmltvTag-StartScan: at end-of-file: tag not closed: '%s'", xmltv_tag_def[xps.tagStack[xps.stackIdx]].pTagName);
       xps.syntaxError = TRUE;
    }
    XmlScan_Destroy();

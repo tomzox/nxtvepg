@@ -112,7 +112,8 @@ static void MainOptionError( const char *argv0, const char *argvn, const char * 
 {
 #ifdef WIN32
    char * pBuf;
-   int len, plen;
+   int len;
+   int plen;
 #endif
    const char * const pUsageFmt =
                    "%s: %s: %s\n"
@@ -126,8 +127,10 @@ static void MainOptionError( const char *argv0, const char *argvn, const char * 
          strlen(reason) + strlen(argvn);
    pBuf = (char*) xmalloc(len + 1);
    plen = snprintf(pBuf, len, pUsageFmt, argv0, reason, argvn, argv0, argv0);
-   assert(plen < len);
-   MessageBox(NULL, pBuf, "nxtvepg command line options error", MB_ICONSTOP | MB_OK | MB_TASKMODAL | MB_SETFOREGROUND);
+   if (plen < len)
+      MessageBox(NULL, pBuf, "nxtvepg command line options error", MB_ICONSTOP | MB_OK | MB_TASKMODAL | MB_SETFOREGROUND);
+   else
+      SHOULD_NOT_BE_REACHED;
    xfree(pBuf);
 #endif
 
