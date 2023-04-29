@@ -104,7 +104,7 @@ typedef enum {
 	DATA_ID_EBU_DATA_END			= 0x9C,
 
 	/* 0x9C ... 0xFF reserved. */
-} data_identifier;
+} data_identifier_t;
 
 /**
  * @internal
@@ -143,7 +143,7 @@ typedef enum {
 	DATA_UNIT_USER_DEFINED2_END		= 0xFE,
 
 	DATA_UNIT_STUFFING			= 0xFF
-} data_unit_id;
+} data_unit_id_t;
 
 /**
  * @addtogroup DVBDemux DVB VBI demultiplexer

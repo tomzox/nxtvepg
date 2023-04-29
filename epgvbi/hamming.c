@@ -97,7 +97,7 @@ uint UnHam84Word( const uchar * d )
 // Decode a series of Hamming-8/4 encoded bytes
 // - aborts and returns FALSE upon non-recoverable errors
 //
-bool UnHam84Array( uchar * pin, uchar * pout, uint byteCount )
+bool UnHam84Array( const uchar * pin, uchar * pout, uint byteCount )
 {
    schar c1, c2;
    bool result = TRUE;

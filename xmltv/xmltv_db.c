@@ -436,6 +436,7 @@ static EPGDB_BLOCK * XmltvDb_BuildAi( const char * pProvName )
    AI_NETWOP *pNetwops;
    uchar idx;
    XML_STR_BUF aiServiceName;
+   uint  aiServiceNameLen;
    uint  netNameLenSum;
    uint  blockLen;
 
@@ -445,10 +446,11 @@ static EPGDB_BLOCK * XmltvDb_BuildAi( const char * pProvName )
       netNameLenSum += strlen(xds.p_chn_table[idx].p_disp_name) + 1;
    }
    XmlTv_BuildAiServiceName(&aiServiceName, pProvName);
+   aiServiceNameLen = XML_STR_BUF_GET_STR_LEN(aiServiceName) + 1;
 
    blockLen = sizeof(AI_BLOCK) +
               (xds.chn_count * sizeof(AI_NETWOP)) +
-              (XML_STR_BUF_GET_STR_LEN(aiServiceName) + 1) +
+              aiServiceNameLen +
               netNameLenSum;
    pBlk = EpgBlockCreate(BLOCK_TYPE_AI, blockLen, xds.mtime);
    pAi = (AI_BLOCK *) &pBlk->blk.ai;  // remove const from pointer
@@ -462,8 +464,8 @@ static EPGDB_BLOCK * XmltvDb_BuildAi( const char * pProvName )
    blockLen += pAi->netwopCount * sizeof(AI_NETWOP);
 
    pAi->off_serviceNameStr = blockLen;
-   strcpy((char *) AI_GET_SERVICENAME(pAi), XML_STR_BUF_GET_STR(aiServiceName));  // cast to remove const
-   blockLen += XML_STR_BUF_GET_STR_LEN(aiServiceName) + 1;
+   memcpy((char *)pAi + blockLen, XML_STR_BUF_GET_STR(aiServiceName), aiServiceNameLen);
+   blockLen += aiServiceNameLen;
    XmlCdata_Free(&aiServiceName);
 
    for (idx = 0; idx < xds.chn_count; idx++, pNetwops++)

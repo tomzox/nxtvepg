@@ -91,7 +91,7 @@ void T_TRAIL_REF_FMT::init_expr() const
 
       if (m_ch2 != 0) {
          if (is_regex_special(m_ch2))
-            re << "\\" + m_ch2 << "{0,4}";
+            re << "\\" << m_ch2 << "{0,4}";
          else
             re << m_ch2 << "{0,4}";
       }

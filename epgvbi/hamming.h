@@ -200,12 +200,12 @@ EXT const uchar byteBitDistTable[256]
 // ----------------------------------------------------------------------------
 // declaration of service interface functions
 //
-#define UnHam84Nibble(P,V) (( *(V) = (schar)unhamtab[*((uchar *)(P))] ) >= 0 )
-#define UnHam84Byte(P,V)   (( *(V) = ((sint)unhamtab[*((uchar *)(P))] | ((sint)unhamtab[*(((uchar *)(P))+1)] << 4)) ) >= 0 )
+#define UnHam84Nibble(P,V) (( *(V) = (schar)unhamtab[*((const uchar *)(P))] ) >= 0 )
+#define UnHam84Byte(P,V)   (( *(V) = ((sint)unhamtab[*((const uchar *)(P))] | ((sint)unhamtab[*(((const uchar *)(P))+1)] << 4)) ) >= 0 )
 
 #define UnHamParityByte(P,V) (( *(V) = (sint)parityTab[*((uchar *)(P))]) >= 0)
 
-bool UnHam84Array( uchar * pin, uchar * pout, uint byteCount );
+bool UnHam84Array( const uchar * pin, uchar * pout, uint byteCount );
 ushort UnHamParityArray( const uchar *pin, uchar *pout, uint byteCount );
 
 #if DUMP_TTX_PACKETS == ON

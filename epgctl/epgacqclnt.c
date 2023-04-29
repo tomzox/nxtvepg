@@ -276,9 +276,13 @@ static bool EpgAcqClient_CheckMsg( uint len, EPGNETIO_MSG_HEADER * pHead, EPGDBS
                         swap32(&pBody->stats_ind.u.initial.stats.lastStatsUpdate);
                         swap32(&pBody->stats_ind.u.initial.stats.acqRuntime);
                         swap32(&pBody->stats_ind.u.initial.stats.acqDuration);
-                        for (idx=0; idx < sizeof(pBody->stats_ind.u.initial.stats.pkgStats) / sizeof(uint32_t); idx++)
+
+                        _Static_assert(sizeof(pBody->stats_ind.u.initial.stats.pkgStats) % sizeof(uint32_t) == 0, "");
+                        _Static_assert(sizeof(pBody->stats_ind.u.initial.stats.ttx_dec) % sizeof(uint32_t) == 0, "");
+
+                        for (idx=0; idx < sizeof(pBody->stats_ind.u.initial.stats.pkgStats) / (sizeof(uint32_t)); idx++)
                            swap32(((uint32_t *)&pBody->stats_ind.u.initial.stats.pkgStats) + idx);
-                        for (idx=0; idx < sizeof(pBody->stats_ind.u.initial.stats.ttx_dec) / sizeof(uint32_t); idx++)
+                        for (idx=0; idx < sizeof(pBody->stats_ind.u.initial.stats.ttx_dec) / (sizeof(uint32_t)); idx++)
                            swap32(((uint32_t *)&pBody->stats_ind.u.initial.stats.ttx_dec) + idx);
                      }
                      result = TRUE;

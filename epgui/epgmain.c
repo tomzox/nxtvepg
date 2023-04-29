@@ -1843,7 +1843,7 @@ static int TclCbWinSystrayIcon( ClientData ttp, Tcl_Interp *interp, int argc, CO
    {
       withdraw = WinSystrayIcon(enable) && enable;
 
-      Tcl_SetResult(interp, (withdraw ? "1" : "0"), TCL_STATIC);
+      Tcl_SetResult(interp, (char*)(withdraw ? "1" : "0"), TCL_STATIC);
       result = TCL_OK;
    }
    return result;

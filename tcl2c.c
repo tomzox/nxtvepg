@@ -60,7 +60,7 @@
 static int optStubsForDynamic = 0;
 static int optSubstConsts = 0;
 static int optPreserveHeaders = 0;
-static char * optOutPrefix = "";
+static char * optOutPrefix = NULL;
 
 // struct to hold a substitution list member
 typedef struct
@@ -462,11 +462,14 @@ int main(int argc, char **argv)
     }
 
     /* build paths for .c and .h output files */
-    prefixLen = strlen(optOutPrefix);
+    prefixLen = (optOutPrefix ? strlen(optOutPrefix) : 0);
     outNameC = malloc(prefixLen + fileNameLen + 1);
     outNameH = malloc(prefixLen + fileNameLen + 1);
-    strcpy(outNameC, optOutPrefix);
-    strcpy(outNameH, optOutPrefix);
+    if (optOutPrefix)
+    {
+       strcpy(outNameC, optOutPrefix);
+       strcpy(outNameH, optOutPrefix);
+    }
     strcpy(outNameC + prefixLen, inFileName);
     strcpy(outNameH + prefixLen, inFileName);
     strcpy(outNameC + prefixLen + fileNameLen - 4, ".c");

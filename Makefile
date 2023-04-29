@@ -106,11 +106,11 @@ DEFS   += -DUSE_DAEMON
 # enable if you have both 32-bit and 64-bit systems
 #DEFS   += -DUSE_32BIT_COMPAT
 
-WARN    = -Wall
 #WARN  += -Werror
+WARN    = -Wall
 WARN   += -Wextra -Wno-sign-compare -Wno-unused-parameter
-WARN   += -Wcast-align -Wpointer-arith
-#WARN  += -Wcast-qual -Wwrite-strings -Wshadow
+WARN   += -Wcast-align -Wpointer-arith -Wwrite-strings
+#WARN  += -Wcast-qual -Wshadow
 CWARN   = -Wnested-externs -Wstrict-prototypes -Wmissing-prototypes
 CC      = gcc
 CPP     = g++

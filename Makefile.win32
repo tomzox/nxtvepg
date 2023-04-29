@@ -83,6 +83,7 @@ DEFS   += -DWIN32
 
 WARN    = -Wall -Wpointer-arith -Wnested-externs -Wmissing-prototypes
 WARN   += -Wextra -Wno-sign-compare -Wno-unused-parameter
+WARN   += -Wcast-align -Wwrite-strings
 #WARN  += -Werror
 #WARN  += -Wstrict-prototypes
 CFLAGS  = -pipe $(WARN) $(INCS) $(DEFS) -g -O2

@@ -871,6 +871,7 @@ void EpgDbMergeAiBlocks( PDBC dbc, uint netwopCount, const uint * pNetwopList )
    uchar netOrigIdx[MAX_NETWOP_COUNT];
    uchar dayCount[MAX_NETWOP_COUNT];
    char * pServiceName;           // temporarily holds merged service name
+   uint serviceNameLen;
    uint nameLen;                  // sum of netwop name lengths
    uint blockLen;                 // length of composed AI block
    uint dbCount;
@@ -914,11 +915,12 @@ void EpgDbMergeAiBlocks( PDBC dbc, uint netwopCount, const uint * pNetwopList )
 
    // merge service names
    pServiceName = EpgDbMergeAiServiceNames(dbmc);
+   serviceNameLen = strlen(pServiceName) + 1;
 
    // allocate memory for new AI block
    blockLen = sizeof(AI_BLOCK) +
               netwopCount * sizeof(AI_NETWOP) +
-              strlen(pServiceName) + 1 +
+              serviceNameLen +
               nameLen;
    dbc->pAiBlock = EpgBlockCreate(BLOCK_TYPE_AI, blockLen, mtimeMerge);
    pTargetAi = (AI_BLOCK *) &dbc->pAiBlock->blk.ai;
@@ -932,8 +934,8 @@ void EpgDbMergeAiBlocks( PDBC dbc, uint netwopCount, const uint * pNetwopList )
 
    // append service name
    pTargetAi->off_serviceNameStr = blockLen;
-   strcpy((char *)AI_GET_STR_BY_OFF(pTargetAi, blockLen), pServiceName);
-   blockLen += strlen(pServiceName) + 1;
+   memcpy((char*)pTargetAi + blockLen, pServiceName, serviceNameLen);
+   blockLen += serviceNameLen;
 
    // append netwop structs and netwop names
    pTargetNetwops = (AI_NETWOP *) AI_GET_NETWOPS(pTargetAi);

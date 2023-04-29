@@ -683,7 +683,7 @@ static void freeaddrinfo( struct addrinfo * res )
    free(res);
 }
 
-static char * gai_strerror( int errCode )
+static const char * gai_strerror( int errCode )
 {
    switch (errCode)
    {

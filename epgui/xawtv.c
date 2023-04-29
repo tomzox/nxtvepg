@@ -1027,9 +1027,11 @@ static bool Xawtv_IcccQueryStation( char * pBuffer, int bufLen, int * pTvFreq )
    if (xiccc_last_station.isNew)
    {
       // first (i.e. latest) valid request in queue -> return this station name
-      strncpy(pBuffer, xiccc_last_station.stationName, bufLen);
       if (bufLen > 0)
+      {
+         memcpy(pBuffer, xiccc_last_station.stationName, bufLen);
          pBuffer[bufLen - 1] = 0;
+      }
       *pTvFreq = xiccc_last_station.freq;
 
       result = TRUE;
