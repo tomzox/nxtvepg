@@ -328,7 +328,7 @@ proc TimeScale_GotoTime {w xcoo ycoo} {
    if {$pi_time != 0} {
       # set filter: show the selected network only
       ResetFilterState
-      C_EnableExpirePreFilter 0
+      SelectExpireNeverFilter 1
       SelectNetwopByIdx $netwop 1
       # set cursor onto the first PI starting after the selected time
       C_PiBox_GotoTime 0 $pi_time

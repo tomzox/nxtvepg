@@ -36,6 +36,7 @@ set dursel_max 0
 
 set piexpire_popup 0
 set piexpire_display 0
+set piexpire_never 0
 
 
 # called when filters are changed via shortcut
@@ -622,6 +623,9 @@ proc PopupExpireDelaySelection {} {
       pack   .piexpire.nb.hour_str -side left
       pack   .piexpire.nb -side top -pady 5 -padx 5 -fill x -expand 1
 
+      checkbutton .piexpire.chkb -text "Show all expired programmes" -command {UpdateExpiryFilter 0} -variable piexpire_never
+      pack  .piexpire.chkb -side top -anchor w
+
       frame  .piexpire.time_frm
       label  .piexpire.time_frm.lab -text "Effective cut-off time:"
       pack   .piexpire.time_frm.lab -side left
@@ -637,7 +641,7 @@ proc PopupExpireDelaySelection {} {
       ##
       frame  .piexpire.cmd
       button .piexpire.cmd.help -text "Help" -command {PopupHelp $helpIndex(Filtering) "Expired Programmes Display"}
-      button .piexpire.cmd.undo -text "Abort" -command {destroy .piexpire; set piexpire_display 0; SelectExpireDelayFilter}
+      button .piexpire.cmd.undo -text "Abort" -command {destroy .piexpire; ResetExpireDelay; SelectExpireDelayFilter}
       button .piexpire.cmd.dismiss -text "Ok" -command {destroy .piexpire}
       pack   .piexpire.cmd.help .piexpire.cmd.undo .piexpire.cmd.dismiss -side left -padx 10
       pack   .piexpire.cmd -side top -pady 5
@@ -722,7 +726,7 @@ proc UpdateExpiryFromSlider {} {
 
 proc UpdateExpiryFilter { round {val 0} } {
    global piexpire_daystr piexpire_minstr piexpire_lastinput
-   global piexpire_display piexpire_days piexpire_mins
+   global piexpire_never piexpire_display piexpire_days piexpire_mins
 
    if {$round == 2} {
       if {$piexpire_mins != 1439} {
@@ -735,8 +739,12 @@ proc UpdateExpiryFilter { round {val 0} } {
    set piexpire_minstr [Motd2HHMM [expr $piexpire_display % (24*60)]]
    set piexpire_lastinput 0
 
-   set threshold [expr [C_ClockSeconds] - ($piexpire_display * 60)]
-   .piexpire.time_frm.str configure -text [C_ClockFormat $threshold {%A %d.%m. %H:%M}]
+   if {$piexpire_never} {
+      .piexpire.time_frm.str configure -text "---"
+   } else {
+      set threshold [expr [C_ClockSeconds] - ($piexpire_display * 60)]
+      .piexpire.time_frm.str configure -text [C_ClockFormat $threshold {%A %d.%m. %H:%M}]
+   }
 
    SelectExpireDelayFilter
 }

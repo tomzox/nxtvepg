@@ -1463,18 +1463,21 @@ pressing the Return key.
 
 =item B<Expired Programmes Display>
 
-Unlike all other filter options this one is used to I<enlarge> the
-set of matching programmes.  It allows to include expired programmes
-(i.e. those with a stop time in the past) into the list; they
-will be marked with a yellow background (you can change that color,
-see C<.Xdefaults> and C<nxtvepg.ad> in L<"FILES">.)  With the slider
-you can select how for to shift the expire time threshold into the past.
-The entry fields below the slider show the threshold in units of days
-and hours. You can also edit these fields directly: Press the Return
-key to apply the change.
+Unlike all other filter options this one is used to I<enlarge> the set of
+matching programmes. By default the threshold is zero so that expired
+programmes immediately disappear from the list. The options in this dialog
+allow including programmes with a stop time in the past into the list; They
+will be marked with a yellow background (you can change that color, see
+C<.Xdefaults> and C<nxtvepg.ad> in L<"FILES">.)
 
-By default the threshold is zero so that expired programmes immediately
-disappear from the list.
+With the slider you can select how for to shift the expire time threshold into
+the past.  The entry fields below the slider show the threshold in units of
+days and hours. You can also edit these fields directly: Press the Return key
+to apply the change.
+
+When enabling check-button "Show all expired", then filtering of
+expired programmes is disabled. The list will then start with the
+oldest programme that is still present in the database.
 
 Note you cannot add more programmes this way than are stored in the
 database. nxtvepg will not remove expired programmes from the database,

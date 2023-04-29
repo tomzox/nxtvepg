@@ -1040,19 +1040,24 @@ Die Zeitdauer kann entweder durch die Skalen oder durch direkte Eingabe der Wert
 
 =item B<Expired Programmes Display>
 
-Im Gegensatz zu allen anderen Filteroptionen wird diese genutzt, um den
-Satz zutreffender Sendungen zu I<vergrößern>. Sie ermöglicht es,
-abgelaufene Sendungen mit in die Liste einzuschließen (d.h. solche mit
-Stopzeit in der Vergangenheit); diese werden mit einem gelblichen
-Hintergrund gekennzeichnet (die Farbe können Sie ändern, siehe
-C<.Xdefaults> und C<nxtvepg.ad> in L<"FILES">). Mit dem Schieberegler
-können Sie die Schwelle der Ablaufzeit Minutengenau verstellen. Die
-Eingabefelder unterhalb des Schiebers geben die äquivalente Zeitschwelle
-in Einheiten von Tagen und Stunden an. Sie können diese Felder auch
-direkt editieren; Drücken Sie die Return-Taste um Änderungen zu
+Im Gegensatz zu allen anderen Filteroptionen wird diese genutzt, um den Satz
+zutreffender Sendungen zu I<vergrößern>. Standardmäßig ist die Schwelle für die
+Ablaufzeit Null, sodass abgelaufene Sendungen sofort aus der Anzeige
+verschwinden. Die Optionen in diesem Dialog erbauben, die Schwelle zu ändern,
+so daß auch Sendungen mit Stoppzeit in der Vergangenheit angezeigt werden.
+Diese werden mit einem gelblichen Hintergrund gekennzeichnet (die Farbe können
+Sie ändern, siehe C<.Xdefaults> und C<nxtvepg.ad> in L<"FILES">).
+
+Mit dem Schieberegler können Sie die Schwelle der Ablaufzeit minutengenau
+verstellen. Die Eingabefelder unterhalb des Schiebers geben die äquivalente
+Zeitschwelle in Einheiten von Tagen und Stunden an. Sie können diese Felder
+auch direkt editieren; Drücken Sie die Return-Taste um Änderungen zu
 übernehmen.
 
-Standardmäßig ist die Schwelle für die Ablaufzeit Null, sodass abgelaufene Sendungen sofort aus der Anzeige verschwinden.
+Mit der Option I<Show all expired programmes> kann dieser Filter
+abgeschalten werden, so dass alle abgelaufenen Sendungen angezeigt
+werden. Die Programmliste beginnt dann mit der ältesten Sendung die
+noch in der Programmdatenbank vorhanden ist.
 
 Beachten Sie, dass Sie nicht mehr Sendungen hinzufügen können, als in
 der Datenbank gespeichert sind. nxtvepg löscht abgelaufene Programme

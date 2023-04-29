@@ -1696,8 +1696,9 @@ proc ResetVpsPdcFilt {} {
 }
 
 proc ResetExpireDelay {} {
-   global piexpire_display 0
+   global piexpire_display piexpire_never
 
+   set piexpire_never 0
    set piexpire_display 0
    C_SelectExpiredPiDisplay
 }
@@ -2124,6 +2125,16 @@ proc SelectExpireDelayFilter {} {
 
    C_SelectExpiredPiDisplay
    C_PiBox_Refresh
+}
+
+#
+# Interface for disabling programme expiry pre-filter
+#
+proc SelectExpireNeverFilter {never} {
+   global piexpire_never
+
+   set piexpire_never $never
+   SelectExpireDelayFilter
 }
 
 ##

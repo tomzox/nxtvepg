@@ -1751,9 +1751,18 @@ static int PiFilter_ContextMenuAddFilter( ClientData ttp, Tcl_Interp *interp, in
 //
 void PiFilter_Expire( void )
 {
+   Tcl_Obj * disableVar;
    Tcl_Obj * cutOffVar;
+   int    expireNever;
    int    cutOffTime;
    time_t expireTime;
+
+   disableVar = Tcl_GetVar2Ex(interp, "piexpire_never", NULL, TCL_GLOBAL_ONLY);
+   if ( (disableVar == NULL) ||
+        (Tcl_GetBooleanFromObj(NULL, disableVar, &expireNever) != TCL_OK) )
+   {
+      expireNever = 0;
+   }
 
    cutOffVar = Tcl_GetVar2Ex(interp, "piexpire_display", NULL, TCL_GLOBAL_ONLY);
    if ( (cutOffVar == NULL) ||
@@ -1765,7 +1774,14 @@ void PiFilter_Expire( void )
    expireTime = EpgGetUiMinuteTime() - (cutOffTime * 60);
 
    EpgDbFilterSetExpireTime(pPiFilterContext, expireTime);
-   EpgDbPreFilterEnable(pPiFilterContext, FILTER_EXPIRE_TIME);
+
+   if (expireNever == 0)
+      EpgDbPreFilterEnable(pPiFilterContext, FILTER_EXPIRE_TIME);
+   else
+      EpgDbPreFilterDisable(pPiFilterContext, FILTER_EXPIRE_TIME);
+
+   // Remove error overlay in case there are PI to display now
+   UiControl_CheckDbState(NULL);
 }
 
 // ----------------------------------------------------------------------------
