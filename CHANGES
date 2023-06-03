@@ -5,6 +5,14 @@ features).  For patchlevel releases also internal changes might be listed in
 case they may fix bugs (or cause new ones)
 
 
+from 3.0.0 to 3.1.0 (not yet released)
+
+This release only contains a small feature enhancement requested by users:
+
+- Extended expiry filter dialog to allow completely disabling the filter
+  so that even programme data that is completely expired can be viewed.
+
+
 from 2.9.0 to 3.0.0 (2021-03-22)
 
 After 10 years gap in development, this new release strips features that

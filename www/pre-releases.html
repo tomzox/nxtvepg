@@ -84,52 +84,30 @@ Please do not redistribute.
 <!-- ------------------------------------------------------------------------ -->
 <BR><HR WIDTH="75%">
 
-<H2><A NAME="nxtvepg_3_0_0">nxtvepg 3.0 development line</A></H2>
+<H2><A NAME="pre_rel_nxtvepg">nxtvepg 3.1.0 development line</A></H2>
 <P>
-No pre-releases are currently available.
-</P><P>
-Latest release is 3.0.0 available on the <A HREF="download.html">download page</A>.
+The packages below contain snapshots of development of the 3.1.0 release
+of nxtvepg.
 </P>
 
-<!-- ------------------------------------------------------------------------ -->
-<!--
-<BR><HR WIDTH="75%">
-
-<H2><A NAME="pre_rel_nxtvepg">nxtvepg 2.9.0 development line</A></H2>
+<H3>nxtvepg pre-release 3.0.1 (2023-Jun-03)</H3>
 <P>
-The packages below contain stable snapshots of development of the 2.9.0 release
-of nxtvepg. Release 2.9.0 is be the last version of nxtvepg to actually
-support nexTView EPG.
-</P>
-
-<H3>nxtvepg pre-release 2.9.0pre5 (2020-Dec-23)</H3>
-<P>
-This pre-release contains mostly minor fixes to allow compilation with current
-compiler, video4linux driver, and library versions (i.e. adaption to 9 year
-evolution of those tools since the last release), plus a few bug-fixes.
-</P>
-<P>
-Details on changes in this and older releases is available in the
+Details on changes in this and older releases are available in the
 <A HREF="#changelog">changelog</A> below on this page.
 </P>
 
 <UL>
-<LI CLASS="spaced">Sources:
-    <A HREF="http://nxtvepg.sourceforge.net/tmp/nxtvepg-2.9.0pre5.tar.gz">nxtvepg-2.9.0pre5.tar.gz</A> (apx 1.8 MB)
-
-<BR>Note: if you want to test nxtvepg with
-<A HREF="http://nxtvepg.sourceforge.net/tmp/README-proxy.txt">VBI proxy</A>
-(allows multiple simultanuous VBI device users) then enable
-<KBD>-DUSE_LIBZVBI</KBD> in the nxtvepg Makefile and get libzvbi from
-<A HREF="http://zapping.sourceforge.net/">zapping.sourceforge.net</A>.
+<LI CLASS="spaced">Download from the
+    <A HREF="https://github.com/tomzox/nxtvepg">nxtvepg github site</A>
 
 <LI CLASS="spaced">Win32 executable:
-    <A HREF="http://nxtvepg.sourceforge.net/tmp/nxtvepg-2.9.0pre5-win.zip">nxtvepg-2.9.0pre5-win.zip</A> (apx. 3.5 MB)
+    <A HREF="http://nxtvepg.sourceforge.net/tmp/nxtvepg-3.0.1-win.zip">nxtvepg-3.0.1-win.zip</A> (apx. 3.5 MB)
 
-<BR><SPAN CLASS="anno">Does not contain libraries tcl85.dll and tk85.dll and other unchanged files.
-   Please unzip the last official release 2.8.1 into the target directory and then
+<BR><SPAN CLASS="anno">
+   Please copy the last official release into the target directory and then
    unzip the pre-release on top of these, into the same directory.</SPAN>
 
+<!--
 <LI CLASS="spaced">To enable use of vendor supplied WDM drivers for analog TV capture cards,
     you need an additional DLL which was developed separately by Gérard Chevalier.
     Download from below.
@@ -138,14 +116,8 @@ Details on changes in this and older releases is available in the
     <A HREF="http://nxtvepg.sourceforge.net/tmp/nxtvepg-2.8.1pre3-tvsim.zip">nxtvepg-2.8.1pre3-tvsim.zip</A><BR>
 Please try to reproduce any problems related to interaction with K!TV with tvsim.exe
 before you report them.
-</UL>
 -->
-
-<P>
-Alternatively you can download the sources from the
-<A HREF="https://github.com/tomzox/nxtvepg">nxtvepg github site</A>
-and build the executable yourself using instructions provided there.
-</P>
+</UL>
 
 <!--
 <P>
@@ -156,16 +128,17 @@ Older releases and associated files may still be available in the
 
 <!-- ------------------------------------------------------------------------ -->
 
-<!--
-<P><BR><P>
-<HR WIDTH="75%">
-
 <H2><A NAME="changelog">Change history</A></H2>
 
-<H3>Changes between 2.9.0pre4 and 2.9.0pre5 (2020-Dec-23)</H3>
+<H3>Changes between 3.0.0 and 3.0.1 (2023-June-03)</H3>
+<P>
 <UL>
+<LI>Extended expiry filter dialog to allow completely disabling the filter
+  so that even programme data that is completely expired can be viewed.
 </UL>
--->
+</P>
+
+<P><BR><P>
 
 <!-- ------------------------------------------------------------------------ -->
 

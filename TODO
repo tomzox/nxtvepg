@@ -4,12 +4,6 @@ Your feedback is always welcome, so feel free to mail me if you want to
 boost any item's priority, find more points that need to be fixed or if
 you have ideas for additional features.
 
-Mandatory fixes for release 3.0.0:
-- teletext limit overview date range (also for first page)
-- ttx grabber: special rules for magenta dates on WDR
-- update changelog 2.9.0 & 3.0; write release notes
-- update WWW: news, provider list
-
 Post-Nextview EPG:
 - XMLTV service name: when merging teletext-only use "Merged teletext (%d networks)"
 - bad error message when using "Load teletext EPG" and no files available yet
