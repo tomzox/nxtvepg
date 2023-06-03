@@ -663,7 +663,7 @@ static void VbiRec_CbAttachTv( bool enable, bool acqEnabled, bool slaveStateChan
 // ---------------------------------------------------------------------------
 // Update CNI/PIL/text in the display for one source
 //
-static void UpdateCni( volatile CNI_ACQ_STATE * pNew, CNIPIL * pOld, char * pVar )
+static void UpdateCni( volatile CNI_ACQ_STATE * pNew, CNIPIL * pOld, const char * pVar )
 {
    char *ps, *pe;
    uint outlen;
@@ -727,7 +727,7 @@ static void UpdateCni( volatile CNI_ACQ_STATE * pNew, CNIPIL * pOld, char * pVar
       else
          pOld->text[0] = 0;
 
-      Tcl_SetVar(interp, pVar, comm, TCL_GLOBAL_ONLY);
+      Tcl_SetVar(interp, (char*) pVar, comm, TCL_GLOBAL_ONLY);
    }
 }
 

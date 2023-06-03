@@ -788,8 +788,8 @@ bool BtDriver_StartAcq( void )
 {
    char devName[32];
 #if !defined(__NetBSD__) && !defined(__FreeBSD__)
-   static char * pLastDevPath = NULL;
-   char * pDevPath;
+   static const char * pLastDevPath = NULL;
+   const char * pDevPath;
    uint try;
 
    for (try = 0; try < 3; try++)
