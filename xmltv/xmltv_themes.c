@@ -65,7 +65,7 @@ void Xmltv_ParseThemeStringGerman( HASHED_THEMES * pCache, const char * pStr )
         (strstr(pStr, "fantas") != NULL) ||
         (strstr(pStr, "horror") != NULL) )
       XMLTV_ADD_THEME_CODE(0x10, 0x13);
-   if ( (strstr(pStr, "komöd") != NULL) ||
+   if ( (strstr(pStr, "komÃ¶d") != NULL) ||
         (strstr(pStr, "comedy") != NULL) )
       XMLTV_ADD_THEME_CODE(0x10, 0x14);
    if (strstr(pStr, "drama") != NULL)
@@ -100,7 +100,7 @@ void Xmltv_ParseThemeStringGerman( HASHED_THEMES * pCache, const char * pStr )
       XMLTV_ADD_THEME_CODE(0x25, 0x26);
    if (strstr(pStr, "ratgeber") != NULL)
       XMLTV_ADD_THEME_CODE(0x25, 0x27);
-   if (strstr(pStr, "persönlichkeit") != NULL)
+   if (strstr(pStr, "persÃ¶nlichkeit") != NULL)
       XMLTV_ADD_THEME_CODE(0x25, 0x28);
    if ( (strstr(pStr, "wirtschaft") != NULL) ||
         (strstr(pStr, "politik") != NULL) ||
@@ -140,7 +140,8 @@ void Xmltv_ParseThemeStringGerman( HASHED_THEMES * pCache, const char * pStr )
         (strstr(pStr, "freizeit") != NULL) )
       XMLTV_ADD_THEME_CODE(0x34, 0);
 
-   if (strstr(pStr, "fußball") != NULL)
+   if ( (strstr(pStr, "fuÃŸball") != NULL) ||
+        (strstr(pStr, "fussball") != NULL) )
       XMLTV_ADD_THEME_CODE(0x40, 0x43);
    if ( (strstr(pStr, "tennis") != NULL) ||
         (strstr(pStr, "squash") != NULL) )
@@ -236,7 +237,7 @@ void Xmltv_ParseThemeStringGerman( HASHED_THEMES * pCache, const char * pStr )
    if (strstr(pStr, "mode") != NULL)
       XMLTV_ADD_THEME_CODE(0x70, 0x7b);
    if ( (strstr(pStr, "kunst") != NULL) ||
-        (strstr(pStr, "künst") != NULL) ||
+        (strstr(pStr, "kÃ¼nst") != NULL) ||
         (strstr(pStr, "kultur") != NULL) )
    {
       if (strstr(pStr, "darstellend") != NULL)
@@ -261,7 +262,7 @@ done:
 //
 void Xmltv_ParseThemeStringFrench( HASHED_THEMES * pCache, const char * pStr )
 {
-   if (strstr(pStr, "séries") != NULL)
+   if (strstr(pStr, "sÃ©ries") != NULL)
       XMLTV_ADD_THEME_CODE(0x80, 0);
 
    if ( (strstr(pStr, "policier") != NULL) ||
@@ -276,7 +277,7 @@ void Xmltv_ParseThemeStringFrench( HASHED_THEMES * pCache, const char * pStr )
         (strstr(pStr, "fantas") != NULL) ||
         (strstr(pStr, "horreur") != NULL) )
       XMLTV_ADD_THEME_CODE(0x10, 0x13);
-   if (strstr(pStr, "comédie") != NULL)
+   if (strstr(pStr, "comÃ©die") != NULL)
       XMLTV_ADD_THEME_CODE(0x10, 0x14);
    if ( (strstr(pStr, "historique") != NULL) )
       XMLTV_ADD_THEME_CODE(0x10, 0x17);
@@ -290,13 +291,13 @@ void Xmltv_ParseThemeStringFrench( HASHED_THEMES * pCache, const char * pStr )
    if (strstr(pStr, "film") != NULL)
       XMLTV_ADD_THEME_CODE(0x10, 0);
 
-   if (strstr(pStr, "météo") != NULL)
+   if (strstr(pStr, "mÃ©tÃ©o") != NULL)
       XMLTV_ADD_THEME_CODE(0x20, 0x21);
    if (strstr(pStr, "document") != NULL)
       XMLTV_ADD_THEME_CODE(0x20, 0x23);
    if ( (strstr(pStr, "discussion") != NULL) ||
         (strstr(pStr, "interview") != NULL) ||
-        (strstr(pStr, "débat") != NULL) )
+        (strstr(pStr, "dÃ©bat") != NULL) )
       XMLTV_ADD_THEME_CODE(0x20, 0x24);
    if (strstr(pStr, "journal") != NULL)
       XMLTV_ADD_THEME_CODE(0x20, 0);
@@ -307,7 +308,7 @@ void Xmltv_ParseThemeStringFrench( HASHED_THEMES * pCache, const char * pStr )
       XMLTV_ADD_THEME_CODE(0x25, 0x27);
    if (strstr(pStr, "presse people") != NULL)
       XMLTV_ADD_THEME_CODE(0x25, 0x28);
-   if ( (strstr(pStr, "économie") != NULL) ||
+   if ( (strstr(pStr, "Ã©conomie") != NULL) ||
         (strstr(pStr, "politique") != NULL) ||
         (strstr(pStr, "socio") != NULL) )
       XMLTV_ADD_THEME_CODE(0x25, 0);
@@ -318,7 +319,7 @@ void Xmltv_ParseThemeStringFrench( HASHED_THEMES * pCache, const char * pStr )
         (strncmp(pStr, "jeu", 3) == 0) ||
         (strstr(pStr, "concours") != NULL) )
       XMLTV_ADD_THEME_CODE(0x30, 0x31);
-   if (strstr(pStr, "variété") != NULL)
+   if (strstr(pStr, "variÃ©tÃ©") != NULL)
       XMLTV_ADD_THEME_CODE(0x30, 0x32);
    if (strstr(pStr, "show") != NULL)
       XMLTV_ADD_THEME_CODE(0x30, 0);
@@ -331,7 +332,7 @@ void Xmltv_ParseThemeStringFrench( HASHED_THEMES * pCache, const char * pStr )
    if (strstr(pStr, "automobile") != NULL)
       XMLTV_ADD_THEME_CODE(0x34, 0x37);
    if ( (strstr(pStr, "fitness") != NULL) ||
-        (strstr(pStr, "santé") != NULL) )
+        (strstr(pStr, "santÃ©") != NULL) )
       XMLTV_ADD_THEME_CODE(0x34, 0x38);
    if (strstr(pStr, "cuisine") != NULL)
       XMLTV_ADD_THEME_CODE(0x34, 0x39);
@@ -345,11 +346,11 @@ void Xmltv_ParseThemeStringFrench( HASHED_THEMES * pCache, const char * pStr )
    if ( (strstr(pStr, "tennis") != NULL) ||
         (strstr(pStr, "squash") != NULL) )
       XMLTV_ADD_THEME_CODE(0x40, 0x44);
-   if (strstr(pStr, "athlétisme") != NULL)
+   if (strstr(pStr, "athlÃ©tisme") != NULL)
       XMLTV_ADD_THEME_CODE(0x40, 0x46);
    if (strstr(pStr, "sports") != NULL)
    {
-      if (strstr(pStr, "mécaniques") != NULL)
+      if (strstr(pStr, "mÃ©caniques") != NULL)
          XMLTV_ADD_THEME_CODE(0x40, 0x47);
       if (strstr(pStr, "aquatiques") != NULL)
          XMLTV_ADD_THEME_CODE(0x40, 0x48);
@@ -357,10 +358,10 @@ void Xmltv_ParseThemeStringFrench( HASHED_THEMES * pCache, const char * pStr )
          XMLTV_ADD_THEME_CODE(0x40, 0x49);
       if (strstr(pStr, "locaux") != NULL)
          XMLTV_ADD_THEME_CODE(0x40, 0x4c);
-      if (strstr(pStr, "événements") != NULL)
+      if (strstr(pStr, "Ã©vÃ©nements") != NULL)
          XMLTV_ADD_THEME_CODE(0x40, 0x41);
    }
-   if (strstr(pStr, "équitation") != NULL)
+   if (strstr(pStr, "Ã©quitation") != NULL)
       XMLTV_ADD_THEME_CODE(0x40, 0x4a);
    if (strstr(pStr, "martiaux") != NULL)
       XMLTV_ADD_THEME_CODE(0x40, 0x4b);
@@ -379,7 +380,7 @@ void Xmltv_ParseThemeStringFrench( HASHED_THEMES * pCache, const char * pStr )
       XMLTV_ADD_THEME_CODE(0x40, 0);
 
    if ( (strstr(pStr, "marionnette") != NULL) ||
-        (strstr(pStr, "dessin animé") != NULL) )
+        (strstr(pStr, "dessin animÃ©") != NULL) )
       XMLTV_ADD_THEME_CODE(0x50, 0x55);
    if (strstr(pStr, "jeunes") != NULL)
    {
@@ -392,11 +393,11 @@ void Xmltv_ParseThemeStringFrench( HASHED_THEMES * pCache, const char * pStr )
       XMLTV_ADD_THEME_CODE(0x56, 0x57);
    if (strstr(pStr, "technologie") != NULL)
       XMLTV_ADD_THEME_CODE(0x56, 0x58);
-   if (strstr(pStr, "médecine") != NULL)
+   if (strstr(pStr, "mÃ©decine") != NULL)
       XMLTV_ADD_THEME_CODE(0x56, 0x59);
-   if (strstr(pStr, "étranger") != NULL)
+   if (strstr(pStr, "Ã©tranger") != NULL)
       XMLTV_ADD_THEME_CODE(0x56, 0x5a);
-   if (strstr(pStr, "éducation") != NULL)
+   if (strstr(pStr, "Ã©ducation") != NULL)
       XMLTV_ADD_THEME_CODE(0x56, 0x5c);
    if (strstr(pStr, "langues") != NULL)
       XMLTV_ADD_THEME_CODE(0x56, 0x5d);
@@ -407,9 +408,9 @@ void Xmltv_ParseThemeStringFrench( HASHED_THEMES * pCache, const char * pStr )
       XMLTV_ADD_THEME_CODE(0x60, 0x61);
    if (strstr(pStr, "jazz") != NULL)
       XMLTV_ADD_THEME_CODE(0x60, 0x64);
-   if ( (strstr(pStr, "opéra") != NULL) ||
+   if ( (strstr(pStr, "opÃ©ra") != NULL) ||
         (strcmp(pStr, "musical") == 0) ||
-        (strstr(pStr, "comédie musicale") != NULL) )
+        (strstr(pStr, "comÃ©die musicale") != NULL) )
       XMLTV_ADD_THEME_CODE(0x60, 0x65);
    if (strstr(pStr, "ballett") != NULL)
       XMLTV_ADD_THEME_CODE(0x60, 0x66);
@@ -425,15 +426,15 @@ void Xmltv_ParseThemeStringFrench( HASHED_THEMES * pCache, const char * pStr )
 
    if (strstr(pStr, "religion") != NULL)
       XMLTV_ADD_THEME_CODE(0x70, 0x73);
-   if (strcmp(pStr, "représentations artistiques") == 0)
+   if (strcmp(pStr, "reprÃ©sentations artistiques") == 0)
       XMLTV_ADD_THEME_CODE(0x70, 0x71);
    if (strstr(pStr, "beaux arts") != NULL)
       XMLTV_ADD_THEME_CODE(0x70, 0x72);
    if (strstr(pStr, "culture pop") != NULL)
       XMLTV_ADD_THEME_CODE(0x70, 0x74);
-   if (strstr(pStr, "littérature") != NULL)
+   if (strstr(pStr, "littÃ©rature") != NULL)
       XMLTV_ADD_THEME_CODE(0x70, 0x75);
-   if (strstr(pStr, "cinéma") != NULL)
+   if (strstr(pStr, "cinÃ©ma") != NULL)
       XMLTV_ADD_THEME_CODE(0x70, 0x76);
    if ( (strstr(pStr, "amateur") != NULL) &&
         ( (strstr(pStr, "film") != NULL) ||
@@ -463,6 +464,7 @@ done:
 void Xmltv_ParseThemeStringEnglish( HASHED_THEMES * pCache, const char * pStr )
 {
    if ( (strstr(pStr, "series") != NULL) ||
+        (strstr(pStr, "telenovela") != NULL) ||
         (strstr(pStr, "sitcom") != NULL) )
       XMLTV_ADD_THEME_CODE(0x80, 0);
 
@@ -673,6 +675,226 @@ void Xmltv_ParseThemeStringEnglish( HASHED_THEMES * pCache, const char * pStr )
 
 done:
    dprintf3("Theme-English: '%s': 0x%02x,%02x\n", pStr, pCache->cat, pCache->theme);
+   return;
+}
+
+// ----------------------------------------------------------------------------
+// Polish theme names
+//
+void Xmltv_ParseThemeStringPolish( HASHED_THEMES * pCache, const char * pStr )
+{
+   if ( (strstr(pStr, "serie") != NULL) ||  // PL: series
+        (strstr(pStr, "seria") != NULL) ||
+        (strstr(pStr, "telenowela") != NULL) ||
+        (strstr(pStr, "sitcom") != NULL) )
+      XMLTV_ADD_THEME_CODE(0x80, 0);
+
+   if ( (strstr(pStr, "detectyw") != NULL) ||
+        (strstr(pStr, "thriller") != NULL) ||
+        (strstr(pStr, "kryminalna") != NULL) ||
+        (strstr(pStr, "dreszczowiec") != NULL) )
+      XMLTV_ADD_THEME_CODE(0x10, 0x11);
+   if ( (strncmp(pStr, "wojna", 3) == 0) ||  // war
+        (strstr(pStr, "western") != NULL) ||
+        (strstr(pStr, "przygod") != NULL) )
+      XMLTV_ADD_THEME_CODE(0x10, 0x12);
+   if ( (strstr(pStr, "fikcja") != NULL) ||
+        (strstr(pStr, "sci-fi") != NULL) ||
+        (strstr(pStr, "film sf") != NULL) ||
+        (strstr(pStr, "science fiction") != NULL) ||
+        (strstr(pStr, "fantasty") != NULL) ||
+        (strstr(pStr, "horror") != NULL) )
+      XMLTV_ADD_THEME_CODE(0x10, 0x13);
+   if (strstr(pStr, "komedia") != NULL)
+      XMLTV_ADD_THEME_CODE(0x10, 0x14);
+   if ( (strstr(pStr, "dramat") != NULL) ||
+        (strstr(pStr, "folklor") != NULL))
+      XMLTV_ADD_THEME_CODE(0x10, 0x15);
+   if ( (strstr(pStr, "romanty") != NULL) ||
+        (strstr(pStr, "romans") != NULL) )
+      XMLTV_ADD_THEME_CODE(0x10, 0x16);
+   if ( (strstr(pStr, "history") != NULL) )
+      XMLTV_ADD_THEME_CODE(0x10, 0x17);
+   if ( (strstr(pStr, "erotyc") != NULL) ||
+        (strstr(pStr, "xxx") != NULL) )
+      XMLTV_ADD_THEME_CODE(0x10, 0x18);
+   if (strstr(pStr, "film") != NULL)
+      XMLTV_ADD_THEME_CODE(0x10, 0);
+
+   if (strstr(pStr, "pogoda") != NULL)
+      XMLTV_ADD_THEME_CODE(0x20, 0x21);
+   if (strstr(pStr, "dokument") != NULL)  // documentary
+      XMLTV_ADD_THEME_CODE(0x20, 0x23);
+   if ( (strstr(pStr, "dyskusj") != NULL) ||  // discussion
+        (strstr(pStr, "wywiad") != NULL) ||  // interview
+        (strstr(pStr, "debata") != NULL) )  // debate
+      XMLTV_ADD_THEME_CODE(0x20, 0x24);
+   if ( (strstr(pStr, "aktualnoÅ›c") != NULL) ||  // news
+        (strstr(pStr, "wiadomoÅ›c") != NULL) ||  // news
+        (strstr(pStr, "newsy") != NULL) )
+      XMLTV_ADD_THEME_CODE(0x20, 0);
+
+   if (strstr(pStr, "raport") != NULL)
+      XMLTV_ADD_THEME_CODE(0x25, 0x26);
+   if ( (strstr(pStr, "biznesowy") != NULL) ) // business
+      XMLTV_ADD_THEME_CODE(0x25, 0x27);
+   //if (strstr(pStr, "remarkable people") != NULL)
+   //   XMLTV_ADD_THEME_CODE(0x25, 0x28);
+   if ( (strstr(pStr, "ekonomia") != NULL) ||  // business
+        (strstr(pStr, "polityk") != NULL) ||  // politics
+        (strstr(pStr, "policyjny") != NULL) ||  // politics
+        (strstr(pStr, "socjal") != NULL) ||  // social
+        (strstr(pStr, "reportaz") != NULL) ||  // report
+        (strstr(pStr, "reportaÅ¼") != NULL) )  // report
+      XMLTV_ADD_THEME_CODE(0x25, 0);
+
+   if (strstr(pStr, "talk show") != NULL)
+      XMLTV_ADD_THEME_CODE(0x30, 0x33);
+   if ( (strstr(pStr, "kwiz") != NULL) ||  // quiz
+        (strstr(pStr, "teleturniej") != NULL) )
+      XMLTV_ADD_THEME_CODE(0x30, 0x31);
+   //if (strstr(pStr, "variety show") != NULL)
+   //   XMLTV_ADD_THEME_CODE(0x30, 0x32);
+   if ( (strstr(pStr, "game") != NULL) ||
+        (strstr(pStr, "show") != NULL) )
+      XMLTV_ADD_THEME_CODE(0x30, 0);
+
+   if ( (strstr(pStr, "podrÃ³Å¼") != NULL) ||  // travel
+        (strstr(pStr, "turystyka") != NULL) )  // tourism
+      XMLTV_ADD_THEME_CODE(0x34, 0x35);
+   if (strstr(pStr, " rzemiosÅ‚") != NULL)  // handiwork
+      XMLTV_ADD_THEME_CODE(0x34, 0x36);
+   //if (strstr(pStr, "motoring") != NULL)
+   //   XMLTV_ADD_THEME_CODE(0x34, 0x37);
+   if ( (strstr(pStr, "fitmess") != NULL) ||
+        (strstr(pStr, "zdrowie") != NULL) ||  // health
+        (strstr(pStr, "zdrowotny") != NULL) )
+      XMLTV_ADD_THEME_CODE(0x34, 0x38);
+   if ( (strstr(pStr, "gotowaÄ‡") != NULL) || // cooking
+        (strstr(pStr, "kulinarny") != NULL) ) // cooking
+      XMLTV_ADD_THEME_CODE(0x34, 0x39);
+   if ( (strstr(pStr, "shopping") != NULL) ||
+        (strstr(pStr, "zakupy") != NULL) ||  // shopping
+        (strstr(pStr, "reklamowy") != NULL) )  // advertising
+      XMLTV_ADD_THEME_CODE(0x34, 0x3a);
+   if ( (strstr(pStr, "hobby") != NULL) ||
+        (strstr(pStr, " ogrÃ³d") != NULL) )  // garden
+      XMLTV_ADD_THEME_CODE(0x34, 0);
+
+   if (strstr(pStr, "futbal") != NULL)
+      XMLTV_ADD_THEME_CODE(0x40, 0x43);
+   if ( (strstr(pStr, "tenis") != NULL) )
+      XMLTV_ADD_THEME_CODE(0x40, 0x44);
+   if (strstr(pStr, "sport") != NULL)
+   {
+      if (strstr(pStr, "motorowy") != NULL)  // motor
+         XMLTV_ADD_THEME_CODE(0x40, 0x47);
+      if (strstr(pStr, "wodny") != NULL)  // water
+         XMLTV_ADD_THEME_CODE(0x40, 0x48);
+      if (strstr(pStr, "zimowy") != NULL)  // winter
+         XMLTV_ADD_THEME_CODE(0x40, 0x49);
+      if (strstr(pStr, "magazyn") != NULL) // magazine
+         XMLTV_ADD_THEME_CODE(0x40, 0x42);
+      if (strstr(pStr, "live") != NULL)  // event
+         XMLTV_ADD_THEME_CODE(0x40, 0x41);
+      XMLTV_ADD_THEME_CODE(0x40, 0);
+   }
+   if ( (strstr(pStr, "rower") != NULL) ||
+        (strstr(pStr, "golf") != NULL) ||
+        (strncmp(pStr, "box", 4) == 0) ||
+        (strncmp(pStr, "ski", 3) == 0) )
+      XMLTV_ADD_THEME_CODE(0x40, 0);
+
+   if (strstr(pStr, "zerÃ³wka") != NULL)  // pre-school
+      XMLTV_ADD_THEME_CODE(0x50, 0x51);
+   if ( (strstr(pStr, "animowany") != NULL) )  // animation
+      XMLTV_ADD_THEME_CODE(0x50, 0x55);
+   if ( (strstr(pStr, "dziecko") != NULL) ||  // children
+        (strstr(pStr, "dzieci") != NULL) )
+   {
+      if (strstr(pStr, "edukacja") != NULL)  // education
+         XMLTV_ADD_THEME_CODE(0x50, 0x54);
+      XMLTV_ADD_THEME_CODE(0x50, 0);
+   }
+
+   if ( (strstr(pStr, "natura") != NULL) )  // nature
+      XMLTV_ADD_THEME_CODE(0x56, 0x57);
+   if (strstr(pStr, "technologia") != NULL)  // technology
+      XMLTV_ADD_THEME_CODE(0x56, 0x58);
+   if (strstr(pStr, " lekarstw") != NULL)  // medicine
+      XMLTV_ADD_THEME_CODE(0x56, 0x59);
+   if (strstr(pStr, "zagranic") != NULL)  // foreign
+      XMLTV_ADD_THEME_CODE(0x56, 0x5a);
+   if (strstr(pStr, "edukacja") != NULL)  // education
+      XMLTV_ADD_THEME_CODE(0x56, 0x5c);
+   if (strstr(pStr, "jÄ™zyk") != NULL)  // language
+      XMLTV_ADD_THEME_CODE(0x56, 0x5d);
+   if (strstr(pStr, "nauka") != NULL)  // science
+      XMLTV_ADD_THEME_CODE(0x56, 0);
+
+   if (strstr(pStr, "rockowa") != NULL) // rock music
+      XMLTV_ADD_THEME_CODE(0x60, 0x61);
+   if (strstr(pStr, "jazz") != NULL)
+      XMLTV_ADD_THEME_CODE(0x60, 0x64);
+   if (strstr(pStr, "opera") != NULL)
+      XMLTV_ADD_THEME_CODE(0x60, 0x65);
+   if (strstr(pStr, "ballet") != NULL)
+      XMLTV_ADD_THEME_CODE(0x60, 0x66);
+   if (strstr(pStr, "koncert") != NULL)  // concert
+      XMLTV_ADD_THEME_CODE(0x60, 0x66);
+  if (strstr(pStr, "musical") != NULL)
+     XMLTV_ADD_THEME_CODE(0x60, 0x65);
+   if (strstr(pStr, "muzyka") != NULL)  // music
+   {
+      if (strstr(pStr, "classical") != NULL)
+         XMLTV_ADD_THEME_CODE(0x60, 0x62);
+      if ( (strstr(pStr, "folk") != NULL) ||
+           (strstr(pStr, "tradycy") != NULL) )  // traditional
+         XMLTV_ADD_THEME_CODE(0x60, 0x63);
+      XMLTV_ADD_THEME_CODE(0x60, 0);
+   }
+
+   if ( (strstr(pStr, "kunszt") != NULL) ||  // performing arts
+        (strstr(pStr, "sztuk") != NULL) )
+      XMLTV_ADD_THEME_CODE(0x70, 0x71);
+   if ( (strstr(pStr, "religia") != NULL) ||  // religion
+        (strstr(pStr, "religijny") != NULL) )
+      XMLTV_ADD_THEME_CODE(0x70, 0x73);
+   if (strstr(pStr, " literatura") != NULL)  // literature
+      XMLTV_ADD_THEME_CODE(0x70, 0x75);
+   if (strstr(pStr, "kino") != NULL)  // cinema
+      XMLTV_ADD_THEME_CODE(0x70, 0x76);
+   if ( (strstr(pStr, "eksperymental") != NULL) &&  // experiment
+        (strstr(pStr, "film") != NULL) )
+      XMLTV_ADD_THEME_CODE(0x70, 0x77);
+   //if ( (strstr(pStr, "press") != NULL) ||
+   //     (strstr(pStr, "broadcasting") != NULL) )
+   //   XMLTV_ADD_THEME_CODE(0x70, 0x78);
+   if (strstr(pStr, "moda") != NULL)  // fashion
+      XMLTV_ADD_THEME_CODE(0x70, 0x7b);
+   if ( (strstr(pStr, "kultura") != NULL) )  // culture
+   {
+      //if (strstr(pStr, "fine") != NULL)
+      //   XMLTV_ADD_THEME_CODE(0x70, 0x72);
+      //if (strstr(pStr, "pop") != NULL)
+      //   XMLTV_ADD_THEME_CODE(0x70, 0x74);
+      if (strstr(pStr, "magazyn") != NULL) // magazine
+         XMLTV_ADD_THEME_CODE(0x70, 0x7a);
+      XMLTV_ADD_THEME_CODE(0x70, 0);
+   }
+
+   if (strstr(pStr, "film") != NULL)
+      XMLTV_ADD_THEME_CODE(0x10, 0);
+  if (strstr(pStr, "magazyn") != NULL) // magazine
+     XMLTV_ADD_THEME_CODE(0x20, 0);
+
+   dprintf1("Theme-Polish: '%s': unknown\n", pStr);
+   pCache->cat = 0;
+   pCache->theme = 0;
+   return;
+
+done:
+   dprintf3("Theme-Polish: '%s': 0x%02x,%02x\n", pStr, pCache->cat, pCache->theme);
    return;
 }
 

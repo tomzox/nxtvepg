@@ -1400,13 +1400,13 @@ proc FilterMenuAdd_EditorialRating {widget is_stand_alone} {
 proc FilterMenuAdd_ParentalRating {widget is_stand_alone} {
    $widget add radio -label any -command SelectParentalRating -variable parental_rating -value 0
    $widget add radio -label "ok for all ages" -command SelectParentalRating -variable parental_rating -value 1
-   $widget add radio -label "ok for 4 years or elder" -command SelectParentalRating -variable parental_rating -value 2
-   $widget add radio -label "ok for 6 years or elder" -command SelectParentalRating -variable parental_rating -value 3
-   $widget add radio -label "ok for 8 years or elder" -command SelectParentalRating -variable parental_rating -value 4
-   $widget add radio -label "ok for 10 years or elder" -command SelectParentalRating -variable parental_rating -value 5
-   $widget add radio -label "ok for 12 years or elder" -command SelectParentalRating -variable parental_rating -value 6
-   $widget add radio -label "ok for 14 years or elder" -command SelectParentalRating -variable parental_rating -value 7
-   $widget add radio -label "ok for 16 years or elder" -command SelectParentalRating -variable parental_rating -value 8
+   $widget add radio -label "ok for 4 years or older" -command SelectParentalRating -variable parental_rating -value 2
+   $widget add radio -label "ok for 6 years or older" -command SelectParentalRating -variable parental_rating -value 3
+   $widget add radio -label "ok for 8 years or older" -command SelectParentalRating -variable parental_rating -value 4
+   $widget add radio -label "ok for 10 years or older" -command SelectParentalRating -variable parental_rating -value 5
+   $widget add radio -label "ok for 12 years or older" -command SelectParentalRating -variable parental_rating -value 6
+   $widget add radio -label "ok for 14 years or older" -command SelectParentalRating -variable parental_rating -value 7
+   $widget add radio -label "ok for 16 years or older" -command SelectParentalRating -variable parental_rating -value 8
    if $is_stand_alone {
       $widget add separator
       $widget add checkbutton -label Invert -variable filter_invert(parental) -command InvertFilter

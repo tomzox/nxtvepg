@@ -127,7 +127,8 @@ typedef enum
    XMLTV_RATING_AGE,
    XMLTV_RATING_FSK,
    XMLTV_RATING_BBFC,
-   XMLTV_RATING_MPAA
+   XMLTV_RATING_MPAA,
+   XMLTV_RATING_PL,
 } XMLTV_RATING_SYS;
 
 #define XMLTV_PI_CAT_MAX  40   // 3 languages
@@ -156,7 +157,7 @@ typedef struct
 
    uint         pi_aspect_x;
    uint         pi_aspect_y;
-   uint         pi_star_rating_val;
+   double       pi_star_rating_val;
    uint         pi_star_rating_max;
    XMLTV_CAT_SYS pi_cat_system;
    uint         pi_cat_code;
@@ -219,6 +220,9 @@ static void Xmltv_ParseThemeString( char * pStr, XML_LANG_CODE lang )
             break;
          case XML_LANG_EN:
             Xmltv_ParseThemeStringEnglish(pCache, pStr);
+            break;
+         case XML_LANG_PL:
+            Xmltv_ParseThemeStringPolish(pCache, pStr);
             break;
          case XML_LANG_UNKNOWN:
          default:
@@ -439,6 +443,8 @@ static EPGDB_BLOCK * XmltvDb_BuildAi( const char * pProvName )
    uint  aiServiceNameLen;
    uint  netNameLenSum;
    uint  blockLen;
+
+   assert(xds.chn_count <= MAX_NETWOP_COUNT);
 
    netNameLenSum = 0;
    for (idx = 0; idx < xds.chn_count; idx++)
@@ -706,8 +712,12 @@ void Xmltv_ChannelClose( void )
          else
             debug2("Xmltv-ChannelClose: ID is not unique: '%s', display name '%s'", xds.p_chn_id_tmp, xds.p_chn_table[xds.chn_count].p_disp_name);
       }
+      else if (xds.chn_count >= MAX_NETWOP_COUNT)
+         debug1("Xmltv-ChannelClose: channel table overflow: dropping %s", xds.p_chn_id_tmp);
+      else if (xds.p_chn_id_tmp != NULL)
+         debug1("Xmltv-ChannelClose: no display name for channel ID %s", xds.p_chn_id_tmp);
       else
-         debug2("Xmltv-ChannelClose: no ID or no display name (%lx,%lx)", (long)xds.p_chn_id_tmp, (long)xds.p_chn_table[xds.chn_count].p_disp_name);
+         debug0("Xmltv-ChannelClose: missing ID attribute in channel tag");
 
       if (result == FALSE)
       {
@@ -725,7 +735,7 @@ void Xmltv_ChannelClose( void )
       xds.chn_open = FALSE;
    }
    else
-      fatal0("Xmltv-ChannelClose: not inside channel definition");
+      fatal0("Xmltv-ChannelClose: outside of channel definition");
 }
 
 void Xmltv_ChannelSetId( XML_STR_BUF * pBuf )
@@ -741,8 +751,10 @@ void Xmltv_ChannelSetId( XML_STR_BUF * pBuf )
          xds.p_chn_id_tmp = xstrdup(pStr);
       }
       else
-         debug2("Xmltv-ChannelSetId: 2 channel IDs: %s and %s", xds.p_chn_id_tmp, pStr);
+         debug2("Xmltv-ChannelSetId: multiple channel ID attributes in tag: %s and %s", xds.p_chn_id_tmp, pStr);
    }
+   else
+      debug0("Xmltv-ChannelSetId: outside of channel definition");
 }
 
 void Xmltv_ChannelAddName( XML_STR_BUF * pBuf )
@@ -751,13 +763,16 @@ void Xmltv_ChannelAddName( XML_STR_BUF * pBuf )
 
    if (xds.chn_open)
    {
+      // Pick the first display name (TODO pick one base on lang preference)
       if (xds.p_chn_table[xds.chn_count].p_disp_name == NULL)
       {
          xds.p_chn_table[xds.chn_count].p_disp_name = xstrdup(XML_STR_BUF_GET_STR(*pBuf));
       }
       else
-         debug2("Xmltv-ChannelAddName: 2 channel IDs: %s and %s", xds.p_chn_table[xds.chn_count].p_disp_name, XML_STR_BUF_GET_STR(*pBuf));
+         dprintf2("Xmltv-ChannelAddName: multiple channel IDs: %s and %s", xds.p_chn_table[xds.chn_count].p_disp_name, XML_STR_BUF_GET_STR(*pBuf));
    }
+   else
+      debug0("Xmltv-ChannelAddName: outside of channel definition");
 }
 
 void Xmltv_ChannelAddUrl( XML_STR_BUF * pBuf )
@@ -1175,6 +1190,10 @@ void Xmltv_PiRatingSetSystem( XML_STR_BUF * pBuf )
    {
       xds.pi_rating_sys = XMLTV_RATING_MPAA;
    }
+   else if (strcasecmp(pStr, "PL") == 0)
+   {
+      xds.pi_rating_sys = XMLTV_RATING_PL;
+   }
    else
       debug1("Xmltv-PiRatingSetSystem: unknown system '%s'", pStr);
 }
@@ -1185,15 +1204,17 @@ void Xmltv_PiRatingAddText( XML_STR_BUF * pBuf )
    char * p;
    long age;
 
-   // first check if it's a plain number, regardless of rating system
-   age = strtol(pStr, &p, 0);
-   if ((*pStr != 0) && (*p == 0))
+   // first check if it's a plain positive number, regardless of rating system
+   age = strtol(pStr, &p, 10);
+   if ((*pStr != 0) && ((*p == 0) || (*p == '+')) && (age >= 0))
    {
       // plain number -> assume age
-      if (age <= 18)
+      if (age == 0)
+         xds.pi.parental_rating = 1;
+      else if ((age > 0) && (age <= 18))
          xds.pi.parental_rating = age / 2;
       else
-         debug1("Xmltv-PiRatingAddText: weird age in rating: %ld", age);
+         debug1("Xmltv-PiRatingAddText: weird age in parental rating: %s", pStr);
    }
    else if (xds.pi_rating_sys == XMLTV_RATING_AGE)
    {
@@ -1209,14 +1230,16 @@ void Xmltv_PiRatingAddText( XML_STR_BUF * pBuf )
       // official FSK ratings: "ohne Beschränkung", "ab 6", "ab 12", "ab 16", "keine Freigabe"
       // http://www.fsk-online.de/
 
-      if (strstr(pStr, "ab 6") != NULL)
-         xds.pi.parental_rating = 6/2;
-      else if (strstr(pStr, "ab 12") != NULL)
-         xds.pi.parental_rating = 12/2;
-      else if (strstr(pStr, "ab 16") != NULL)
-         xds.pi.parental_rating = 16/2;
-      else if (strstr(pStr, "ab 18") != NULL)
-         xds.pi.parental_rating = 18/2;
+      int scan_pos;
+      int nscan = sscanf(pStr, "ab %ld%n", &age, &scan_pos);
+      if (   (nscan >= 1) && ((pStr[scan_pos] == 0) || (pStr[scan_pos] == ' '))
+          && (age >= 0) && (age <= 18))
+      {
+         if (age == 0)
+            xds.pi.parental_rating = 1;
+         else
+            xds.pi.parental_rating = age / 2;
+      }
       else if (strstr(pStr, "ohne") != NULL)
          xds.pi.parental_rating = 1;
       else if ( (strstr(pStr, "keine") != NULL) && (strstr(pStr, "freigabe") != NULL) )
@@ -1260,13 +1283,18 @@ void Xmltv_PiRatingAddText( XML_STR_BUF * pBuf )
       else
          debug1("Xmltv-PiRatingAddText: unknown MPAA rating '%s'", pStr);
    }
+   else if (xds.pi_rating_sys == XMLTV_RATING_PL)
+   {
+      // Using format "NN+" where NN is numerical age - no special handling needed
+      debug1("Xmltv-PiRatingAddText: unknown PL rating '%s'", pStr);
+   }
    else
    {
       debug1("Xmltv-PiRatingAddText: no system set for rating '%s'", pStr);
    }
 }
 
-static void Xmltv_PiStarRatingSet( uint cval, uint max_val )
+static void Xmltv_PiStarRatingSet( double cval, uint max_val )
 {
    if ((cval <= max_val) && (max_val > 0))
    {
@@ -1278,7 +1306,7 @@ static void Xmltv_PiStarRatingSet( uint cval, uint max_val )
          xds.pi.editorial_rating = ((cval * 7 + (max_val/2)) / max_val);
    }
    else
-      debug2("Xmltv-PiStarRatingSet: weird values: %d / %d", cval, max_val);
+      debug2("Xmltv-PiStarRatingSet: weird values: %f / %d", cval, max_val);
 }
 
 // DTD 0.5 only: rating in format "n / m"
@@ -1286,9 +1314,10 @@ void Xmltv_PiStarRatingAddText( XML_STR_BUF * pBuf )
 {
    const char * pStr = XML_STR_BUF_GET_STR(*pBuf);
    int nscan;
-   uint cval, max_val;
+   uint max_val;
+   double cval;
 
-   nscan = sscanf(pStr, "%u / %u", &cval, &max_val);
+   nscan = sscanf(pStr, "%lf / %u", &cval, &max_val);
    if (nscan >= 2)
    {
       xds.pi_star_rating_max = max_val;

@@ -46,7 +46,7 @@ supports all cards which are supported by the bktr driver.
 The MS Windows version supports only analog TV cards that are supported via
 the separately provided WDM driver interface DLL `VbiAcqWdmDrv.dll`.
 Pre-requisite for that is a vendor-provided WDM driver module that supports
-"VBI" decoding (e.g. teletext). Digital TV cards (DVB) ard currently not
+"VBI" decoding (e.g. teletext). Digital TV cards (DVB) are currently not
 supported for MS Windows.
 
 ### Linux software requirements
@@ -166,7 +166,7 @@ know about it (i.e. send me the diffs)
   binary release is provided. This is required only if you downloaded the
   latest SW version from github, or if you want to change the software.
 - Fastest way is to cross-compile for Windows under Linux.  You need to
-  install "mingw32" package and then type `make -f Makefile.win`
+  install "gcc-mingw-w64" package and then type `make -f Makefile.win`
 - Alternatively you can install GNU/Cygwin on your Windows host, see
   <http://www.cygwin.com/>.  Most important are packages for make, gcc,
   mingw ("Minimalistic GNU for Windows") and win32 header files.  After
@@ -207,5 +207,3 @@ Best way to provide feedback is via the discussion forum at the above site,
 but you can also contact me personally at: tomzo (at) users.sourceforge.net
 
 have fun.
-
--tom

@@ -59,6 +59,7 @@ typedef uint XML_LANG_CODE;
 #define XML_LANG_FR             XML_SET_LANG('F','R')
 #define XML_LANG_EN             XML_SET_LANG('E','N')
 #define XML_LANG_IT             XML_SET_LANG('I','T')
+#define XML_LANG_PL             XML_SET_LANG('P','L')
 #define XML_LANG_UNKNOWN        0
 
 // Interface to lexigraphical scanner (callback functions)

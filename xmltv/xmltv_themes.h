@@ -31,5 +31,6 @@ typedef struct
 void Xmltv_ParseThemeStringGerman( HASHED_THEMES * pCache, const char * pStr );
 void Xmltv_ParseThemeStringFrench( HASHED_THEMES * pCache, const char * pStr );
 void Xmltv_ParseThemeStringEnglish( HASHED_THEMES * pCache, const char * pStr );
+void Xmltv_ParseThemeStringPolish( HASHED_THEMES * pCache, const char * pStr );
 
 #endif /* __XMLTV_THEMES_H */

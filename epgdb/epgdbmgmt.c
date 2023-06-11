@@ -217,7 +217,7 @@ bool EpgDbCheckChains( CPDBC dbc )
    {
       assert(dbc->pAiBlock->type == BLOCK_TYPE_AI);
       assert((dbc->pAiBlock->pNextBlock == NULL) && (dbc->pAiBlock->pPrevBlock == NULL));
-      assert(dbc->pAiBlock->blk.ai.netwopCount < MAX_NETWOP_COUNT);
+      assert(dbc->pAiBlock->blk.ai.netwopCount <= MAX_NETWOP_COUNT);
    }
 
    // check OI
