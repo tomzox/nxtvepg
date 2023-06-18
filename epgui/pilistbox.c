@@ -1916,7 +1916,9 @@ static int PiListBox_Resize( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_O
 {
    PIBOX_ENTRY * old_list;
    Tcl_Obj     * pTmpObj;
-   int height, off;
+   int height;
+   uint off;
+   uint len;
 
    pTmpObj = Tcl_GetVar2Ex(interp, "pibox_height", NULL, TCL_GLOBAL_ONLY);
    if ((pTmpObj == NULL) || (Tcl_GetIntFromObj(interp, pTmpObj, &height) != TCL_OK))
@@ -1941,13 +1943,17 @@ static int PiListBox_Resize( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_O
             off = pibox_curpos + 1 - height;
          else
             off = 0;
-         memcpy(pibox_list, old_list + off, height * sizeof(PIBOX_ENTRY));
+
+         // copy MIN(old size, new size); offset only applied to source
+         len = ((pibox_height - off <= height) ? (pibox_height - off) : height);
+
+         memcpy(pibox_list, old_list + off, len * sizeof(pibox_list[0]));
 
          pibox_height = height;
          // keep listbox params consistent
          pibox_curpos -= off;
-         if (pibox_count > pibox_height)
-            pibox_count = pibox_height;
+         if (pibox_count > len)
+            pibox_count = len;
 
          PiListBox_Refresh();
       }
