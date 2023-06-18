@@ -383,19 +383,19 @@ static bool EpgQuery_PopInt( const char * pArg, uint * pArgOff, uint * p_int )
 // - only applicable to a subset of filter types
 // - note: does not disable the filter
 //
-static void EpgQuery_FilterInit( FILTER_CONTEXT * fc, int filtType )
+static void EpgQuery_FilterInit( FILTER_CONTEXT * fc, int filtType, uint netwopCount )
 {
    dprintf1("EpgQuery-FilterInit: type %d\n", filtType);
 
    switch (filtType)
    {
       case FKW_NETWOP_PRE:
-         EpgDbFilterInitNetwopPreFilter(fc);
+         EpgDbFilterInitNetwopPreFilter(fc, netwopCount);
          break;
       case FKW_NETWOP:
       case FKW_NETNAME:
       case FKW_CHN_ID:
-         EpgDbFilterInitNetwop(fc);
+         EpgDbFilterInitNetwop(fc, netwopCount);
          break;
       case FKW_THEMES:
          EpgDbFilterInitThemes(fc, 0xff);
@@ -484,16 +484,23 @@ static bool EpgQuery_FilterSet( EPGDB_CONTEXT * pDbContext,
          while (EpgQuery_PopIntRange(pArg, &argOff, &int1, &int2))
          {
             dprintf3("EpgQuery-FilterSet: NETIDX '%s': %d-%d\n", pArg, int1, int2);
-            for (idx = int1; idx <= int2; idx++)
+            if (pDbContext != NULL)
             {
-               if (idx < MAX_NETWOP_COUNT)
+               for (idx = int1; idx <= int2; idx++)
                {
-                  EpgDbFilterSetNetwop(fc, idx);
-                  count++;
+                  if (idx < pDbContext->netwopCount)
+                  {
+                     EpgDbFilterSetNetwop(fc, idx);
+                     count++;
+                  }
+                  else
+                     debug2("EpgQuery-FilterSet: invalid index:%d for netwop count:%d", idx, pDbContext->netwopCount);
                }
+               result = (count > 0);
             }
+            else
+               result = TRUE;
          }
-         result = (count > 0);
          break;
 
       case FKW_CHN_ID:
@@ -753,7 +760,7 @@ FILTER_CONTEXT * EpgQuery_Parse( EPGDB_CONTEXT * pDbContext, const char ** pQuer
                // TODO for some types we need to check there's only one instance
                if ((mask & pFilterMasks[filtType]) == 0)
                {
-                  EpgQuery_FilterInit(fc, filtType);
+                  EpgQuery_FilterInit(fc, filtType, pAiBlock->netwopCount);
                   mask |= pFilterMasks[filtType];
                }
 
@@ -801,7 +808,7 @@ bool EpgQuery_CheckSyntax( const char * pArg, char ** ppErrStr )
 
       if ((mask & pFilterMasks[filtType]) == 0)
       {
-         EpgQuery_FilterInit(fc, filtType);
+         EpgQuery_FilterInit(fc, filtType, 0);
          mask |= pFilterMasks[filtType];
       }
       result = EpgQuery_FilterSet(NULL, NULL, fc, filtType, pArg + argOff, ppErrStr);

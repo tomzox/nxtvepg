@@ -23,7 +23,8 @@ Post-Nextview EPG:
 - remove use of PDC theme table: create table from themes found in XMLTV
 - change AI/OI/PI to hold original XMLTV info elements (i.e. reduce conversion)
 - allow merge of different channel ID from different providers
-- increase or remove merge provider limit of 64
+- Remove merge provider limit of 63 (MAX_MERGED_DB_COUNT)
+- Remove RC file limit for netwop selection 8192 (RC_MAX_DB_NETWOPS)
 - DVB TTX stream decoding issues: "Illegal line order", "Unknown data_unit_id"
 - DVB: suppress TTX header change detection
 - replace "now" acq phase with DVB EPG (EIT) except for analog TV cards
@@ -36,6 +37,7 @@ Post-Nextview EPG:
 - teletext emit XML encoding UTF-8
 - netwop name config start: for after auto-config message, do not count names that were exactly the same
 - port to WIN32: "Broadcast Driver Architecture" (filter graph)
+- move "air times" config from GUI/Tcl config section into C section
 
 Missing documentation:
 - TV Tune config in context menu dialog
@@ -84,8 +86,6 @@ XMLTV import:
 - get language from XMLTV input for SetUserLanguage(), "auto" mode
   for non-auto mode: pass language selection to XML parser;
   used by EpgSetup_GetDefaultLang(): pAiBlock->lang
-- change max netwop count from 254 to dynamic? (high effort in epgfilter.h and epgdbmerge.c)
-  more importantly: MAX_MERGED_DB_COUNT is currently limited to 63
 - programmes with start time only should not be discarded
   automatically set stop time to start of subsequent programme
 - extend PI struct to hold all XMLTV info fields?

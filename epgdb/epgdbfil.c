@@ -54,6 +54,15 @@ typedef const EPGDB_CONTEXT * CPDBC;
 typedef       EPGDB_CONTEXT * PDBC;
 
 
+#define DUP_ARRAY(PSRC, PDST, COUNT) do{\
+      if (PSRC != NULL) \
+      { \
+         uint size = sizeof(PSRC[0]) * COUNT; \
+         PDST = xmalloc(size); \
+         memcpy(PDST, PSRC, size); \
+      }} while(0)
+
+
 // ---------------------------------------------------------------------------
 // Create and initialize a filter context
 // - when the context is no longer used, it has to be destroyed (i.e. freed)
@@ -118,6 +127,12 @@ FILTER_CONTEXT * EpgDbFilterCopyContext( const FILTER_CONTEXT * fc )
       newfc = (FILTER_CONTEXT *) xmalloc(sizeof(*fc));
       memcpy(newfc, fc, sizeof(*fc));
 
+      // copy dynamically allocated arrays
+      DUP_ARRAY(fc->pNetwopPreFilter1, newfc->pNetwopPreFilter1, fc->netwopCount);
+      DUP_ARRAY(fc->pNetwopPreFilter2, newfc->pNetwopPreFilter2, fc->netwopCount);
+      DUP_ARRAY(fc->pNetwopAirTimeStart, newfc->pNetwopAirTimeStart, fc->netwopCount);
+      DUP_ARRAY(fc->pNetwopAirTimeStop, newfc->pNetwopAirTimeStop, fc->netwopCount);
+
       // do not copy forked contexts
       newfc->act.pNext = NULL;
       newfc->pFocus    = &newfc->act;
@@ -126,6 +141,9 @@ FILTER_CONTEXT * EpgDbFilterCopyContext( const FILTER_CONTEXT * fc )
       newfc->act.pCustomArg          = NULL;
       newfc->act.pCustomFilterFunc   = NULL;
       newfc->act.pCustomDestroyFunc  = NULL;
+
+      // copy dynamically allocated arrays
+      DUP_ARRAY(fc->act.pNetwopFilterField, newfc->act.pNetwopFilterField, fc->act.netwopCount);
 
       // copy filter parameter chain
       newfc->act.pSubStrCtx = EpgDbFilterCopySubContexts(fc->act.pSubStrCtx);
@@ -172,9 +190,13 @@ static void EpgDbFilterDestroyAct( FILTER_CONTEXT * fc, FILTER_CTX_ACT * fc_act 
            (fc_act->pCustomDestroyFunc != NULL) )
          fc_act->pCustomDestroyFunc(fc_act->pCustomArg);
 
+      if (fc_act->pNetwopFilterField != NULL)
+         xfree(fc_act->pNetwopFilterField);
+
       fc_next = fc_act->pNext;
       if (fc_act != &fc->act)
          xfree(fc_act);
+
       fc_act = fc_next;
    }
    while (fc_act != NULL);
@@ -189,6 +211,15 @@ void EpgDbFilterDestroyContext( FILTER_CONTEXT * fc )
    {
       // destroy first and all forked parameter sets
       EpgDbFilterDestroyAct(fc, &fc->act);
+
+      if (fc->pNetwopPreFilter1 != NULL)
+         xfree(fc->pNetwopPreFilter1);
+      if (fc->pNetwopPreFilter2 != NULL)
+         xfree(fc->pNetwopPreFilter2);
+      if (fc->pNetwopAirTimeStart != NULL)
+         xfree(fc->pNetwopAirTimeStart);
+      if (fc->pNetwopAirTimeStop != NULL)
+         xfree(fc->pNetwopAirTimeStop);
 
       // destroy pre-filter parameter set
       xfree(fc);
@@ -324,14 +355,15 @@ void EpgDbFilterDestroyFork( FILTER_CONTEXT * fc, sint tag )
 //   is a separate layer which is not affected by inversion and is intended to
 //   be used by the GUI to limit network matches to a sub-set of networks
 //
-void EpgDbFilterGetNetwopFilter( FILTER_CONTEXT *fc, uchar * pNetFilter, uint count )
+uchar * EpgDbFilterGetNetwopFilter( FILTER_CONTEXT *fc, uint count )
 {
    FILTER_CTX_ACT  * fc_act;
    FILT_MATCH  matchCode;
    bool  fail, invert;
-   uchar netwop;
 
-   for (netwop = 0; (netwop < MAX_NETWOP_COUNT) && (netwop < count); netwop++)
+   uchar * pNetFilter = xmalloc(sizeof(*pNetFilter) * count);
+
+   for (uint netwop = 0; netwop < count; netwop++)
    {
       // XXX only the first context is considered
       fc_act = &fc->act;
@@ -340,13 +372,14 @@ void EpgDbFilterGetNetwopFilter( FILTER_CONTEXT *fc, uchar * pNetFilter, uint co
 
       if (fc_act->enabledFilters & FILTER_NETWOP)
       {
-         fail = (fc_act->netwopFilterField[netwop] == FALSE);
+         assert(count <= fc_act->netwopCount);
+         fail = (fc_act->pNetwopFilterField[netwop] == FALSE);
 
          if (fail ^ invert)
          {
             // if the network is also excluded by pre-filter, it's excluded from global inversion
             if ( (fc->enabledPreFilters & FILTER_NETWOP_PRE) &&
-                 (fc->netwopPreFilter1[netwop] == FALSE) )
+                 (fc->pNetwopPreFilter1[netwop] == FALSE) )
                matchCode = FILT_MATCH_FAIL_PRE;
             else
                matchCode = FILT_MATCH_FAIL;
@@ -355,7 +388,7 @@ void EpgDbFilterGetNetwopFilter( FILTER_CONTEXT *fc, uchar * pNetFilter, uint co
          {
             // do not include pre-filtered netwops with inverted network selection
             if ( invert && (fc->enabledPreFilters & FILTER_NETWOP_PRE) &&
-                 (fc->netwopPreFilter1[netwop] == FALSE) )
+                 (fc->pNetwopPreFilter1[netwop] == FALSE) )
                matchCode = FILT_MATCH_FAIL_PRE;
             else
                matchCode = FILT_MATCH_OK;
@@ -364,7 +397,9 @@ void EpgDbFilterGetNetwopFilter( FILTER_CONTEXT *fc, uchar * pNetFilter, uint co
       else if (fc->enabledPreFilters & FILTER_NETWOP_PRE)
       {  // netwop pre-filter is only activated when netwop is unused
          // this way also netwops outside of the prefilter can be explicitly requested, e.g. by a NI menu
-         if (fc->netwopPreFilter1[netwop] == FALSE)
+         assert(count <= fc->netwopCount);
+
+         if (fc->pNetwopPreFilter1[netwop] == FALSE)
             matchCode = FILT_MATCH_FAIL_PRE;
          else
             matchCode = FILT_MATCH_OK;
@@ -375,6 +410,7 @@ void EpgDbFilterGetNetwopFilter( FILTER_CONTEXT *fc, uchar * pNetFilter, uint co
       pNetFilter[netwop] =  (matchCode == FILT_MATCH_OK) ||
                            ((matchCode == FILT_MATCH_FAIL) && (fc->act.enabledFilters & FILTER_INVERT));
    }
+   return pNetFilter;
 }
 
 // ---------------------------------------------------------------------------
@@ -521,7 +557,7 @@ void EpgDbFilterSetLangDescr( CPDBC dbc, FILTER_CONTEXT *fc, const uchar *lg )
    const LI_BLOCK *pLiBlock;
    const LI_DESC  *pDesc;
    uint  descIdx, langIdx;
-   uchar netwop;
+   uint netwop;
 
    if ( EpgDbIsLocked(dbc) )
    {
@@ -591,7 +627,7 @@ void EpgDbFilterSetSubtDescr( CPDBC dbc, FILTER_CONTEXT *fc, const uchar *lg )
    const TI_BLOCK *pTiBlock;
    const TI_DESC  *pDesc;
    uint  descIdx, subtIdx;
-   uchar netwop;
+   uint netwop;
 
    if ( EpgDbIsLocked(dbc) )
    {
@@ -638,23 +674,63 @@ void EpgDbFilterSetSubtDescr( CPDBC dbc, FILTER_CONTEXT *fc, const uchar *lg )
 
 // ---------------------------------------------------------------------------
 // Reset network filter
+// - number of networks in database has to be provided by caller
 //
-void EpgDbFilterInitNetwop( FILTER_CONTEXT *fc )
+void EpgDbFilterInitNetwop( FILTER_CONTEXT *fc, uint netwopCount )
 {
-   memset(fc->pFocus->netwopFilterField, FALSE, sizeof(fc->pFocus->netwopFilterField));
+   uint size = sizeof(*fc->pFocus->pNetwopFilterField) * netwopCount;
+
+   FILTER_CTX_ACT * fc_act = &fc->act;
+   while (fc_act != NULL)
+   {
+      if (fc_act->netwopCount < netwopCount)
+      {
+         fc_act->pNetwopFilterField = xrealloc(fc_act->pNetwopFilterField, size);
+         fc_act->netwopCount = netwopCount;
+      }
+      fc_act = fc_act->pNext;
+   }
+
+   memset(fc->pFocus->pNetwopFilterField, FALSE, size);
 }
 
 // ---------------------------------------------------------------------------
 // Enable one network in the network filter array
 //
-void EpgDbFilterSetNetwop( FILTER_CONTEXT *fc, uchar netwopNo )
+void EpgDbFilterSetNetwop( FILTER_CONTEXT *fc, uint netwopNo )
 {
-   if (netwopNo < MAX_NETWOP_COUNT)
+   if ((fc->pFocus->pNetwopFilterField != NULL) && (netwopNo < fc->pFocus->netwopCount))
    {
-      fc->pFocus->netwopFilterField[netwopNo] = TRUE;
+      fc->pFocus->pNetwopFilterField[netwopNo] = TRUE;
    }
    else
       fatal1("EpgDbFilter-SetNetwop: illegal netwop idx %d", netwopNo);
+}
+
+// ---------------------------------------------------------------------------
+// Allocate dynamic arrays
+// - arrays that reflect network list have to be allocated dynamically
+// - number of networks in database has to be provided by caller
+//
+static void EpgDbFilterAllocNetwops( FILTER_CONTEXT *fc, uint netwopCount )
+{
+   if (fc->netwopCount < netwopCount)
+   {
+      // fields are allocated all at once, so all shall be zero or none
+      assert((((fc->pNetwopPreFilter1 == NULL) ^ (fc->pNetwopPreFilter2 == NULL)) ^
+              ((fc->pNetwopAirTimeStart == NULL) ^ (fc->pNetwopAirTimeStop == NULL))) == 0);
+
+      fc->pNetwopPreFilter1   = xrealloc(fc->pNetwopPreFilter1,
+                                         sizeof(*fc->pNetwopPreFilter1) * netwopCount);
+      fc->pNetwopPreFilter2   = xrealloc(fc->pNetwopPreFilter2,
+                                         sizeof(*fc->pNetwopPreFilter2) * netwopCount);
+      fc->pNetwopAirTimeStart = xrealloc(fc->pNetwopAirTimeStart,
+                                         sizeof(*fc->pNetwopAirTimeStart) * netwopCount);
+      fc->pNetwopAirTimeStop  = xrealloc(fc->pNetwopAirTimeStop,
+                                         sizeof(*fc->pNetwopAirTimeStop) * netwopCount);
+
+      fc->netwopCount = netwopCount;
+   }
 }
 
 // ---------------------------------------------------------------------------
@@ -668,19 +744,20 @@ void EpgDbFilterSetNetwop( FILTER_CONTEXT *fc, uchar netwopNo )
 // - ATTENTION: The semantics of init and set are opposite to
 //              the normal netwop filter!
 //
-void EpgDbFilterInitNetwopPreFilter( FILTER_CONTEXT *fc )
+void EpgDbFilterInitNetwopPreFilter( FILTER_CONTEXT *fc, uint netwopCount )
 {
-   memset(fc->netwopPreFilter1, TRUE, sizeof(fc->netwopPreFilter1));
+   EpgDbFilterAllocNetwops(fc, netwopCount);
+   memset(fc->pNetwopPreFilter1, TRUE, sizeof(*fc->pNetwopPreFilter1) * netwopCount);
 }
 
 // ---------------------------------------------------------------------------
 // Disable one network in the network pre-filter array
 //
-void EpgDbFilterSetNetwopPreFilter( FILTER_CONTEXT *fc, uchar netwopNo )
+void EpgDbFilterSetNetwopPreFilter( FILTER_CONTEXT *fc, uint netwopNo )
 {
-   if (netwopNo < MAX_NETWOP_COUNT)
+   if ((fc->pNetwopPreFilter1 != NULL) && (netwopNo < fc->netwopCount))
    {
-      fc->netwopPreFilter1[netwopNo] = FALSE;
+      fc->pNetwopPreFilter1[netwopNo] = FALSE;
    }
    else
       fatal1("EpgDbFilter-SetNetwopPreFilter: illegal netwop idx %d", netwopNo);
@@ -691,20 +768,21 @@ void EpgDbFilterSetNetwopPreFilter( FILTER_CONTEXT *fc, uchar netwopNo )
 // - intended to be used by the GUI to limit network matches to a sub-set of networks
 // - note: this filter is NOT included with the network match cache
 //
-void EpgDbFilterInitNetwopPreFilter2( FILTER_CONTEXT *fc )
+void EpgDbFilterInitNetwopPreFilter2( FILTER_CONTEXT *fc, uint netwopCount )
 {
-   memset(fc->netwopPreFilter2, FALSE, sizeof(fc->netwopPreFilter2));
+   EpgDbFilterAllocNetwops(fc, netwopCount);
+   memset(fc->pNetwopPreFilter2, FALSE, sizeof(*fc->pNetwopPreFilter2) * netwopCount);
 }
 
 // ---------------------------------------------------------------------------
 // Disable one network in the network pre-filter #2 array
 // - see comments at the init function above
 //
-void EpgDbFilterSetNetwopPreFilter2( FILTER_CONTEXT *fc, uchar netwopNo )
+void EpgDbFilterSetNetwopPreFilter2( FILTER_CONTEXT *fc, uint netwopNo )
 {
-   if (netwopNo < MAX_NETWOP_COUNT)
+   if ((fc->pNetwopPreFilter2 != NULL) && (netwopNo < fc->netwopCount))
    {
-      fc->netwopPreFilter2[netwopNo] = TRUE;
+      fc->pNetwopPreFilter2[netwopNo] = TRUE;
    }
    else
       fatal1("EpgDbFilter-SetNetwopPreFilter2: illegal netwop idx %d", netwopNo);
@@ -713,24 +791,27 @@ void EpgDbFilterSetNetwopPreFilter2( FILTER_CONTEXT *fc, uchar netwopNo )
 // ---------------------------------------------------------------------------
 // Reset air times pre-filter -> no restrictions for any networks
 //
-void EpgDbFilterInitAirTimesFilter( FILTER_CONTEXT *fc )
+void EpgDbFilterInitAirTimesFilter( FILTER_CONTEXT *fc, uint netwopCount )
 {
-   memset(fc->netwopAirTimeStart, 0, sizeof(fc->netwopAirTimeStart));
-   memset(fc->netwopAirTimeStop, 0, sizeof(fc->netwopAirTimeStop));
+   EpgDbFilterAllocNetwops(fc, netwopCount);
+
+   memset(fc->pNetwopAirTimeStart, 0, sizeof(*fc->pNetwopAirTimeStart) * netwopCount);
+   memset(fc->pNetwopAirTimeStop, 0, sizeof(*fc->pNetwopAirTimeStop) * netwopCount);
 }
 
 // ---------------------------------------------------------------------------
 // Set air times for one network in the air times filter array
 // - the filter is disabled by setting start and stop times to 0
 //
-void EpgDbFilterSetAirTimesFilter( FILTER_CONTEXT *fc, uchar netwopNo, uint startMoD, uint stopMoD )
+void EpgDbFilterSetAirTimesFilter( FILTER_CONTEXT *fc, uint netwopNo, uint startMoD, uint stopMoD )
 {
-   if (netwopNo < MAX_NETWOP_COUNT)
+   if (   (fc->pNetwopAirTimeStart != NULL) && (fc->pNetwopAirTimeStop != NULL)
+       && (netwopNo < fc->netwopCount))
    {
       assert((startMoD < 24*60) && (stopMoD < 24*60));
 
-      fc->netwopAirTimeStart[netwopNo] = startMoD;
-      fc->netwopAirTimeStop[netwopNo]  = stopMoD;
+      fc->pNetwopAirTimeStart[netwopNo] = startMoD;
+      fc->pNetwopAirTimeStop[netwopNo]  = stopMoD;
    }
    else
       fatal1("EpgDbFilter-SetAirTimesFilter: illegal netwop idx %d", netwopNo);
@@ -1144,14 +1225,16 @@ static bool EpgDbFilterMatchAct( const EPGDB_CONTEXT *dbc, const FILTER_CONTEXT 
 
    if (fc_act->enabledFilters & FILTER_NETWOP)
    {
-      fail   = (fc_act->netwopFilterField[pPi->netwop_no] == FALSE);
+      assert(pPi->netwop_no < fc_act->netwopCount);
+
+      fail   = (fc_act->pNetwopFilterField[pPi->netwop_no] == FALSE);
 
       invert = ((fc_act->invertedFilters & FILTER_NETWOP) != FALSE);
       if (fail ^ invert)
       {
          // if the network is also excluded by pre-filter, it's excluded from global inversion
          if ( (fc->enabledPreFilters & FILTER_NETWOP_PRE) &&
-              (fc->netwopPreFilter1[pPi->netwop_no] == FALSE) )
+              (fc->pNetwopPreFilter1[pPi->netwop_no] == FALSE) )
             goto failed_pre;
          else
             fail_buf = TRUE;
@@ -1159,13 +1242,13 @@ static bool EpgDbFilterMatchAct( const EPGDB_CONTEXT *dbc, const FILTER_CONTEXT 
 
       // do not include pre-filtered netwops with inverted network selection
       if ( invert && (fc->enabledPreFilters & FILTER_NETWOP_PRE) &&
-           (fc->netwopPreFilter1[pPi->netwop_no] == FALSE) )
+           (fc->pNetwopPreFilter1[pPi->netwop_no] == FALSE) )
          goto failed_pre;
    }
    else if (fc->enabledPreFilters & FILTER_NETWOP_PRE)
    {  // netwop pre-filter is only activated when netwop is unused
       // this way also netwops outside of the prefilter can be explicitly requested, e.g. by a NI menu
-      if (fc->netwopPreFilter1[pPi->netwop_no] == FALSE)
+      if (fc->pNetwopPreFilter1[pPi->netwop_no] == FALSE)
          goto failed_pre;
    }
 
@@ -1444,20 +1527,23 @@ bool EpgDbFilterMatches( const EPGDB_CONTEXT   * dbc,
 
    if ((fc != NULL) && (pPi != NULL))
    {
+      assert((pPi->netwop_no < fc->netwopCount) ||
+             ((fc->enabledPreFilters & (FILTER_NETWOP_PRE | FILTER_NETWOP_PRE2 | FILTER_AIR_TIMES)) == 0));
+
       if (fc->enabledPreFilters & FILTER_NETWOP_PRE2)
       {
-         if (fc->netwopPreFilter2[pPi->netwop_no] == FALSE)
+         if (fc->pNetwopPreFilter2[pPi->netwop_no] == FALSE)
             goto failed_pre;
       }
 
       if (fc->enabledPreFilters & FILTER_AIR_TIMES)
       {
-         if ( (fc->netwopAirTimeStart[pPi->netwop_no] != 0) ||
-              (fc->netwopAirTimeStop[pPi->netwop_no] != 0) )
+         if ( (fc->pNetwopAirTimeStart[pPi->netwop_no] != 0) ||
+              (fc->pNetwopAirTimeStop[pPi->netwop_no] != 0) )
          {
             sint  lto = EpgLtoGet(pPi->start_time);
-            sint  airStartMoD = fc->netwopAirTimeStart[pPi->netwop_no];
-            sint  airStopMoD  = fc->netwopAirTimeStop[pPi->netwop_no];
+            sint  airStartMoD = fc->pNetwopAirTimeStart[pPi->netwop_no];
+            sint  airStopMoD  = fc->pNetwopAirTimeStop[pPi->netwop_no];
             sint  piStartMoD  = ((pPi->start_time + lto) % (60*60*24)) / 60;
             sint  piStopMoD   = ((pPi->stop_time + lto) % (60*60*24)) / 60;
 
@@ -1547,4 +1633,3 @@ bool EpgDbFilterMatches( const EPGDB_CONTEXT   * dbc,
 failed_pre:
    return FALSE;
 }
-

@@ -129,13 +129,14 @@ typedef struct FILTER_CTX_ACT_struct
    uint      invertedFilters;
    uchar     forkCombMode;
    sint      forkTag;
+   uint      netwopCount;   // size of dynamically allocated netwopFilterField
 
    uchar     firstProgIdx, lastProgIdx;
    time_t    timeBegin, timeEnd;
    uint      timeDayOffset;
    uint      duration_min;
    uint      duration_max;
-   bool      netwopFilterField[MAX_NETWOP_COUNT];
+   bool    * pNetwopFilterField;
    uchar     themeFilterField[256];
    uchar     usedThemeClasses;
    uchar     invertedThemeClasses;
@@ -156,10 +157,11 @@ typedef struct FILTER_CTX_ACT_struct
 typedef struct
 {
    uint   enabledPreFilters;
-   bool   netwopPreFilter1[MAX_NETWOP_COUNT];
-   bool   netwopPreFilter2[MAX_NETWOP_COUNT];
-   uint   netwopAirTimeStart[MAX_NETWOP_COUNT];
-   uint   netwopAirTimeStop[MAX_NETWOP_COUNT];
+   uint   netwopCount;   // size of following dynamically allocated arrays
+   bool * pNetwopPreFilter1;
+   bool * pNetwopPreFilter2;
+   uint * pNetwopAirTimeStart;
+   uint * pNetwopAirTimeStop;
    time_t expireTime;
 
    FILTER_CTX_ACT    act;
@@ -191,14 +193,14 @@ void   EpgDbFilterEnable( FILTER_CONTEXT *fc, uint mask );
 void   EpgDbFilterDisable( FILTER_CONTEXT *fc, uint mask );
 void   EpgDbFilterInvert( FILTER_CONTEXT *fc, uint mask, uchar themeClass );
 
-void   EpgDbFilterInitNetwop( FILTER_CONTEXT *fc );
-void   EpgDbFilterSetNetwop( FILTER_CONTEXT *fc, uchar netwopNo );
-void   EpgDbFilterInitNetwopPreFilter( FILTER_CONTEXT *fc );
-void   EpgDbFilterSetNetwopPreFilter( FILTER_CONTEXT *fc, uchar netwopNo );
-void   EpgDbFilterInitNetwopPreFilter2( FILTER_CONTEXT *fc );
-void   EpgDbFilterSetNetwopPreFilter2( FILTER_CONTEXT *fc, uchar netwopNo );
-void   EpgDbFilterInitAirTimesFilter( FILTER_CONTEXT *fc );
-void   EpgDbFilterSetAirTimesFilter( FILTER_CONTEXT *fc, uchar netwopNo, uint startMoD, uint stopMoD );
+void   EpgDbFilterInitNetwop( FILTER_CONTEXT *fc, uint netwopCount );
+void   EpgDbFilterSetNetwop( FILTER_CONTEXT *fc, uint netwopNo );
+void   EpgDbFilterInitNetwopPreFilter( FILTER_CONTEXT *fc, uint netwopCount );
+void   EpgDbFilterSetNetwopPreFilter( FILTER_CONTEXT *fc, uint netwopNo );
+void   EpgDbFilterInitNetwopPreFilter2( FILTER_CONTEXT *fc, uint netwopCount );
+void   EpgDbFilterSetNetwopPreFilter2( FILTER_CONTEXT *fc, uint netwopNo );
+void   EpgDbFilterInitAirTimesFilter( FILTER_CONTEXT *fc, uint netwopCount );
+void   EpgDbFilterSetAirTimesFilter( FILTER_CONTEXT *fc, uint netwopNo, uint startMoD, uint stopMoD );
 void   EpgDbFilterSetExpireTime( FILTER_CONTEXT *fc, ulong newExpireTime );
 void   EpgDbFilterSetDateTimeBegin( FILTER_CONTEXT *fc, ulong newTimeBegin );
 void   EpgDbFilterSetDateTimeEnd( FILTER_CONTEXT *fc, ulong newTimeEnd );
@@ -225,7 +227,7 @@ void   EpgDbFilterFinishNi( FILTER_CONTEXT *fc, NI_FILTER_STATE *pNiState );
 
 bool   EpgDbFilterMatches( const EPGDB_CONTEXT *dbc, const FILTER_CONTEXT *fc, const PI_BLOCK * pi );
 
-void   EpgDbFilterGetNetwopFilter( FILTER_CONTEXT *fc, uchar * pNetFilter, uint count );
+uchar * EpgDbFilterGetNetwopFilter( FILTER_CONTEXT *fc, uint count );
 
 
 #endif  // __EPGDBFIL_H

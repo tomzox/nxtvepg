@@ -392,9 +392,8 @@ void EpgDumpXml_Standalone( EPGDB_CONTEXT * pDbContext, FILTER_CONTEXT * fc,
    const AI_BLOCK  * pAiBlock;
    const OI_BLOCK  * pOiBlock;
    const PI_BLOCK  * pPiBlock;
-   char * pChnIds[MAX_NETWOP_COUNT];
-   uchar netFilter[MAX_NETWOP_COUNT];
-   uint  netwopIdx;
+   char ** pChnIds = NULL;
+   uchar * pNetFilter = NULL;
 
    if (fp != NULL)
    {
@@ -410,11 +409,13 @@ void EpgDumpXml_Standalone( EPGDB_CONTEXT * pDbContext, FILTER_CONTEXT * fc,
 
          if (fc != NULL)
          {
-            EpgDbFilterGetNetwopFilter(fc, netFilter, pAiBlock->netwopCount);
+            pNetFilter = EpgDbFilterGetNetwopFilter(fc, pAiBlock->netwopCount);
          }
+         pChnIds = xmalloc(sizeof(*pChnIds) * pAiBlock->netwopCount);
+         memset(pChnIds, 0, sizeof(*pChnIds) * pAiBlock->netwopCount);
 
          // channel table
-         for (netwopIdx = 0; netwopIdx < pAiBlock->netwopCount; netwopIdx++)
+         for (uint netwopIdx = 0; netwopIdx < pAiBlock->netwopCount; netwopIdx++)
          {
             // determine the XMLTV channel ID
             uint cni = AI_GET_NET_CNI_N(pAiBlock, netwopIdx);
@@ -433,7 +434,7 @@ void EpgDumpXml_Standalone( EPGDB_CONTEXT * pDbContext, FILTER_CONTEXT * fc,
             }
             EpgDumpXml_HtmlRemoveQuotes(pChnIds[netwopIdx], pChnIds[netwopIdx], strlen(pChnIds[netwopIdx]) + 1);
 
-            if ((fc == NULL) || netFilter[netwopIdx])
+            if ((fc == NULL) || pNetFilter[netwopIdx])
             {
                EpgDumpXml_WriteChannel(pAiBlock, pChnIds[netwopIdx], netwopIdx, fp, dumpMode);
             }
@@ -449,9 +450,15 @@ void EpgDumpXml_Standalone( EPGDB_CONTEXT * pDbContext, FILTER_CONTEXT * fc,
          }
 
          // free channel IDs (allocated when writing channel table
-         for (netwopIdx = 0; netwopIdx < pAiBlock->netwopCount; netwopIdx++)
+         for (uint netwopIdx = 0; netwopIdx < pAiBlock->netwopCount; netwopIdx++)
+         {
             if (pChnIds[netwopIdx] != NULL)
                xfree(pChnIds[netwopIdx]);
+         }
+         xfree(pChnIds);
+
+         if (pNetFilter)
+            xfree(pNetFilter);
 
          // footer
          fprintf(fp, "</tv>\n");

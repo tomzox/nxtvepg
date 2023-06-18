@@ -76,7 +76,7 @@ static const char * EpgDbMergePrintTime( const PI_BLOCK * pPi )
 //
 static void EpgDbMergeAddPiBlock( PDBC dbc, EPGDB_BLOCK * pBlock, EPGDB_BLOCK *pPrevBlock )
 {
-   uchar netwop;
+   uint netwop;
    
    netwop = pBlock->blk.pi.netwop_no;
    if (dbc->pFirstPi == NULL)
@@ -120,7 +120,7 @@ static void EpgDbMergeAddPiBlock( PDBC dbc, EPGDB_BLOCK * pBlock, EPGDB_BLOCK *p
 //
 static void EpgDbMergeLinkNetworkPi( PDBC dbc, EPGDB_BLOCK ** pFirstNetwopBlock )
 {
-   EPGDB_BLOCK *pPrevNetwopBlock[MAX_NETWOP_COUNT];
+   EPGDB_BLOCK **pPrevNetwopBlock;
    EPGDB_BLOCK *pBlock;
    time_t minStartTime;
    uint minNetwop;
@@ -129,16 +129,17 @@ static void EpgDbMergeLinkNetworkPi( PDBC dbc, EPGDB_BLOCK ** pFirstNetwopBlock 
    // reset start links in DB context
    dbc->pFirstPi = NULL;
    dbc->pLastPi = NULL;
-   memset(dbc->pFirstNetwopPi, 0, sizeof(dbc->pFirstNetwopPi));
+   memset(dbc->pFirstNetwopPi, 0, sizeof(dbc->pFirstNetwopPi[0]));
 
-   memset(pPrevNetwopBlock, 0, sizeof(pPrevNetwopBlock));
    netCount = dbc->pAiBlock->blk.ai.netwopCount;
+   pPrevNetwopBlock = xmalloc(sizeof(pPrevNetwopBlock[0]) * netCount);
+   memset(pPrevNetwopBlock, 0, sizeof(pPrevNetwopBlock[0]) * netCount);
 
    // combine blocks of separately merged networks into one database
    while (1)
    {
       minStartTime = 0;
-      minNetwop = 0xff;
+      minNetwop = INVALID_NETWOP_IDX;
 
       // search across all networks for the oldest block
       for (netwop = 0; netwop < netCount; netwop++)
@@ -154,7 +155,7 @@ static void EpgDbMergeLinkNetworkPi( PDBC dbc, EPGDB_BLOCK ** pFirstNetwopBlock 
          }
       }
 
-      if (minStartTime == 0)
+      if (minNetwop == INVALID_NETWOP_IDX)
          break;
 
       // pop block off temporary per-network list
@@ -165,6 +166,7 @@ static void EpgDbMergeLinkNetworkPi( PDBC dbc, EPGDB_BLOCK ** pFirstNetwopBlock 
       EpgDbMergeAddPiBlock(dbc, pBlock, pPrevNetwopBlock[minNetwop]);
       pPrevNetwopBlock[minNetwop] = pBlock;
    }
+   xfree(pPrevNetwopBlock);
 }
 
 // ---------------------------------------------------------------------------
@@ -576,7 +578,7 @@ static void EpgDbMergeNetworkPi( PDBC dbc, uint netwop, EPGDB_BLOCK **ppFirstNet
    for (dbIdx=0; dbIdx < dbCount; dbIdx++)
    {
       uint dbNet = dbmc->prov[dbIdx].revNetwopMap[netwop];
-      if (dbNet != 0xff)
+      if (dbNet != INVALID_NETWOP_IDX)
          pNextBlock[dbIdx] = dbmc->prov[dbIdx].pDbContext->pFirstNetwopPi[dbNet];
       else
          pNextBlock[dbIdx] = NULL;
@@ -683,11 +685,12 @@ static void EpgDbMergeNetworkPi( PDBC dbc, uint netwop, EPGDB_BLOCK **ppFirstNet
 //
 void EpgDbMergeAllPiBlocks( PDBC dbc )
 {
-   EPGDB_BLOCK *pFirstNetwopBlock[MAX_NETWOP_COUNT];
+   EPGDB_BLOCK **pFirstNetwopBlock;
    uint netwop, netCount;
 
    netCount = dbc->pAiBlock->blk.ai.netwopCount;
-   memset(pFirstNetwopBlock, 0, sizeof(pFirstNetwopBlock));
+   pFirstNetwopBlock = xmalloc(sizeof(pFirstNetwopBlock[0]) * netCount);
+   memset(pFirstNetwopBlock, 0, sizeof(pFirstNetwopBlock[0]) * netCount);
 
    // loop across target networks: merge networks separately
    for (netwop = 0; netwop < netCount; netwop++)
@@ -698,6 +701,7 @@ void EpgDbMergeAllPiBlocks( PDBC dbc )
    // combine networks into a single database
    EpgDbMergeLinkNetworkPi(dbc, pFirstNetwopBlock);
 
+   xfree(pFirstNetwopBlock);
    assert(EpgDbCheckChains(dbc));
 }
 
@@ -707,11 +711,12 @@ void EpgDbMergeAllPiBlocks( PDBC dbc )
 void EpgDbMergeUpdateNetworks( EPGDB_CONTEXT * pDbContext, uint provCount, const uint * pProvCni )
 {
    EPGDB_MERGE_CONTEXT * dbmc;
-   EPGDB_BLOCK *pFirstNetwopBlock[MAX_NETWOP_COUNT];
+   EPGDB_BLOCK **pFirstNetwopBlock;
    EPGDB_BLOCK *pMergedPi;
    EPGDB_BLOCK *pBlock, *pNext;
    const AI_BLOCK * pAi;
-   bool needMerge[MAX_NETWOP_COUNT];
+   bool * needMerge;
+   uint netCount;
    uint provIdx;
    uint dbIdx;
    uint netIdx;
@@ -720,7 +725,8 @@ void EpgDbMergeUpdateNetworks( EPGDB_CONTEXT * pDbContext, uint provCount, const
    assert(pDbContext->merged);
    dbmc = (EPGDB_MERGE_CONTEXT*) pDbContext->pMergeContext;
 
-   memset(needMerge, 0, sizeof(needMerge));
+   needMerge = xmalloc(sizeof(needMerge[0]) * dbmc->netwopCount);
+   memset(needMerge, 0, sizeof(needMerge[0]));
 
    for (provIdx = 0; provIdx < provCount; ++provIdx)
    {
@@ -735,7 +741,7 @@ void EpgDbMergeUpdateNetworks( EPGDB_CONTEXT * pDbContext, uint provCount, const
          for (netIdx = 0; netIdx < pAi->netwopCount; ++netIdx)
          {
             netwop = dbmc->prov[dbIdx].netwopMap[netIdx];
-            if (netwop < MAX_NETWOP_COUNT)
+            if (netwop < dbmc->netwopCount)
             {
                dprintf3("EpgDbMerge-UpdateNetworks: prov:%X net#:%d update merged net#:%d\n", pProvCni[provIdx], netIdx, netwop);
                needMerge[netwop] = TRUE;
@@ -744,7 +750,11 @@ void EpgDbMergeUpdateNetworks( EPGDB_CONTEXT * pDbContext, uint provCount, const
       }
    }
 
-   for (netwop = 0; netwop < pDbContext->pAiBlock->blk.ai.netwopCount; ++netwop)
+   netCount = pDbContext->pAiBlock->blk.ai.netwopCount;
+   pFirstNetwopBlock = xmalloc(sizeof(pFirstNetwopBlock[0]) * netCount);
+   memset(pFirstNetwopBlock, 0, sizeof(pFirstNetwopBlock[0]) * netCount);
+
+   for (netwop = 0; netwop < netCount; ++netwop)
    {
       if (needMerge[netwop])
       {
@@ -770,6 +780,7 @@ void EpgDbMergeUpdateNetworks( EPGDB_CONTEXT * pDbContext, uint provCount, const
    // rebuild link chains between all blocks
    EpgDbMergeLinkNetworkPi(pDbContext, pFirstNetwopBlock);
 
+   xfree(pFirstNetwopBlock);
    assert(EpgDbCheckChains(pDbContext));
 
    // update GUI
@@ -868,8 +879,8 @@ void EpgDbMergeAiBlocks( PDBC dbc, uint netwopCount, const uint * pNetwopList )
    AI_NETWOP * pTargetNetwops;
    time_t mtimeProv, mtimeMerge;
    uint netwop, dbIdx, idx;
-   uchar netOrigIdx[MAX_NETWOP_COUNT];
-   uchar dayCount[MAX_NETWOP_COUNT];
+   uchar * netOrigIdx;
+   uchar * dayCount;
    char * pServiceName;           // temporarily holds merged service name
    uint serviceNameLen;
    uint nameLen;                  // sum of netwop name lengths
@@ -880,18 +891,20 @@ void EpgDbMergeAiBlocks( PDBC dbc, uint netwopCount, const uint * pNetwopList )
    dbmc = (EPGDB_MERGE_CONTEXT*) dbc->pMergeContext;
    dbCount = dbmc->dbCount;
    nameLen = 0;
-   if (netwopCount > MAX_NETWOP_COUNT)
-      netwopCount = MAX_NETWOP_COUNT;
-   memset(netOrigIdx, 0xff, sizeof(netOrigIdx));
+
+   netOrigIdx = xmalloc(sizeof(netOrigIdx[0]) * netwopCount);
+   dayCount = xmalloc(sizeof(dayCount[0]) * netwopCount);
 
    for (idx = 0; idx < netwopCount; idx++)
    {
+      netOrigIdx[idx] = 0xff;
       dayCount[idx] = 0;
+
       for (dbIdx=0; dbIdx < dbCount; dbIdx++)
       {
          pAi = &dbmc->prov[dbIdx].pDbContext->pAiBlock->blk.ai;
          netwop = dbmc->prov[dbIdx].revNetwopMap[idx];
-         if (netwop != 0xFF)
+         if (netwop != INVALID_NETWOP_IDX)
          {
             if (netOrigIdx[idx] == 0xff)
             {
@@ -967,5 +980,7 @@ void EpgDbMergeAiBlocks( PDBC dbc, uint netwopCount, const uint * pNetwopList )
          fatal2("EpgDb-MergeAiBlocks: netwop %d (CNI 0x%04X) not mapped", netwop, pNetwopList[netwop]);
    }
    xfree(pServiceName);
+   xfree(netOrigIdx);
+   xfree(dayCount);
 }
 

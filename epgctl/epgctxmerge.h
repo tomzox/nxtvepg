@@ -34,11 +34,4 @@ void EpgContextMergeDestroy( void * pMergeContextPtr );
 bool EpgContextMergeGetCnis( const EPGDB_CONTEXT * dbc, uint * pCniCount, uint *pCniTab );
 bool EpgContextMergeCheckForCni( const EPGDB_CONTEXT * dbc, uint cni );
 
-#ifdef __EPGTSCQUEUE_H
-// interface for GUI timescales window
-void EpgContextMergeEnableTimescale( const EPGDB_CONTEXT * dbc, bool enable );
-EPGDB_PI_TSC * EpgContextMergeGetTimescaleQueue( const EPGDB_CONTEXT * dbc );
-#endif
-
-
 #endif  // __EPGCTXMERGE_H

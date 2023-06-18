@@ -57,7 +57,7 @@
 
 typedef struct
 {
-   uchar    netwop_no;
+   uint     netwop_no;
    time_t   start_time;
 } PIBOX_ENTRY;
 
@@ -417,7 +417,7 @@ static void PiListBox_RefreshEvent( ClientData clientData )
 void PiListBox_Refresh( void )
 {
    const PI_BLOCK *pPiBlock, *pPrev, *pNext;
-   uchar last_netwop;
+   uint last_netwop;
    time_t last_start_time;
    int i;
 
@@ -588,7 +588,7 @@ static void PiListBox_ScrollMoveto( int newpos )
          else
          {
             old_start  = 0;
-            old_netwop = 0xff;
+            old_netwop = INVALID_NETWOP_IDX;
          }
 
          EpgDbLockDatabase(dbc, TRUE);
@@ -1879,7 +1879,7 @@ static int PiListBox_GetSelectedNetCni( ClientData ttp, Tcl_Interp *interp, int 
    const char * const pUsage = "Usage: C_PiBox_GetSelectedNetCni";
    const AI_BLOCK *pAiBlock;
    char strbuf[16+2+1];
-   uchar netwop;
+   uint netwop;
    int result;
 
    if (objc != 1)

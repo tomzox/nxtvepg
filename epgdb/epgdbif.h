@@ -50,10 +50,10 @@ bool  EpgDbIsLocked( const EPGDB_CONTEXT * dbc );
 const AI_BLOCK * EpgDbGetAi( const EPGDB_CONTEXT * dbc );
 const OI_BLOCK * EpgDbGetOi( const EPGDB_CONTEXT * dbc );
 
-const PI_BLOCK * EpgDbSearchPiByPil( const EPGDB_CONTEXT * dbc, uchar netwop_no, uint pil );
+const PI_BLOCK * EpgDbSearchPiByPil( const EPGDB_CONTEXT * dbc, uint netwop_no, uint pil );
 
 #ifdef __EPGDBFIL_H
-const PI_BLOCK * EpgDbSearchPi( const EPGDB_CONTEXT * dbc, time_t start_time, uchar netwop_no );
+const PI_BLOCK * EpgDbSearchPi( const EPGDB_CONTEXT * dbc, time_t start_time, uint netwop_no );
 const PI_BLOCK * EpgDbSearchFirstPiAfter( const EPGDB_CONTEXT * dbc, time_t min_time, EPGDB_TIME_SEARCH_MODE startOrStop, const FILTER_CONTEXT *fc );
 const PI_BLOCK * EpgDbSearchFirstPiBefore( const EPGDB_CONTEXT * dbc, time_t start_time, EPGDB_TIME_SEARCH_MODE startOrStop, const FILTER_CONTEXT *fc );
 const PI_BLOCK * EpgDbSearchFirstPi( const EPGDB_CONTEXT * dbc, const FILTER_CONTEXT *fc );

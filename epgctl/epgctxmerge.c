@@ -75,6 +75,17 @@ static void EpgDbMergeCloseDatabases( EPGDB_MERGE_CONTEXT * pMergeContext )
          EpgContextCtl_Close(pMergeContext->prov[dbIdx].pDbContext);
          pMergeContext->prov[dbIdx].pDbContext = NULL;
       }
+
+      if (pMergeContext->prov[dbIdx].netwopMap != NULL)
+      {
+         xfree(pMergeContext->prov[dbIdx].netwopMap);
+         pMergeContext->prov[dbIdx].netwopMap = NULL;
+      }
+      if (pMergeContext->prov[dbIdx].revNetwopMap != NULL)
+      {
+         xfree(pMergeContext->prov[dbIdx].revNetwopMap);
+         pMergeContext->prov[dbIdx].revNetwopMap = NULL;
+      }
    }
 }
 
@@ -109,6 +120,34 @@ static bool EpgDbMergeOpenDatabases( EPGDB_MERGE_CONTEXT * pMergeContext, CONTEX
 }
 
 // ---------------------------------------------------------------------------
+// Allocate netwop index mapping and reverse tables for each database
+// - tables have different size, as they map different arrays
+// - initially map all networks to "unused"
+//
+static void EpgContextMergeAllocNetwopMap( EPGDB_MERGE_CONTEXT * dbmc, uint cniCount )
+{
+   for (uint dbIdx=0; dbIdx < dbmc->dbCount; dbIdx++)
+   {
+      // "netwopMap" maps from local AI netwop index to merged DB netwop index
+      uint aiNetwopCount = dbmc->prov[dbIdx].pDbContext->pAiBlock->blk.ai.netwopCount;
+      dbmc->prov[dbIdx].netwopMap = xmalloc(sizeof(uint) * aiNetwopCount);
+
+      for (uint idx = 0; idx < aiNetwopCount; ++idx)
+      {
+          dbmc->prov[dbIdx].netwopMap[idx] = INVALID_NETWOP_IDX;
+      }
+
+      // "revNetwopMap" maps from merged DB netwop index to local AI netwop index
+      dbmc->prov[dbIdx].revNetwopMap = xmalloc(sizeof(uint) * cniCount);
+
+      for (uint idx = 0; idx < cniCount; ++idx)
+      {
+          dbmc->prov[dbIdx].revNetwopMap[idx] = INVALID_NETWOP_IDX;
+      }
+   }
+}
+
+// ---------------------------------------------------------------------------
 // Build netwop index mapping and reverse tables for each database
 // - note de-duplication and user-configured suppression already done by caller
 //
@@ -134,7 +173,7 @@ static void EpgContextMergeBuildNetwopMap( EPGDB_MERGE_CONTEXT * pMergeContext,
             break;
 
       // check if it's a valid CNI
-      if ((netIdx >= netwopCount) && (netwopCount < MAX_NETWOP_COUNT) &&
+      if ((netIdx >= netwopCount) &&
           (pCniTab[tabIdx] != 0) && (pCniTab[tabIdx] != 0x00ff))
       {
          for (dbIdx=0; dbIdx < pMergeContext->dbCount; dbIdx++)
@@ -261,46 +300,49 @@ static void EpgContextMergeExtendProvList( uint addCount, const uint * pProvCni,
    EPGDB_MERGE_CONTEXT * dbmc = (EPGDB_MERGE_CONTEXT*) pUiDbContext->pMergeContext;
    const AI_BLOCK * pOldAi = &pUiDbContext->pAiBlock->blk.ai;
    uint netwopCount = pOldAi->netwopCount;
-   uint netCnis[MAX_NETWOP_COUNT];
-   uint maxIdx;
-   uint dbIdx;
-   uint idx;
+   uint * netCnis = xmalloc(sizeof(uint) * netwopCount);
 
-   for (idx = 0; idx < pOldAi->netwopCount; ++idx)
+   for (uint idx = 0; idx < netwopCount; ++idx)
       netCnis[idx] = AI_GET_NET_CNI_N(pOldAi, idx);
 
-   for (dbIdx = 0; (dbIdx < addCount) && (dbmc->dbCount < MAX_MERGED_DB_COUNT); ++dbIdx)
+   for (uint dbIdx = 0; (dbIdx < addCount) && (dbmc->dbCount < MAX_MERGED_DB_COUNT); ++dbIdx)
    {
       // open the new database
       dbmc->prov[dbmc->dbCount].pDbContext = EpgContextCtl_Open(pProvCni[dbIdx], FALSE, errHand);
       if (dbmc->prov[dbmc->dbCount].pDbContext != NULL)
       {
+         const AI_BLOCK * pTmpAi = &dbmc->prov[dbmc->dbCount].pDbContext->pAiBlock->blk.ai;
+         netCnis = xrealloc(netCnis, sizeof(uint) * (netwopCount + pTmpAi->netwopCount));
+
          // append all CNIs of this provider to merged network table;
          // omitting check for duplicates, as this is done already during the function called below
-         const AI_BLOCK * pTmpAi = &dbmc->prov[dbmc->dbCount].pDbContext->pAiBlock->blk.ai;
-         for (idx = 0; (idx < pTmpAi->netwopCount) && (netwopCount < MAX_NETWOP_COUNT); ++idx)
+         for (uint idx = 0; idx < pTmpAi->netwopCount; ++idx)
             netCnis[netwopCount++] = AI_GET_NET_CNI_N(pTmpAi, idx);
 
          // append new provider to attribute tables
-         for (maxIdx = 0; maxIdx < MERGE_TYPE_COUNT; ++maxIdx)
+         for (uint maxIdx = 0; maxIdx < MERGE_TYPE_COUNT; ++maxIdx)
          {
-            for (idx = 0; idx < dbmc->dbCount; ++idx)
+            for (uint idx = 0; idx < dbmc->dbCount; ++idx)
+            {
                if (dbmc->max[maxIdx][idx] == 0xff)
+               {
+                  dbmc->max[maxIdx][idx] = dbmc->dbCount;
                   break;
-            dbmc->max[maxIdx][idx] = dbmc->dbCount;
+               }
+            }
          }
 
-         // initialize netwop mapping tables for the new provider
-         memset(dbmc->prov[dbmc->dbCount].revNetwopMap, 0xff, sizeof(dbmc->prov[0].revNetwopMap));
-         memset(dbmc->prov[dbmc->dbCount].netwopMap, 0xff, sizeof(dbmc->prov[0].netwopMap));
-
+         dbmc->prov[dbmc->dbCount].netwopMap = NULL;
+         dbmc->prov[dbmc->dbCount].revNetwopMap = NULL;
          dbmc->prov[dbmc->dbCount].provCni = pProvCni[dbIdx];
          dbmc->dbCount += 1;
       }
    }
 
    // rebuild netwop mapping tables for all providers, so that new networks are included
+   EpgContextMergeAllocNetwopMap(dbmc, netwopCount);
    EpgContextMergeBuildNetwopMap(dbmc, &netwopCount, netCnis);
+   pUiDbContext->netwopCount = netwopCount;
 
    // discard old AI block and merge a new one
    xfree(pUiDbContext->pAiBlock);
@@ -390,8 +432,9 @@ EPGDB_CONTEXT * EpgContextMerge( uint dbCount, const uint * pCni, MERGE_ATTRIB_V
    for (dbIdx=0; dbIdx < pMergeContext->dbCount; dbIdx++)
    {
       pMergeContext->prov[dbIdx].provCni = pCni[dbIdx];
-      memset(pMergeContext->prov[dbIdx].revNetwopMap, 0xff, sizeof(pMergeContext->prov[0].revNetwopMap));
-      memset(pMergeContext->prov[dbIdx].netwopMap, 0xff, sizeof(pMergeContext->prov[0].netwopMap));
+
+      pMergeContext->prov[dbIdx].netwopMap = NULL;
+      pMergeContext->prov[dbIdx].revNetwopMap = NULL;
    }
 
    if ( EpgDbMergeOpenDatabases(pMergeContext, errHand) )
@@ -403,7 +446,13 @@ EPGDB_CONTEXT * EpgContextMerge( uint dbCount, const uint * pCni, MERGE_ATTRIB_V
       pDbContext->merged = TRUE;
       pDbContext->pMergeContext = pMergeContext;
 
+      EpgContextMergeAllocNetwopMap(pMergeContext, netwopCount);
       EpgContextMergeBuildNetwopMap(pMergeContext, &netwopCount, pNetwopList);
+      pMergeContext->netwopCount = netwopCount;
+
+      pDbContext->pFirstNetwopPi = xmalloc(netwopCount * sizeof(pDbContext->pFirstNetwopPi[0]));
+      memset(pDbContext->pFirstNetwopPi, 0, netwopCount * sizeof(pDbContext->pFirstNetwopPi[0]));
+      pDbContext->netwopCount = netwopCount;
 
       // create AI block
       EpgDbMergeAiBlocks(pDbContext, netwopCount, pNetwopList);

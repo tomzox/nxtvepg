@@ -73,7 +73,8 @@ typedef enum
 
 #define RC_MAX_ACQ_CNI_PROV     (2 * MAX_MERGED_DB_COUNT)
 #define RC_MAX_ACQ_CNI_FREQS    (4 * MAX_MERGED_DB_COUNT)  // list contains pairs of CNI and freq
-#define RC_MAX_DB_NETWOPS       MAX_NETWOP_COUNT
+#define RC_MAX_DB_NETWOPS       8192 // TODO variable-length, formerly MAX_NETWOP_COUNT
+#define RC_LINE_BUF_SIZE        (8192 * 11 + 100)  // max len: "0x01234567 " * RC_MAX_DB_NETWOPS
 
 // limit for forwards compatibility
 #define RC_FILE_MIN_VERSION 0x0207C2

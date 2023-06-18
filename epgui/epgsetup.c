@@ -257,7 +257,7 @@ void EpgSetup_SetNetwopPrefilter( EPGDB_CONTEXT * dbc, FILTER_CONTEXT * fc )
       pAiBlock = EpgDbGetAi(dbc);
       if (pAiBlock != NULL)
       {
-         EpgDbFilterInitNetwopPreFilter(fc);
+         EpgDbFilterInitNetwopPreFilter(fc, pAiBlock->netwopCount);
          EpgDbPreFilterEnable(fc, FILTER_NETWOP_PRE);
 
          for (netwop = 0; netwop < pAiBlock->netwopCount; netwop++) 
@@ -285,7 +285,7 @@ void EpgSetup_SetNetwopPrefilter( EPGDB_CONTEXT * dbc, FILTER_CONTEXT * fc )
 //   (in this case all networks are included)
 //
 static bool EpgSetup_GetMergeDbNetwops( uint provCniCount, const uint * pProvCniTab,
-                                        uint * pCniCount, uint * pCniTab )
+                                        uint * pCniCount, uint ** ppCniTab )
 {
    const uint * pCfSelCni;
    const uint * pCfSupCni;
@@ -294,23 +294,27 @@ static bool EpgSetup_GetMergeDbNetwops( uint provCniCount, const uint * pProvCni
    EPGDB_CONTEXT  * pPeek;
    const AI_BLOCK  * pAiBlock;
    const AI_NETWOP * pNetwops;
-   uint netIdx;
+   uint * pCniTab;
+   uint cniTabCapacity;
    uint prevIdx;
-   uint dbIdx;
    uint netwopCount;
    uint cni;
 
+   pCniTab = NULL;
    netwopCount = 0;
+   cniTabCapacity = 0;
    RcFile_GetNetworkSelection(MERGED_PROV_CNI, &cfNetCount, &pCfSelCni, &cfSupCount, &pCfSupCni);
    if ((cfNetCount > 0) && (pCfSelCni != NULL))
    {
       // copy network selection list of merge config
-      netwopCount = (cfNetCount <= MAX_NETWOP_COUNT) ? cfNetCount : MAX_NETWOP_COUNT;
-      memcpy(pCniTab, pCfSelCni, netwopCount * sizeof(pCniTab[0]));
+      netwopCount = cfNetCount;
+      cniTabCapacity = netwopCount;
+      pCniTab = xmalloc(cniTabCapacity * sizeof(pCniTab[0]));
+      memcpy(pCniTab, pCfSelCni, cniTabCapacity * sizeof(pCniTab[0]));
    }
 
    // add networks from all merged DBs that are not explicitly suppressed in merge config
-   for (dbIdx = 0; dbIdx < provCniCount; dbIdx++)
+   for (uint dbIdx = 0; dbIdx < provCniCount; dbIdx++)
    {
       pPeek = EpgContextCtl_Peek(pProvCniTab[dbIdx], CTX_RELOAD_ERR_NONE);
       if (pPeek != NULL)
@@ -321,7 +325,7 @@ static bool EpgSetup_GetMergeDbNetwops( uint provCniCount, const uint * pProvCni
          {
             pNetwops = AI_GET_NETWOPS(pAiBlock);
 
-            for (netIdx = 0; (netIdx < pAiBlock->netwopCount) && (netwopCount < MAX_NETWOP_COUNT); netIdx++, pNetwops++)
+            for (uint netIdx = 0; netIdx < pAiBlock->netwopCount; netIdx++, pNetwops++)
             {
                cni = AI_GET_NET_CNI(pNetwops);
 
@@ -339,14 +343,14 @@ static bool EpgSetup_GetMergeDbNetwops( uint provCniCount, const uint * pProvCni
 
                   if (prevIdx >= netwopCount)
                   {
-                     if (netwopCount < MAX_NETWOP_COUNT)
+                     if (netwopCount >= cniTabCapacity)
                      {
-                        dprintf3("EpgSetup-InitMergeDbNetwops: add net #%d: CNI 0x%04X of DB 0x%04X\n", netIdx, cni, pProvCniTab[dbIdx]);
-                        pCniTab[netwopCount] = cni;
-                        netwopCount += 1;
+                        cniTabCapacity = ((cniTabCapacity == 0) ? 256 : (cniTabCapacity * 2));
+                        pCniTab = xrealloc(pCniTab, cniTabCapacity * sizeof(pCniTab[0]));
                      }
-                     else
-                        debug1("EpgSetup-InitMergeDbNetwops: overflow of network table (max len %d)", MAX_NETWOP_COUNT);
+                     dprintf3("EpgSetup-InitMergeDbNetwops: add net #%d: CNI 0x%04X of DB 0x%04X\n", netIdx, cni, pProvCniTab[dbIdx]);
+                     pCniTab[netwopCount] = cni;
+                     netwopCount += 1;
                   }
                }
             }
@@ -358,6 +362,7 @@ static bool EpgSetup_GetMergeDbNetwops( uint provCniCount, const uint * pProvCni
          debug1("EpgSetup-InitMergeDbNetwops: failed to peek DB 0x%04X (ignored)", pProvCniTab[dbIdx]);
    }
    *pCniCount = netwopCount;
+   *ppCniTab = pCniTab;
 
    return TRUE;
 }
@@ -475,15 +480,15 @@ EPGDB_CONTEXT * EpgSetup_MergeDatabases( int errHand )
    MERGE_ATTRIB_MATRIX max;
    uint  pProvCniTab[MAX_MERGED_DB_COUNT];
    uint  provCount;
-   uint  netwopCniTab[MAX_NETWOP_COUNT];
+   uint  * pNetwopCniTab = NULL;
    uint  netwopCount;
    uint  idx;
    time_t now;
 
    if ( EpgSetup_GetMergeProviders(&provCount, pProvCniTab, &max[0]) &&
-        EpgSetup_GetMergeDbNetwops(provCount, pProvCniTab, &netwopCount, netwopCniTab) )
+        EpgSetup_GetMergeDbNetwops(provCount, pProvCniTab, &netwopCount, &pNetwopCniTab) )
    {
-      pDbContext = EpgContextMerge(provCount, pProvCniTab, max, netwopCount, netwopCniTab, errHand);
+      pDbContext = EpgContextMerge(provCount, pProvCniTab, max, netwopCount, pNetwopCniTab, errHand);
 
       if (pDbContext != NULL)
       {
@@ -504,6 +509,10 @@ EPGDB_CONTEXT * EpgSetup_MergeDatabases( int errHand )
       UiControlMsg_ReloadError(MERGED_PROV_CNI, EPGDB_RELOAD_MERGE, errHand, FALSE);
       pDbContext = NULL;
    }
+
+   if (pNetwopCniTab != NULL)
+      xfree(pNetwopCniTab);
+
    return pDbContext;
 }
 

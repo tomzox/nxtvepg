@@ -244,6 +244,9 @@ void * chk_realloc( void * ptr, size_t size, const char * pCallerFile, int calle
    MALLOC_CHAIN * pPrevElem;
    size_t prevSize;
 
+   if (ptr == NULL)
+       return chk_malloc(size, pCallerFile, callerLine);
+
    pElem = (MALLOC_CHAIN *)((ulong)ptr - sizeof(MALLOC_CHAIN));
    pPrevElem = pElem;
    prevSize = pElem->size;

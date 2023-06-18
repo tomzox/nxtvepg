@@ -180,7 +180,7 @@ static PI_BLOCK * pFakePi = NULL;
 void  EpgDbLockDatabase( EPGDB_CONTEXT * dbc, uchar enable ) {}
 bool  EpgDbIsLocked( const EPGDB_CONTEXT * dbc ) { return TRUE; }
 const AI_BLOCK * EpgDbGetAi( const EPGDB_CONTEXT * dbc ) { return pFakeAi; }
-const PI_BLOCK * EpgDbSearchPiByPil( const EPGDB_CONTEXT * dbc, uchar netwop_no, uint pil ) { return pFakePi; }
+const PI_BLOCK * EpgDbSearchPiByPil( const EPGDB_CONTEXT * dbc, uint netwop_no, uint pil ) { return pFakePi; }
 const PI_BLOCK * EpgDbSearchFirstPiAfter( const EPGDB_CONTEXT * dbc, time_t min_time, EPGDB_TIME_SEARCH_MODE startOrStop, const FILTER_CONTEXT *fc ) { return pFakePi; }
 const PI_BLOCK * EpgDbSearchFirstPi( const EPGDB_CONTEXT * dbc, const FILTER_CONTEXT *fc ) { return pFakePi; }
 const PI_BLOCK * EpgDbSearchNextPi( const EPGDB_CONTEXT * dbc, const FILTER_CONTEXT *fc, const PI_BLOCK * pPiBlock ) { return pFakePi; }
@@ -189,8 +189,8 @@ bool EpgDbContextIsMerged( const EPGDB_CONTEXT * dbc ) { return FALSE; }
 FILTER_CONTEXT * EpgDbFilterCreateContext( void ) { return NULL; }
 void   EpgDbFilterDestroyContext( FILTER_CONTEXT * fc ) {}
 void   EpgDbFilterEnable( FILTER_CONTEXT *fc, uint mask ) {}
-void   EpgDbFilterInitNetwop( FILTER_CONTEXT *fc ) {}
-void   EpgDbFilterSetNetwop( FILTER_CONTEXT *fc, uchar netwopNo ) {}
+void   EpgDbFilterInitNetwop( FILTER_CONTEXT *fc, uint netwopCount ) {}
+void   EpgDbFilterSetNetwop( FILTER_CONTEXT *fc, uint netwopNo ) {}
 
 const char * EpgSetup_GetNetName( const AI_BLOCK * pAiBlock, uint netIdx, bool * pIsFromAi )
 {

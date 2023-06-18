@@ -936,7 +936,7 @@ static char * Xawtv_IcccPiQuery( const PI_BLOCK *pPiBlock, uint count )
 
    // create a search filter to return PI for the current station only
    fc = EpgDbFilterCreateContext();
-   EpgDbFilterInitNetwop(fc);
+   EpgDbFilterInitNetwop(fc, pPiBlock->netwop_no + 1);
    EpgDbFilterSetNetwop(fc, pPiBlock->netwop_no);
    EpgDbFilterEnable(fc, FILTER_NETWOP);
 
@@ -1167,7 +1167,7 @@ static uint Xawtv_MapName2Cni( const char * station )
 {
    const AI_BLOCK *pAiBlock;
    const char * pNetName;
-   uchar netwop;
+   uint netwop;
    uint cni;
 
    cni = 0;
@@ -1205,7 +1205,7 @@ static const PI_BLOCK * Xawtv_SearchCurrentPi( uint cni, uint pil )
    const PI_BLOCK *pPiBlock;
    const AI_NETWOP *pNetwop;
    time_t now;
-   uchar netwop;
+   uint netwop;
    
    assert(EpgDbIsLocked(pUiDbContext));
    pPiBlock = NULL;
@@ -1234,7 +1234,7 @@ static const PI_BLOCK * Xawtv_SearchCurrentPi( uint cni, uint pil )
 
             fc = EpgDbFilterCreateContext();
             // filter for the given network and start time >= now
-            EpgDbFilterInitNetwop(fc);
+            EpgDbFilterInitNetwop(fc, netwop + 1);
             EpgDbFilterSetNetwop(fc, netwop);
             EpgDbFilterEnable(fc, FILTER_NETWOP);
 

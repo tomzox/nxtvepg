@@ -116,6 +116,7 @@ static int SelectThemes( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *
 static int SelectNetwops( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
 {  
    const char * const pUsage = "Usage: C_SelectNetwops <netwop-list>";
+   const AI_BLOCK *pAiBlock;
    Tcl_Obj ** pNetwops;
    int netwopCount;
    int netwop, idx;
@@ -133,18 +134,27 @@ static int SelectNetwops( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj 
       {
          if (netwopCount > 0)
          {
-            EpgDbFilterInitNetwop(pPiFilterContext);
-            for (idx=0; idx < netwopCount; idx++)
+            EpgDbLockDatabase(dbc, TRUE);
+            pAiBlock = EpgDbGetAi(dbc);
+            if (pAiBlock != NULL)
             {
-               result = Tcl_GetIntFromObj(interp, pNetwops[idx], &netwop);
-               if (result == TCL_OK)
+               EpgDbFilterInitNetwop(pPiFilterContext, pAiBlock->netwopCount);
+               for (idx=0; idx < netwopCount; idx++)
                {
-                  EpgDbFilterSetNetwop(pPiFilterContext, netwop);
+                  result = Tcl_GetIntFromObj(interp, pNetwops[idx], &netwop);
+                  if (result == TCL_OK)
+                  {
+                     EpgDbFilterSetNetwop(pPiFilterContext, netwop);
+                  }
+                  else
+                     break;
                }
-               else
-                  break;
+               EpgDbFilterEnable(pPiFilterContext, FILTER_NETWOP);
             }
-            EpgDbFilterEnable(pPiFilterContext, FILTER_NETWOP);
+            else
+               debug0("C_SelectNetwops: no AI in db");
+
+            EpgDbLockDatabase(dbc, FALSE);
          }
          else
          {  // no netwops selected -> disable filter
@@ -984,7 +994,7 @@ static int GetNetwopsWithSeries( ClientData ttp, Tcl_Interp *interp, int objc, T
             // create a hash for filling with title strings
             Tcl_InitHashTable(&piCache, TCL_STRING_KEYS);
 
-            EpgDbFilterInitNetwop(fc);
+            EpgDbFilterInitNetwop(fc, pAiBlock->netwopCount);
             EpgDbFilterSetNetwop(fc, netwop);
 
             pPiBlock = EpgDbSearchFirstPi(dbc, fc);
@@ -1027,7 +1037,8 @@ static int GetNetwopSeriesList( ClientData ttp, Tcl_Interp *interp, int objc, Tc
    Tcl_Obj * pResultList;
    Tcl_Obj * pTmpObj;
    FILTER_CONTEXT *fc;
-   uchar netwop, lang;
+   uchar lang;
+   uint netwop;
    uint cni;
    int result;
 
@@ -1060,7 +1071,7 @@ static int GetNetwopSeriesList( ClientData ttp, Tcl_Interp *interp, int objc, Tc
 
             fc = EpgDbFilterCreateContext();
             EpgDbFilterEnable(fc, FILTER_NETWOP | FILTER_THEMES);
-            EpgDbFilterInitNetwop(fc);
+            EpgDbFilterInitNetwop(fc, pAiBlock->netwopCount);
             EpgDbFilterSetNetwop(fc, netwop);
 
             pPiBlock = EpgDbSearchFirstPi(dbc, fc);
@@ -1204,7 +1215,6 @@ static int GetNetwopFilterList( ClientData ttp, Tcl_Interp *interp, int objc, Tc
    const AI_BLOCK *pAiBlock;
    Tcl_Obj * pResultList;
    char strbuf[16+2+1];
-   uchar netwop;
    int result;
 
    if (objc != 1) 
@@ -1221,9 +1231,9 @@ static int GetNetwopFilterList( ClientData ttp, Tcl_Interp *interp, int objc, Tc
          if (pAiBlock != NULL)
          {
             pResultList = Tcl_NewListObj(0, NULL);
-            for ( netwop = 0; netwop < pAiBlock->netwopCount; netwop++ ) 
+            for (uint netwop = 0; netwop < pAiBlock->netwopCount; netwop++)
             {
-               if (pPiFilterContext->act.netwopFilterField[netwop])
+               if (pPiFilterContext->act.pNetwopFilterField[netwop])
                {
                   sprintf(strbuf, "0x%04X", AI_GET_NET_CNI_N(pAiBlock, netwop));
                   Tcl_ListObjAppendElement(interp, pResultList,
@@ -1283,13 +1293,13 @@ void PiFilter_UpdateAirTime( void )
    uint  startMoD, stopMoD;
    uint  netwop;
 
-   EpgDbFilterInitAirTimesFilter(pPiFilterContext);
-   EpgDbPreFilterEnable(pPiFilterContext, FILTER_AIR_TIMES);
-
    EpgDbLockDatabase(dbc, TRUE);
    pAiBlock = EpgDbGetAi(dbc);
    if (pAiBlock != NULL)
    {
+      EpgDbFilterInitAirTimesFilter(pPiFilterContext, pAiBlock->netwopCount);
+      EpgDbPreFilterEnable(pPiFilterContext, FILTER_AIR_TIMES);
+
       pNetwop = AI_GET_NETWOPS(pAiBlock);
       for (netwop=0; netwop < pAiBlock->netwopCount; netwop++, pNetwop++)
       {
@@ -1360,7 +1370,6 @@ static int PiFilter_ContextMenuUndoFilter( ClientData ttp, Tcl_Interp *interp, i
    const char * pThemeStr;
    const char * pCfNetname;
    uint  idx;
-   uchar netwop;
    Tcl_Obj * pResultList;
    bool  isFromAi;
    int   entryCount;
@@ -1409,8 +1418,8 @@ static int PiFilter_ContextMenuUndoFilter( ClientData ttp, Tcl_Interp *interp, i
             idx = 0;
             if (pPiBlock != NULL)
             {
-               for (netwop=0; netwop < pAiBlock->netwopCount; netwop++)
-                  if ( (pPiFilterContext->act.netwopFilterField[netwop]) &&
+               for (uint netwop = 0; netwop < pAiBlock->netwopCount; netwop++)
+                  if ( (pPiFilterContext->act.pNetwopFilterField[netwop]) &&
                        (netwop != pPiBlock->netwop_no) )
                      idx += 1;
             }
@@ -1573,7 +1582,8 @@ static int PiFilter_ContextMenuAddFilter( ClientData ttp, Tcl_Interp *interp, in
    const char * pCfNetname;
    bool  isFromAi;
    uint  idx;
-   uchar theme, themeCat, netwop;
+   uchar theme, themeCat;
+   uint netwop;
    Tcl_Obj * pResultList;
    int   result;
 
@@ -1720,7 +1730,7 @@ static int PiFilter_ContextMenuAddFilter( ClientData ttp, Tcl_Interp *interp, in
             else
             {  // check if there's more than one network selected -> offer to reduce filtering to one
                for (netwop=0; netwop < pAiBlock->netwopCount; netwop++)
-                  if ( (pPiFilterContext->act.netwopFilterField[netwop]) &&
+                  if ( (pPiFilterContext->act.pNetwopFilterField[netwop]) &&
                        (netwop != pPiBlock->netwop_no) )
                      break;
                if (netwop < pAiBlock->netwopCount)

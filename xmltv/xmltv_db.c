@@ -438,16 +438,13 @@ static EPGDB_BLOCK * XmltvDb_BuildAi( const char * pProvName )
    EPGDB_BLOCK *pBlk;
    AI_BLOCK *pAi;
    AI_NETWOP *pNetwops;
-   uchar idx;
    XML_STR_BUF aiServiceName;
    uint  aiServiceNameLen;
    uint  netNameLenSum;
    uint  blockLen;
 
-   assert(xds.chn_count <= MAX_NETWOP_COUNT);
-
    netNameLenSum = 0;
-   for (idx = 0; idx < xds.chn_count; idx++)
+   for (uint idx = 0; idx < xds.chn_count; idx++)
    {
       netNameLenSum += strlen(xds.p_chn_table[idx].p_disp_name) + 1;
    }
@@ -474,7 +471,7 @@ static EPGDB_BLOCK * XmltvDb_BuildAi( const char * pProvName )
    blockLen += aiServiceNameLen;
    XmlCdata_Free(&aiServiceName);
 
-   for (idx = 0; idx < xds.chn_count; idx++, pNetwops++)
+   for (uint idx = 0; idx < xds.chn_count; idx++, pNetwops++)
    {
       pNetwops->netCni = xds.p_chn_table[idx].cni;
       pNetwops->lto = 120; // TODO
@@ -499,7 +496,7 @@ static EPGDB_BLOCK * XmltvDb_BuildAi( const char * pProvName )
 static bool XmltvDb_AddPiBlock( EPGDB_CONTEXT * dbc, EPGDB_BLOCK *pBlock )
 {
    EPGDB_BLOCK *pWalk, *pPrev;
-   uchar netwop;
+   uint netwop;
    bool added;
 
    // when stop time is missing, fake it as start + 1 second (XXX FIXME choose start of next PI)
@@ -510,7 +507,7 @@ static bool XmltvDb_AddPiBlock( EPGDB_CONTEXT * dbc, EPGDB_BLOCK *pBlock )
         (pBlock->blk.pi.start_time < pBlock->blk.pi.stop_time) )
    {
       netwop = pBlock->blk.pi.netwop_no;
-      if ((netwop < xds.chn_count) && (netwop < MAX_NETWOP_COUNT))
+      if (netwop < xds.chn_count)
       {
          dprintf4("ADD PI ptr=%lx: netwop=%d, start=%ld \"%s\"\n", (ulong)pBlock, netwop, pBlock->blk.pi.start_time, PI_GET_TITLE(&pBlock->blk.pi));
 
@@ -548,7 +545,7 @@ static bool XmltvDb_AddPiBlock( EPGDB_CONTEXT * dbc, EPGDB_BLOCK *pBlock )
       }
       else
       {  // undefined network
-         debug0("DEFECTIVE");
+         debug1("DEFECTIVE block dropped: undefined netwop %d", netwop);
          added = FALSE;
       }
    }
@@ -647,25 +644,22 @@ void Xmltv_AboutSetDate( XML_STR_BUF * pBuf )
 // Add a new channel
 //
 void Xmltv_ChannelCreate( void )
-{ 
-   void * pTmp;
-   uint size;
-
+{
    assert(xds.chn_open == FALSE);
 
    if ((xds.p_chn_table == NULL) || (xds.chn_tab_size < xds.chn_count + 1))
    {
-      size = (xds.chn_tab_size + 100) * sizeof(*xds.p_chn_table);
-      pTmp = xmalloc(size);
-      memset(pTmp, 0, size);
-      if (xds.p_chn_table != NULL)
-      {
-         memcpy(pTmp, xds.p_chn_table, xds.chn_tab_size * sizeof(*xds.p_chn_table));
-         xfree(xds.p_chn_table);
-      }
-      xds.p_chn_table = (XMLTV_CHN*) pTmp;
-      // grow table in steps of 64 (64 should be enough for everyone)
-      xds.chn_tab_size += 64;
+      uint prevSize = xds.chn_tab_size;
+
+      if (prevSize == 0)
+         xds.chn_tab_size = 256;
+      else
+         xds.chn_tab_size *= 2;
+
+      xds.p_chn_table = (XMLTV_CHN*) xrealloc(xds.p_chn_table,
+                                              xds.chn_tab_size * sizeof(xds.p_chn_table[0]));
+      memset((xds.p_chn_table + prevSize), 0,
+             (xds.chn_tab_size - prevSize) * sizeof(xds.p_chn_table[0]));
    }
    xds.chn_open = TRUE;
 }
@@ -692,7 +686,6 @@ void Xmltv_ChannelClose( void )
       }
 
       if ( (xds.p_chn_id_tmp != NULL) &&
-           (xds.chn_count < MAX_NETWOP_COUNT) && // XXX FIXME should remove static limit on number of networks
            (xds.p_chn_table[xds.chn_count].p_disp_name != NULL) )
       {
          pChnIdx = (uint*) XmlHash_CreateEntry(xds.pChannelHash, xds.p_chn_id_tmp, &isNew);
@@ -707,13 +700,25 @@ void Xmltv_ChannelClose( void )
 
             *pChnIdx = xds.chn_count;
             xds.chn_count += 1;
+
+            if (xds.pDbContext->netwopCount < xds.chn_count)
+            {
+               if (xds.pDbContext->pFirstNetwopPi == NULL)
+                  xds.pDbContext->netwopCount = 256;
+               else
+                  xds.pDbContext->netwopCount *= 2;
+
+               xds.pDbContext->pFirstNetwopPi =
+                  xrealloc(xds.pDbContext->pFirstNetwopPi,
+                           xds.pDbContext->netwopCount * sizeof(xds.pDbContext->pFirstNetwopPi[0]));
+            }
+            xds.pDbContext->pFirstNetwopPi[xds.chn_count - 1] = NULL;
+
             result = TRUE;
          }
          else
             debug2("Xmltv-ChannelClose: ID is not unique: '%s', display name '%s'", xds.p_chn_id_tmp, xds.p_chn_table[xds.chn_count].p_disp_name);
       }
-      else if (xds.chn_count >= MAX_NETWOP_COUNT)
-         debug1("Xmltv-ChannelClose: channel table overflow: dropping %s", xds.p_chn_id_tmp);
       else if (xds.p_chn_id_tmp != NULL)
          debug1("Xmltv-ChannelClose: no display name for channel ID %s", xds.p_chn_id_tmp);
       else
@@ -1227,7 +1232,7 @@ void Xmltv_PiRatingAddText( XML_STR_BUF * pBuf )
    }
    else if (xds.pi_rating_sys == XMLTV_RATING_FSK)
    {
-      // official FSK ratings: "ohne Beschränkung", "ab 6", "ab 12", "ab 16", "keine Freigabe"
+      // official FSK ratings: "ohne Beschraenkung", "ab 6", "ab 12", "ab 16", "keine Freigabe"
       // http://www.fsk-online.de/
 
       int scan_pos;
@@ -1447,6 +1452,8 @@ void Xmltv_PiDateAdd( XML_STR_BUF * pBuf )
 EPGDB_CONTEXT * XmltvDb_GetDatabase( const char * pProvName )
 {
    EPGDB_CONTEXT * pDbContext;
+
+   xds.pDbContext->netwopCount = xds.chn_count;
 
    // finally generate inventory block with channel table
    xds.pDbContext->pAiBlock = XmltvDb_BuildAi(pProvName);

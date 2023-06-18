@@ -60,6 +60,7 @@
 #define NETBOX_DEFAULT_COL_COUNT     4
 #define PIBOX_DEFAULT_HEIGHT        25  // should be same as in pilistbox.c
 #define INVALID_CUR_IDX          32767
+#define NETBOX_MAX_COL_CNT       60000  // arbitrary sanity limit
 
 typedef enum
 {
@@ -108,7 +109,7 @@ typedef struct
 
    uint         net_off;
    uint         net_count;           // number of netwops in sel2ai (may be less than AI netwop count)
-   uchar        net_ai2sel[MAX_NETWOP_COUNT];
+   uint       * net_ai2sel;          // Map from AI netwop index to column index
 } NETBOX_STATE;
 
 
@@ -341,7 +342,7 @@ static bool PiNetBox_ConsistancyCheck( void )
       uint col_with_max;
       sint max_row;
       sint last_row;
-      uint elcnt[MAX_NETWOP_COUNT];
+      uint * elcnt = NULL;
 
       pPiBlock = EpgDbSearchPi(dbc, pElem->start_time, pElem->netwop);
       if (pPiBlock != NULL)
@@ -350,6 +351,7 @@ static bool PiNetBox_ConsistancyCheck( void )
          assert(netbox.pi_off   == EpgDbCountPrevPi(dbc, pPiFilterContext, pPiBlock));
          assert(netbox.pi_count == netbox.pi_off + EpgDbCountPi(dbc, pPiFilterContext, pPiBlock));
 
+         elcnt = xmalloc(netbox.net_count * sizeof(elcnt[0]));
          memset(elcnt, 0, sizeof(elcnt));
          last_row = -32768;
          col_with_max = 0;
@@ -406,6 +408,7 @@ static bool PiNetBox_ConsistancyCheck( void )
          {
             assert(elcnt[colIdx] == pCol->entries);
          }
+         xfree(elcnt);
       }
       else
          fatal4("ERROR: first elem in col %d-%d not found in db: net %d, start %d", netbox.net_ai2sel[pPiBlock->netwop_no], netbox.net_off, pElem->netwop, (int)pElem->start_time);
@@ -524,7 +527,6 @@ static void PiNetBox_UpdateNetwopNames( void )
    Tcl_Obj * pTmpObj;
    Tcl_Obj * objv[4];
 
-   EpgDbFilterInitNetwopPreFilter2(pPiFilterContext);
    pCol   = netbox.cols;
    colIdx = 0;
 
@@ -541,6 +543,10 @@ static void PiNetBox_UpdateNetwopNames( void )
    pAiBlock = EpgDbGetAi(dbc);
    if (pAiBlock != NULL)
    {
+      EpgDbFilterInitNetwopPreFilter2(pPiFilterContext, pAiBlock->netwopCount);
+
+      netbox.net_ai2sel = xrealloc(netbox.net_ai2sel, pAiBlock->netwopCount * sizeof(netbox.net_ai2sel[0]));
+
       for ( ; (colIdx < netbox.col_count) && (colIdx < netbox.net_count); colIdx++, pCol++)
       {
          Tcl_SetStringObj(objv[0], comm, sprintf(comm, ".all.pi.list.nets.h_%d.b", colIdx));
@@ -596,17 +602,17 @@ static void PiNetBox_SearchPrevNext( uint colIdx, time_t cur_time,
                                      const PI_BLOCK ** pPrevPi, const PI_BLOCK ** pNextPi )
 {
    const AI_BLOCK * pAiBlock;
-   bool  pre2copy[MAX_NETWOP_COUNT];
    uint  netwop;
 
    assert(EpgDbIsLocked(dbc));
-   assert(sizeof(pre2copy) == sizeof(pPiFilterContext->netwopPreFilter2));
 
    if ((pPrevPi != NULL) && (pNextPi != NULL))
    {
       // make a copy of the current pre-filter to recover it later
-      memcpy(pre2copy, pPiFilterContext->netwopPreFilter2, sizeof(pre2copy));
-      EpgDbFilterInitNetwopPreFilter2(pPiFilterContext);
+      uint  pre2Size = sizeof(pPiFilterContext->pNetwopPreFilter2[0]) * pPiFilterContext->netwopCount;
+      bool  * pre2copy = xmalloc(pre2Size);
+      memcpy(pre2copy, pPiFilterContext->pNetwopPreFilter2, pre2Size);
+      EpgDbFilterInitNetwopPreFilter2(pPiFilterContext, pPiFilterContext->netwopCount);
 
       pAiBlock = EpgDbGetAi(dbc);
       if (pAiBlock != NULL)
@@ -627,7 +633,8 @@ static void PiNetBox_SearchPrevNext( uint colIdx, time_t cur_time,
       *pNextPi = EpgDbSearchFirstPiAfter(dbc, cur_time, STARTING_AT, pPiFilterContext);
 
       // recover prefilter state
-      memcpy(pPiFilterContext->netwopPreFilter2, pre2copy, sizeof(pre2copy));
+      memcpy(pPiFilterContext->pNetwopPreFilter2, pre2copy, pre2Size);
+      xfree(pre2copy);
    }
    else
       fatal0("PiNetBox-SearchPrevNext: illegal NULL ptr params");
@@ -2537,25 +2544,24 @@ static const PI_BLOCK * PiNetBox_PickNewPi( uint * pColIdx, sint * pTextRow, uin
 static bool PiNetBox_CheckNetwopFilterChange( void )
 {
    const AI_BLOCK * pAiBlock;
-   uchar netFilter[MAX_NETWOP_COUNT];
-   uint  netwop;
    bool  result = FALSE;
 
    EpgDbLockDatabase(dbc, TRUE);
    pAiBlock = EpgDbGetAi(dbc);
    if (pAiBlock != NULL)
    {
-      EpgDbFilterGetNetwopFilter(pPiFilterContext, netFilter, pAiBlock->netwopCount);
+      uchar * pNetFilter = EpgDbFilterGetNetwopFilter(pPiFilterContext, pAiBlock->netwopCount);
 
-      for (netwop=0; netwop < pAiBlock->netwopCount; netwop++)
+      for (uint netwop=0; netwop < pAiBlock->netwopCount; netwop++)
       {
-         if ((netFilter[netwop] == FALSE) ^ (netbox.net_ai2sel[netwop] == 0xff))
+         if ((pNetFilter[netwop] == FALSE) ^ (netbox.net_ai2sel[netwop] == INVALID_NETWOP_IDX))
          {  // network is not filtered out but not part of the selection
             // OR filtered but part of the selection -> mismatch
             result = TRUE;
             break;
          }
       }
+      xfree(pNetFilter);
    }
    EpgDbLockDatabase(dbc, FALSE);
 
@@ -3507,6 +3513,7 @@ void PiNetBox_Refresh( void )
       }
 
       pPiBlock = NULL;
+      elemIdx = INVALID_CUR_IDX;
 
       // first try to find the currently selected element
       if (netbox.cur_col < netbox.col_count)
@@ -4555,7 +4562,7 @@ void PiNetBox_GotoPi( const PI_BLOCK * pPiBlock )
          }
          assert(PiNetBox_ConsistancyCheck());
       }
-      else if (colIdx != 0xff)
+      else if (colIdx != INVALID_NETWOP_IDX)
       {  // network not visible -> scroll horizontally
 
          netbox.cur_req_time = pPiBlock->start_time;
@@ -4764,7 +4771,7 @@ static int PiNetBox_GetCniList( ClientData ttp, Tcl_Interp *interp, int objc, Tc
 // ----------------------------------------------------------------------------
 // Build network joins table
 //
-static void PiNetBox_BuildJoinMap( uchar * pMap, const AI_BLOCK * pAiBlock )
+static uint * PiNetBox_BuildJoinMap( const AI_BLOCK * pAiBlock )
 {
    Tcl_Obj   * pJoinVar;
    Tcl_Obj  ** pJoinList;
@@ -4774,9 +4781,11 @@ static void PiNetBox_BuildJoinMap( uchar * pMap, const AI_BLOCK * pAiBlock )
    int   cniCount;
    uint  cniIdx;
    int   cni;
-   uchar netwop;
+   uint  netwop;
 
-   memset(pMap, 0xff, MAX_NETWOP_COUNT * sizeof(*pMap));
+   uint * pMap = xmalloc(pAiBlock->netwopCount * sizeof(pMap[0]));
+   for (uint idx = 0; idx < pAiBlock->netwopCount; ++idx)
+      pMap[idx] = INVALID_NETWOP_IDX;
 
    // retrieve global configuration variable
    pJoinVar = Tcl_GetVar2Ex(interp, "cfnetjoin", NULL, TCL_GLOBAL_ONLY);
@@ -4802,7 +4811,7 @@ static void PiNetBox_BuildJoinMap( uchar * pMap, const AI_BLOCK * pAiBlock )
                      // silently ignore CNIs which are not part of the current db
                      if (netwop < pAiBlock->netwopCount)
                      {
-                        ifdebug3(pMap[netwop] != 0xff, "Warning: CNI %04X joined more than once (map %d) in '%s'", netwop, pMap[netwop], Tcl_GetString(pJoinVar));
+                        ifdebug3(pMap[netwop] != INVALID_NETWOP_IDX, "Warning: CNI %04X joined more than once (map %d) in '%s'", netwop, pMap[netwop], Tcl_GetString(pJoinVar));
                         pMap[netwop] = joinIdx;
                      }
                   }
@@ -4811,6 +4820,7 @@ static void PiNetBox_BuildJoinMap( uchar * pMap, const AI_BLOCK * pAiBlock )
          }
       }
    }
+   return pMap;
 }
 
 // ----------------------------------------------------------------------------
@@ -4821,9 +4831,8 @@ static void PiNetBox_UpdateNetwopMap( void )
    const AI_BLOCK * pAiBlock;
    Tcl_Obj  ** pMapList;
    Tcl_Obj   * pMapVar;
-   uchar netFilter[MAX_NETWOP_COUNT];
-   uchar netJoin[MAX_NETWOP_COUNT];
-   uchar netJoinCol[MAX_NETWOP_COUNT];
+   uint * pNetJoin = NULL;
+   uint * pNetJoinCol = NULL;
    int  netwop;
    uint sel_idx;
    sint idx;
@@ -4836,8 +4845,16 @@ static void PiNetBox_UpdateNetwopMap( void )
    {
       if (pAiBlock->netwopCount > 0)
       {
-         PiNetBox_BuildJoinMap(netJoin, pAiBlock);
-         memset(netJoinCol, 0xff, sizeof(netJoinCol));
+         netbox.net_ai2sel = xrealloc(netbox.net_ai2sel, pAiBlock->netwopCount * sizeof(netbox.net_ai2sel[0]));
+
+         pNetJoin = PiNetBox_BuildJoinMap(pAiBlock);
+
+         pNetJoinCol = xmalloc(pAiBlock->netwopCount * sizeof(pNetJoinCol[0]));
+         for (uint idx = 0; idx < pAiBlock->netwopCount; ++idx)
+         {
+            pNetJoinCol[idx] = INVALID_NETWOP_IDX;
+            netbox.net_ai2sel[idx] = INVALID_NETWOP_IDX;
+         }
 
          pMapVar = Tcl_GetVar2Ex(interp, "netwop_sel2ai", NULL, TCL_GLOBAL_ONLY);
          if (pMapVar != NULL)
@@ -4845,34 +4862,33 @@ static void PiNetBox_UpdateNetwopMap( void )
             result = Tcl_ListObjGetElements(interp, pMapVar, &count, &pMapList);
             if (result == TCL_OK)
             {
-               memset(netbox.net_ai2sel, 0xff, sizeof(netbox.net_ai2sel));
                sel_idx = 0;
-               EpgDbFilterGetNetwopFilter(pPiFilterContext, netFilter, pAiBlock->netwopCount);
+               uchar * pNetFilter = EpgDbFilterGetNetwopFilter(pPiFilterContext, pAiBlock->netwopCount);
 
                for (idx = 0; idx < count; idx++)
                {
                   if (Tcl_GetIntFromObj(interp, pMapList[idx], &netwop) == TCL_OK)
                   {
-                     if (netwop < pAiBlock->netwopCount)
+                     if ((netwop < pAiBlock->netwopCount) || (netwop < 0))
                      {
-                        if (netFilter[netwop] != FALSE)
+                        if (pNetFilter[netwop] != FALSE)
                         {
-                           if (netJoin[netwop] == 0xff)
+                           if (pNetJoin[netwop] == INVALID_NETWOP_IDX)
                            {
                               netbox.net_ai2sel[netwop] = sel_idx;
                               sel_idx += 1;
                            }
                            else
                            {
-                              if (netJoinCol[netJoin[netwop]] == 0xff)
+                              if (pNetJoinCol[pNetJoin[netwop]] == INVALID_NETWOP_IDX)
                               {
-                                 netJoinCol[netJoin[netwop]] = sel_idx;
+                                 pNetJoinCol[pNetJoin[netwop]] = sel_idx;
                                  netbox.net_ai2sel[netwop] = sel_idx;
                                  sel_idx += 1;
                               }
                               else
                               {
-                                 netbox.net_ai2sel[netwop] = netJoinCol[netJoin[netwop]];
+                                 netbox.net_ai2sel[netwop] = pNetJoinCol[pNetJoin[netwop]];
                               }
                            }
                         }
@@ -4899,8 +4915,8 @@ static void PiNetBox_UpdateNetwopMap( void )
                   {
                      for (netwop=0; netwop < pAiBlock->netwopCount; netwop++)
                      {
-                        if ( (netbox.net_ai2sel[netwop] == 0xff) &&
-                             (netFilter[netwop] != FALSE) )
+                        if ( (netbox.net_ai2sel[netwop] == INVALID_NETWOP_IDX) &&
+                             (pNetFilter[netwop] != FALSE) )
                         {
                            netbox.net_ai2sel[netwop] = sel_idx;
                            sel_idx += 1;
@@ -4909,12 +4925,18 @@ static void PiNetBox_UpdateNetwopMap( void )
                   }
                }
                netbox.net_count = sel_idx;
+
+               xfree(pNetFilter);
             }
             else
                debug0("PiNetBox-UpdateNetwopMapping: not a list");
          }
          //else
             //debug0("PiNetBox-UpdateNetwopMapping: netwop_sel2ai not defined");
+         xfree(pNetJoin);
+         pNetJoin = NULL;
+         xfree(pNetJoinCol);
+         pNetJoinCol = NULL;
       }
 
       // no map yet or parse error -> generate 1:1 mapping
@@ -4922,7 +4944,7 @@ static void PiNetBox_UpdateNetwopMap( void )
       {
          netbox.net_count = pAiBlock->netwopCount;
 
-         for (netwop=0; netwop < MAX_NETWOP_COUNT; netwop++)
+         for (netwop=0; netwop < pAiBlock->netwopCount; netwop++)
          {
             netbox.net_ai2sel[netwop] = netwop;
          }
@@ -4984,8 +5006,8 @@ static int PiNetBox_Resize( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Ob
       height = NETBOX_ELEM_MIN_HEIGHT;
    if (col_count < 1)
       col_count = 1;
-   else if (col_count > MAX_NETWOP_COUNT)
-      col_count = MAX_NETWOP_COUNT;
+   else if (col_count > NETBOX_MAX_COL_CNT)
+      col_count = NETBOX_MAX_COL_CNT;
 
    if ( (netbox.cols == NULL) ||
         (height != netbox.height) || ((uint)col_count != netbox.col_count) )
@@ -5070,6 +5092,10 @@ void PiNetBox_Destroy( void )
    if (netbox.cols != NULL)
       xfree(netbox.cols);
    netbox.cols = NULL;
+
+   if (netbox.net_ai2sel != NULL)
+      xfree(netbox.net_ai2sel);
+   netbox.net_ai2sel = NULL;
 
    if (dbc != NULL)
       EpgDbSetPiAcqCallback(dbc, NULL);

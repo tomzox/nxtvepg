@@ -44,13 +44,14 @@ typedef struct
 
 typedef struct
 {
-   uint8_t   version;      // TODO always 0 for XMLTV
-   uint8_t   netwopCount;
+   uint32_t  netwopCount;
 
    uint16_t  off_serviceNameStr;
    uint16_t  off_netwops;
 
-   uint16_t  reserved_0;  // padding to align following AI_NETWOP to 32-bit boundary
+   uint8_t   version;      // TODO always 0 for XMLTV
+
+   uint8_t   reserved[3];  // padding to align following AI_NETWOP to 32-bit boundary
 } AI_BLOCK;
 
 #define AI_GET_NETWOPS(X)       ((const AI_NETWOP *)((uint16_t *)(X)+(X)->off_netwops/sizeof(uint16_t)))
@@ -88,7 +89,7 @@ typedef uint8_t EPGDB_MERGE_SRC;
 
 typedef struct
 {
-  uint8_t   netwop_no;
+  uint32_t  netwop_no;
   time32_t  start_time;
   time32_t  stop_time;
   uint32_t  pil;
@@ -131,11 +132,6 @@ typedef struct
 // ----------------------------------------------------------------------------
 // EPG block types (internal redefinition; ordering is relevant!)
 
-// this is the maximum number of netwops an AI block can carry
-// (note: value 0xFF is reserved as invalid netwop index)
-// TODO may be too low for Digital TV
-#define MAX_NETWOP_COUNT    254
-
 typedef enum
 {
    BLOCK_TYPE_OI,
@@ -166,17 +162,6 @@ typedef struct EPGDB_BLOCK_STRUCT
 } EPGDB_BLOCK;
 
 #define BLK_UNION_OFF    ((uint)(sizeof(EPGDB_BLOCK) - sizeof(EPGDB_BLOCK_UNION)))
-
-#define BLK_HEAD_PTR_OFF_MEM    ((uint)(4*sizeof(void*)))
-#if defined (USE_32BIT_COMPAT)  // by default keep 64-bit incompatible so that old 64-bit DBs remain compatible
-#define BLK_HEAD_PTR_OFF_FILE   ((uint)(4*sizeof(uint32_t)))
-#else
-#define BLK_HEAD_PTR_OFF_FILE   BLK_HEAD_PTR_OFF_MEM
-#endif
-#define BLK_HEAD_SIZE_DATA      (BLK_UNION_OFF - BLK_HEAD_PTR_OFF_MEM)
-#define BLK_HEAD_SIZE_FILE      (BLK_UNION_OFF + BLK_HEAD_PTR_OFF_FILE - BLK_HEAD_PTR_OFF_MEM)
-#define BLK_HEAD_SIZE_MEM       BLK_UNION_OFF
-#define BLK_HEAD_PTR_FILE(P)    ((EPGDB_BLOCK*)((char*)(P) + BLK_HEAD_PTR_OFF_FILE - BLK_HEAD_PTR_OFF_MEM))
 
 // ----------------------------------------------------------------------------
 // Event callback for handling incoming PI in the GUI
@@ -211,13 +196,16 @@ typedef struct EPGDB_CONTEXT_STRUCT
    EPGDB_BLOCK *pOiBlock;
    EPGDB_BLOCK *pFirstPi, *pLastPi;
    EPGDB_BLOCK *pObsoletePi;
-   EPGDB_BLOCK *pFirstNetwopPi[MAX_NETWOP_COUNT];
+   EPGDB_BLOCK **pFirstNetwopPi;    // Variable-length array
+   uint32_t    netwopCount;
 
    EPGDB_PI_ACQ_CB *pPiAcqCb;
 } EPGDB_CONTEXT;
 
 // ----------------------------------------------------------------------------
 // Macros for provider database CNI
+
+#define INVALID_NETWOP_IDX    ((uint32_t)~0)
 
 // max number of databases that can be merged into one
 #define MAX_MERGED_DB_COUNT  63

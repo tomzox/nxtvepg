@@ -204,14 +204,14 @@ const OI_BLOCK * EpgDbGetOi( CPDBC dbc )
 //   these settings are considered; see the epgdbfil module on how to
 //   create a filter context
 //
-const PI_BLOCK * EpgDbSearchPi( CPDBC dbc, time_t start_time, uchar netwop_no )
+const PI_BLOCK * EpgDbSearchPi( CPDBC dbc, time_t start_time, uint netwop_no )
 {
    EPGDB_BLOCK * pBlock;
 
-   assert(netwop_no < MAX_NETWOP_COUNT);
-
    if ( EpgDbIsLocked(dbc) )
    {
+      assert(netwop_no < dbc->netwopCount);
+
       pBlock = dbc->pFirstNetwopPi[netwop_no];
 
       while (pBlock != NULL)
@@ -556,14 +556,14 @@ uint EpgDbCountPrevPi( CPDBC dbc, const FILTER_CONTEXT *fc, const PI_BLOCK * pPi
 // - also search through the obsolete blocks, because the planned program
 //   stop time might already have elapsed when the program is still running
 //
-const PI_BLOCK * EpgDbSearchPiByPil( CPDBC dbc, uchar netwop_no, uint pil )
+const PI_BLOCK * EpgDbSearchPiByPil( CPDBC dbc, uint netwop_no, uint pil )
 {
    const EPGDB_BLOCK * pBlock;
 
-   assert(netwop_no < MAX_NETWOP_COUNT);
-
    if ( EpgDbIsLocked(dbc) )
    {
+      assert(netwop_no < dbc->netwopCount);
+
       pBlock = dbc->pFirstNetwopPi[netwop_no];
       while (pBlock != NULL)
       {
@@ -617,7 +617,7 @@ uint EpgDbGetProgIdx( CPDBC dbc, const PI_BLOCK * pPiBlock )
 {
    EPGDB_BLOCK * pBlock;
    uint  nowIdx;
-   uchar netwop;
+   uint netwop;
    time_t now = time(NULL);
    uint  result = 0xffff;
 

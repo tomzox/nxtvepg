@@ -108,13 +108,20 @@ void EpgDbDestroy( PDBC dbc, bool keepAiOi )
             dbc->pOiBlock = NULL;
          }
 
+         if (dbc->pFirstNetwopPi != NULL)
+         {
+             xfree(dbc->pFirstNetwopPi);
+             dbc->pFirstNetwopPi = NULL;
+         }
+
          // free the database context
          xfree(dbc);
       }
       else
       {
          // reset remaining block pointers
-         memset(dbc->pFirstNetwopPi, 0, sizeof(dbc->pFirstNetwopPi));
+         memset(dbc->pFirstNetwopPi, 0, sizeof(dbc->pFirstNetwopPi[0]) * dbc->netwopCount);
+
          assert(EpgDbMgmtCheckChains(dbc));
       }
    }
@@ -129,9 +136,9 @@ void EpgDbDestroy( PDBC dbc, bool keepAiOi )
 bool EpgDbCheckChains( CPDBC dbc )
 {
    EPGDB_BLOCK *pPrev, *pWalk;
-   EPGDB_BLOCK *pPrevNetwop[MAX_NETWOP_COUNT];
+   EPGDB_BLOCK **pPrevNetwop;
    sint  blocks;
-   uchar netwop;
+   uint  netwop;
 
    if (dbc->pFirstPi != NULL)
    {
@@ -143,13 +150,14 @@ bool EpgDbCheckChains( CPDBC dbc )
       blocks = 0;
       pWalk = dbc->pFirstPi;
       pPrev = NULL;
-      memset(pPrevNetwop, 0, sizeof(pPrevNetwop));
+      pPrevNetwop = xmalloc(sizeof(pPrevNetwop[0]) * dbc->netwopCount);
+      memset(pPrevNetwop, 0, sizeof(pPrevNetwop[0]) * dbc->netwopCount);
 
       while (pWalk != NULL)
       {
          blocks += 1;
          netwop = pWalk->blk.pi.netwop_no;
-         assert(netwop < MAX_NETWOP_COUNT);
+         assert(netwop < dbc->netwopCount);
          assert(pWalk->type == BLOCK_TYPE_PI);
          assert(pWalk->blk.pi.start_time < pWalk->blk.pi.stop_time);
          pPrev = pPrevNetwop[netwop];
@@ -174,8 +182,10 @@ bool EpgDbCheckChains( CPDBC dbc )
          }
       }
       assert(dbc->pLastPi == pPrev);
+      xfree(pPrevNetwop);
+      pPrevNetwop = NULL;
 
-      for (netwop=0; netwop < MAX_NETWOP_COUNT; netwop++)
+      for (netwop=0; netwop < dbc->netwopCount; netwop++)
       {
          pWalk = dbc->pFirstNetwopPi[netwop];
          assert((pWalk == NULL) || (pWalk->pPrevNetwopBlock == NULL));
@@ -189,7 +199,7 @@ bool EpgDbCheckChains( CPDBC dbc )
             assert((pWalk == NULL) || (pWalk->blk.pi.start_time >= pPrev->blk.pi.start_time));
          }
       }
-      for (netwop=dbc->pAiBlock->blk.ai.netwopCount; netwop < MAX_NETWOP_COUNT; netwop++)
+      for (netwop=dbc->pAiBlock->blk.ai.netwopCount; netwop < dbc->netwopCount; netwop++)
       {
          assert(dbc->pFirstNetwopPi[netwop] == NULL);
       }
@@ -198,7 +208,7 @@ bool EpgDbCheckChains( CPDBC dbc )
    else
    {  // no PI in the DB -> all netwop pointers must be invalid
       assert(dbc->pLastPi == NULL);
-      for (netwop=0; netwop < MAX_NETWOP_COUNT; netwop++)
+      for (netwop=0; netwop < dbc->netwopCount; netwop++)
       {
          assert(dbc->pFirstNetwopPi[netwop] == NULL);
       }
@@ -217,7 +227,8 @@ bool EpgDbCheckChains( CPDBC dbc )
    {
       assert(dbc->pAiBlock->type == BLOCK_TYPE_AI);
       assert((dbc->pAiBlock->pNextBlock == NULL) && (dbc->pAiBlock->pPrevBlock == NULL));
-      assert(dbc->pAiBlock->blk.ai.netwopCount <= MAX_NETWOP_COUNT);
+      assert(dbc->pAiBlock->blk.ai.netwopCount == dbc->netwopCount);
+      assert(dbc->pFirstNetwopPi != NULL);
    }
 
    // check OI
@@ -237,7 +248,9 @@ bool EpgDbCheckChains( CPDBC dbc )
 void EpgDbLinkPi( PDBC dbc, EPGDB_BLOCK * pBlock, EPGDB_BLOCK * pPrev, EPGDB_BLOCK * pNext )
 {
    EPGDB_BLOCK *pWalk;
-   uchar netwop = pBlock->blk.pi.netwop_no;
+   uint netwop = pBlock->blk.pi.netwop_no;
+
+   assert(netwop < dbc->netwopCount);
 
    // Insertion point must lie between the previous and given PI of the given network
    if (pPrev != NULL)

@@ -31,7 +31,6 @@
 #include "epgctl/mytypes.h"
 #include "epgctl/debug.h"
 #include "epgdb/epgblock.h"
-#include "epgdb/epgswap.h"
 
 
 static time_t unixTimeBase1982;         // 1.1.1982 in UNIX time format
@@ -136,7 +135,7 @@ static bool EpgBlockCheckPi( EPGDB_BLOCK * pBlock )
 
    pPi = &pBlock->blk.pi;
 
-   if (pPi->netwop_no >= MAX_NETWOP_COUNT)
+   if (pPi->netwop_no == INVALID_NETWOP_IDX)
    {
       debug1("EpgBlock-CheckPi: illegal netwop %d", pPi->netwop_no);
    }
@@ -192,13 +191,12 @@ static bool EpgBlockCheckAi( EPGDB_BLOCK * pBlock )
    const AI_BLOCK  * pAi;
    const AI_NETWOP * pNetwop;
    const char *pBlockEnd, *pName, *pPrevName;
-   uchar netwop;
    bool result = FALSE;
 
    pAi       = &pBlock->blk.ai;
    pBlockEnd = (char *) pBlock + pBlock->size + BLK_UNION_OFF;
 
-   if ((pAi->netwopCount == 0) || (pAi->netwopCount > MAX_NETWOP_COUNT))
+   if ((pAi->netwopCount == 0) || (pAi->netwopCount == INVALID_NETWOP_IDX))
    {
       debug1("EpgBlock-CheckAi: illegal netwop count %d", pAi->netwopCount);
    }
@@ -223,7 +221,7 @@ static bool EpgBlockCheckAi( EPGDB_BLOCK * pBlock )
       // check the name string offsets the netwop array
       pNetwop   = AI_GET_NETWOPS(pAi);
       pPrevName = AI_GET_SERVICENAME(pAi);
-      for (netwop=0; netwop < pAi->netwopCount; netwop++, pNetwop++)
+      for (uint netwop=0; netwop < pAi->netwopCount; netwop++, pNetwop++)
       {
          pName = AI_GET_STR_BY_OFF(pAi, pNetwop->off_name);
          if ( (pName <= pPrevName) ||

@@ -286,7 +286,7 @@ static EPGDB_PI_TSC_BUF * EpgTscQueue_CreateNew( EPGDB_PI_TSC * pQueue )
 // - if the start time equals the stop time of the previous element and network
 //   and flags are identical, it's merged with the previous entry
 //
-static void EpgTscQueue_Append( EPGDB_PI_TSC * pQueue, time_t startTime, time_t stopTime, uchar netwop, uchar flags )
+static void EpgTscQueue_Append( EPGDB_PI_TSC * pQueue, time_t startTime, time_t stopTime, uint netwop, uchar flags )
 {
    EPGDB_PI_TSC_BUF   * pTscBuf;
    EPGDB_PI_TSC_ELEM  * pTsc;

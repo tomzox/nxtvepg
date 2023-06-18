@@ -55,7 +55,7 @@ static struct
    bool   locked;            // locked after provider or version change notification until rebuild
    bool   filled;            // set TRUE once the initial content is drawn; enables acq tails
    bool   isForAcq;          // ui db identical to acq db (and NOT merged)
-   int    highlighted;       // index of last network marked by acq
+   uint   highlighted;       // index of last network marked by acq, or INVALID if none
    time_t startTime;         // for DisplayPi: start time of time scales, equal start time of oldest PI in db
    sint   widthPixels;       // width of the PI scales in pixels
    sint   widthSecs;         // width in seconds (i.e. time span covered by the entire scale)
@@ -315,22 +315,22 @@ static void TimeScale_RequestAcq( void )
 // mark the last netwop that a PI was received from
 // - can be called with invalid netwop index to unmark last netwop only
 //
-static void TimeScale_HighlightNetwop( uchar netwop )
+static void TimeScale_HighlightNetwop( uint netwop )
 {
    if (netwop != tscaleState.highlighted)
    {
       // remove the highlighting from the previous netwop
-      if (tscaleState.highlighted != 0xff)
+      if (tscaleState.highlighted != INVALID_NETWOP_IDX)
       {
          sprintf(comm, "TimeScale_MarkNet %s %d $::text_fg",
                        tsc_wid, tscaleState.highlighted);
          eval_global(interp, comm);
 
-         tscaleState.highlighted = 0xff;
+         tscaleState.highlighted = INVALID_NETWOP_IDX;
       }
 
       // highlight the new netwop
-      if (netwop != 0xff)
+      if (netwop != INVALID_NETWOP_IDX)
       {
          sprintf(comm, "TimeScale_MarkNet %s %d %s",
                        tsc_wid, netwop,
@@ -347,7 +347,7 @@ static void TimeScale_HighlightNetwop( uchar netwop )
 // Display PI time range
 // - converts start time into scale coordinates
 //
-static void TimeScale_DisplayPi( STREAM_COLOR streamCol, uchar netwop,
+static void TimeScale_DisplayPi( STREAM_COLOR streamCol, uint netwop,
                                  time_t start, time_t stop, uchar hasDesc, bool isLast )
 {
    time_t now;
@@ -498,7 +498,7 @@ static void TimeScale_CreateOrRebuild( ClientData dummy )
       {
          // initialize/reset state struct
          // (note: conversion factor secsPerPixel is reset only upon initial display or prov change)
-         tscaleState.highlighted = 0xff;
+         tscaleState.highlighted = INVALID_NETWOP_IDX;
          tscaleState.filled      = FALSE;
          tscaleState.isForAcq    = FALSE;
          tscaleState.widthSecs   = TimeScale_GetScaleWidth(pUiDbContext);
@@ -605,7 +605,7 @@ static int TimeScale_Toggle( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_O
             // refuse request if no AI is available (required for netwop list)
             if (provCni != 0)
             {
-               tscaleState.highlighted = 0xff;
+               tscaleState.highlighted = INVALID_NETWOP_IDX;
                tscaleState.open   = TRUE;
                tscaleState.locked = TRUE;
                tscaleState.secsPerPixel = TSC_DEF_SECS_PER_PIXEL;

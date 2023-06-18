@@ -45,19 +45,18 @@ typedef uchar MERGE_ATTRIB_VECTOR[MAX_MERGED_DB_COUNT];
 typedef MERGE_ATTRIB_VECTOR MERGE_ATTRIB_MATRIX[MERGE_TYPE_COUNT];
 typedef MERGE_ATTRIB_VECTOR *MERGE_ATTRIB_VECTOR_PTR;
 
-typedef uchar EPGDB_MERGE_MAP[MAX_NETWOP_COUNT];
-
 typedef struct
 {
    EPGDB_CONTEXT * pDbContext;
    uint            provCni;
-   EPGDB_MERGE_MAP netwopMap;
-   EPGDB_MERGE_MAP revNetwopMap;
+   uint          * netwopMap;
+   uint          * revNetwopMap;
 } EPGDB_MERGE_PROV_CTX;
 
 typedef struct
 {
    uint            dbCount;
+   uint            netwopCount;
 
    EPGDB_MERGE_PROV_CTX prov[MAX_MERGED_DB_COUNT];
    MERGE_ATTRIB_VECTOR max[MERGE_TYPE_COUNT];

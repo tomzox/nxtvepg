@@ -797,7 +797,7 @@ static bool RcFile_AssignParam( const RCPARSE_CFG * pDesc, uint descCount,
          count = RcFile_ParseTclList(strval);
          if (count > pDesc->maxCount)  // XXX FIXME allocate dynamically
          {
-            debug3("RcFile-AssignParam: too many elements: %d>%d '%s'", count, pDesc->maxCount, strval);
+            debug3("RcFile-AssignParam: too many elements: %d>%d '%.100s'", count, pDesc->maxCount, strval);
             count = pDesc->maxCount;
          }
       }
@@ -814,13 +814,13 @@ static bool RcFile_AssignParam( const RCPARSE_CFG * pDesc, uint descCount,
                if ( (sscanf(strval, " %i%n", &value, &scanlen) >= 1) &&
                     ( (strval[scanlen] == 0) || ((strval[scanlen] == ' ') && ((descCount > 1) || (listIdx + 1 < count))) ))
                {
-                  //dprintf3("RcFile-AssignParam: %s: idx=%d val=%s\n", pDesc->pKey, listIdx, strval);
+                  //dprintf3("RcFile-AssignParam: %s: idx=%d val=%.100s\n", pDesc->pKey, listIdx, strval);
                   pInt = (int *)(pBase + pDesc->off);
                   pInt[listIdx] = value;
                }
                else
                {
-                  debug3("RcFile-AssignParam: parse error key %s idx=%d: '%s'", pDesc->pKey, listIdx, strval);
+                  debug3("RcFile-AssignParam: parse error key %s idx=%d: '%.100s'", pDesc->pKey, listIdx, strval);
                   result = FALSE;
                }
                break;
@@ -923,7 +923,7 @@ static bool RcFile_ParseLine( char * sbuf, uint * pSectIdx, RCFILE_DYN_LIST * pD
             if (RcFile_AssignParam(rcParseCfg[sectIdx].pList, rcParseCfg[sectIdx].listLen,
                                    sbuf, RcFile_DynListGetPtr(pDynList)) == FALSE)
             {
-               debug2("RcFile-ParseLine: Parse error section [%s] skipping '%s'", rcParseCfg[sectIdx].pName, sbuf);
+               debug2("RcFile-ParseLine: Parse error section [%s] skipping '%.100s'", rcParseCfg[sectIdx].pName, sbuf);
                RcFile_DynListUngrow(pDynList);
             }
          }
@@ -937,7 +937,7 @@ static bool RcFile_ParseLine( char * sbuf, uint * pSectIdx, RCFILE_DYN_LIST * pD
          {
             if (strcmp(pDesc->pKey, key) == 0)
             {
-               dprintf3("RC [%s] %s = %s\n", rcParseCfg[sectIdx].pName, key, pValStr);
+               dprintf3("RC [%s] %s = %.100s\n", rcParseCfg[sectIdx].pName, key, pValStr);
                result = RcFile_AssignParam(pDesc, 1, pValStr, (char*)&mainRc);
                break;
             }
@@ -945,12 +945,12 @@ static bool RcFile_ParseLine( char * sbuf, uint * pSectIdx, RCFILE_DYN_LIST * pD
          if ( (elemIdx >= rcParseCfg[sectIdx].listLen) &&
               ((rcParseCfg[sectIdx].flags & RCPARSE_IGNORE_UNKNOWN) == 0) )
          {
-            debug3("RcFile-Load: [%s] unknown key %s (val '%s')", rcParseCfg[sectIdx].pName, key, pValStr);
+            debug3("RcFile-Load: [%s] unknown key %s (val '%.100s')", rcParseCfg[sectIdx].pName, key, pValStr);
          }
       }
       else if (sscanf(sbuf, " %1[^#\n]", key) >= 1)
       {
-         debug2("RcFile-Load: [%s] parse error: %s", rcParseCfg[sectIdx].pName, sbuf);
+         debug2("RcFile-Load: [%s] parse error: %.100s", rcParseCfg[sectIdx].pName, sbuf);
       }
    }
    return result;
@@ -964,7 +964,7 @@ static bool RcFile_ParseLine( char * sbuf, uint * pSectIdx, RCFILE_DYN_LIST * pD
 bool RcFile_Load( const char * pRcPath, bool isDefault, char ** ppErrMsg )
 {
    FILE * fp;
-   char   sbuf[4096];
+   char * sbuf;
    uint   sectIdx;
    RCFILE_DYN_LIST dynList;
    uint   len;
@@ -976,11 +976,12 @@ bool RcFile_Load( const char * pRcPath, bool isDefault, char ** ppErrMsg )
       fp = fopen(pRcPath, "r");
       if (fp != NULL)
       {
+         sbuf = xmalloc(RC_LINE_BUF_SIZE);
          sectIdx = RC_ARR_CNT(rcParseCfg);
          parseError = FALSE;
          result = TRUE;
 
-         while (fgets(sbuf, sizeof(sbuf), fp) != NULL)
+         while (fgets(sbuf, RC_LINE_BUF_SIZE, fp) != NULL)
          {
             // remove newline from the end of the line
             len = strlen(sbuf);
@@ -1002,7 +1003,7 @@ bool RcFile_Load( const char * pRcPath, bool isDefault, char ** ppErrMsg )
                   debug2("RcFile-Load: [%s] overly long line skipped (%.40s...)", rcParseCfg[sectIdx].pName, sbuf);
 
                // continue reading until end of line if reached
-               while (fgets(sbuf, sizeof(sbuf), fp) != NULL)
+               while (fgets(sbuf, RC_LINE_BUF_SIZE, fp) != NULL)
                {
                   len = strlen(sbuf);
                   if ((len > 0) && (sbuf[len - 1] == '\n'))
@@ -1041,6 +1042,7 @@ bool RcFile_Load( const char * pRcPath, bool isDefault, char ** ppErrMsg )
             }
          }
          fclose(fp);
+         xfree(sbuf);
       }
       else
       {  // failed to open the rc/ini file
@@ -1423,8 +1425,16 @@ void RcFile_UpdateNetworkSelection( uint provCni, uint selCount, const uint * pS
    bool foundSel;
    bool foundSup;
 
-   assert(selCount <= RC_MAX_DB_NETWOPS);
-   assert(supCount <= RC_MAX_DB_NETWOPS);
+   if (selCount > RC_MAX_DB_NETWOPS)
+   {
+       debug2("RcFile-UpdateNetworkSelection: Dropping excessive number of selected CNIs: %d > %d", selCount, RC_MAX_DB_NETWOPS);
+       selCount = RC_MAX_DB_NETWOPS;
+   }
+   if (supCount > RC_MAX_DB_NETWOPS)
+   {
+       debug2("RcFile-UpdateNetworkSelection: Dropping excessive number of suppressed CNIs: %d > %d", supCount, RC_MAX_DB_NETWOPS);
+       supCount = RC_MAX_DB_NETWOPS;
+   }
 
    RcFile_DynListInit(&dynList, sizeof(RCFILE_NET_ORDER),
                       (char**)&mainRc.net_order, &mainRc.net_order_count);
