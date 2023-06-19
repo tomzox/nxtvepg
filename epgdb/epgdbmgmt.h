@@ -26,8 +26,7 @@
 //
 bool EpgDbCheckChains( const EPGDB_CONTEXT * dbc );
 
-void EpgDbPiRemove( EPGDB_CONTEXT * dbc, EPGDB_BLOCK * pObsolete );
-void EpgDbLinkPi( EPGDB_CONTEXT * dbc, EPGDB_BLOCK * pBlock, EPGDB_BLOCK * pPrev, EPGDB_BLOCK * pNext );
+void EpgDbMergeLinkNetworkPi( EPGDB_CONTEXT * dbc, EPGDB_BLOCK ** pFirstNetwopBlock );
 void EpgDbReplacePi( EPGDB_CONTEXT * dbc, EPGDB_BLOCK * pObsolete, EPGDB_BLOCK * pBlock );
 bool EpgDbAddDefectPi( EPGDB_CONTEXT * dbc, EPGDB_BLOCK *pBlock );
 

@@ -243,75 +243,101 @@ bool EpgDbCheckChains( CPDBC dbc )
 #endif // DEBUG_GLOBAL_SWITCH == ON
 
 // ---------------------------------------------------------------------------
-// Link a new PI block into the database
+// Append a PI block to the database
 //
-void EpgDbLinkPi( PDBC dbc, EPGDB_BLOCK * pBlock, EPGDB_BLOCK * pPrev, EPGDB_BLOCK * pNext )
+static void EpgDbMergeAddPiBlock( PDBC dbc, EPGDB_BLOCK * pBlock, EPGDB_BLOCK *pPrevBlock )
 {
-   EPGDB_BLOCK *pWalk;
-   uint netwop = pBlock->blk.pi.netwop_no;
+   uint netwop;
 
-   assert(netwop < dbc->netwopCount);
-
-   // Insertion point must lie between the previous and given PI of the given network
-   if (pPrev != NULL)
-   {
-      pWalk = pPrev;
-      assert(pPrev->blk.pi.start_time < pBlock->blk.pi.start_time);
-   }
-   else
-      pWalk = dbc->pFirstPi;
-
-   while ( (pWalk != NULL) &&
-           ( (pWalk->blk.pi.start_time < pBlock->blk.pi.start_time) ||
-             ((pWalk->blk.pi.start_time == pBlock->blk.pi.start_time) && (pWalk->blk.pi.netwop_no < netwop)) ))
-   {
-      pWalk = pWalk->pNextBlock;
-   }
-   assert((pNext == NULL) || (pWalk != NULL));
-   // determined the exact insertion point: just before walk
-
-   // insert into the network pointer chain
-   if (pPrev == NULL)
-   {
-      pBlock->pNextNetwopBlock = dbc->pFirstNetwopPi[netwop];
+   netwop = pBlock->blk.pi.netwop_no;
+   if (dbc->pFirstPi == NULL)
+   {  // db empty -> insert very first item
+      assert(dbc->pLastPi == NULL);
+      assert(dbc->pFirstNetwopPi[netwop] == NULL);
+      pBlock->pNextNetwopBlock = NULL;
+      pBlock->pPrevNetwopBlock = NULL;
       dbc->pFirstNetwopPi[netwop] = pBlock;
-   }
-   else
-   {
-      pBlock->pNextNetwopBlock = pPrev->pNextNetwopBlock;
-      pPrev->pNextNetwopBlock = pBlock;
-   }
-   if (pNext != NULL)
-      pNext->pPrevNetwopBlock = pBlock;
-   pBlock->pPrevNetwopBlock = pPrev;
-
-   // insert into the start time pointer chain
-   if (pWalk != NULL)
-   {
-      pPrev = pWalk->pPrevBlock;
-      pNext = pWalk;
-   }
-   else
-   {  // append as very last element (of all netwops)
-      pPrev = dbc->pLastPi;
-      pNext = NULL;
-   }
-   if (pPrev != NULL) dprintf3("add pi after  ptr=%lx: netwop=%d, start=%ld\n", (ulong)pPrev, pPrev->blk.pi.netwop_no, pPrev->blk.pi.start_time);
-   if (pNext != NULL) dprintf3("add pi before ptr=%lx: netwop=%d, start=%ld\n", (ulong)pNext, pNext->blk.pi.netwop_no, pNext->blk.pi.start_time);
-   pBlock->pPrevBlock = pPrev;
-   pBlock->pNextBlock = pNext;
-   if (pPrev != NULL)
-      pPrev->pNextBlock = pBlock;
-   else
+      pBlock->pPrevBlock = NULL;
+      pBlock->pNextBlock = NULL;
       dbc->pFirstPi = pBlock;
-   if (pNext != NULL)
-      pNext->pPrevBlock = pBlock;
+      dbc->pLastPi  = pBlock;
+   }
    else
-      dbc->pLastPi = pBlock;
+   {  // append to the end
 
-   // notify the GUI
-   if (dbc->pPiAcqCb != NULL)
-      dbc->pPiAcqCb(dbc, EPGDB_PI_INSERTED, &pBlock->blk.pi, NULL);
+      // set pointers of netwop chain
+      if (dbc->pFirstNetwopPi[netwop] == NULL)
+      {
+         dbc->pFirstNetwopPi[netwop] = pBlock;
+         pBlock->pPrevNetwopBlock = NULL;
+      }
+      else
+      {
+         pPrevBlock->pNextNetwopBlock = pBlock;
+         pBlock->pPrevNetwopBlock = pPrevBlock;
+      }
+      pBlock->pNextNetwopBlock = NULL;
+
+      // set pointers of start time chain
+      pBlock->pPrevBlock = dbc->pLastPi;
+      pBlock->pNextBlock = NULL;
+      dbc->pLastPi->pNextBlock = pBlock;
+      dbc->pLastPi = pBlock;
+   }
+}
+
+// ---------------------------------------------------------------------------
+// Combine linked PI of separated networks into one database
+//
+void EpgDbMergeLinkNetworkPi( PDBC dbc, EPGDB_BLOCK ** pFirstNetwopBlock )
+{
+   EPGDB_BLOCK **pPrevNetwopBlock;
+   EPGDB_BLOCK *pBlock;
+   time_t minStartTime;
+   uint minNetwop;
+   uint netwop, netCount;
+
+   // reset start links in DB context
+   dbc->pFirstPi = NULL;
+   dbc->pLastPi = NULL;
+   memset(dbc->pFirstNetwopPi, 0, sizeof(dbc->pFirstNetwopPi[0]));
+
+   netCount = dbc->pAiBlock->blk.ai.netwopCount;
+   pPrevNetwopBlock = xmalloc(sizeof(pPrevNetwopBlock[0]) * netCount);
+   memset(pPrevNetwopBlock, 0, sizeof(pPrevNetwopBlock[0]) * netCount);
+
+   // combine blocks of separately merged networks into one database
+   while (1)
+   {
+      minStartTime = 0;
+      minNetwop = INVALID_NETWOP_IDX;
+
+      // search across all networks for the oldest block
+      for (netwop = 0; netwop < netCount; netwop++)
+      {
+         if (pFirstNetwopBlock[netwop] != NULL)
+         {
+            if ( (minStartTime == 0) ||
+                 (pFirstNetwopBlock[netwop]->blk.pi.start_time < minStartTime) )
+            {
+               minStartTime = pFirstNetwopBlock[netwop]->blk.pi.start_time;
+               minNetwop = netwop;
+            }
+         }
+      }
+
+      if (minNetwop == INVALID_NETWOP_IDX)
+         break;
+
+      // pop block off temporary per-network list
+      pBlock = pFirstNetwopBlock[minNetwop];
+      pFirstNetwopBlock[minNetwop] = pBlock->pNextNetwopBlock;
+      pBlock->pNextNetwopBlock = NULL;
+
+      EpgDbMergeAddPiBlock(dbc, pBlock, pPrevNetwopBlock[minNetwop]);
+      pPrevNetwopBlock[minNetwop] = pBlock;
+   }
+   xfree(pPrevNetwopBlock);
 }
 
 // ---------------------------------------------------------------------------

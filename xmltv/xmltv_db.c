@@ -170,6 +170,7 @@ typedef struct
    XML_STR_BUF  pi_code_vp;
 
    EPGDB_CONTEXT * pDbContext;
+   EPGDB_BLOCK **pFirstNetwopPi;
    time_t       mtime;
    bool         isPeek;
    bool         cniCtxInitDone;
@@ -512,7 +513,7 @@ static bool XmltvDb_AddPiBlock( EPGDB_CONTEXT * dbc, EPGDB_BLOCK *pBlock )
          dprintf4("ADD PI ptr=%lx: netwop=%d, start=%ld \"%s\"\n", (ulong)pBlock, netwop, pBlock->blk.pi.start_time, PI_GET_TITLE(&pBlock->blk.pi));
 
          // search inside network chain for insertion point
-         pWalk = dbc->pFirstNetwopPi[netwop];
+         pWalk = xds.pFirstNetwopPi[netwop];
          pPrev = NULL;
 
          while ( (pWalk != NULL) &&
@@ -530,7 +531,17 @@ static bool XmltvDb_AddPiBlock( EPGDB_CONTEXT * dbc, EPGDB_BLOCK *pBlock )
             assert((pPrev == NULL) || (pPrev->pNextNetwopBlock == pWalk));
             assert((pWalk == NULL) || (pWalk->pPrevNetwopBlock == pPrev));
 
-            EpgDbLinkPi(dbc, pBlock, pPrev, pWalk);
+            // insert into the network pointer chain
+            if (pPrev == NULL)
+            {
+               pBlock->pNextNetwopBlock = xds.pFirstNetwopPi[netwop];
+               xds.pFirstNetwopPi[netwop] = pBlock;
+            }
+            else
+            {
+               pBlock->pNextNetwopBlock = pPrev->pNextNetwopBlock;
+               pPrev->pNextNetwopBlock = pBlock;
+            }
 
             added = TRUE;
          }
@@ -656,10 +667,17 @@ void Xmltv_ChannelCreate( void )
       else
          xds.chn_tab_size *= 2;
 
+      // grow channel name table
       xds.p_chn_table = (XMLTV_CHN*) xrealloc(xds.p_chn_table,
                                               xds.chn_tab_size * sizeof(xds.p_chn_table[0]));
       memset((xds.p_chn_table + prevSize), 0,
              (xds.chn_tab_size - prevSize) * sizeof(xds.p_chn_table[0]));
+
+      // grow PI table
+      xds.pFirstNetwopPi = xrealloc(xds.pFirstNetwopPi,
+                                    xds.chn_tab_size * sizeof(xds.pFirstNetwopPi[0]));
+      memset((xds.pFirstNetwopPi + prevSize), 0,
+             (xds.chn_tab_size - prevSize) * sizeof(xds.pFirstNetwopPi[0]));
    }
    xds.chn_open = TRUE;
 }
@@ -700,19 +718,6 @@ void Xmltv_ChannelClose( void )
 
             *pChnIdx = xds.chn_count;
             xds.chn_count += 1;
-
-            if (xds.pDbContext->netwopCount < xds.chn_count)
-            {
-               if (xds.pDbContext->pFirstNetwopPi == NULL)
-                  xds.pDbContext->netwopCount = 256;
-               else
-                  xds.pDbContext->netwopCount *= 2;
-
-               xds.pDbContext->pFirstNetwopPi =
-                  xrealloc(xds.pDbContext->pFirstNetwopPi,
-                           xds.pDbContext->netwopCount * sizeof(xds.pDbContext->pFirstNetwopPi[0]));
-            }
-            xds.pDbContext->pFirstNetwopPi[xds.chn_count - 1] = NULL;
 
             result = TRUE;
          }
@@ -1453,11 +1458,16 @@ EPGDB_CONTEXT * XmltvDb_GetDatabase( const char * pProvName )
 {
    EPGDB_CONTEXT * pDbContext;
 
-   xds.pDbContext->netwopCount = xds.chn_count;
-
    // finally generate inventory block with channel table
    xds.pDbContext->pAiBlock = XmltvDb_BuildAi(pProvName);
    xds.pDbContext->pOiBlock = XmltvDb_BuildOi();
+
+   xds.pDbContext->netwopCount = xds.chn_count;
+   xds.pDbContext->pFirstNetwopPi = xmalloc(xds.chn_count * sizeof(xds.pDbContext->pFirstNetwopPi[0]));
+   memset(xds.pDbContext->pFirstNetwopPi, 0, xds.chn_count * sizeof(xds.pDbContext->pFirstNetwopPi[0]));
+
+   // combine PI of different networks into a single database
+   EpgDbMergeLinkNetworkPi(xds.pDbContext, xds.pFirstNetwopPi);
 
    //TODO PI+OI+AI: EpgBlockCheckConsistancy(pBlock)
 
@@ -1493,6 +1503,11 @@ void XmltvDb_Destroy( void )
    {
       xfree(xds.p_chn_id_tmp);
       xds.p_chn_id_tmp = NULL;
+   }
+   if (xds.pFirstNetwopPi != NULL)
+   {
+      xfree(xds.pFirstNetwopPi);
+      xds.pFirstNetwopPi = NULL;
    }
    XmlHash_Destroy(xds.pChannelHash, NULL);
    XmlHash_Destroy(xds.pThemeHash, NULL);

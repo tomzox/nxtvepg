@@ -168,10 +168,10 @@ typedef struct EPGDB_BLOCK_STRUCT
 //
 typedef enum
 {
-   EPGDB_PI_INSERTED,
+   EPGDB_PI_INSERTED,      // no longer sent
    EPGDB_PI_PRE_UPDATE,    // no longer sent
    EPGDB_PI_POST_UPDATE,   // no longer sent
-   EPGDB_PI_REMOVED,
+   EPGDB_PI_REMOVED,       // no longer sent
    EPGDB_PI_RESYNC
 } EPGDB_PI_ACQ_EVENT;
 
