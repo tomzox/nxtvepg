@@ -4,7 +4,7 @@
 #
 use strict;
 
-my $version = "3.0.2";
+my $version = "3.0.3";
 my $name = "nxtvepg";
 my $arch = "amd64";
 

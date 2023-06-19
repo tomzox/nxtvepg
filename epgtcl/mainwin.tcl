@@ -3443,7 +3443,7 @@ proc CreateAbout {} {
       #label .about.tcl_version -text " Tcl/Tk version $tcl_patchLevel"
       #pack .about.tcl_version -side top
 
-      label .about.copyr1 -text "Copyright (C) 1999 - 2011, 2020 - 2021 by T. Zörner"
+      label .about.copyr1 -text "Copyright (C) 1999 - 2011, 2020 - 2021, 2023 by T. Zörner"
       label .about.copyr2 -text $NXTVEPG_MAILTO
       label .about.copyr3 -text $NXTVEPG_URL -font $font_fixed -foreground blue
       pack .about.copyr1 .about.copyr2 -side top

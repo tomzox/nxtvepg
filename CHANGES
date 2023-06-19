@@ -12,6 +12,7 @@ This release only contains a small feature enhancement requested by users:
 - Extended expiry filter dialog to allow completely disabling the filter
   so that even programme data that is completely expired can be viewed.
 - Improved XMLTV support for Polish provider epg.ovh
+- Removed limitation to 254 channels when importing a database from XMLTV.
 
 
 from 2.9.0 to 3.0.0 (2021-03-22)
