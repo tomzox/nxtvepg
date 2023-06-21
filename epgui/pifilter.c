@@ -1120,6 +1120,7 @@ static int GetNetwopSeriesList( ClientData ttp, Tcl_Interp *interp, int objc, Tc
 static int GetSeriesByLetter( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
 {
    const char * const pUsage = "Usage: C_GetSeriesByLetter <letter>";
+   Tcl_HashTable piCache;
    const AI_BLOCK *pAiBlock;
    const PI_BLOCK * pPiBlock;
    const char * pTitleDict;
@@ -1130,6 +1131,7 @@ static int GetSeriesByLetter( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_
    FILTER_CONTEXT *fc;
    uchar lang, letter, c;
    bool isShortened;
+   int isNewCacheEntry;
    int result;
 
    if (objc != 2)
@@ -1143,6 +1145,9 @@ static int GetSeriesByLetter( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_
       pAiBlock = EpgDbGetAi(dbc);
       if (pAiBlock != NULL)
       {
+         // create a hash for filling with title strings
+         Tcl_InitHashTable(&piCache, TCL_STRING_KEYS);
+
          // create an empty list object to hold the result
          pResultList = Tcl_NewListObj(0, NULL);
 
@@ -1172,12 +1177,10 @@ static int GetSeriesByLetter( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_
                pTitleSerial = PiDescription_RemoveSeriesIndex(PI_GET_TITLE(pPiBlock), comm, TCL_COMM_BUF_SIZE / 2);
                isShortened = (pTitleSerial != PI_GET_TITLE(pPiBlock));
 
-               EpgDbFilterSetSubStr(fc, pTitleSerial, TRUE, FALSE, TRUE, !isShortened);
-               EpgDbFilterEnable(fc, FILTER_SUBSTR);
-
-               // check if there's another block with the same title
-               if (EpgDbSearchNextPi(dbc, fc, pPiBlock) != NULL)
+               Tcl_CreateHashEntry(&piCache, pTitleSerial, &isNewCacheEntry);
+               if (isNewCacheEntry == FALSE)
                {
+                  // found first recurring title -> append the CNI to results
                   pTmpObj = TranscodeToUtf8(EPG_ENC_XMLTV, NULL, pTitleDict, NULL);
                   Tcl_ListObjAppendElement(interp, pResultList, pTmpObj);
 
@@ -1186,13 +1189,12 @@ static int GetSeriesByLetter( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_
 
                   Tcl_ListObjAppendElement(interp, pResultList, Tcl_NewIntObj(!isShortened));
                }
-               EpgDbFilterDisable(fc, FILTER_SUBSTR);
             }
             pPiBlock = EpgDbSearchNextPi(dbc, fc, pPiBlock);
          }
-         while (pPiBlock != NULL);
 
          EpgDbFilterDestroyContext(fc);
+         Tcl_DeleteHashTable(&piCache);
 
          Tcl_SetObjResult(interp, pResultList);
       }
