@@ -132,7 +132,7 @@ proc ProvWin_Create {} {
       pack .provwin.n.info.net.list -side top -anchor nw -fill both -expand 1
       pack .provwin.n.info.net -side top -anchor nw -fill both -expand 1
 
-      # OI block header and message
+      # source and generator info
       label .provwin.n.info.oiheader -text "Source and generator information"
       pack .provwin.n.info.oiheader -side top -anchor nw
       text .provwin.n.info.oimsg -width 45 -height 6 -wrap word -font $font_normal -insertofftime 0
@@ -271,7 +271,7 @@ proc ProvWin_Select {} {
       set names [C_GetProvServiceInfos [lindex $provwin_ailist $index]]
       # display service name in entry widget
       set provwin_servicename [lindex $names 0]
-      # display OI strings in text widget
+      # display source & generator info in text widget
       .provwin.n.info.oimsg insert end [lindex $names 1]
 
       # display all netwops from the AI, separated by commas

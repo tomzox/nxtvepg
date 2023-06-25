@@ -181,24 +181,6 @@ const AI_BLOCK * EpgDbGetAi( CPDBC dbc )
 }
 
 // ---------------------------------------------------------------------------
-// Look up a OI block by number
-//
-const OI_BLOCK * EpgDbGetOi( CPDBC dbc )
-{
-   if ( EpgDbIsLocked(dbc) )
-   {
-      if (dbc->pOiBlock != NULL)
-      {
-         return &dbc->pOiBlock->blk.oi;
-      }
-   }
-   else
-      fatal0("EpgDb-GetOi: DB not locked");
-
-   return NULL;
-}
-
-// ---------------------------------------------------------------------------
 // Search for a PI block in the database
 // - if the filter context parameter is not NULL, only blocks that match
 //   these settings are considered; see the epgdbfil module on how to

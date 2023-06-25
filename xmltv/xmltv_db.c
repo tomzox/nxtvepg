@@ -352,9 +352,9 @@ static void XmlTv_BuildAiServiceName( XML_STR_BUF * pServiceName, const char * p
 }
 
 // ----------------------------------------------------------------------------
-// Generate service description for OI block
+// Generate source & generator description for AI block
 //
-static void XmlTv_BuildOiMessages( XML_STR_BUF * pHeader, XML_STR_BUF * pMessage )
+static void XmlTv_BuildSourceInfoMessages( XML_STR_BUF * pHeader, XML_STR_BUF * pMessage )
 {
    char datestr[99];
    int len;
@@ -392,46 +392,6 @@ static void XmlTv_BuildOiMessages( XML_STR_BUF * pHeader, XML_STR_BUF * pMessage
 }
 
 // ----------------------------------------------------------------------------
-// Assemble an OI block (OSD information)
-//
-static EPGDB_BLOCK * XmltvDb_BuildOi( void )
-{
-   EPGDB_BLOCK *pBlk;
-   OI_BLOCK *pOi;
-   uint blockLen;
-   XML_STR_BUF oiHeader;
-   XML_STR_BUF oiMessage;
-
-   XmlTv_BuildOiMessages(&oiHeader, &oiMessage);
-
-   // concatenate the various parts of the block to a compound structure
-   // 1st step: sum up the length & compute the offsets of each element from the start
-   blockLen = sizeof(OI_BLOCK) +
-              XML_STR_BUF_GET_STR_LEN(oiHeader) + 1 +
-              XML_STR_BUF_GET_STR_LEN(oiMessage) + 1;
-
-   // 2nd step: copy elements one after each other, then free single elements
-   pBlk = EpgBlockCreate(BLOCK_TYPE_OI, blockLen, xds.mtime);
-   pOi = (OI_BLOCK *) &pBlk->blk.oi;
-   memset(pOi, 0, sizeof(OI_BLOCK));
-   blockLen = sizeof(OI_BLOCK);
-
-   pOi->off_header = blockLen;
-   strcpy((char *) OI_GET_HEADER(pOi), XML_STR_BUF_GET_STR(oiHeader));  // cast to remove const
-   blockLen += XML_STR_BUF_GET_STR_LEN(oiHeader) + 1;
-
-   pOi->off_message = blockLen;
-   strcpy((char *) OI_GET_MESSAGE(pOi), XML_STR_BUF_GET_STR(oiMessage));  // cast to remove const
-   blockLen += XML_STR_BUF_GET_STR_LEN(oiMessage) + 1;
-
-   XmlCdata_Free(&oiHeader);
-   XmlCdata_Free(&oiMessage);
-   assert(blockLen == pBlk->size);
-
-   return(pBlk);
-}
-
-// ----------------------------------------------------------------------------
 // Assemble an AI block (application inventory, i.e. channel table)
 //
 static EPGDB_BLOCK * XmltvDb_BuildAi( const char * pProvName )
@@ -440,8 +400,12 @@ static EPGDB_BLOCK * XmltvDb_BuildAi( const char * pProvName )
    AI_BLOCK *pAi;
    AI_NETWOP *pNetwops;
    XML_STR_BUF aiServiceName;
+   XML_STR_BUF sourceInfo;
+   XML_STR_BUF genInfo;
    uint  aiServiceNameLen;
    uint  netNameLenSum;
+   uint  sourceInfoLen;
+   uint  genInfoLen;
    uint  blockLen;
 
    netNameLenSum = 0;
@@ -452,10 +416,16 @@ static EPGDB_BLOCK * XmltvDb_BuildAi( const char * pProvName )
    XmlTv_BuildAiServiceName(&aiServiceName, pProvName);
    aiServiceNameLen = XML_STR_BUF_GET_STR_LEN(aiServiceName) + 1;
 
+   XmlTv_BuildSourceInfoMessages(&sourceInfo, &genInfo);
+   sourceInfoLen = XML_STR_BUF_GET_STR_LEN(sourceInfo) + 1;
+   genInfoLen = XML_STR_BUF_GET_STR_LEN(genInfo) + 1;
+
    blockLen = sizeof(AI_BLOCK) +
               (xds.chn_count * sizeof(AI_NETWOP)) +
+              netNameLenSum +
               aiServiceNameLen +
-              netNameLenSum;
+              sourceInfoLen +
+              genInfoLen;
    pBlk = EpgBlockCreate(BLOCK_TYPE_AI, blockLen, xds.mtime);
    pAi = (AI_BLOCK *) &pBlk->blk.ai;  // remove const from pointer
    memset(pAi, 0, sizeof(AI_BLOCK));
@@ -470,7 +440,18 @@ static EPGDB_BLOCK * XmltvDb_BuildAi( const char * pProvName )
    pAi->off_serviceNameStr = blockLen;
    memcpy((char *)pAi + blockLen, XML_STR_BUF_GET_STR(aiServiceName), aiServiceNameLen);
    blockLen += aiServiceNameLen;
+
+   pAi->off_sourceInfoStr = blockLen;
+   memcpy((char *)pAi + blockLen, XML_STR_BUF_GET_STR(sourceInfo), sourceInfoLen);
+   blockLen += sourceInfoLen;
+
+   pAi->off_genInfoStr = blockLen;
+   memcpy((char *)pAi + blockLen, XML_STR_BUF_GET_STR(genInfo), genInfoLen);
+   blockLen += genInfoLen;
+
    XmlCdata_Free(&aiServiceName);
+   XmlCdata_Free(&sourceInfo);
+   XmlCdata_Free(&genInfo);
 
    for (uint idx = 0; idx < xds.chn_count; idx++, pNetwops++)
    {
@@ -1453,7 +1434,6 @@ EPGDB_CONTEXT * XmltvDb_GetDatabase( const char * pProvName )
 
    // finally generate inventory block with channel table
    xds.pDbContext->pAiBlock = XmltvDb_BuildAi(pProvName);
-   xds.pDbContext->pOiBlock = XmltvDb_BuildOi();
 
    xds.pDbContext->netwopCount = xds.chn_count;
    xds.pDbContext->pFirstNetwopPi = xmalloc(xds.chn_count * sizeof(xds.pDbContext->pFirstNetwopPi[0]));
@@ -1462,7 +1442,7 @@ EPGDB_CONTEXT * XmltvDb_GetDatabase( const char * pProvName )
    // combine PI of different networks into a single database
    EpgDbMergeLinkNetworkPi(xds.pDbContext, xds.pFirstNetwopPi);
 
-   //TODO PI+OI+AI: EpgBlockCheckConsistancy(pBlock)
+   //TODO PI+AI: EpgBlockCheckConsistancy(pBlock)
 
 #if DEBUG_GLOBAL_SWITCH == ON
    EpgDbCheckChains(xds.pDbContext);

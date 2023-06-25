@@ -45,6 +45,9 @@ typedef struct
    uint32_t  netwopCount;
 
    uint16_t  off_serviceNameStr;
+   uint16_t  off_sourceInfoStr;
+   uint16_t  off_genInfoStr;
+
    uint16_t  off_netwops;
 
    uint8_t   version;      // TODO always 0 for XMLTV
@@ -55,6 +58,8 @@ typedef struct
 #define AI_GET_NETWOPS(X)       ((const AI_NETWOP *)((uint16_t *)(X)+(X)->off_netwops/sizeof(uint16_t)))
 #define AI_GET_NETWOP_N(X,N)    (&((const AI_NETWOP *)((uint16_t *)(X)+(X)->off_netwops/sizeof(uint16_t)))[N])
 #define AI_GET_SERVICENAME(X)   ((const char *)(X)+(X)->off_serviceNameStr)
+#define AI_GET_SOURCE_INFO(X)   ((const char*)(X)+((X)->off_sourceInfoStr))
+#define AI_GET_GEN_INFO(X)      ((const char*)(X)+((X)->off_genInfoStr))
 #define AI_GET_STR_BY_OFF(X,O)  ((const char *)(X)+(O))
 #define AI_GET_NETWOP_NAME(X,N) ((const char *)(X)+AI_GET_NETWOPS(X)[N].off_name)
 #define AI_GET_NET_CNI(N)       ((uint)((N)->netCni))
@@ -114,28 +119,11 @@ typedef struct
 #define PI_GET_DESCRIPTORS(X)  ((const EPGDB_MERGE_SRC*)((uchar*)(X)+((X)->off_descriptors)))
 
 
-// ---------------------------------------------------------------------------
-//    OI Block
-// ---------------------------------------------------------------------------
-
-typedef struct
-{
-   uint16_t  off_header;
-   uint16_t  off_message;
-} OI_BLOCK;
-
-#define OI_GET_HEADER(X)       ((const char*)(X)+((X)->off_header))
-#define OI_HAS_HEADER(X)       ((bool)((X)->off_header != 0))
-#define OI_GET_MESSAGE(X)      ((const char*)(X)+((X)->off_message))
-#define OI_HAS_MESSAGE(X)      ((bool)((X)->off_message != 0))
-
-
 // ----------------------------------------------------------------------------
 // EPG block types (internal redefinition; ordering is relevant!)
 
 typedef enum
 {
-   BLOCK_TYPE_OI,
    BLOCK_TYPE_AI,
    BLOCK_TYPE_PI,
 } BLOCK_TYPE;
@@ -144,7 +132,6 @@ typedef union
 {
    AI_BLOCK   ai;
    PI_BLOCK   pi;
-   OI_BLOCK   oi;
 } EPGDB_BLOCK_UNION;
 
 typedef struct EPGDB_BLOCK_STRUCT
@@ -194,7 +181,6 @@ typedef struct EPGDB_CONTEXT_STRUCT
    void   *pMergeContext;           // Pointer to merge parameters
 
    EPGDB_BLOCK *pAiBlock;
-   EPGDB_BLOCK *pOiBlock;
    EPGDB_BLOCK *pFirstPi, *pLastPi;
    EPGDB_BLOCK *pObsoletePi;
    EPGDB_BLOCK **pFirstNetwopPi;    // Variable-length array

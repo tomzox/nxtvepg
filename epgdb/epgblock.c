@@ -212,7 +212,17 @@ static bool EpgBlockCheckAi( EPGDB_BLOCK * pBlock )
    else if (pAi->off_serviceNameStr >= pBlock->size)
    {
       // note: this check implies the check for netwop list end > block size
-      debug3("EpgBlock-CheckAi: service name off=%d or netwop list (count %d) exceeds block length %d", pAi->off_serviceNameStr, pAi->netwopCount, pBlock->size);
+      debug2("EpgBlock-CheckAi: service name off=%d exceeds block length %d", pAi->off_serviceNameStr, pBlock->size);
+   }
+   else if (pAi->off_sourceInfoStr >= pBlock->size)
+   {
+      // note: this check implies the check for netwop list end > block size
+      debug2("EpgBlock-CheckAi: source info off=%d exceeds block length %d", pAi->off_sourceInfoStr, pBlock->size);
+   }
+   else if (pAi->off_genInfoStr >= pBlock->size)
+   {
+      // note: this check implies the check for netwop list end > block size
+      debug2("EpgBlock-CheckAi: gen info off=%d exceeds block length %d", pAi->off_genInfoStr, pBlock->size);
    }
    else
    {
@@ -246,33 +256,6 @@ static bool EpgBlockCheckAi( EPGDB_BLOCK * pBlock )
 }
 
 // ---------------------------------------------------------------------------
-// Check an OI block for consistancy errors in counters, offsets or value ranges
-//
-static bool EpgBlockCheckOi( EPGDB_BLOCK * pBlock )
-{
-   const OI_BLOCK * pOi;
-   bool result = FALSE;
-
-   pOi = &pBlock->blk.oi;
-
-   if (OI_HAS_HEADER(pOi) && (pOi->off_header != sizeof(OI_BLOCK)))
-   {
-      debug1("EpgBlock-CheckOi: illegal off_header=%d", pOi->off_header);
-   }
-   else if ( OI_HAS_MESSAGE(pOi) &&
-             ((pOi->off_message <= pOi->off_header) ||
-              (pOi->off_header >= pBlock->size)) )
-   {
-      debug2("EpgBlock-CheckOi: message exceeds block size: off=%d, size=%d", pOi->off_message, pBlock->size + BLK_UNION_OFF);
-      // TODO check for terminating 0
-   }
-   else
-      result = TRUE;
-
-   return result;
-}
-
-// ---------------------------------------------------------------------------
 // Check consistancy of an EPG block
 // - this check is required when loading a block from a file or through the
 //   network, as it might contain errors due to undetected version conflicts or
@@ -289,9 +272,6 @@ bool EpgBlockCheckConsistancy( EPGDB_BLOCK * pBlock )
       {
          case BLOCK_TYPE_AI:
             result = EpgBlockCheckAi(pBlock);
-            break;
-         case BLOCK_TYPE_OI:
-            result = EpgBlockCheckOi(pBlock);
             break;
          case BLOCK_TYPE_PI:
             result = EpgBlockCheckPi(pBlock);

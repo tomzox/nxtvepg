@@ -36,6 +36,6 @@ bool EpgDbAddDefectPi( EPGDB_CONTEXT * dbc, EPGDB_BLOCK *pBlock );
 // - the block structures are defined in EpgBlock.h
 //
 EPGDB_CONTEXT * EpgDbCreate( void );
-void EpgDbDestroy( EPGDB_CONTEXT * dbc, bool keepAiOi );
+void EpgDbDestroy( EPGDB_CONTEXT * dbc, bool keepAi );
 
 #endif  // __EPGDBMGMT_H

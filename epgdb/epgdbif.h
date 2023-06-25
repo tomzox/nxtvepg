@@ -48,7 +48,6 @@ void  EpgDbLockDatabase( EPGDB_CONTEXT * dbc, uchar enable );
 bool  EpgDbIsLocked( const EPGDB_CONTEXT * dbc );
 
 const AI_BLOCK * EpgDbGetAi( const EPGDB_CONTEXT * dbc );
-const OI_BLOCK * EpgDbGetOi( const EPGDB_CONTEXT * dbc );
 
 const PI_BLOCK * EpgDbSearchPiByPil( const EPGDB_CONTEXT * dbc, uint netwop_no, uint pil );
 

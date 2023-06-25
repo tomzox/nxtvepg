@@ -218,7 +218,7 @@ static void EpgDumpXml_PrintTimestamp( char * pBuf, uint maxLen,
 // Write XML file header
 //
 static void EpgDumpXml_WriteHeader( EPGDB_CONTEXT * pDbContext,
-                                    const AI_BLOCK * pAiBlock, const OI_BLOCK * pOiBlock,
+                                    const AI_BLOCK * pAiBlock,
                                     FILE * fp, DUMP_XML_MODE xmlDtdVersion )
 {
    char    src_str[300];   // MAX_SERVICE_NAME_LEN in epgdbmerge
@@ -390,7 +390,6 @@ void EpgDumpXml_Standalone( EPGDB_CONTEXT * pDbContext, FILTER_CONTEXT * fc,
                             FILE * fp, DUMP_XML_MODE dumpMode )
 {
    const AI_BLOCK  * pAiBlock;
-   const OI_BLOCK  * pOiBlock;
    const PI_BLOCK  * pPiBlock;
    char ** pChnIds = NULL;
    uchar * pNetFilter = NULL;
@@ -401,11 +400,8 @@ void EpgDumpXml_Standalone( EPGDB_CONTEXT * pDbContext, FILTER_CONTEXT * fc,
       pAiBlock = EpgDbGetAi(pDbContext);
       if (pAiBlock != NULL)
       {
-         // get "OSD information" with service name and message
-         pOiBlock = EpgDbGetOi(pDbContext);
-
          // header with source info
-         EpgDumpXml_WriteHeader(pDbContext, pAiBlock, pOiBlock, fp, dumpMode);
+         EpgDumpXml_WriteHeader(pDbContext, pAiBlock, fp, dumpMode);
 
          if (fc != NULL)
          {

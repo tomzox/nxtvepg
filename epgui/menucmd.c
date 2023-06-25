@@ -770,7 +770,6 @@ static int MenuCmd_GetProvServiceInfos( ClientData ttp, Tcl_Interp *interp, int 
 {
    const char * const pUsage = "Usage: C_GetProvServiceInfos <cni>";
    const AI_BLOCK * pAi;
-   const OI_BLOCK * pOi;
    EPGDB_CONTEXT  * pPeek;
    Tcl_Obj * pResultList;
    const char * pStr;
@@ -793,29 +792,18 @@ static int MenuCmd_GetProvServiceInfos( ClientData ttp, Tcl_Interp *interp, int 
       {
          EpgDbLockDatabase(pPeek, TRUE);
          pAi = EpgDbGetAi(pPeek);
-         pOi = EpgDbGetOi(pPeek);
 
          if (pAi != NULL)
          {
             pResultList = Tcl_NewListObj(0, NULL);
 
-            // first element is OI header
-            if ((pOi != NULL) && OI_HAS_HEADER(pOi))
-            {
-               pStr = OI_GET_HEADER(pOi);
-               Tcl_ListObjAppendElement(interp, pResultList, TranscodeToUtf8(EPG_ENC_XMLTV, NULL, pStr, NULL));
-            }
-            else
-               Tcl_ListObjAppendElement(interp, pResultList, Tcl_NewStringObj("", 0));
+            // first element is source info
+            pStr = AI_GET_SOURCE_INFO(pAi);
+            Tcl_ListObjAppendElement(interp, pResultList, TranscodeToUtf8(EPG_ENC_XMLTV, NULL, pStr, NULL));
 
-            // second element is OI message
-            if ((pOi != NULL) && OI_HAS_MESSAGE(pOi))
-            {
-               pStr = OI_GET_MESSAGE(pOi);
-               Tcl_ListObjAppendElement(interp, pResultList, TranscodeToUtf8(EPG_ENC_XMLTV, NULL, pStr, NULL));
-            }
-            else
-               Tcl_ListObjAppendElement(interp, pResultList, Tcl_NewStringObj("", 0));
+            // second element is generator info
+            pStr = AI_GET_GEN_INFO(pAi);
+            Tcl_ListObjAppendElement(interp, pResultList, TranscodeToUtf8(EPG_ENC_XMLTV, NULL, pStr, NULL));
 
             // append names of all netwops
             for ( netwop = 0; netwop < pAi->netwopCount; netwop++ ) 
@@ -1153,7 +1141,7 @@ static int MenuCmd_GetAiNetwopList( ClientData ttp, Tcl_Interp *interp, int objc
          {  // no provider selected -> return empty list (no error)
          }
          else if (cni != MERGED_PROV_CNI)
-         {  // regular (non-merged) database -> get "peek" with (at least) AI and OI
+         {  // regular (non-merged) database -> get "peek" with (at least) AI
             pPeek = EpgContextCtl_Peek(cni, CTX_RELOAD_ERR_ANY);
             if (pPeek != NULL)
             {

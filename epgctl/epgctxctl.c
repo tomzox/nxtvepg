@@ -27,7 +27,7 @@
  *
  *    In addition to databases the module manages a cache of "database peeks",
  *    which contain the general provider info (i.e. tuner frequency) plus the
- *    AI and OI#0 blocks. The peeks are used e.g. by the GUI when a list of
+ *    AI and blocks. The peeks are used e.g. by the GUI when a list of
  *    provider names is to be displayed.  Hence when a database is closed,
  *    it's not entirely freed, but instead stripped down to a peek.
  */
@@ -70,7 +70,7 @@ typedef enum
    CTX_CACHE_ERROR,                    // failed to open the database
    CTX_CACHE_DUMMY,                    // empty context, e.g. used during scan
    CTX_CACHE_STAT,                     // only existance of a db file is known about
-   CTX_CACHE_PEEK,                     // only AI & OI are in memory
+   CTX_CACHE_PEEK,                     // only AI is in memory
    CTX_CACHE_OPEN,                     // db is fully loaded
 #define CTX_CACHE_STATE_COUNT (CTX_CACHE_OPEN + 1)
 } CTX_CACHE_STATE;
@@ -338,8 +338,6 @@ static EPGDB_RELOAD_RESULT EpgContextCtl_Load( CTX_CACHE * pContext )
             // XXX should be done in epgdbmgmt.c
             if (pContext->pDbContext->pAiBlock != NULL)
                xfree(pContext->pDbContext->pAiBlock);
-            if (pContext->pDbContext->pOiBlock != NULL)
-               xfree(pContext->pDbContext->pOiBlock);
             // overwrite the old context with the new data
             memcpy(pContext->pDbContext, pDbContext, sizeof(EPGDB_CONTEXT));
             // free the now obsolete new context structure
@@ -382,7 +380,7 @@ static EPGDB_RELOAD_RESULT EpgContextCtl_Load( CTX_CACHE * pContext )
 
 // ---------------------------------------------------------------------------
 // Peek into a database
-// - returns a database context with at least an AI block in it plus an OI
+// - returns a database context with at least an AI block in it
 //   if available; may be a complete database if already loaded
 // - if no info is available for the CNI, attempt to peek into the db anyways
 //   (1) useful to remember error state and suppress subsequent error messages
@@ -421,7 +419,7 @@ EPGDB_CONTEXT * EpgContextCtl_Peek( uint cni, int failMsgMode )
       }
       else if ( (pContext->state == CTX_CACHE_STAT) ||
                 (pContext->state == CTX_CACHE_ERROR) )
-      {  // database known, but not yet loaded -> load AI & OI only
+      {  // database known, but not yet loaded -> load AI only
          const char * pDbPath = XmltvCni_LookupProviderPath(pContext->provCni);
          if (pDbPath != NULL)
          {
@@ -659,7 +657,7 @@ static void EpgContextCtl_CloseInt( EPGDB_CONTEXT * pDbContext, bool isPeek )
          if ( (pContext->openRefCount == 0) &&
               (pContext->state == CTX_CACHE_OPEN) )
          {
-            // free everything except AI and OI
+            // free everything except AI
             EpgDbDestroy(pContext->pDbContext, TRUE);
             pContext->state = CTX_CACHE_PEEK;
          }

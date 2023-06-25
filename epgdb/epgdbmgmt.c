@@ -64,10 +64,10 @@ EPGDB_CONTEXT * EpgDbCreate( void )
 
 // ---------------------------------------------------------------------------
 // Frees all blocks in a database
-// - if keepAiOi if TRUE the context struct, AI and OI block are not freed.
+// - if keepAi if TRUE the context struct, AI block is not freed.
 //   used when a database is stripped down to a "peek"
 //
-void EpgDbDestroy( PDBC dbc, bool keepAiOi )
+void EpgDbDestroy( PDBC dbc, bool keepAi )
 {
    EPGDB_BLOCK *pNext, *pWalk;
 
@@ -94,18 +94,13 @@ void EpgDbDestroy( PDBC dbc, bool keepAiOi )
       }
       dbc->pObsoletePi = NULL;
 
-      if (keepAiOi == FALSE)
+      if (keepAi == FALSE)
       {
          // free AI
          if (dbc->pAiBlock != NULL)
          {
             xfree(dbc->pAiBlock);
             dbc->pAiBlock = NULL;
-         }
-         if (dbc->pOiBlock != NULL)
-         {
-            xfree(dbc->pOiBlock);
-            dbc->pOiBlock = NULL;
          }
 
          if (dbc->pFirstNetwopPi != NULL)
@@ -229,13 +224,6 @@ bool EpgDbCheckChains( CPDBC dbc )
       assert((dbc->pAiBlock->pNextBlock == NULL) && (dbc->pAiBlock->pPrevBlock == NULL));
       assert(dbc->pAiBlock->blk.ai.netwopCount == dbc->netwopCount);
       assert(dbc->pFirstNetwopPi != NULL);
-   }
-
-   // check OI
-   if (dbc->pOiBlock != NULL)
-   {
-      assert(dbc->pOiBlock->type == BLOCK_TYPE_OI);
-      assert((dbc->pOiBlock->pNextBlock == NULL) && (dbc->pOiBlock->pPrevBlock == NULL));
    }
 
    return TRUE;
