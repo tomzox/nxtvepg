@@ -589,10 +589,10 @@ static int PiFilter_Reset( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj
 
    static CONST84 char * pKeywords[] = {"all", "netwops", "themes",
       "substr", "progidx", "timsel", "dursel", "parental", "editorial",
-      "features", "languages", "subtitles", "vps_pdc", (char *) NULL};
+      "features", "vps_pdc", (char *) NULL};
    enum reset_keys { FE_ALL, FE_NETWOPS, FE_THEMES,
       FE_SUBSTR, FE_PROGIDX, FE_TIMSEL, FE_DURSEL, FE_PARENTAL, FE_EDITORIAL,
-      FE_FEATURES, FE_LANGUAGES, FE_SUBTITLES, FE_VPS_PDC};
+      FE_FEATURES, FE_VPS_PDC};
 
    if (objc != 2)
    {  // illegal parameter count
@@ -621,8 +621,6 @@ static int PiFilter_Reset( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj
                   case FE_PARENTAL:   mask |= FILTER_PAR_RAT; break;
                   case FE_EDITORIAL:  mask |= FILTER_EDIT_RAT; break;
                   case FE_FEATURES:   mask |= FILTER_FEATURES; break;
-                  case FE_LANGUAGES:  mask |= FILTER_LANGUAGES; break;
-                  case FE_SUBTITLES:  mask |= FILTER_SUBTITLES; break;
                   case FE_VPS_PDC:    mask |= FILTER_VPS_PDC; break;
                   default:
                      fatal1("PiFilter-Reset: index lookup failure: illegal index %d", filtIndex);
@@ -659,10 +657,10 @@ static int PiFilter_Invert( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Ob
 
    static CONST84 char * pKeywords[] = {"all", "netwops", "themes",
       "substr", "progidx", "timsel", "dursel", "parental", "editorial",
-      "features", "languages", "subtitles", "vps_pdc", "custom", (char *) NULL};
+      "features", "vps_pdc", "custom", (char *) NULL};
    enum reset_keys { FE_ALL, FE_NETWOPS, FE_THEMES,
       FE_SUBSTR, FE_PROGIDX, FE_TIMSEL, FE_DURSEL, FE_PARENTAL, FE_EDITORIAL,
-      FE_FEATURES, FE_LANGUAGES, FE_SUBTITLES, FE_VPS_PDC, FE_CUSTOM};
+      FE_FEATURES, FE_VPS_PDC, FE_CUSTOM};
 
    if (objc != 2)
    {  // illegal parameter count
@@ -702,8 +700,6 @@ static int PiFilter_Invert( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Ob
                      case FE_PARENTAL:   mask |= FILTER_PAR_RAT; break;
                      case FE_EDITORIAL:  mask |= FILTER_EDIT_RAT; break;
                      case FE_FEATURES:   mask |= FILTER_FEATURES; break;
-                     case FE_LANGUAGES:  mask |= FILTER_LANGUAGES; break;
-                     case FE_SUBTITLES:  mask |= FILTER_SUBTITLES; break;
                      case FE_VPS_PDC:    mask |= FILTER_VPS_PDC; break;
                      case FE_CUSTOM:     mask |= FILTER_CUSTOM; break;
 
@@ -1037,7 +1033,6 @@ static int GetNetwopSeriesList( ClientData ttp, Tcl_Interp *interp, int objc, Tc
    Tcl_Obj * pResultList;
    Tcl_Obj * pTmpObj;
    FILTER_CONTEXT *fc;
-   uchar lang;
    uint netwop;
    uint cni;
    int result;
@@ -1064,8 +1059,6 @@ static int GetNetwopSeriesList( ClientData ttp, Tcl_Interp *interp, int objc, Tc
 
          if (netwop < pAiBlock->netwopCount)
          {
-            lang = AI_GET_NETWOP_N(pAiBlock, netwop)->language;
-
             // create an empty list object to hold the result
             pResultList = Tcl_NewListObj(0, NULL);
 
@@ -1086,7 +1079,7 @@ static int GetNetwopSeriesList( ClientData ttp, Tcl_Interp *interp, int objc, Tc
                   pTmpObj = TranscodeToUtf8(EPG_ENC_XMLTV, NULL, PI_GET_TITLE(pPiBlock), NULL);
                   Tcl_ListObjAppendElement(interp, pResultList, pTmpObj);
 
-                  pTitle = PiDescription_DictifyTitle(PI_GET_TITLE(pPiBlock), lang, comm, TCL_COMM_BUF_SIZE);
+                  pTitle = PiDescription_DictifyTitle(PI_GET_TITLE(pPiBlock), pPiBlock->lang_title, comm, TCL_COMM_BUF_SIZE);
                   Tcl_ListObjAppendElement(interp, pResultList, TranscodeToUtf8(EPG_ENC_XMLTV, NULL, pTitle, NULL));
                }
                EpgDbFilterDisable(fc, FILTER_SUBSTR);
@@ -1129,7 +1122,7 @@ static int GetSeriesByLetter( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_
    Tcl_Obj * pResultList;
    Tcl_Obj * pTmpObj;
    FILTER_CONTEXT *fc;
-   uchar lang, letter, c;
+   uchar letter, c;
    bool isShortened;
    int isNewCacheEntry;
    int result;
@@ -1167,8 +1160,7 @@ static int GetSeriesByLetter( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_
          while (pPiBlock != NULL)
          {
             // FIXME use second half of comm buffer here, and first half below
-            lang = AI_GET_NETWOP_N(pAiBlock, pPiBlock->netwop_no)->language;
-            pTitleDict = PiDescription_DictifyTitle(PI_GET_TITLE(pPiBlock), lang, comm + TCL_COMM_BUF_SIZE/2, TCL_COMM_BUF_SIZE/2);
+            pTitleDict = PiDescription_DictifyTitle(PI_GET_TITLE(pPiBlock), pPiBlock->lang_title, comm + TCL_COMM_BUF_SIZE/2, TCL_COMM_BUF_SIZE/2);
             // check if the starting letter matches
             c = tolower(pTitleDict[0]);
             if ( (c == letter) ||

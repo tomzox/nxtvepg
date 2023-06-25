@@ -869,7 +869,6 @@ void EpgDbMergeAiBlocks( PDBC dbc, uint netwopCount, const uint * pNetwopList )
             ifdebug4(AI_GET_NET_CNI(pNetwops) != pNetwopList[netwop], "EpgDb-MergeAiBlocks: mismatch of CNIs in netwop #%d: 0x%04X!=0x%04X (%s)", idx, AI_GET_NET_CNI(pNetwops), pNetwopList[netwop], AI_GET_STR_BY_OFF(pAi, pNetwops->off_name));
 
             pTargetNetwops[netwop].netCni   = AI_GET_NET_CNI(pNetwops);
-            pTargetNetwops[netwop].language = pNetwops->language;
             pTargetNetwops[netwop].dayCount = dayCount[netwop];
             pTargetNetwops[netwop].off_name = blockLen;
             strcpy((char *) AI_GET_STR_BY_OFF(pTargetAi, blockLen), AI_GET_STR_BY_OFF(pAi, pNetwops->off_name));

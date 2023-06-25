@@ -154,6 +154,8 @@ typedef struct
    XML_STR_BUF  pi_desc;
    XML_STR_BUF  pi_credits;
    XML_STR_BUF  pi_actors;
+   EPG_LANG_CODE pi_title_lang;
+   EPG_LANG_CODE pi_desc_lang;
 
    uint         pi_aspect_x;
    uint         pi_aspect_y;
@@ -188,7 +190,7 @@ static PARSE_STATE xds;
 // - the passed string is converted into lower-case
 // - themes are added to the PI in the state struct
 //
-static void Xmltv_ParseThemeString( char * pStr, XML_LANG_CODE lang )
+static void Xmltv_ParseThemeString( char * pStr, EPG_LANG_CODE lang )
 {
    HASHED_THEMES * pCache;
    bool isNew;
@@ -213,19 +215,19 @@ static void Xmltv_ParseThemeString( char * pStr, XML_LANG_CODE lang )
       // note the result is cached inside the hash entries' payload storage
       switch (lang)
       {
-         case XML_LANG_DE:
+         case EPG_LANG_DE:
             Xmltv_ParseThemeStringGerman(pCache, pStr);
             break;
-         case XML_LANG_FR:
+         case EPG_LANG_FR:
             Xmltv_ParseThemeStringFrench(pCache, pStr);
             break;
-         case XML_LANG_EN:
+         case EPG_LANG_EN:
             Xmltv_ParseThemeStringEnglish(pCache, pStr);
             break;
-         case XML_LANG_PL:
+         case EPG_LANG_PL:
             Xmltv_ParseThemeStringPolish(pCache, pStr);
             break;
-         case XML_LANG_UNKNOWN:
+         case EPG_LANG_UNKNOWN:
          default:
             // language unknown -> try all languages until a match is found
             Xmltv_ParseThemeStringGerman(pCache, pStr);
@@ -478,7 +480,6 @@ static EPGDB_BLOCK * XmltvDb_BuildAi( const char * pProvName )
       pNetwops->lto = 120; // TODO
       pNetwops->dayCount = (xds.p_chn_table[idx].pi_max_time -
                             xds.p_chn_table[idx].pi_min_time + 23*60*60) / (24*60*60);
-      pNetwops->language = 7; // TODO
 
       pNetwops->off_name = blockLen;
       strcpy((char *) pAi + blockLen, xds.p_chn_table[idx].p_disp_name);
@@ -610,6 +611,9 @@ static EPGDB_BLOCK * XmltvDb_BuildPi( void )
    // copy description text: only if present (else no memory was allocated above)
    if (XML_STR_BUF_GET_STR_LEN(xds.pi_desc) > 0)
       strcpy((char *) PI_GET_DESC_TEXT(pPi), XML_STR_BUF_GET_STR(xds.pi_desc));
+
+   pPi->lang_title = xds.pi_title_lang;
+   pPi->lang_desc = xds.pi_desc_lang;
 
    return pBlk;
 }
@@ -1011,6 +1015,7 @@ void Xmltv_TsCodeTimeSetSystem( XML_STR_BUF * pBuf )
 void Xmltv_PiTitleAdd( XML_STR_BUF * pBuf )
 {
    XmlCdata_Assign(&xds.pi_title, pBuf);
+   xds.pi_title_lang = XmltvTags_GetLanguage();
 }
 
 void Xmltv_PiEpisodeTitleAdd( XML_STR_BUF * pBuf )
@@ -1364,6 +1369,8 @@ void Xmltv_ParagraphAdd( XML_STR_BUF * pBuf )
    XmlCdata_AppendParagraph(&xds.pi_desc, FALSE);
 
    XmlCdata_AssignOrAppend(&xds.pi_desc, pBuf);
+
+   xds.pi_desc_lang = XmltvTags_GetLanguage();
 }
 
 // ----------------------------------------------------------------------------

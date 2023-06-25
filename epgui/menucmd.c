@@ -609,32 +609,36 @@ static int MenuCmd_IsAcqExternal( ClientData ttp, Tcl_Interp *interp, int objc, 
 void SetUserLanguage( Tcl_Interp *interp )
 {
    CONST84 char * pTmpStr;
-   int    lang;
-   static int last_lang = -1;
+   EPG_LANG_CODE langCode = EPG_LANG_UNKNOWN;
+   static EPG_LANG_CODE prevLangCode = EPG_LANG_UNKNOWN;
 
    pTmpStr = Tcl_GetVar(interp, "menuUserLanguage", TCL_GLOBAL_ONLY);
    if (pTmpStr != NULL)
    {
-      if (Tcl_GetInt(interp, pTmpStr, &lang) == TCL_OK)
+      if (strcmp(pTmpStr, "auto") == 0)
       {
-         if (lang == 7)
-         {
-            // automatic mode: determine language from AI block
-            lang = EpgSetup_GetDefaultLang(pUiDbContext);
-         }
-
-         // pass the language index to the PDC themes module
-         PdcThemeSetLanguage(lang);
-
-         if ((lang != last_lang) && (last_lang != -1))
-         {
-            // rebuild the themes filter menu
-            eval_check(interp, "FilterMenuAdd_Themes .menubar.filter.themes 0");
-         }
-         last_lang = lang;
+         // automatic mode: determine language from AI block
+         langCode = EpgSetup_GetDefaultLang(pUiDbContext);
+      }
+      else if (strlen(pTmpStr) == 2)
+      {
+         // expect language code in upper-case ASCII characters
+         langCode = EPG_SET_LANG(pTmpStr[0], pTmpStr[1]);
       }
       else
-         debug1("SetUserLanguage: failed to parse '%s'", pTmpStr);
+      {
+         debug1("SetUserLanguage: failed to parse language code '%s'", pTmpStr);
+      }
+
+      // pass the language index to the PDC themes module
+      PdcThemeSetLanguage(langCode);
+
+      if ((langCode != prevLangCode) && (prevLangCode != EPG_LANG_UNKNOWN))
+      {
+         // rebuild the themes filter menu
+         eval_check(interp, "FilterMenuAdd_Themes .menubar.filter.themes 0");
+      }
+      prevLangCode = langCode;
    }
    else
       debug0("SetUserLanguage: Tcl var menuUserLanguage is undefined");

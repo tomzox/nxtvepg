@@ -100,18 +100,31 @@ const char * EpgSetup_GetNetName( const AI_BLOCK * pAiBlock, uint netIdx, bool *
 //
 uint EpgSetup_GetDefaultLang( EPGDB_CONTEXT * pDbContext )
 {
-   const AI_BLOCK * pAiBlock;
-   uint lang = 7;
+   const PI_BLOCK * pPiBlock;
+   FILTER_CONTEXT * fc;
+   uint lang = EPG_LANG_UNKNOWN;
 
    if (pDbContext != NULL)
    {
       EpgDbLockDatabase(pDbContext, TRUE);
-      pAiBlock = EpgDbGetAi(pDbContext);
-      if (pAiBlock != NULL)
+      fc = EpgDbFilterCreateContext();
+
+      pPiBlock = EpgDbSearchFirstPi(pDbContext, fc);
+      while (pPiBlock != NULL)
       {
-         // use language of first network
-         lang = AI_GET_NETWOP_N(pAiBlock, 0)->language;
+         if (pPiBlock->lang_title != EPG_LANG_UNKNOWN)
+         {
+            lang = pPiBlock->lang_title;
+            break;
+         }
+         if (pPiBlock->lang_desc != EPG_LANG_UNKNOWN)
+         {
+            lang = pPiBlock->lang_desc;
+            break;
+         }
+         pPiBlock = EpgDbSearchNextPi(pDbContext, fc, pPiBlock);
       }
+      EpgDbFilterDestroyContext(fc);
       EpgDbLockDatabase(pDbContext, FALSE);
    }
    return lang;

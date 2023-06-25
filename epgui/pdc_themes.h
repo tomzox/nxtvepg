@@ -26,9 +26,9 @@
 // ----------------------------------------------------------------------------
 // Declaration of service interface functions
 //
-void PdcThemeSetLanguage( uchar lang );
+void PdcThemeSetLanguage( uint lang );
 const char * PdcThemeGet( uchar theme );
-const char * PdcThemeGetByLang( uchar theme, uchar lang );
+const char * PdcThemeGetByLang( uchar theme, uint lang );
 const char * PdcThemeGetWithGeneral( uchar theme, const char ** pGeneralStr, bool withUndef );
 bool PdcThemeIsDefined( uchar theme );
 uchar PdcThemeGetCategory( uchar theme );

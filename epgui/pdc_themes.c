@@ -28,6 +28,8 @@
 #include "epgctl/mytypes.h"
 #include "epgctl/debug.h"
 
+#include "epgdb/epg_lang.h"
+
 #include "epgui/pdc_themes.h"
 
 static const char * const pdc_themes_eng[] =
@@ -337,22 +339,22 @@ static const char * pdc_undefined      = "";
 // ---------------------------------------------------------------------------
 // 
 //
-void PdcThemeSetLanguage( uchar lang )
+void PdcThemeSetLanguage( uint lang )
 {
    switch (lang)
    {
-      case 1:
+      case EPG_LANG_DE:
          pdc_themes = pdc_themes_ger;
          pdc_general = pdc_general_ger;
          pdc_undefined = pdc_undefined_ger;
          break;
-      case 4:
+      case EPG_LANG_FR:
          pdc_themes = pdc_themes_fra;
          pdc_general = pdc_general_fra;
          pdc_undefined = pdc_undefined_fra;
          break;
       default:
-      case 0:
+      case EPG_LANG_EN:
          pdc_themes = pdc_themes_eng;
          pdc_general = pdc_general_eng;
          pdc_undefined = pdc_undefined_eng;
@@ -374,7 +376,7 @@ const char * PdcThemeGet( uchar theme )
 // ---------------------------------------------------------------------------
 // Returns predefined text for the given PDC theme index or NULL
 //
-const char * PdcThemeGetByLang( uchar theme, uchar lang )
+const char * PdcThemeGetByLang( uchar theme, uint lang )
 {
    const char * pResult;
 
@@ -382,10 +384,10 @@ const char * PdcThemeGetByLang( uchar theme, uchar lang )
    {
       switch (lang)
       {
-         case 1:  pResult = pdc_themes_ger[theme]; break;
-         case 4:  pResult = pdc_themes_fra[theme]; break;
+         case EPG_LANG_DE:  pResult = pdc_themes_ger[theme]; break;
+         case EPG_LANG_FR:  pResult = pdc_themes_fra[theme]; break;
          default:
-         case 0:  pResult = pdc_themes_eng[theme]; break;
+         case EPG_LANG_EN:  pResult = pdc_themes_eng[theme]; break;
       }
    }
    else

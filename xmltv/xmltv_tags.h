@@ -20,6 +20,8 @@
 #ifndef __XMLTV_TAGS_H
 #define __XMLTV_TAGS_H
 
+#include "epgdb/epg_lang.h"
+
 typedef enum
 {
    XML_ENC_ISO8859_1,
@@ -52,16 +54,6 @@ typedef enum
 
 #define XMLTV_DETECTED_OK(D) (((D) & ~(XMLTV_DETECTED_XML | XMLTV_DETECTED_DOCTYPE)) == 0)
 
-// language codes
-typedef uint XML_LANG_CODE;
-#define XML_SET_LANG(C1,C2)     ((XML_LANG_CODE)(((C1)<<8)|(C2)))
-#define XML_LANG_DE             XML_SET_LANG('D','E')
-#define XML_LANG_FR             XML_SET_LANG('F','R')
-#define XML_LANG_EN             XML_SET_LANG('E','N')
-#define XML_LANG_IT             XML_SET_LANG('I','T')
-#define XML_LANG_PL             XML_SET_LANG('P','L')
-#define XML_LANG_UNKNOWN        0
-
 // Interface to lexigraphical scanner (callback functions)
 void XmltvTags_Open( const char * pTagName );
 bool XmltvTags_Close( const char * pTagName );
@@ -91,7 +83,7 @@ void XmltvTags_CheckSystemLiteral( const char * pStr );
 void XmltvTags_StartScan( FILE * fp, bool load );
 void XmlTags_ScanStop( void );
 XMLTV_DETECTION XmltvTags_QueryDetection( void );
-XML_LANG_CODE XmltvTags_GetLanguage( void );
+EPG_LANG_CODE XmltvTags_GetLanguage( void );
 
 // Interface to xmltv.lex
 void XmlScan_Init( void );

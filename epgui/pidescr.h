@@ -56,6 +56,6 @@ void PiDescription_AppendFeatureList( const PI_BLOCK *pPiBlock, char * outstr );
 
 // Interface to filter module (series title lists)
 const char * PiDescription_RemoveSeriesIndex( const char * pTitle, char * outbuf, uint maxLen );
-const char * PiDescription_DictifyTitle( const char * pTitle, uchar lang, char * outbuf, uint maxLen );
+const char * PiDescription_DictifyTitle( const char * pTitle, uint lang, char * outbuf, uint maxLen );
 
 #endif  // __PIDESCR_H

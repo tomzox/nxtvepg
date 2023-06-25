@@ -27,6 +27,7 @@
 #ifndef __EPGBLOCK_H
 #define __EPGBLOCK_H
 
+#include "epgdb/epg_lang.h"
 
 // ---------------------------------------------------------------------------
 //    AI Block
@@ -36,7 +37,6 @@ typedef struct
 {
    uint32_t  netCni;
    int8_t    lto;          // TODO: always 120 for XMLTV
-   uint8_t   language;     // TODO: always 1 for XMLTV
    uint8_t   dayCount;
 
    uint16_t  off_name;
@@ -96,6 +96,9 @@ typedef struct
   uint16_t  feature_flags;
   uint8_t   parental_rating;
   uint8_t   editorial_rating;
+
+  uint16_t  lang_title;
+  uint16_t  lang_desc;
 
   uint8_t   no_themes;
   uint8_t   no_descriptors;              // used by merged db

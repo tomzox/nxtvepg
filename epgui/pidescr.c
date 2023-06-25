@@ -125,7 +125,7 @@ const char * PiDescription_RemoveSeriesIndex( const char * pTitle, char * outbuf
 // - remove appended series counter from title string
 // - move attribs "Der, Die, Das" to the end of the title for sorting
 //
-const char * PiDescription_DictifyTitle( const char * pTitle, uchar lang, char * outbuf, uint maxLen )
+const char * PiDescription_DictifyTitle( const char * pTitle, uint lang, char * outbuf, uint maxLen )
 {
    uint cut, len;
 
@@ -136,14 +136,14 @@ const char * PiDescription_DictifyTitle( const char * pTitle, uchar lang, char *
    cut = 0;
    switch (lang)
    {
-      case 0:
+      case EPG_LANG_EN:
          // English
          if ((tolower(pTitle[0]) == 't') && (tolower(pTitle[1]) == 'h') && (tolower(pTitle[2]) == 'e') && (pTitle[3] == ' '))
             cut = 4;
          else if ((tolower(pTitle[0]) == 'a') && (pTitle[1] == ' '))
             cut = 2;
          break;
-      case 1:
+      case EPG_LANG_DE:
          // German
          if (tolower(pTitle[0]) == 'd')
          {
@@ -165,7 +165,7 @@ const char * PiDescription_DictifyTitle( const char * pTitle, uchar lang, char *
             }
          }
          break;
-      case 3:
+      case EPG_LANG_IT:
          // Italian
          if ((tolower(pTitle[0]) == 'u') && (tolower(pTitle[1]) == 'n'))
          {
@@ -177,7 +177,7 @@ const char * PiDescription_DictifyTitle( const char * pTitle, uchar lang, char *
          else if ((tolower(pTitle[0]) == 'l') && (tolower(pTitle[1]) == 'a') && (pTitle[2] == ' '))
             cut = 3;
          break;
-      case 4:
+      case EPG_LANG_FR:
          // French
          if ((tolower(pTitle[0]) == 'u') && (tolower(pTitle[1]) == 'n'))
          {
@@ -197,6 +197,9 @@ const char * PiDescription_DictifyTitle( const char * pTitle, uchar lang, char *
             else if ((tolower(pTitle[1]) == 'e') && (tolower(pTitle[2]) == 's') && (pTitle[3] == ' '))
                cut = 4;
          }
+         break;
+      case EPG_LANG_PL:
+         // Polish
          break;
       default:
          break;

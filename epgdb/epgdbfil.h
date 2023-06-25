@@ -44,8 +44,8 @@
 #define FILTER_PAR_RAT        0x00010000
 #define FILTER_EDIT_RAT       0x00020000
 #define FILTER_FEATURES       0x00040000
-#define FILTER_LANGUAGES      0x00080000
-#define FILTER_SUBTITLES      0x00100000
+//#define FILTER_LANGUAGES    0x00080000
+//#define FILTER_SUBTITLES    0x00100000
 #define FILTER_VPS_PDC        0x00200000
 #define FILTER_INVERT         0x00400000
 // sum of all filter bitmasks
@@ -212,10 +212,6 @@ void   EpgDbFilterSetEditorialRating( FILTER_CONTEXT *fc, uchar editorialRating 
 void   EpgDbFilterSetFeatureFlags( FILTER_CONTEXT *fc, uchar index, uint flags, uint mask );
 void   EpgDbFilterSetNoFeatures( FILTER_CONTEXT *fc, uchar noFeatures );
 uchar  EpgDbFilterGetNoFeatures( FILTER_CONTEXT *fc );
-void   EpgDbFilterInitLangDescr( FILTER_CONTEXT *fc );
-void   EpgDbFilterSetLangDescr( const EPGDB_CONTEXT *dbc, FILTER_CONTEXT *fc, const uchar *lg );
-void   EpgDbFilterInitSubtDescr( FILTER_CONTEXT *fc );
-void   EpgDbFilterSetSubtDescr( const EPGDB_CONTEXT *dbc, FILTER_CONTEXT *fc, const uchar *lg );
 void   EpgDbFilterSetProgIdx( FILTER_CONTEXT *fc, uchar firstProgIdx, uchar lastProgIdx );
 void   EpgDbFilterSetVpsPdcMode( FILTER_CONTEXT *fc, uint mode );
 void   EpgDbFilterSetSubStr( FILTER_CONTEXT *fc, const char *pStr,

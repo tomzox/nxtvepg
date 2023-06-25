@@ -354,10 +354,10 @@ static bool EpgQuery_PopThemeStr( const char * pArg, uint * pArgOff, uint * p_in
    // determine language for theme categories from AI block
    switch (EpgSetup_GetDefaultLang(pDbContext))
    {
-      case 1: Xmltv_ParseThemeStringGerman(&match, pLower); break;
-      case 4: Xmltv_ParseThemeStringFrench(&match, pLower); break;
+      case EPG_LANG_DE: Xmltv_ParseThemeStringGerman(&match, pLower); break;
+      case EPG_LANG_FR: Xmltv_ParseThemeStringFrench(&match, pLower); break;
       default:
-      case 0: Xmltv_ParseThemeStringEnglish(&match, pLower); break;
+      case EPG_LANG_EN: Xmltv_ParseThemeStringEnglish(&match, pLower); break;
    }
    xfree(pLower);
 

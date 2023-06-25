@@ -140,13 +140,22 @@ void ExportTitle(FILE * fp, const TV_SLOT& slot, const string& ch_id, TTX_PAGE_D
 
       const TTX_DB_PAGE* pg = db->get_sub_page(slot.get_ov_page_no(), slot.get_ov_page_sub());
 
+      const char * p_lang_attr = "";
+      switch (pg->get_lang()) {
+         case 0: p_lang_attr = " lang=\"en\""; break;
+         case 1: p_lang_attr = " lang=\"de\""; break;
+         case 3: p_lang_attr = " lang=\"it\""; break;
+         case 4: p_lang_attr = " lang=\"fr\""; break;
+         default: break;
+      }
+
       fprintf(fp, "\n<programme start=\"%s\"%s%s channel=\"%s\">\n"
                   "\t<!-- TTX %03X.%04X ACQTS:%ld -->\n"
-                  "\t<title>%s</title>\n",
+                  "\t<title%s>%s</title>\n",
                   start_str.c_str(), stop_str.c_str(), vps_str.c_str(), ch_id.c_str(),
                   slot.get_ov_page_no(), slot.get_ov_page_sub(),
                      ((pg != 0) ? pg->get_timestamp() : 0),
-                  title.c_str());
+                  p_lang_attr, title.c_str());
 
       if (slot.get_subtitle().length() > 0) {
          // repeat the title because often the subtitle is actually just the 2nd part
@@ -154,14 +163,14 @@ void ExportTitle(FILE * fp, const TV_SLOT& slot, const string& ch_id, TTX_PAGE_D
          // TODO: some channel distinguish title from subtitle by making title all-caps (e.g. TV5)
          string subtitle = slot.get_title() + string(" ") +  slot.get_subtitle();
          Latin1ToXml(subtitle);
-         fprintf(fp, "\t<sub-title>%s</sub-title>\n", subtitle.c_str());
+         fprintf(fp, "\t<sub-title%s>%s</sub-title>\n", p_lang_attr, subtitle.c_str());
       }
       if (slot.get_ttx_ref() != -1) {
          if (slot.get_desc().length() > 0) {
             fprintf(fp, "\t<!-- TTX %03X.%04X -->\n", slot.get_ttx_ref(), slot.get_ttx_ref_sub());
             string desc = slot.get_desc();
             Latin1ToXml(desc);
-            fprintf(fp, "\t<desc>%s</desc>\n", desc.c_str());
+            fprintf(fp, "\t<desc%s>%s</desc>\n", p_lang_attr, desc.c_str());
          }
          else {
             // page not captured or no matching date/title found

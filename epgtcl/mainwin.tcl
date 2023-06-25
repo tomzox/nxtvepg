@@ -759,11 +759,11 @@ proc CreateMenubar {} {
    .menubar.config add cascade -label "List layout" -menu .menubar.config.layout
    # Lanugage sub-menu
    menu .menubar.config.lang
-   .menubar.config.lang add radiobutton -label "automatic" -command UpdateUserLanguage -variable menuUserLanguage -value 7
+   .menubar.config.lang add radiobutton -label "automatic" -command UpdateUserLanguage -variable menuUserLanguage -value "auto"
    .menubar.config.lang add separator
-   .menubar.config.lang add radiobutton -label "English" -command UpdateUserLanguage -variable menuUserLanguage -value 0
-   .menubar.config.lang add radiobutton -label "German" -command UpdateUserLanguage -variable menuUserLanguage -value 1
-   .menubar.config.lang add radiobutton -label "French" -command UpdateUserLanguage -variable menuUserLanguage -value 4
+   .menubar.config.lang add radiobutton -label "English" -command UpdateUserLanguage -variable menuUserLanguage -value "EN"
+   .menubar.config.lang add radiobutton -label "German" -command UpdateUserLanguage -variable menuUserLanguage -value "DE"
+   .menubar.config.lang add radiobutton -label "French" -command UpdateUserLanguage -variable menuUserLanguage -value "FR"
    menu .menubar.config.show_hide
    .menubar.config.show_hide add checkbutton -label "Show shortcuts" -command {ShowOrHideShortcutList showShortcutListbox; UpdateRcFile} -variable showShortcutListbox
    .menubar.config.show_hide add checkbutton -label "Show networks (left)" -command {ShowOrHideShortcutList showNetwopListboxLeft; UpdateRcFile} -variable showNetwopListboxLeft
@@ -1209,7 +1209,7 @@ set showTuneTvButton 1
 set showLayoutButton 1
 set showDateScale 1
 set hideOnMinimize 1
-set menuUserLanguage 7
+set menuUserLanguage "auto"
 
 proc ShowOrHideShortcutList {{changed {}}} {
    global showShortcutListbox showNetwopListbox showNetwopListboxLeft

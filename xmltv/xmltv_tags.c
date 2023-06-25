@@ -503,7 +503,7 @@ static void XmltvScan_CheckTablesConsistency( void )
 typedef struct
 {
    XMLTV_TAG            tagStack[XML_STACK_MAX_DEPTH];
-   XML_LANG_CODE        lang[XML_STACK_MAX_DEPTH];
+   EPG_LANG_CODE        lang[XML_STACK_MAX_DEPTH];
    uint                 stackIdx;
    uint                 syntaxError;
    bool                 earlyStop;
@@ -525,12 +525,12 @@ static void XmltvTags_SetLanguage( XML_STR_BUF * pBuf )
 {
    const char * pStr;
    uint  idx;
-   XML_LANG_CODE code;
+   EPG_LANG_CODE code;
 
    pStr = XML_STR_BUF_GET_STR(*pBuf);
    code = 0;
 
-   for (idx = 0; idx < 4; idx++)
+   for (idx = 0; idx < 2; idx++)
    {
       if ((*pStr >= 'a') && (*pStr <= 'z'))
          code = (code << 8) | (*pStr - 'a' + 'A');
@@ -542,13 +542,16 @@ static void XmltvTags_SetLanguage( XML_STR_BUF * pBuf )
       pStr++;
    }
 
+   if ((idx < 2) || ((*pStr != 0) && (*pStr != '_') && (*pStr != '-')))
+       code = 0;
+
    xps.lang[xps.stackIdx] = code;
 }
 
 // ----------------------------------------------------------------------------
 // Query the language of the current element's content
 // 
-XML_LANG_CODE XmltvTags_GetLanguage( void )
+EPG_LANG_CODE XmltvTags_GetLanguage( void )
 {
    return xps.lang[xps.stackIdx];
 }
@@ -587,7 +590,7 @@ void XmltvTags_Open( const char * pTagName )
          xps.xmlAttrToken = XML_SKIP_ATTRIB;
          xps.syntaxError = 0;
 
-         xps.lang[xps.stackIdx] = XML_LANG_UNKNOWN;
+         xps.lang[xps.stackIdx] = EPG_LANG_UNKNOWN;
 
          state = *pChild;
          if (xmltv_tag_def[state].cb.TagOpen != NULL)
@@ -776,7 +779,7 @@ void XmltvTags_AttribData( XML_STR_BUF * pBuf )
 
       dprintf2("XmltvTag-AttribData: assign value '%s' to attrib '%s'\n", XML_STR_BUF_GET_STR(*pBuf), pAttrib->pName);
 
-      XML_STR_BUF_SET_LANG(*pBuf, XML_LANG_UNKNOWN);
+      XML_STR_BUF_SET_LANG(*pBuf, EPG_LANG_UNKNOWN);
 
       if (pAttrib->SetAttr != NULL)
       {
