@@ -65,6 +65,14 @@ typedef struct
 #define AI_GET_NET_CNI(N)       ((uint)((N)->netCni))
 #define AI_GET_NET_CNI_N(X,N)   AI_GET_NET_CNI(AI_GET_NETWOP_N((X),(N)))
 
+typedef struct
+{
+   uint32_t     size;               // actual size of the union; usually larger than its sizeof()
+   uint8_t      version;            // AI version at the time of acquisition of this block
+   time32_t     acqTimestamp;       // time when the block was last updated
+   const AI_BLOCK ai;               // the actual AI data
+} EPGDB_AI_BLOCK;
+
 
 // ---------------------------------------------------------------------------
 //    PI Block
@@ -118,38 +126,22 @@ typedef struct
 #define PI_GET_STR_BY_OFF(X,O) ((const char*)(X)+(O))
 #define PI_GET_DESCRIPTORS(X)  ((const EPGDB_MERGE_SRC*)((uchar*)(X)+((X)->off_descriptors)))
 
+typedef struct EPGDB_PI_BLOCK_STRUCT
+{
+   struct EPGDB_PI_BLOCK_STRUCT *pNextBlock;        // next block in order of start time
+   struct EPGDB_PI_BLOCK_STRUCT *pPrevBlock;        // previous block in order of start time
+   struct EPGDB_PI_BLOCK_STRUCT *pNextNetwopBlock;  // next block of the same network in order of start time
+   struct EPGDB_PI_BLOCK_STRUCT *pPrevNetwopBlock;  // previous block of the same network in order of start time
+   uint32_t     size;               // actual size of the union; usually larger than its sizeof()
+   uint8_t      version;            // AI version at the time of acquisition of this block
+   time32_t     acqTimestamp;       // time when the block was last updated
+
+   const PI_BLOCK pi;               // the actual PI data
+} EPGDB_PI_BLOCK;
+
 
 // ----------------------------------------------------------------------------
 // EPG block types (internal redefinition; ordering is relevant!)
-
-typedef enum
-{
-   BLOCK_TYPE_AI,
-   BLOCK_TYPE_PI,
-} BLOCK_TYPE;
-
-typedef union
-{
-   AI_BLOCK   ai;
-   PI_BLOCK   pi;
-} EPGDB_BLOCK_UNION;
-
-typedef struct EPGDB_BLOCK_STRUCT
-{
-   struct EPGDB_BLOCK_STRUCT *pNextBlock;        // next block in order of start time
-   struct EPGDB_BLOCK_STRUCT *pPrevBlock;        // previous block in order of start time
-   struct EPGDB_BLOCK_STRUCT *pNextNetwopBlock;  // next block of the same network in order of start time
-   struct EPGDB_BLOCK_STRUCT *pPrevNetwopBlock;  // previous block of the same network in order of start time
-   uint32_t     size;               // actual size of the union; may be greater than it's sizeof()
-   uint8_t      version;            // AI version at the time of acquisition of this block
-   uint16_t     parityErrCnt;       // parity error count for string segment
-   time32_t     acqTimestamp;       // time when the block was received last
-   BLOCK_TYPE   type;
-
-   const EPGDB_BLOCK_UNION   blk;   // the actual data
-} EPGDB_BLOCK;
-
-#define BLK_UNION_OFF    ((uint)(sizeof(EPGDB_BLOCK) - sizeof(EPGDB_BLOCK_UNION)))
 
 // ----------------------------------------------------------------------------
 // Event callback for handling incoming PI in the GUI
@@ -180,10 +172,10 @@ typedef struct EPGDB_CONTEXT_STRUCT
    bool   merged;                   // Flag for merged db
    void   *pMergeContext;           // Pointer to merge parameters
 
-   EPGDB_BLOCK *pAiBlock;
-   EPGDB_BLOCK *pFirstPi, *pLastPi;
-   EPGDB_BLOCK *pObsoletePi;
-   EPGDB_BLOCK **pFirstNetwopPi;    // Variable-length array
+   EPGDB_AI_BLOCK *pAiBlock;
+   EPGDB_PI_BLOCK *pFirstPi, *pLastPi;
+   EPGDB_PI_BLOCK *pObsoletePi;
+   EPGDB_PI_BLOCK **pFirstNetwopPi;    // Variable-length array
    uint32_t    netwopCount;
 
    EPGDB_PI_ACQ_CB *pPiAcqCb;
@@ -209,9 +201,11 @@ typedef struct EPGDB_CONTEXT_STRUCT
 // ----------------------------------------------------------------------------
 // Declaration of service interface functions
 //
-EPGDB_BLOCK * EpgBlockCreate( BLOCK_TYPE type, uint size, time_t mtime );
+EPGDB_AI_BLOCK * EpgBlockCreateAi( uint size, time_t mtime );
+EPGDB_PI_BLOCK * EpgBlockCreatePi( uint size, time_t mtime );
 
-bool EpgBlockCheckConsistancy( EPGDB_BLOCK * pBlock );
+bool EpgBlockCheckAi( const EPGDB_AI_BLOCK * pBlock );
+bool EpgBlockCheckPi( const EPGDB_PI_BLOCK * pBlock );
 
 void EpgLtoInit( void );
 sint EpgLtoGet( time_t when );

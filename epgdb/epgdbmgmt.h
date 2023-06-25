@@ -26,9 +26,9 @@
 //
 bool EpgDbCheckChains( const EPGDB_CONTEXT * dbc );
 
-void EpgDbMergeLinkNetworkPi( EPGDB_CONTEXT * dbc, EPGDB_BLOCK ** pFirstNetwopBlock );
-void EpgDbReplacePi( EPGDB_CONTEXT * dbc, EPGDB_BLOCK * pObsolete, EPGDB_BLOCK * pBlock );
-bool EpgDbAddDefectPi( EPGDB_CONTEXT * dbc, EPGDB_BLOCK *pBlock );
+void EpgDbMergeLinkNetworkPi( EPGDB_CONTEXT * dbc, EPGDB_PI_BLOCK ** pFirstNetwopBlock );
+void EpgDbReplacePi( EPGDB_CONTEXT * dbc, EPGDB_PI_BLOCK * pObsolete, EPGDB_PI_BLOCK * pBlock );
+bool EpgDbAddDefectPi( EPGDB_CONTEXT * dbc, EPGDB_PI_BLOCK *pBlock );
 
 // ----------------------------------------------------------------------------
 // Declaration of database management functions

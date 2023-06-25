@@ -145,7 +145,7 @@ void EpgAcqServer_TriggerDbUpdate( time_t mtime );
 void EpgAcqServer_Destroy( void );
 sint EpgAcqServer_GetFdSet( fd_set * rd, fd_set * wr );
 void EpgAcqServer_HandleSockets( fd_set * rd, fd_set * wr );
-void EpgAcqServer_AddBlock( EPGDB_CONTEXT * dbc, EPGDB_BLOCK * pNewBlock );
+void EpgAcqServer_AddBlock( EPGDB_CONTEXT * dbc, EPGDB_PI_BLOCK * pNewBlock );
 
 
 #endif  // __EPGACQSRV_H

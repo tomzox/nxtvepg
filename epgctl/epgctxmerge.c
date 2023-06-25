@@ -129,7 +129,7 @@ static void EpgContextMergeAllocNetwopMap( EPGDB_MERGE_CONTEXT * dbmc, uint cniC
    for (uint dbIdx=0; dbIdx < dbmc->dbCount; dbIdx++)
    {
       // "netwopMap" maps from local AI netwop index to merged DB netwop index
-      uint aiNetwopCount = dbmc->prov[dbIdx].pDbContext->pAiBlock->blk.ai.netwopCount;
+      uint aiNetwopCount = dbmc->prov[dbIdx].pDbContext->pAiBlock->ai.netwopCount;
       dbmc->prov[dbIdx].netwopMap = xmalloc(sizeof(uint) * aiNetwopCount);
 
       for (uint idx = 0; idx < aiNetwopCount; ++idx)
@@ -178,7 +178,7 @@ static void EpgContextMergeBuildNetwopMap( EPGDB_MERGE_CONTEXT * pMergeContext,
       {
          for (dbIdx=0; dbIdx < pMergeContext->dbCount; dbIdx++)
          {
-            pAi = (AI_BLOCK *) &pMergeContext->prov[dbIdx].pDbContext->pAiBlock->blk.ai;
+            pAi = (AI_BLOCK *) &pMergeContext->prov[dbIdx].pDbContext->pAiBlock->ai;
             pNetwops = AI_GET_NETWOPS(pAi);
 
             for (netIdx = 0; netIdx < pAi->netwopCount; netIdx++, pNetwops++)
@@ -298,7 +298,7 @@ bool EpgContextMergeCheckForCni( const EPGDB_CONTEXT * dbc, uint cni )
 static void EpgContextMergeExtendProvList( uint addCount, const uint * pProvCni, int errHand )
 {
    EPGDB_MERGE_CONTEXT * dbmc = (EPGDB_MERGE_CONTEXT*) pUiDbContext->pMergeContext;
-   const AI_BLOCK * pOldAi = &pUiDbContext->pAiBlock->blk.ai;
+   const AI_BLOCK * pOldAi = &pUiDbContext->pAiBlock->ai;
    uint netwopCount = pOldAi->netwopCount;
    uint * netCnis = xmalloc(sizeof(uint) * netwopCount);
 
@@ -311,7 +311,7 @@ static void EpgContextMergeExtendProvList( uint addCount, const uint * pProvCni,
       dbmc->prov[dbmc->dbCount].pDbContext = EpgContextCtl_Open(pProvCni[dbIdx], FALSE, errHand);
       if (dbmc->prov[dbmc->dbCount].pDbContext != NULL)
       {
-         const AI_BLOCK * pTmpAi = &dbmc->prov[dbmc->dbCount].pDbContext->pAiBlock->blk.ai;
+         const AI_BLOCK * pTmpAi = &dbmc->prov[dbmc->dbCount].pDbContext->pAiBlock->ai;
          netCnis = xrealloc(netCnis, sizeof(uint) * (netwopCount + pTmpAi->netwopCount));
 
          // append all CNIs of this provider to merged network table;

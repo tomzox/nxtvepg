@@ -170,7 +170,7 @@ typedef struct
    XML_STR_BUF  pi_code_vp;
 
    EPGDB_CONTEXT * pDbContext;
-   EPGDB_BLOCK **pFirstNetwopPi;
+   EPGDB_PI_BLOCK **pFirstNetwopPi;
    time_t       mtime;
    bool         isPeek;
    bool         cniCtxInitDone;
@@ -394,9 +394,9 @@ static void XmlTv_BuildSourceInfoMessages( XML_STR_BUF * pHeader, XML_STR_BUF * 
 // ----------------------------------------------------------------------------
 // Assemble an AI block (application inventory, i.e. channel table)
 //
-static EPGDB_BLOCK * XmltvDb_BuildAi( const char * pProvName )
+static EPGDB_AI_BLOCK * XmltvDb_BuildAi( const char * pProvName )
 {
-   EPGDB_BLOCK *pBlk;
+   EPGDB_AI_BLOCK *pBlk;
    AI_BLOCK *pAi;
    AI_NETWOP *pNetwops;
    XML_STR_BUF aiServiceName;
@@ -426,8 +426,8 @@ static EPGDB_BLOCK * XmltvDb_BuildAi( const char * pProvName )
               aiServiceNameLen +
               sourceInfoLen +
               genInfoLen;
-   pBlk = EpgBlockCreate(BLOCK_TYPE_AI, blockLen, xds.mtime);
-   pAi = (AI_BLOCK *) &pBlk->blk.ai;  // remove const from pointer
+   pBlk = EpgBlockCreateAi(blockLen, xds.mtime);
+   pAi = (AI_BLOCK *) &pBlk->ai;  // remove const from pointer
    memset(pAi, 0, sizeof(AI_BLOCK));
    pAi->netwopCount = xds.chn_count;
    blockLen = sizeof(AI_BLOCK);
@@ -471,39 +471,39 @@ static EPGDB_BLOCK * XmltvDb_BuildAi( const char * pProvName )
 // Insert a new PI block into the database
 // - the block is dropped if it overlaps with other PI of the same network
 //
-static bool XmltvDb_AddPiBlock( EPGDB_CONTEXT * dbc, EPGDB_BLOCK *pBlock )
+static bool XmltvDb_AddPiBlock( EPGDB_CONTEXT * dbc, EPGDB_PI_BLOCK *pBlock )
 {
-   EPGDB_BLOCK *pWalk, *pPrev;
+   EPGDB_PI_BLOCK *pWalk, *pPrev;
    uint netwop;
    bool added;
 
    // when stop time is missing, fake it as start + 1 second (XXX FIXME choose start of next PI)
-   if (pBlock->blk.pi.stop_time == 0)
-      *(time32_t*)&pBlock->blk.pi.stop_time = pBlock->blk.pi.start_time + 1;
+   if (pBlock->pi.stop_time == 0)
+      *(time32_t*)&pBlock->pi.stop_time = pBlock->pi.start_time + 1;
 
-   if ( (pBlock->blk.pi.start_time != 0) &&
-        (pBlock->blk.pi.start_time < pBlock->blk.pi.stop_time) )
+   if ( (pBlock->pi.start_time != 0) &&
+        (pBlock->pi.start_time < pBlock->pi.stop_time) )
    {
-      netwop = pBlock->blk.pi.netwop_no;
+      netwop = pBlock->pi.netwop_no;
       if (netwop < xds.chn_count)
       {
-         dprintf4("ADD PI ptr=%lx: netwop=%d, start=%ld \"%s\"\n", (ulong)pBlock, netwop, pBlock->blk.pi.start_time, PI_GET_TITLE(&pBlock->blk.pi));
+         dprintf4("ADD PI ptr=%lx: netwop=%d, start=%ld \"%s\"\n", (ulong)pBlock, netwop, pBlock->pi.start_time, PI_GET_TITLE(&pBlock->pi));
 
          // search inside network chain for insertion point
          pWalk = xds.pFirstNetwopPi[netwop];
          pPrev = NULL;
 
          while ( (pWalk != NULL) &&
-                 (pWalk->blk.pi.start_time < pBlock->blk.pi.start_time) )
+                 (pWalk->pi.start_time < pBlock->pi.start_time) )
          {
             pPrev = pWalk;
             pWalk = pWalk->pNextNetwopBlock;
          }
 
          if ( ( (pWalk == NULL) ||
-                (pWalk->blk.pi.start_time >= pBlock->blk.pi.stop_time) ) &&
+                (pWalk->pi.start_time >= pBlock->pi.stop_time) ) &&
               ( (pPrev == NULL) ||
-                (pPrev->blk.pi.stop_time <= pBlock->blk.pi.start_time) ) )
+                (pPrev->pi.stop_time <= pBlock->pi.start_time) ) )
          {
             assert((pPrev == NULL) || (pPrev->pNextNetwopBlock == pWalk));
             assert((pWalk == NULL) || (pWalk->pPrevNetwopBlock == pPrev));
@@ -524,10 +524,10 @@ static bool XmltvDb_AddPiBlock( EPGDB_CONTEXT * dbc, EPGDB_BLOCK *pBlock )
          }
          else
          {
-            if ((pWalk != NULL) && (pWalk->blk.pi.start_time < pBlock->blk.pi.stop_time))
-               dprintf1("OVERLAP NEXT start:%ld - dropping PI\n", pWalk->blk.pi.start_time);
+            if ((pWalk != NULL) && (pWalk->pi.start_time < pBlock->pi.stop_time))
+               dprintf1("OVERLAP NEXT start:%ld - dropping PI\n", pWalk->pi.start_time);
             else
-               dprintf2("OVERLAP PREV start:%ld stop:%ld - dropping PI\n", pPrev->blk.pi.start_time, pPrev->blk.pi.stop_time);
+               dprintf2("OVERLAP PREV start:%ld stop:%ld - dropping PI\n", pPrev->pi.start_time, pPrev->pi.stop_time);
             added = FALSE;
          }
       }
@@ -539,7 +539,7 @@ static bool XmltvDb_AddPiBlock( EPGDB_CONTEXT * dbc, EPGDB_BLOCK *pBlock )
    }
    else
    {  // defective
-      debug2("AddPi: invalid start or stop times: %d, %d", (int)pBlock->blk.pi.start_time, (int)pBlock->blk.pi.stop_time);
+      debug2("AddPi: invalid start or stop times: %d, %d", (int)pBlock->pi.start_time, (int)pBlock->pi.stop_time);
       added = FALSE;
    }
 
@@ -549,9 +549,9 @@ static bool XmltvDb_AddPiBlock( EPGDB_CONTEXT * dbc, EPGDB_BLOCK *pBlock )
 // ----------------------------------------------------------------------------
 // Assemble a PI block
 //
-static EPGDB_BLOCK * XmltvDb_BuildPi( void )
+static EPGDB_PI_BLOCK * XmltvDb_BuildPi( void )
 {
-   EPGDB_BLOCK * pBlk;
+   EPGDB_PI_BLOCK * pBlk;
    PI_BLOCK * pPi;
    uint  piLen;
 
@@ -577,8 +577,8 @@ static EPGDB_BLOCK * XmltvDb_BuildPi( void )
       xds.pi.off_desc_text = 0;
 
    // 2nd step: copy elements one after each other, then free single elements
-   pBlk = EpgBlockCreate(BLOCK_TYPE_PI, piLen, xds.mtime);
-   pPi = (PI_BLOCK *) &pBlk->blk.pi;  // remove const from pointer
+   pBlk = EpgBlockCreatePi(piLen, xds.mtime);
+   pPi = (PI_BLOCK *) &pBlk->pi;  // remove const from pointer
    memcpy(pPi, &xds.pi, sizeof(PI_BLOCK));
 
    // copy title string (always present)
@@ -796,7 +796,7 @@ void Xmltv_TsOpen( void )
 
 void Xmltv_TsClose( void )
 {
-   EPGDB_BLOCK * pBlk;
+   EPGDB_PI_BLOCK * pBlk;
 
    dprintf0("Xmltv_TsClose\n");
 

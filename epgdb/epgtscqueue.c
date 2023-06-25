@@ -356,7 +356,7 @@ static void EpgTscQueue_Append( EPGDB_PI_TSC * pQueue, time_t startTime, time_t 
 void EpgTscQueue_AddAll( EPGDB_PI_TSC * pQueue, EPGDB_CONTEXT * dbc,
                          time_t now, time_t tsAcq )
 {
-   const EPGDB_BLOCK * pBlock;
+   const EPGDB_PI_BLOCK * pBlock;
    const AI_BLOCK  *pAi;
    const PI_BLOCK  *pPi;
    time_t lastStopTime;
@@ -381,7 +381,7 @@ void EpgTscQueue_AddAll( EPGDB_PI_TSC * pQueue, EPGDB_CONTEXT * dbc,
             lastStopTime = 0;
             while (pBlock != NULL)
             {
-               pPi = &pBlock->blk.pi;
+               pPi = &pBlock->pi;
                flags = 0;
 
                if (pBlock->acqTimestamp < tsAcq)
@@ -389,9 +389,9 @@ void EpgTscQueue_AddAll( EPGDB_PI_TSC * pQueue, EPGDB_CONTEXT * dbc,
 
                if (pPi->stop_time < now)
                   flags |= PI_TSC_MASK_IS_EXPIRED;
-               else if (pBlock->blk.pi.start_time < tsDay1)
+               else if (pBlock->pi.start_time < tsDay1)
                   flags |= (0 << PI_TSC_MASK_DAY_SHIFT);
-               else if (pBlock->blk.pi.start_time < tsDay2)
+               else if (pBlock->pi.start_time < tsDay2)
                   flags |= (1 << PI_TSC_MASK_DAY_SHIFT);
                else
                   flags |= (2 << PI_TSC_MASK_DAY_SHIFT);
@@ -415,7 +415,7 @@ void EpgTscQueue_AddAll( EPGDB_PI_TSC * pQueue, EPGDB_CONTEXT * dbc,
          pBlock = dbc->pObsoletePi;
          while (pBlock != NULL)
          {
-            pPi = &pBlock->blk.pi;
+            pPi = &pBlock->pi;
             flags = PI_TSC_MASK_IS_DEFECTIVE;
 
             if (pBlock->pNextNetwopBlock == NULL)

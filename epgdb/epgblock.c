@@ -27,6 +27,7 @@
 #include <stdlib.h>
 #include <time.h>
 #include <string.h>
+#include <stddef.h>
 
 #include "epgctl/mytypes.h"
 #include "epgctl/debug.h"
@@ -45,25 +46,42 @@ static time_t unixTimeBase1982;         // 1.1.1982 in UNIX time format
 
 
 // ----------------------------------------------------------------------------
-// Allocate a new block and initialize the common elements
+// Allocate a new AI block and initialize the internal elements
 //
-EPGDB_BLOCK * EpgBlockCreate( BLOCK_TYPE type, uint size, time_t mtime )
+EPGDB_AI_BLOCK * EpgBlockCreateAi( uint size, time_t mtime )
 {
-   EPGDB_BLOCK *pBlock;
+   EPGDB_AI_BLOCK *pBlock;
 
-   pBlock = (EPGDB_BLOCK *) xmalloc(size + BLK_UNION_OFF);
+   pBlock = (EPGDB_AI_BLOCK *) xmalloc(size + offsetof(EPGDB_AI_BLOCK, ai));
 
    // initialize all pointers to NULL (and alignment gaps in header struct)
-   memset((char*)pBlock, 0, BLK_UNION_OFF);
+   memset((char*)pBlock, 0, offsetof(EPGDB_AI_BLOCK, ai));
 
-   pBlock->type = type;
    pBlock->size = size;
-
    pBlock->version = 0xff;
-
    pBlock->acqTimestamp = mtime;
 
-   dprintf2("EpgBlock-Create: created block type=%d, (0x%lx)\n", type, (long)pBlock);
+   dprintf2("EpgBlock-CreatePi: created AI block (0x%lx)\n", type, (long)pBlock);
+   return pBlock;
+}
+
+// ----------------------------------------------------------------------------
+// Allocate a new PI block and initialize the internal elements
+//
+EPGDB_PI_BLOCK * EpgBlockCreatePi( uint size, time_t mtime )
+{
+   EPGDB_PI_BLOCK *pBlock;
+
+   pBlock = (EPGDB_PI_BLOCK *) xmalloc(size + offsetof(EPGDB_PI_BLOCK, pi));
+
+   // initialize all pointers to NULL (and alignment gaps in header struct)
+   memset((char*)pBlock, 0, offsetof(EPGDB_PI_BLOCK, pi));
+
+   pBlock->size = size;
+   pBlock->version = 0xff;
+   pBlock->acqTimestamp = mtime;
+
+   dprintf2("EpgBlock-CreatePi: created PI block (0x%lx)\n", type, (long)pBlock);
    return pBlock;
 }
 
@@ -128,12 +146,12 @@ void EpgLtoInit( void )
 // ---------------------------------------------------------------------------
 // Check reloaded PI block for gross consistancy errors
 //
-static bool EpgBlockCheckPi( EPGDB_BLOCK * pBlock )
+bool EpgBlockCheckPi( const EPGDB_PI_BLOCK * pBlock )
 {
    bool result = FALSE;
    const PI_BLOCK * pPi;
 
-   pPi = &pBlock->blk.pi;
+   pPi = &pBlock->pi;
 
    if (pPi->netwop_no == INVALID_NETWOP_IDX)
    {
@@ -159,7 +177,7 @@ static bool EpgBlockCheckPi( EPGDB_BLOCK * pBlock )
                // check if the title string is terminated by a null byte
                (*(PI_GET_DESC_TEXT(pPi) - 1) != 0) ))
    {
-      debug2("EpgBlock-CheckPi: desc text exceeds block size: off=%d, size=%d", pPi->off_desc_text, pBlock->size + BLK_UNION_OFF);
+      debug2("EpgBlock-CheckPi: desc text exceeds block size: off=%d, size=%d", pPi->off_desc_text, pBlock->size + (uint)offsetof(EPGDB_PI_BLOCK, pi));
    }
    else if ( (pPi->no_descriptors > 0) &&
              ( (pPi->off_descriptors <= pPi->off_desc_text) ||
@@ -168,10 +186,10 @@ static bool EpgBlockCheckPi( EPGDB_BLOCK * pBlock )
                // check if the title or description string is terminated by a null byte
                (*(((uchar *)PI_GET_DESCRIPTORS(pPi)) - 1) != 0) ))
    {
-      debug3("EpgBlock-CheckPi: descriptor count %d exceeds block length: off=%d, size=%d", pPi->no_descriptors, pPi->off_descriptors, pBlock->size + BLK_UNION_OFF);
+      debug3("EpgBlock-CheckPi: descriptor count %d exceeds block length: off=%d, size=%d", pPi->no_descriptors, pPi->off_descriptors, pBlock->size + (uint)offsetof(EPGDB_PI_BLOCK, pi));
    }
    else if ( (pPi->no_descriptors == 0) &&
-             (*((uchar *) pBlock + pBlock->size + BLK_UNION_OFF - 1) != 0) )
+             (*((uchar *) pBlock + pBlock->size + offsetof(EPGDB_PI_BLOCK, pi) - 1) != 0) )
    {
       debug0("EpgBlock-CheckPi: last string not terminated by 0 byte");
    }
@@ -186,15 +204,15 @@ static bool EpgBlockCheckPi( EPGDB_BLOCK * pBlock )
 // ---------------------------------------------------------------------------
 // Check an AI block for consistancy errors in counters, offsets or value ranges
 //
-static bool EpgBlockCheckAi( EPGDB_BLOCK * pBlock )
+bool EpgBlockCheckAi( const EPGDB_AI_BLOCK * pBlock )
 {
    const AI_BLOCK  * pAi;
    const AI_NETWOP * pNetwop;
    const char *pBlockEnd, *pName, *pPrevName;
    bool result = FALSE;
 
-   pAi       = &pBlock->blk.ai;
-   pBlockEnd = (char *) pBlock + pBlock->size + BLK_UNION_OFF;
+   pAi = &pBlock->ai;
+   pBlockEnd = (char *) pBlock + pBlock->size + offsetof(EPGDB_PI_BLOCK, pi);
 
    if ((pAi->netwopCount == 0) || (pAi->netwopCount == INVALID_NETWOP_IDX))
    {
@@ -250,42 +268,6 @@ static bool EpgBlockCheckAi( EPGDB_BLOCK * pBlock )
         debug0("EpgBlock-CheckAi: last netwop name not 0 terminated");
         result = FALSE;
       }
-   }
-
-   return result;
-}
-
-// ---------------------------------------------------------------------------
-// Check consistancy of an EPG block
-// - this check is required when loading a block from a file or through the
-//   network, as it might contain errors due to undetected version conflicts or
-//   data corruption; the application should not crash due to any such errors
-// - checks for errors in counters, offsets or value ranges
-//
-bool EpgBlockCheckConsistancy( EPGDB_BLOCK * pBlock )
-{
-   bool result;
-
-   if (pBlock != NULL)
-   {
-      switch (pBlock->type)
-      {
-         case BLOCK_TYPE_AI:
-            result = EpgBlockCheckAi(pBlock);
-            break;
-         case BLOCK_TYPE_PI:
-            result = EpgBlockCheckPi(pBlock);
-            break;
-         default:
-            debug1("EpgBlock-CheckBlock: illegal block type %d", pBlock->type);
-            result = FALSE;
-            break;
-      }
-   }
-   else
-   {
-      debug0("EpgBlock-CheckBlock: illegal NULL ptr arg");
-      result = FALSE;
    }
 
    return result;

@@ -66,7 +66,7 @@ typedef struct
 // ----------------------------------------------------------------------------
 // Declaration of interface functions
 //
-void EpgDbMergeInsertPi( EPGDB_CONTEXT * pDbContext, EPGDB_BLOCK * pNewBlock );
+void EpgDbMergeInsertPi( EPGDB_CONTEXT * pDbContext, EPGDB_PI_BLOCK * pNewBlock );
 void EpgDbMergeUpdateNetworks( EPGDB_CONTEXT * pDbContext, uint provCount, const uint * pProvCni );
 void EpgDbMergeAiBlocks( EPGDB_CONTEXT * dbc, uint netwopCount, const uint * pNetwopList );
 void EpgDbMergeAllPiBlocks( EPGDB_CONTEXT * dbc );

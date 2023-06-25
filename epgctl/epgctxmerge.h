@@ -28,7 +28,7 @@
 EPGDB_CONTEXT * EpgContextMerge( uint dbCount, const uint * pCni, MERGE_ATTRIB_VECTOR_PTR pMax,
                                  uint netwopCount, uint * pNetwopList, int errHand );
 #endif  // __EPGDBMERGE_H
-void EpgContextMergeInsertPi( const EPGDB_CONTEXT * pAcqContext, EPGDB_BLOCK * pNewBlock );
+void EpgContextMergeInsertPi( const EPGDB_CONTEXT * pAcqContext, EPGDB_PI_BLOCK * pNewBlock );
 bool EpgContextMergeUpdateDb( uint updCount, uint addCnt, const uint * pProvCni, int errHand );
 void EpgContextMergeDestroy( void * pMergeContextPtr );
 bool EpgContextMergeGetCnis( const EPGDB_CONTEXT * dbc, uint * pCniCount, uint *pCniTab );

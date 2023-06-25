@@ -69,7 +69,7 @@ EPGDB_CONTEXT * EpgDbCreate( void )
 //
 void EpgDbDestroy( PDBC dbc, bool keepAi )
 {
-   EPGDB_BLOCK *pNext, *pWalk;
+   EPGDB_PI_BLOCK *pNext, *pWalk;
 
    if ( dbc->lockLevel == 0 )
    {
@@ -130,8 +130,8 @@ void EpgDbDestroy( PDBC dbc, bool keepAi )
 #if DEBUG_GLOBAL_SWITCH == ON
 bool EpgDbCheckChains( CPDBC dbc )
 {
-   EPGDB_BLOCK *pPrev, *pWalk;
-   EPGDB_BLOCK **pPrevNetwop;
+   EPGDB_PI_BLOCK *pPrev, *pWalk;
+   EPGDB_PI_BLOCK **pPrevNetwop;
    sint  blocks;
    uint  netwop;
 
@@ -151,16 +151,15 @@ bool EpgDbCheckChains( CPDBC dbc )
       while (pWalk != NULL)
       {
          blocks += 1;
-         netwop = pWalk->blk.pi.netwop_no;
+         netwop = pWalk->pi.netwop_no;
          assert(netwop < dbc->netwopCount);
-         assert(pWalk->type == BLOCK_TYPE_PI);
-         assert(pWalk->blk.pi.start_time < pWalk->blk.pi.stop_time);
+         assert(pWalk->pi.start_time < pWalk->pi.stop_time);
          pPrev = pPrevNetwop[netwop];
          assert(pWalk->pPrevNetwopBlock == pPrev);
          if (pPrev != NULL)
          {
             assert(pPrev->pNextNetwopBlock == pWalk);
-            assert(pWalk->blk.pi.start_time >= pPrev->blk.pi.stop_time);
+            assert(pWalk->pi.start_time >= pPrev->pi.stop_time);
          }
          else
             assert(dbc->pFirstNetwopPi[netwop] == pWalk);
@@ -171,9 +170,9 @@ bool EpgDbCheckChains( CPDBC dbc )
          if (pWalk != NULL)
          {
             assert(pWalk->pPrevBlock == pPrev);
-            assert((pWalk->blk.pi.start_time > pPrev->blk.pi.start_time) ||
-                   ((pWalk->blk.pi.start_time == pPrev->blk.pi.start_time) &&
-                    (pWalk->blk.pi.netwop_no > pPrev->blk.pi.netwop_no) ));
+            assert((pWalk->pi.start_time > pPrev->pi.start_time) ||
+                   ((pWalk->pi.start_time == pPrev->pi.start_time) &&
+                    (pWalk->pi.netwop_no > pPrev->pi.netwop_no) ));
          }
       }
       assert(dbc->pLastPi == pPrev);
@@ -187,14 +186,14 @@ bool EpgDbCheckChains( CPDBC dbc )
          pPrev = NULL;
          while (pWalk != NULL)
          {
-            assert(pWalk->blk.pi.netwop_no == netwop);
+            assert(pWalk->pi.netwop_no == netwop);
             blocks -= 1;
             pPrev = pWalk;
             pWalk = pWalk->pNextNetwopBlock;
-            assert((pWalk == NULL) || (pWalk->blk.pi.start_time >= pPrev->blk.pi.start_time));
+            assert((pWalk == NULL) || (pWalk->pi.start_time >= pPrev->pi.start_time));
          }
       }
-      for (netwop=dbc->pAiBlock->blk.ai.netwopCount; netwop < dbc->netwopCount; netwop++)
+      for (netwop=dbc->pAiBlock->ai.netwopCount; netwop < dbc->netwopCount; netwop++)
       {
          assert(dbc->pFirstNetwopPi[netwop] == NULL);
       }
@@ -213,16 +212,13 @@ bool EpgDbCheckChains( CPDBC dbc )
    pWalk = dbc->pObsoletePi;
    while (pWalk != NULL)
    {
-      assert(pWalk->type == BLOCK_TYPE_PI);
       pWalk = pWalk->pNextBlock;
    }
 
    // check AI
    if (dbc->pAiBlock != NULL)
    {
-      assert(dbc->pAiBlock->type == BLOCK_TYPE_AI);
-      assert((dbc->pAiBlock->pNextBlock == NULL) && (dbc->pAiBlock->pPrevBlock == NULL));
-      assert(dbc->pAiBlock->blk.ai.netwopCount == dbc->netwopCount);
+      assert(dbc->pAiBlock->ai.netwopCount == dbc->netwopCount);
       assert(dbc->pFirstNetwopPi != NULL);
    }
 
@@ -233,11 +229,11 @@ bool EpgDbCheckChains( CPDBC dbc )
 // ---------------------------------------------------------------------------
 // Append a PI block to the database
 //
-static void EpgDbMergeAddPiBlock( PDBC dbc, EPGDB_BLOCK * pBlock, EPGDB_BLOCK *pPrevBlock )
+static void EpgDbMergeAddPiBlock( PDBC dbc, EPGDB_PI_BLOCK * pBlock, EPGDB_PI_BLOCK *pPrevBlock )
 {
    uint netwop;
 
-   netwop = pBlock->blk.pi.netwop_no;
+   netwop = pBlock->pi.netwop_no;
    if (dbc->pFirstPi == NULL)
    {  // db empty -> insert very first item
       assert(dbc->pLastPi == NULL);
@@ -277,10 +273,10 @@ static void EpgDbMergeAddPiBlock( PDBC dbc, EPGDB_BLOCK * pBlock, EPGDB_BLOCK *p
 // ---------------------------------------------------------------------------
 // Combine linked PI of separated networks into one database
 //
-void EpgDbMergeLinkNetworkPi( PDBC dbc, EPGDB_BLOCK ** pFirstNetwopBlock )
+void EpgDbMergeLinkNetworkPi( PDBC dbc, EPGDB_PI_BLOCK ** pFirstNetwopBlock )
 {
-   EPGDB_BLOCK **pPrevNetwopBlock;
-   EPGDB_BLOCK *pBlock;
+   EPGDB_PI_BLOCK **pPrevNetwopBlock;
+   EPGDB_PI_BLOCK *pBlock;
    time_t minStartTime;
    uint minNetwop;
    uint netwop, netCount;
@@ -290,7 +286,7 @@ void EpgDbMergeLinkNetworkPi( PDBC dbc, EPGDB_BLOCK ** pFirstNetwopBlock )
    dbc->pLastPi = NULL;
    memset(dbc->pFirstNetwopPi, 0, sizeof(dbc->pFirstNetwopPi[0]));
 
-   netCount = dbc->pAiBlock->blk.ai.netwopCount;
+   netCount = dbc->pAiBlock->ai.netwopCount;
    pPrevNetwopBlock = xmalloc(sizeof(pPrevNetwopBlock[0]) * netCount);
    memset(pPrevNetwopBlock, 0, sizeof(pPrevNetwopBlock[0]) * netCount);
 
@@ -306,9 +302,9 @@ void EpgDbMergeLinkNetworkPi( PDBC dbc, EPGDB_BLOCK ** pFirstNetwopBlock )
          if (pFirstNetwopBlock[netwop] != NULL)
          {
             if ( (minStartTime == 0) ||
-                 (pFirstNetwopBlock[netwop]->blk.pi.start_time < minStartTime) )
+                 (pFirstNetwopBlock[netwop]->pi.start_time < minStartTime) )
             {
-               minStartTime = pFirstNetwopBlock[netwop]->blk.pi.start_time;
+               minStartTime = pFirstNetwopBlock[netwop]->pi.start_time;
                minNetwop = netwop;
             }
          }
@@ -336,9 +332,9 @@ void EpgDbMergeLinkNetworkPi( PDBC dbc, EPGDB_BLOCK ** pFirstNetwopBlock )
 //   there is no check for duplicate blocks either
 // - returns FALSE if block was not added and has to be free()'d by caller
 //
-bool EpgDbAddDefectPi( PDBC dbc, EPGDB_BLOCK *pBlock )
+bool EpgDbAddDefectPi( PDBC dbc, EPGDB_PI_BLOCK *pBlock )
 {
-   dprintf4("ADD OBSOLETE PI ptr=%lx: netwop=%d, start=%ld, stop=%ld\n", (ulong)pBlock, pBlock->blk.pi.netwop_no, pBlock->blk.pi.start_time, pBlock->blk.pi.stop_time);
+   dprintf4("ADD OBSOLETE PI ptr=%lx: netwop=%d, start=%ld, stop=%ld\n", (ulong)pBlock, pBlock->pi.netwop_no, pBlock->pi.start_time, pBlock->pi.stop_time);
 
    // reset unused pointers
    pBlock->pPrevBlock = NULL;

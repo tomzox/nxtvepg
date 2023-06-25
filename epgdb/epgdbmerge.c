@@ -74,10 +74,10 @@ static const char * EpgDbMergePrintTime( const PI_BLOCK * pPi )
 // ---------------------------------------------------------------------------
 // Merge equivalent PI blocks from different databases
 //
-static EPGDB_BLOCK * EpgDbMergePiBlocks( PDBC dbc, EPGDB_BLOCK **pFoundBlocks )
+static EPGDB_PI_BLOCK * EpgDbMergePiBlocks( PDBC dbc, EPGDB_PI_BLOCK **pFoundBlocks )
 {
    EPGDB_MERGE_CONTEXT * dbmc;
-   EPGDB_BLOCK * pMergedBlock;
+   EPGDB_PI_BLOCK * pMergedBlock;
    const PI_BLOCK * pOnePi;
    PI_BLOCK       * pPi;
    EPGDB_MERGE_SRC  piDesc[MAX_MERGED_DB_COUNT];
@@ -105,7 +105,7 @@ static EPGDB_BLOCK * EpgDbMergePiBlocks( PDBC dbc, EPGDB_BLOCK **pFoundBlocks )
             firstIdx = dbIdx;
          piDesc[piCount] = dbIdx;
          piCount += 1;
-         if (pFoundBlocks[dbIdx]->version != dbmc->prov[dbIdx].pDbContext->pAiBlock->blk.ai.version)
+         if (pFoundBlocks[dbIdx]->version != dbmc->prov[dbIdx].pDbContext->pAiBlock->ai.version)
             version = 0;
          if (mtime < pFoundBlocks[dbIdx]->acqTimestamp)
             mtime = pFoundBlocks[dbIdx]->acqTimestamp;
@@ -124,7 +124,7 @@ static EPGDB_BLOCK * EpgDbMergePiBlocks( PDBC dbc, EPGDB_BLOCK **pFoundBlocks )
       {
          if (pFoundBlocks[actIdx] != NULL)
          {
-            pTitle = PI_GET_TITLE(&pFoundBlocks[actIdx]->blk.pi);
+            pTitle = PI_GET_TITLE(&pFoundBlocks[actIdx]->pi);
             break;
          }
       }
@@ -143,9 +143,9 @@ static EPGDB_BLOCK * EpgDbMergePiBlocks( PDBC dbc, EPGDB_BLOCK **pFoundBlocks )
       {
          if (pFoundBlocks[actIdx] != NULL)
          {
-            if (PI_HAS_DESC_TEXT(&pFoundBlocks[actIdx]->blk.pi))
+            if (PI_HAS_DESC_TEXT(&pFoundBlocks[actIdx]->pi))
             {
-               descTextLen += 3 + strlen(PI_GET_DESC_TEXT(&pFoundBlocks[actIdx]->blk.pi));
+               descTextLen += 3 + strlen(PI_GET_DESC_TEXT(&pFoundBlocks[actIdx]->pi));
             }
          }
       }
@@ -154,14 +154,14 @@ static EPGDB_BLOCK * EpgDbMergePiBlocks( PDBC dbc, EPGDB_BLOCK **pFoundBlocks )
    }
 
    blockSize = sizeof(PI_BLOCK) + strlen(pTitle) + 1 + descTextLen + (piCount * sizeof(EPGDB_MERGE_SRC));
-   pMergedBlock = EpgBlockCreate(BLOCK_TYPE_PI, blockSize, mtime);
+   pMergedBlock = EpgBlockCreatePi(blockSize, mtime);
    pMergedBlock->version    = version;
-   pPi = (PI_BLOCK *) &pMergedBlock->blk.pi;  // cast to remove const from pointer
+   pPi = (PI_BLOCK *) &pMergedBlock->pi;  // cast to remove const from pointer
    off = sizeof(PI_BLOCK);
 
-   pPi->netwop_no         = dbmc->prov[firstIdx].netwopMap[pFoundBlocks[firstIdx]->blk.pi.netwop_no];
-   pPi->start_time        = pFoundBlocks[firstIdx]->blk.pi.start_time;
-   pPi->stop_time         = pFoundBlocks[firstIdx]->blk.pi.stop_time;
+   pPi->netwop_no         = dbmc->prov[firstIdx].netwopMap[pFoundBlocks[firstIdx]->pi.netwop_no];
+   pPi->start_time        = pFoundBlocks[firstIdx]->pi.start_time;
+   pPi->stop_time         = pFoundBlocks[firstIdx]->pi.stop_time;
 
    pPi->feature_flags = 0;
    // feature sound
@@ -173,7 +173,7 @@ static EPGDB_BLOCK * EpgDbMergePiBlocks( PDBC dbc, EPGDB_BLOCK **pFoundBlocks )
          if (pFoundBlocks[actIdx] != NULL) 
          {
             const uint16_t mask = PI_FEATURE_SOUND_MASK;
-            pPi->feature_flags |= pFoundBlocks[actIdx]->blk.pi.feature_flags & mask;
+            pPi->feature_flags |= pFoundBlocks[actIdx]->pi.feature_flags & mask;
             break;
          }
       }
@@ -190,7 +190,7 @@ static EPGDB_BLOCK * EpgDbMergePiBlocks( PDBC dbc, EPGDB_BLOCK **pFoundBlocks )
          {
             const uint16_t mask = PI_FEATURE_PAL_PLUS | PI_FEATURE_FMT_WIDE |
                                   PI_FEATURE_VIDEO_HD | PI_FEATURE_VIDEO_BW;
-            pPi->feature_flags |= pFoundBlocks[actIdx]->blk.pi.feature_flags & mask;
+            pPi->feature_flags |= pFoundBlocks[actIdx]->pi.feature_flags & mask;
             break;
          }
       }
@@ -206,7 +206,7 @@ static EPGDB_BLOCK * EpgDbMergePiBlocks( PDBC dbc, EPGDB_BLOCK **pFoundBlocks )
          if (pFoundBlocks[actIdx] != NULL) 
          {
             const uint16_t mask = PI_FEATURE_REPEAT;
-            pPi->feature_flags |= pFoundBlocks[actIdx]->blk.pi.feature_flags & mask;
+            pPi->feature_flags |= pFoundBlocks[actIdx]->pi.feature_flags & mask;
             break;
          }
       }
@@ -222,7 +222,7 @@ static EPGDB_BLOCK * EpgDbMergePiBlocks( PDBC dbc, EPGDB_BLOCK **pFoundBlocks )
          if (pFoundBlocks[actIdx] != NULL) 
          {
             const uint16_t mask = PI_FEATURE_SUBTITLES;
-            pPi->feature_flags |= pFoundBlocks[actIdx]->blk.pi.feature_flags & mask;
+            pPi->feature_flags |= pFoundBlocks[actIdx]->pi.feature_flags & mask;
             break;
          }
       }
@@ -241,7 +241,7 @@ static EPGDB_BLOCK * EpgDbMergePiBlocks( PDBC dbc, EPGDB_BLOCK **pFoundBlocks )
                                               PI_FEATURE_PAL_PLUS | PI_FEATURE_FMT_WIDE |
                                               PI_FEATURE_VIDEO_HD | PI_FEATURE_VIDEO_BW |
                                               PI_FEATURE_REPEAT | PI_FEATURE_SUBTITLES);
-            pPi->feature_flags |= pFoundBlocks[actIdx]->blk.pi.feature_flags & mask;
+            pPi->feature_flags |= pFoundBlocks[actIdx]->pi.feature_flags & mask;
             break;
          }
       }
@@ -256,9 +256,9 @@ static EPGDB_BLOCK * EpgDbMergePiBlocks( PDBC dbc, EPGDB_BLOCK **pFoundBlocks )
       actIdx = dbmc->max[MERGE_TYPE_PARENTAL][dbIdx];
       if (actIdx < dbCount)
       {
-         if ((pFoundBlocks[actIdx] != NULL) && (pFoundBlocks[actIdx]->blk.pi.parental_rating != 0))
+         if ((pFoundBlocks[actIdx] != NULL) && (pFoundBlocks[actIdx]->pi.parental_rating != 0))
          {
-            pPi->parental_rating = pFoundBlocks[actIdx]->blk.pi.parental_rating;
+            pPi->parental_rating = pFoundBlocks[actIdx]->pi.parental_rating;
             break;
          }
       }
@@ -273,9 +273,9 @@ static EPGDB_BLOCK * EpgDbMergePiBlocks( PDBC dbc, EPGDB_BLOCK **pFoundBlocks )
       actIdx = dbmc->max[MERGE_TYPE_EDITORIAL][dbIdx];
       if (actIdx < dbCount)
       {
-         if ((pFoundBlocks[actIdx] != NULL) && (pFoundBlocks[actIdx]->blk.pi.editorial_rating != 0))
+         if ((pFoundBlocks[actIdx] != NULL) && (pFoundBlocks[actIdx]->pi.editorial_rating != 0))
          {
-            pPi->editorial_rating = pFoundBlocks[actIdx]->blk.pi.editorial_rating;
+            pPi->editorial_rating = pFoundBlocks[actIdx]->pi.editorial_rating;
             break;
          }
       }
@@ -292,7 +292,7 @@ static EPGDB_BLOCK * EpgDbMergePiBlocks( PDBC dbc, EPGDB_BLOCK **pFoundBlocks )
       {
          if (pFoundBlocks[actIdx] != NULL)
          {
-            pOnePi = &pFoundBlocks[actIdx]->blk.pi;
+            pOnePi = &pFoundBlocks[actIdx]->pi;
             for (idx=0; (idx < pOnePi->no_themes) && (pPi->no_themes < PI_MAX_THEME_COUNT); idx++)
             {
                for (idx2=0; idx2 < pPi->no_themes; idx2++)
@@ -316,9 +316,9 @@ static EPGDB_BLOCK * EpgDbMergePiBlocks( PDBC dbc, EPGDB_BLOCK **pFoundBlocks )
       actIdx = dbmc->max[MERGE_TYPE_VPS][dbIdx];
       if (actIdx < dbCount)
       {
-         if ((pFoundBlocks[actIdx] != NULL) && (pFoundBlocks[actIdx]->blk.pi.pil != 0x07FFF))
+         if ((pFoundBlocks[actIdx] != NULL) && (pFoundBlocks[actIdx]->pi.pil != 0x07FFF))
          {
-            pPi->pil = pFoundBlocks[actIdx]->blk.pi.pil;
+            pPi->pil = pFoundBlocks[actIdx]->pi.pil;
             break;
          }
       }
@@ -348,10 +348,10 @@ static EPGDB_BLOCK * EpgDbMergePiBlocks( PDBC dbc, EPGDB_BLOCK **pFoundBlocks )
          {
             if (pFoundBlocks[actIdx] != NULL)
             {
-               if (PI_HAS_DESC_TEXT(&pFoundBlocks[actIdx]->blk.pi))
+               if (PI_HAS_DESC_TEXT(&pFoundBlocks[actIdx]->pi))
                {
                   // cast here and below to remove const from macro results
-                  strcpy((char*)PI_GET_STR_BY_OFF(pPi, off), PI_GET_DESC_TEXT(&pFoundBlocks[actIdx]->blk.pi));
+                  strcpy((char*)PI_GET_STR_BY_OFF(pPi, off), PI_GET_DESC_TEXT(&pFoundBlocks[actIdx]->pi));
                   off += strlen(PI_GET_STR_BY_OFF(pPi, off));
 
                   ((char *) PI_GET_STR_BY_OFF(pPi, off))[0] = EPG_DB_MERGE_DESC_TEXT_SEP;
@@ -461,13 +461,13 @@ static bool EpgDbMerge_PiMatch( const PI_BLOCK * pRefPi, const PI_BLOCK * pNewPi
 // ---------------------------------------------------------------------------
 // Merge all PI blocks of a single network
 //
-static void EpgDbMergeNetworkPi( PDBC dbc, uint netwop, EPGDB_BLOCK **ppFirstNetwopBlock )
+static void EpgDbMergeNetworkPi( PDBC dbc, uint netwop, EPGDB_PI_BLOCK **ppFirstNetwopBlock )
 {
    EPGDB_MERGE_CONTEXT * dbmc;
-   EPGDB_BLOCK *pNextBlock[MAX_MERGED_DB_COUNT];
-   EPGDB_BLOCK *pFoundBlocks[MAX_MERGED_DB_COUNT];
-   EPGDB_BLOCK *pPrevMerged;
-   EPGDB_BLOCK *pBlock;
+   EPGDB_PI_BLOCK *pNextBlock[MAX_MERGED_DB_COUNT];
+   EPGDB_PI_BLOCK *pFoundBlocks[MAX_MERGED_DB_COUNT];
+   EPGDB_PI_BLOCK *pPrevMerged;
+   EPGDB_PI_BLOCK *pBlock;
    time_t firstStartTime, firstStopTime;
    uint dbCount, dbIdx, firstIdx;
    bool conflict;
@@ -500,9 +500,9 @@ static void EpgDbMergeNetworkPi( PDBC dbc, uint netwop, EPGDB_BLOCK **ppFirstNet
          {
             pBlock = pNextBlock[dbIdx];
             if ( (firstStartTime == 0) ||
-                 (pBlock->blk.pi.start_time < firstStartTime) )
+                 (pBlock->pi.start_time < firstStartTime) )
             {
-               firstStartTime = pBlock->blk.pi.start_time;
+               firstStartTime = pBlock->pi.start_time;
                firstIdx = dbIdx;
             }
          }
@@ -513,16 +513,16 @@ static void EpgDbMergeNetworkPi( PDBC dbc, uint netwop, EPGDB_BLOCK **ppFirstNet
          break;
 
       // identify which blocks can be merged
-      dprintf4("MERGE: DB#%d net#%d '%s' %s\n", firstIdx, netwop, PI_GET_TITLE(&pNextBlock[firstIdx]->blk.pi), EpgDbMergePrintTime(&pNextBlock[firstIdx]->blk.pi));
+      dprintf4("MERGE: DB#%d net#%d '%s' %s\n", firstIdx, netwop, PI_GET_TITLE(&pNextBlock[firstIdx]->pi), EpgDbMergePrintTime(&pNextBlock[firstIdx]->pi));
       pFoundBlocks[firstIdx] = pNextBlock[firstIdx];
       for (dbIdx=0; dbIdx < dbCount; dbIdx++)
       {
          pBlock = pNextBlock[dbIdx];
          if ( (pBlock != NULL) &&
               (pFoundBlocks[dbIdx] == NULL) &&
-              EpgDbMerge_PiMatch(&pFoundBlocks[firstIdx]->blk.pi, &pBlock->blk.pi) )
+              EpgDbMerge_PiMatch(&pFoundBlocks[firstIdx]->pi, &pBlock->pi) )
          {
-            dprintf4("       DB#%d net#%d '%s' %s\n", dbIdx, netwop, PI_GET_TITLE(&pBlock->blk.pi), EpgDbMergePrintTime(&pBlock->blk.pi));
+            dprintf4("       DB#%d net#%d '%s' %s\n", dbIdx, netwop, PI_GET_TITLE(&pBlock->pi), EpgDbMergePrintTime(&pBlock->pi));
             pFoundBlocks[dbIdx] = pBlock;
 
             if (firstIdx > dbIdx)
@@ -533,20 +533,20 @@ static void EpgDbMergeNetworkPi( PDBC dbc, uint netwop, EPGDB_BLOCK **ppFirstNet
       // check for overlapping with previous merged block of same network
       // (note: doing this after PI matching because start time may change)
       if ( (pPrevMerged != NULL) &&
-           (pFoundBlocks[firstIdx]->blk.pi.start_time < pPrevMerged->blk.pi.stop_time) )
+           (pFoundBlocks[firstIdx]->pi.start_time < pPrevMerged->pi.stop_time) )
       {
-         dprintf1("-----  OVERLAP prev. stop %s\n", EpgDbMergePrintTime(&pPrevMerged->blk.pi));
+         dprintf1("-----  OVERLAP prev. stop %s\n", EpgDbMergePrintTime(&pPrevMerged->pi));
       }
       else
       {
          // check all databases of higher prio for conflicts with following blocks
-         firstStopTime  = pFoundBlocks[firstIdx]->blk.pi.stop_time;
+         firstStopTime  = pFoundBlocks[firstIdx]->pi.stop_time;
          conflict = FALSE;
          for (dbIdx=0; dbIdx < firstIdx; dbIdx++)
          {
             if (pNextBlock[dbIdx] != NULL)
             {
-               if (pNextBlock[dbIdx]->blk.pi.start_time < firstStopTime)
+               if (pNextBlock[dbIdx]->pi.start_time < firstStopTime)
                {
                   dprintf1("-----  OVERLAP next: DB#%d\n", dbIdx);
                   conflict = TRUE;
@@ -587,10 +587,10 @@ static void EpgDbMergeNetworkPi( PDBC dbc, uint netwop, EPGDB_BLOCK **ppFirstNet
 //
 void EpgDbMergeAllPiBlocks( PDBC dbc )
 {
-   EPGDB_BLOCK **pFirstNetwopBlock;
+   EPGDB_PI_BLOCK **pFirstNetwopBlock;
    uint netwop, netCount;
 
-   netCount = dbc->pAiBlock->blk.ai.netwopCount;
+   netCount = dbc->pAiBlock->ai.netwopCount;
    pFirstNetwopBlock = xmalloc(sizeof(pFirstNetwopBlock[0]) * netCount);
    memset(pFirstNetwopBlock, 0, sizeof(pFirstNetwopBlock[0]) * netCount);
 
@@ -613,9 +613,9 @@ void EpgDbMergeAllPiBlocks( PDBC dbc )
 void EpgDbMergeUpdateNetworks( EPGDB_CONTEXT * pDbContext, uint provCount, const uint * pProvCni )
 {
    EPGDB_MERGE_CONTEXT * dbmc;
-   EPGDB_BLOCK **pFirstNetwopBlock;
-   EPGDB_BLOCK *pMergedPi;
-   EPGDB_BLOCK *pBlock, *pNext;
+   EPGDB_PI_BLOCK **pFirstNetwopBlock;
+   EPGDB_PI_BLOCK *pMergedPi;
+   EPGDB_PI_BLOCK *pBlock, *pNext;
    const AI_BLOCK * pAi;
    bool * needMerge;
    uint netCount;
@@ -639,7 +639,7 @@ void EpgDbMergeUpdateNetworks( EPGDB_CONTEXT * pDbContext, uint provCount, const
 
       if (dbIdx < dbmc->dbCount)
       {
-         pAi = (AI_BLOCK *) &dbmc->prov[dbIdx].pDbContext->pAiBlock->blk.ai;
+         pAi = (AI_BLOCK *) &dbmc->prov[dbIdx].pDbContext->pAiBlock->ai;
          for (netIdx = 0; netIdx < pAi->netwopCount; ++netIdx)
          {
             netwop = dbmc->prov[dbIdx].netwopMap[netIdx];
@@ -652,7 +652,7 @@ void EpgDbMergeUpdateNetworks( EPGDB_CONTEXT * pDbContext, uint provCount, const
       }
    }
 
-   netCount = pDbContext->pAiBlock->blk.ai.netwopCount;
+   netCount = pDbContext->pAiBlock->ai.netwopCount;
    pFirstNetwopBlock = xmalloc(sizeof(pFirstNetwopBlock[0]) * netCount);
    memset(pFirstNetwopBlock, 0, sizeof(pFirstNetwopBlock[0]) * netCount);
 
@@ -701,19 +701,19 @@ void EpgDbMergeUpdateNetworks( EPGDB_CONTEXT * pDbContext, uint provCount, const
 //
 void EpgDbMerge_ResetPiVersion( PDBC dbc, uint dbIdx )
 {
-   EPGDB_BLOCK * pBlock;
+   EPGDB_PI_BLOCK * pBlock;
    EPGDB_MERGE_SRC * pDesc;
    uint idx;
 
    pBlock = dbc->pFirstPi;
    while (pBlock != NULL)
    {
-      pDesc = (EPGDB_MERGE_SRC *) PI_GET_DESCRIPTORS(&pBlock->blk.pi);  // cast to remove const
-      for (idx = pBlock->blk.pi.no_descriptors; idx > 0; idx--, pDesc++)
+      pDesc = (EPGDB_MERGE_SRC *) PI_GET_DESCRIPTORS(&pBlock->pi);  // cast to remove const
+      for (idx = pBlock->pi.no_descriptors; idx > 0; idx--, pDesc++)
       {
          if (*pDesc == dbIdx)
          {
-            dprintf2("EpgDbMerge-ResetPiVersion: net=%d start=%ld\n", pBlock->blk.pi.netwop_no, pBlock->blk.pi.start_time);
+            dprintf2("EpgDbMerge-ResetPiVersion: net=%d start=%ld\n", pBlock->pi.netwop_no, pBlock->pi.start_time);
             pBlock->version = 0;
             break;
          }
@@ -738,7 +738,7 @@ static char * EpgDbMergeAiServiceNames( EPGDB_MERGE_CONTEXT * dbmc )
    len = strlen(mergedServiceName) + 5 + 5;
    for (dbIdx=0; dbIdx < dbmc->dbCount; dbIdx++)
    {
-      pAi = (AI_BLOCK *) &dbmc->prov[dbIdx].pDbContext->pAiBlock->blk.ai;
+      pAi = (AI_BLOCK *) &dbmc->prov[dbIdx].pDbContext->pAiBlock->ai;
       name = AI_GET_SERVICENAME(pAi);
       // limit name length
       size_t tlen = strlen(name);
@@ -755,7 +755,7 @@ static char * EpgDbMergeAiServiceNames( EPGDB_MERGE_CONTEXT * dbmc )
    // concatenate the names
    for (dbIdx=0; dbIdx < concatCnt; dbIdx++)
    {
-      pAi = (AI_BLOCK *) &dbmc->prov[dbIdx].pDbContext->pAiBlock->blk.ai;
+      pAi = (AI_BLOCK *) &dbmc->prov[dbIdx].pDbContext->pAiBlock->ai;
       name = AI_GET_SERVICENAME(pAi);
       strcat(mergeName, name);
       if (dbIdx + 1 < concatCnt)
@@ -801,7 +801,7 @@ void EpgDbMergeAiBlocks( PDBC dbc, uint netwopCount, const uint * pNetwopList )
 
       for (dbIdx=0; dbIdx < dbCount; dbIdx++)
       {
-         pAi = &dbmc->prov[dbIdx].pDbContext->pAiBlock->blk.ai;
+         pAi = &dbmc->prov[dbIdx].pDbContext->pAiBlock->ai;
          netwop = dbmc->prov[dbIdx].revNetwopMap[idx];
          if (netwop != INVALID_NETWOP_IDX)
          {
@@ -831,11 +831,11 @@ void EpgDbMergeAiBlocks( PDBC dbc, uint netwopCount, const uint * pNetwopList )
               netwopCount * sizeof(AI_NETWOP) +
               serviceNameLen +
               nameLen;
-   dbc->pAiBlock = EpgBlockCreate(BLOCK_TYPE_AI, blockLen, mtimeMerge);
-   pTargetAi = (AI_BLOCK *) &dbc->pAiBlock->blk.ai;
+   dbc->pAiBlock = EpgBlockCreateAi(blockLen, mtimeMerge);
+   pTargetAi = (AI_BLOCK *) &dbc->pAiBlock->ai;
 
    // init base struct
-   memcpy(pTargetAi, &dbmc->prov[0].pDbContext->pAiBlock->blk.ai, sizeof(AI_BLOCK));
+   memcpy(pTargetAi, &dbmc->prov[0].pDbContext->pAiBlock->ai, sizeof(AI_BLOCK));
    pTargetAi->off_netwops = sizeof(AI_BLOCK);
    pTargetAi->netwopCount = netwopCount;
    pTargetAi->version     = 1;
@@ -855,7 +855,7 @@ void EpgDbMergeAiBlocks( PDBC dbc, uint netwopCount, const uint * pNetwopList )
       dbIdx = netOrigIdx[netwop];
       if (dbIdx != 0xff)
       {
-         pAi = (AI_BLOCK *) &dbmc->prov[dbIdx].pDbContext->pAiBlock->blk.ai;
+         pAi = (AI_BLOCK *) &dbmc->prov[dbIdx].pDbContext->pAiBlock->ai;
          idx = dbmc->prov[dbIdx].revNetwopMap[netwop];
          if (idx < pAi->netwopCount)
          {

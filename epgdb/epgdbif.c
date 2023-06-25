@@ -31,6 +31,7 @@
 #include <time.h>
 #include <string.h>
 #include <math.h>
+#include <stddef.h>
 
 #include "epgctl/mytypes.h"
 #include "epgctl/debug.h"
@@ -171,7 +172,7 @@ const AI_BLOCK * EpgDbGetAi( CPDBC dbc )
    {
       if (dbc->pAiBlock != NULL)
       {
-         return &dbc->pAiBlock->blk.ai;
+         return &dbc->pAiBlock->ai;
       }
    }
    else
@@ -188,7 +189,7 @@ const AI_BLOCK * EpgDbGetAi( CPDBC dbc )
 //
 const PI_BLOCK * EpgDbSearchPi( CPDBC dbc, time_t start_time, uint netwop_no )
 {
-   EPGDB_BLOCK * pBlock;
+   EPGDB_PI_BLOCK * pBlock;
 
    if ( EpgDbIsLocked(dbc) )
    {
@@ -198,11 +199,11 @@ const PI_BLOCK * EpgDbSearchPi( CPDBC dbc, time_t start_time, uint netwop_no )
 
       while (pBlock != NULL)
       {
-         if (pBlock->blk.pi.start_time == start_time)
+         if (pBlock->pi.start_time == start_time)
          {
-            assert(pBlock->blk.pi.netwop_no == netwop_no);
+            assert(pBlock->pi.netwop_no == netwop_no);
 
-            return &pBlock->blk.pi;
+            return &pBlock->pi;
          }
          pBlock = pBlock->pNextNetwopBlock;
       }
@@ -221,7 +222,7 @@ const PI_BLOCK * EpgDbSearchPi( CPDBC dbc, time_t start_time, uint netwop_no )
 const PI_BLOCK * EpgDbSearchFirstPiAfter( CPDBC dbc, time_t min_time, EPGDB_TIME_SEARCH_MODE startOrStop,
                                           const FILTER_CONTEXT *fc )
 {
-   EPGDB_BLOCK * pBlock;
+   EPGDB_PI_BLOCK * pBlock;
 
    if ( EpgDbIsLocked(dbc) )
    {
@@ -229,7 +230,7 @@ const PI_BLOCK * EpgDbSearchFirstPiAfter( CPDBC dbc, time_t min_time, EPGDB_TIME
 
       if (startOrStop == STARTING_AT)
       {
-         while ( (pBlock != NULL) && (pBlock->blk.pi.start_time < min_time))
+         while ( (pBlock != NULL) && (pBlock->pi.start_time < min_time))
          {
             pBlock = pBlock->pNextBlock;
          }
@@ -237,7 +238,7 @@ const PI_BLOCK * EpgDbSearchFirstPiAfter( CPDBC dbc, time_t min_time, EPGDB_TIME
          if (fc != NULL)
          {  // skip forward until a matching block is found
             while ( (pBlock != NULL) &&
-                    (EpgDbFilterMatches(dbc, fc, &pBlock->blk.pi) == FALSE) )
+                    (EpgDbFilterMatches(dbc, fc, &pBlock->pi) == FALSE) )
             {
                pBlock = pBlock->pNextBlock;
             }
@@ -245,7 +246,7 @@ const PI_BLOCK * EpgDbSearchFirstPiAfter( CPDBC dbc, time_t min_time, EPGDB_TIME
       }
       else if (startOrStop == RUNNING_AT)
       {
-         while ((pBlock != NULL) && (pBlock->blk.pi.stop_time <= min_time))
+         while ((pBlock != NULL) && (pBlock->pi.stop_time <= min_time))
          {
             pBlock = pBlock->pNextBlock;
          }
@@ -255,8 +256,8 @@ const PI_BLOCK * EpgDbSearchFirstPiAfter( CPDBC dbc, time_t min_time, EPGDB_TIME
             // note: must keep on checking stop time (unlike start time search PI may follow on
             //       different networks which have an earlier stop time due to shorter running time)
             while ( (pBlock != NULL) &&
-                    ( (pBlock->blk.pi.stop_time <= min_time) ||
-                      (EpgDbFilterMatches(dbc, fc, &pBlock->blk.pi) == FALSE) ))
+                    ( (pBlock->pi.stop_time <= min_time) ||
+                      (EpgDbFilterMatches(dbc, fc, &pBlock->pi) == FALSE) ))
             {
                pBlock = pBlock->pNextBlock;
             }
@@ -268,7 +269,7 @@ const PI_BLOCK * EpgDbSearchFirstPiAfter( CPDBC dbc, time_t min_time, EPGDB_TIME
 
       if (pBlock != NULL)
       {
-         return &pBlock->blk.pi;
+         return &pBlock->pi;
       }
    }
    else
@@ -285,7 +286,7 @@ const PI_BLOCK * EpgDbSearchFirstPiAfter( CPDBC dbc, time_t min_time, EPGDB_TIME
 const PI_BLOCK * EpgDbSearchFirstPiBefore( CPDBC dbc, time_t min_time, EPGDB_TIME_SEARCH_MODE startOrStop,
                                            const FILTER_CONTEXT *fc )
 {
-   EPGDB_BLOCK * pBlock;
+   EPGDB_PI_BLOCK * pBlock;
 
    if ( EpgDbIsLocked(dbc) )
    {
@@ -293,14 +294,14 @@ const PI_BLOCK * EpgDbSearchFirstPiBefore( CPDBC dbc, time_t min_time, EPGDB_TIM
 
       if (startOrStop == STARTING_AT)
       {
-         while ((pBlock != NULL) && (pBlock->blk.pi.start_time >= min_time))
+         while ((pBlock != NULL) && (pBlock->pi.start_time >= min_time))
          {
             pBlock = pBlock->pPrevBlock;
          }
       }
       else if (startOrStop == RUNNING_AT)
       {
-         while ((pBlock != NULL) && (pBlock->blk.pi.stop_time > min_time))
+         while ((pBlock != NULL) && (pBlock->pi.stop_time > min_time))
          {
             pBlock = pBlock->pPrevBlock;
          }
@@ -311,7 +312,7 @@ const PI_BLOCK * EpgDbSearchFirstPiBefore( CPDBC dbc, time_t min_time, EPGDB_TIM
       if (fc != NULL)
       {  // skip forward until a matching block is found
          while ( (pBlock != NULL) &&
-                 (EpgDbFilterMatches(dbc, fc, &pBlock->blk.pi) == FALSE) )
+                 (EpgDbFilterMatches(dbc, fc, &pBlock->pi) == FALSE) )
          {
             pBlock = pBlock->pPrevBlock;
          }
@@ -319,7 +320,7 @@ const PI_BLOCK * EpgDbSearchFirstPiBefore( CPDBC dbc, time_t min_time, EPGDB_TIM
 
       if (pBlock != NULL)
       {
-         return &pBlock->blk.pi;
+         return &pBlock->pi;
       }
    }
    else
@@ -336,7 +337,7 @@ const PI_BLOCK * EpgDbSearchFirstPiBefore( CPDBC dbc, time_t min_time, EPGDB_TIM
 //
 const PI_BLOCK * EpgDbSearchFirstPi( CPDBC dbc, const FILTER_CONTEXT *fc )
 {
-   const EPGDB_BLOCK * pBlock = NULL;
+   const EPGDB_PI_BLOCK * pBlock = NULL;
 
    if ( EpgDbIsLocked(dbc) )
    {
@@ -345,7 +346,7 @@ const PI_BLOCK * EpgDbSearchFirstPi( CPDBC dbc, const FILTER_CONTEXT *fc )
       if (fc != NULL)
       {  // skip forward until a matching block is found
          while ( (pBlock != NULL) &&
-                 (EpgDbFilterMatches(dbc, fc, &pBlock->blk.pi) == FALSE) )
+                 (EpgDbFilterMatches(dbc, fc, &pBlock->pi) == FALSE) )
          {
             pBlock = pBlock->pNextBlock;
          }
@@ -355,7 +356,7 @@ const PI_BLOCK * EpgDbSearchFirstPi( CPDBC dbc, const FILTER_CONTEXT *fc )
       fatal0("EpgDb-SearchFirstPi: DB not locked");
 
    if (pBlock != NULL)
-      return &pBlock->blk.pi;
+      return &pBlock->pi;
    else
       return NULL;
 }
@@ -365,7 +366,7 @@ const PI_BLOCK * EpgDbSearchFirstPi( CPDBC dbc, const FILTER_CONTEXT *fc )
 //
 const PI_BLOCK * EpgDbSearchLastPi( CPDBC dbc, const FILTER_CONTEXT *fc )
 {
-   const EPGDB_BLOCK * pBlock = NULL;
+   const EPGDB_PI_BLOCK * pBlock = NULL;
 
    if ( EpgDbIsLocked(dbc) )
    {
@@ -374,7 +375,7 @@ const PI_BLOCK * EpgDbSearchLastPi( CPDBC dbc, const FILTER_CONTEXT *fc )
       if (fc != NULL)
       {
          while ( (pBlock != NULL) &&
-                 (EpgDbFilterMatches(dbc, fc, &pBlock->blk.pi) == FALSE) )
+                 (EpgDbFilterMatches(dbc, fc, &pBlock->pi) == FALSE) )
          {
             pBlock = pBlock->pPrevBlock;
          }
@@ -384,7 +385,7 @@ const PI_BLOCK * EpgDbSearchLastPi( CPDBC dbc, const FILTER_CONTEXT *fc )
       fatal0("EpgDb-SearchLastPi: DB not locked");
 
    if (pBlock != NULL)
-      return &pBlock->blk.pi;
+      return &pBlock->pi;
    else
       return NULL;
 }
@@ -398,19 +399,19 @@ const PI_BLOCK * EpgDbSearchLastPi( CPDBC dbc, const FILTER_CONTEXT *fc )
 //
 const PI_BLOCK * EpgDbSearchNextPi( CPDBC dbc, const FILTER_CONTEXT *fc, const PI_BLOCK * pPiBlock )
 {
-   const EPGDB_BLOCK * pBlock = NULL;
+   const EPGDB_PI_BLOCK * pBlock = NULL;
 
    if ( EpgDbIsLocked(dbc) )
    {
       if (pPiBlock != NULL)
       {
-         pBlock = (const EPGDB_BLOCK *)((ulong)pPiBlock - BLK_UNION_OFF);
+         pBlock = (const EPGDB_PI_BLOCK *)((ulong)pPiBlock - offsetof(EPGDB_PI_BLOCK, pi));
          pBlock = pBlock->pNextBlock;
 
          if (fc != NULL)
          {  // skip forward until a matching block is found
             while ( (pBlock != NULL) &&
-                    (EpgDbFilterMatches(dbc, fc, &pBlock->blk.pi) == FALSE) )
+                    (EpgDbFilterMatches(dbc, fc, &pBlock->pi) == FALSE) )
             {
                pBlock = pBlock->pNextBlock;
             }
@@ -423,7 +424,7 @@ const PI_BLOCK * EpgDbSearchNextPi( CPDBC dbc, const FILTER_CONTEXT *fc, const P
       fatal0("EpgDb-SearchNextPi: DB not locked");
 
    if (pBlock != NULL)
-      return &pBlock->blk.pi;
+      return &pBlock->pi;
    else
       return NULL;
 }
@@ -434,19 +435,19 @@ const PI_BLOCK * EpgDbSearchNextPi( CPDBC dbc, const FILTER_CONTEXT *fc, const P
 //
 const PI_BLOCK * EpgDbSearchPrevPi( CPDBC dbc, const FILTER_CONTEXT *fc, const PI_BLOCK * pPiBlock )
 {
-   const EPGDB_BLOCK * pBlock = NULL;
+   const EPGDB_PI_BLOCK * pBlock = NULL;
 
    if ( EpgDbIsLocked(dbc) )
    {
       if (pPiBlock != NULL)
       {
-         pBlock = (const EPGDB_BLOCK *)((ulong)pPiBlock - BLK_UNION_OFF);
+         pBlock = (const EPGDB_PI_BLOCK *)((ulong)pPiBlock - offsetof(EPGDB_PI_BLOCK, pi));
          pBlock = pBlock->pPrevBlock;
 
          if (fc != NULL)
          {
             while ( (pBlock != NULL) &&
-                    (EpgDbFilterMatches(dbc, fc, &pBlock->blk.pi) == FALSE) )
+                    (EpgDbFilterMatches(dbc, fc, &pBlock->pi) == FALSE) )
             {
                pBlock = pBlock->pPrevBlock;
             }
@@ -459,7 +460,7 @@ const PI_BLOCK * EpgDbSearchPrevPi( CPDBC dbc, const FILTER_CONTEXT *fc, const P
       fatal0("EpgDb-SearchPrevPi: DB not locked");
 
    if (pBlock != NULL)
-      return &pBlock->blk.pi;
+      return &pBlock->pi;
    else
       return NULL;
 }
@@ -470,19 +471,19 @@ const PI_BLOCK * EpgDbSearchPrevPi( CPDBC dbc, const FILTER_CONTEXT *fc, const P
 //
 uint EpgDbCountPi( CPDBC dbc, const FILTER_CONTEXT *fc, const PI_BLOCK * pPiBlock )
 {
-   const EPGDB_BLOCK * pBlock = NULL;
+   const EPGDB_PI_BLOCK * pBlock = NULL;
    uint  count = 0;
 
    if ( EpgDbIsLocked(dbc) )
    {
       if (pPiBlock != NULL)
       {
-         pBlock = (const EPGDB_BLOCK *)((ulong)pPiBlock - BLK_UNION_OFF);
+         pBlock = (const EPGDB_PI_BLOCK *)((ulong)pPiBlock - offsetof(EPGDB_PI_BLOCK, pi));
 
          while (pBlock != NULL)
          {
             if ( (fc == NULL) ||
-                 EpgDbFilterMatches(dbc, fc, &pBlock->blk.pi) )
+                 EpgDbFilterMatches(dbc, fc, &pBlock->pi) )
             {
                count += 1;
             }
@@ -504,20 +505,20 @@ uint EpgDbCountPi( CPDBC dbc, const FILTER_CONTEXT *fc, const PI_BLOCK * pPiBloc
 //
 uint EpgDbCountPrevPi( CPDBC dbc, const FILTER_CONTEXT *fc, const PI_BLOCK * pPiBlock )
 {
-   const EPGDB_BLOCK * pBlock = NULL;
+   const EPGDB_PI_BLOCK * pBlock = NULL;
    uint  count = 0;
 
    if ( EpgDbIsLocked(dbc) )
    {
       if (pPiBlock != NULL)
       {
-         pBlock = (const EPGDB_BLOCK *)((ulong)pPiBlock - BLK_UNION_OFF);
+         pBlock = (const EPGDB_PI_BLOCK *)((ulong)pPiBlock - offsetof(EPGDB_PI_BLOCK, pi));
          pBlock = pBlock->pPrevBlock;
 
          while (pBlock != NULL)
          {
             if ( (fc == NULL) ||
-                 EpgDbFilterMatches(dbc, fc, &pBlock->blk.pi) )
+                 EpgDbFilterMatches(dbc, fc, &pBlock->pi) )
             {
                count += 1;
             }
@@ -540,7 +541,7 @@ uint EpgDbCountPrevPi( CPDBC dbc, const FILTER_CONTEXT *fc, const PI_BLOCK * pPi
 //
 const PI_BLOCK * EpgDbSearchPiByPil( CPDBC dbc, uint netwop_no, uint pil )
 {
-   const EPGDB_BLOCK * pBlock;
+   const EPGDB_PI_BLOCK * pBlock;
 
    if ( EpgDbIsLocked(dbc) )
    {
@@ -549,10 +550,10 @@ const PI_BLOCK * EpgDbSearchPiByPil( CPDBC dbc, uint netwop_no, uint pil )
       pBlock = dbc->pFirstNetwopPi[netwop_no];
       while (pBlock != NULL)
       {
-         if (pBlock->blk.pi.pil == pil)
+         if (pBlock->pi.pil == pil)
          {
-            assert(pBlock->blk.pi.netwop_no == netwop_no);
-            return &pBlock->blk.pi;
+            assert(pBlock->pi.netwop_no == netwop_no);
+            return &pBlock->pi;
          }
          pBlock = pBlock->pNextNetwopBlock;
       }
@@ -597,7 +598,7 @@ bool EpgDbGetVpsTimestamp( struct tm * pVpsTime, uint pil, time_t startTime )
 //
 uint EpgDbGetProgIdx( CPDBC dbc, const PI_BLOCK * pPiBlock )
 {
-   EPGDB_BLOCK * pBlock;
+   EPGDB_PI_BLOCK * pBlock;
    uint  nowIdx;
    uint netwop;
    time_t now = time(NULL);
@@ -606,18 +607,18 @@ uint EpgDbGetProgIdx( CPDBC dbc, const PI_BLOCK * pPiBlock )
    if (dbc->pAiBlock != NULL)
    {
       netwop = pPiBlock->netwop_no;
-      if (netwop < dbc->pAiBlock->blk.ai.netwopCount)
+      if (netwop < dbc->pAiBlock->ai.netwopCount)
       {
          pBlock = dbc->pFirstNetwopPi[netwop];
          // scan forward for the first unexpired block on that network
-         while ((pBlock != NULL) && (pBlock->blk.pi.stop_time <= now))
+         while ((pBlock != NULL) && (pBlock->pi.stop_time <= now))
          {
             pBlock = pBlock->pNextNetwopBlock;
          }
 
          if (pBlock != NULL)
          {
-            if (pBlock->blk.pi.start_time <= now)
+            if (pBlock->pi.start_time <= now)
             {  // found a currently running block -> that block is #0
                nowIdx = 0;
             }
@@ -630,10 +631,10 @@ uint EpgDbGetProgIdx( CPDBC dbc, const PI_BLOCK * pPiBlock )
                nowIdx = 1;
             }
 
-            if (pPiBlock == &pBlock->blk.pi)
+            if (pPiBlock == &pBlock->pi)
                result = nowIdx;
             else if ( (nowIdx == 0) &&
-                      (pBlock->blk.pi.stop_time == pPiBlock->start_time) )
+                      (pBlock->pi.stop_time == pPiBlock->start_time) )
                result = 1;
             // else: neither Now nor Next -> return invalid result code
          }
@@ -641,7 +642,7 @@ uint EpgDbGetProgIdx( CPDBC dbc, const PI_BLOCK * pPiBlock )
             debug1("EpgDb-GetProgIdx: no unexpired blocks in db for netwop %d", netwop);
       }
       else
-         fatal2("EpgDb-GetProgIdx: invalid netwop #%d of %d", netwop, dbc->pAiBlock->blk.ai.netwopCount);
+         fatal2("EpgDb-GetProgIdx: invalid netwop #%d of %d", netwop, dbc->pAiBlock->ai.netwopCount);
    }
    else
       fatal0("EpgDb-GetProgIdx: no AI in db");
@@ -654,11 +655,11 @@ uint EpgDbGetProgIdx( CPDBC dbc, const PI_BLOCK * pPiBlock )
 //
 time_t EpgDbGetPiUpdateTime( const PI_BLOCK * pPiBlock )
 {
-   const EPGDB_BLOCK *pBlock;
+   const EPGDB_PI_BLOCK *pBlock;
 
    if (pPiBlock != NULL)
    {
-      pBlock = (const EPGDB_BLOCK *)((ulong)pPiBlock - BLK_UNION_OFF);
+      pBlock = (const EPGDB_PI_BLOCK *)((ulong)pPiBlock - offsetof(EPGDB_PI_BLOCK, pi));
 
       return pBlock->acqTimestamp;
    }
@@ -675,7 +676,7 @@ time_t EpgDbGetPiUpdateTime( const PI_BLOCK * pPiBlock )
 //
 bool EpgDbGetStat( CPDBC dbc, EPGDB_BLOCK_COUNT * pCount, time_t now, time_t tsAcq )
 {
-   const EPGDB_BLOCK * pBlock;
+   const EPGDB_PI_BLOCK * pBlock;
    const time_t tsDay1 = tsAcq + 24*60*60;
    const time_t tsDay2 = tsDay1 + 24*60*60;
    bool   result;
@@ -687,20 +688,20 @@ bool EpgDbGetStat( CPDBC dbc, EPGDB_BLOCK_COUNT * pCount, time_t now, time_t tsA
       pBlock = dbc->pFirstPi;
       while (pBlock != NULL)
       {
-         if (pBlock->blk.pi.stop_time > now)
+         if (pBlock->pi.stop_time > now)
          {
             uint idx = ((pBlock->acqTimestamp >= tsAcq) ? 0 : 1);
 
-            if (pBlock->blk.pi.start_time < tsDay1)
+            if (pBlock->pi.start_time < tsDay1)
                pCount->day1[idx] += 1;
-            else if (pBlock->blk.pi.start_time < tsDay2)
+            else if (pBlock->pi.start_time < tsDay2)
                pCount->day2[idx] += 1;
             else
                pCount->day3[idx] += 1;
          }
          else
          {
-            if (pBlock->blk.pi.stop_time >= pBlock->acqTimestamp)
+            if (pBlock->pi.stop_time >= pBlock->acqTimestamp)
                pCount->expiredSinceAcq += 1;
             pCount->expired += 1;
          }
