@@ -782,7 +782,6 @@ void EpgDbMergeAiBlocks( PDBC dbc, uint netwopCount, const uint * pNetwopList )
    time_t mtimeProv, mtimeMerge;
    uint netwop, dbIdx, idx;
    uchar * netOrigIdx;
-   uchar * dayCount;
    char * pServiceName;           // temporarily holds merged service name
    uint serviceNameLen;
    uint nameLen;                  // sum of netwop name lengths
@@ -795,12 +794,10 @@ void EpgDbMergeAiBlocks( PDBC dbc, uint netwopCount, const uint * pNetwopList )
    nameLen = 0;
 
    netOrigIdx = xmalloc(sizeof(netOrigIdx[0]) * netwopCount);
-   dayCount = xmalloc(sizeof(dayCount[0]) * netwopCount);
 
    for (idx = 0; idx < netwopCount; idx++)
    {
       netOrigIdx[idx] = 0xff;
-      dayCount[idx] = 0;
 
       for (dbIdx=0; dbIdx < dbCount; dbIdx++)
       {
@@ -813,9 +810,6 @@ void EpgDbMergeAiBlocks( PDBC dbc, uint netwopCount, const uint * pNetwopList )
                netOrigIdx[idx] = dbIdx;
                nameLen += strlen(AI_GET_NETWOP_NAME(pAi, netwop)) + 1;
             }
-
-            if (AI_GET_NETWOP_N(pAi, netwop)->dayCount > dayCount[idx])
-               dayCount[idx] = AI_GET_NETWOP_N(pAi, netwop)->dayCount;
          }
       }
    }
@@ -869,7 +863,6 @@ void EpgDbMergeAiBlocks( PDBC dbc, uint netwopCount, const uint * pNetwopList )
             ifdebug4(AI_GET_NET_CNI(pNetwops) != pNetwopList[netwop], "EpgDb-MergeAiBlocks: mismatch of CNIs in netwop #%d: 0x%04X!=0x%04X (%s)", idx, AI_GET_NET_CNI(pNetwops), pNetwopList[netwop], AI_GET_STR_BY_OFF(pAi, pNetwops->off_name));
 
             pTargetNetwops[netwop].netCni   = AI_GET_NET_CNI(pNetwops);
-            pTargetNetwops[netwop].dayCount = dayCount[netwop];
             pTargetNetwops[netwop].off_name = blockLen;
             strcpy((char *) AI_GET_STR_BY_OFF(pTargetAi, blockLen), AI_GET_STR_BY_OFF(pAi, pNetwops->off_name));
             blockLen += strlen(AI_GET_STR_BY_OFF(pAi, pNetwops->off_name)) + 1;
@@ -882,6 +875,5 @@ void EpgDbMergeAiBlocks( PDBC dbc, uint netwopCount, const uint * pNetwopList )
    }
    xfree(pServiceName);
    xfree(netOrigIdx);
-   xfree(dayCount);
 }
 

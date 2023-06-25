@@ -36,8 +36,6 @@
 typedef struct
 {
    uint32_t  netCni;
-   int8_t    lto;          // TODO: always 120 for XMLTV
-   uint8_t   dayCount;
 
    uint16_t  off_name;
 } AI_NETWOP;

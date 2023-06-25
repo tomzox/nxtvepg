@@ -185,8 +185,8 @@ static void DumpText_Ai( PI_DESCR_BUF * pb, const AI_BLOCK * pAi )
          len = sprintf(str_buf, "%u\t%u\t%d\t%u\t%u\t%u\t",
                      netwop,
                      AI_GET_NET_CNI(pNetwop),
-                     pNetwop->lto * 15,
-                     pNetwop->dayCount,
+                     0, //pNetwop->lto * 15,
+                     0, //pNetwop->dayCount,
                      0, //pNetwop->language
                      0 /*pNetwop->addInfo*/);
          PiDescription_BufAppend(pb, str_buf, len);

@@ -101,8 +101,6 @@
 typedef struct
 {
    const char * p_disp_name;
-   time_t       pi_min_time;
-   time_t       pi_max_time;
    uint         cni;
 } XMLTV_CHN;
 
@@ -477,9 +475,6 @@ static EPGDB_BLOCK * XmltvDb_BuildAi( const char * pProvName )
    for (uint idx = 0; idx < xds.chn_count; idx++, pNetwops++)
    {
       pNetwops->netCni = xds.p_chn_table[idx].cni;
-      pNetwops->lto = 120; // TODO
-      pNetwops->dayCount = (xds.p_chn_table[idx].pi_max_time -
-                            xds.p_chn_table[idx].pi_min_time + 23*60*60) / (24*60*60);
 
       pNetwops->off_name = blockLen;
       strcpy((char *) pAi + blockLen, xds.p_chn_table[idx].p_disp_name);
@@ -823,15 +818,6 @@ void Xmltv_TsClose( void )
    EPGDB_BLOCK * pBlk;
 
    dprintf0("Xmltv_TsClose\n");
-
-   if (xds.pi.netwop_no < xds.chn_count)
-   {
-      if ((xds.pi.start_time < xds.p_chn_table[xds.pi.netwop_no].pi_min_time) ||
-          (xds.p_chn_table[xds.pi.netwop_no].pi_min_time == 0))
-         xds.p_chn_table[xds.pi.netwop_no].pi_min_time = xds.pi.start_time;
-      if (xds.pi.start_time > xds.p_chn_table[xds.pi.netwop_no].pi_max_time)
-         xds.p_chn_table[xds.pi.netwop_no].pi_max_time = xds.pi.start_time;
-   }
 
    // append credits section (director, actors, crew)
    if ( (XML_STR_BUF_GET_STR_LEN(xds.pi_actors) > 0) ||
