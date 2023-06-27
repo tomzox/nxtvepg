@@ -763,8 +763,6 @@ void EpgDbFilterSetCustom( FILTER_CONTEXT *fc, CUSTOM_FILTER_MATCH * pMatchCb,
 // ---------------------------------------------------------------------------
 // Set string for sub-string search in title and description text
 //
-                                       //"ÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏÐÑÒÓÔÕÖ×ØÙÚÛÜÝÞß"
-const uchar latin1LowerCaseTable[32+1] = "àáâãäåæçèéêëìíîïðñòóôõö×øùúûüýþß";
 
 void EpgDbFilterSetSubStr( FILTER_CONTEXT *fc, const char *pStr,
                            bool scopeTitle, bool scopeDesc, bool matchCase, bool matchFull )
@@ -793,12 +791,7 @@ void EpgDbFilterSetSubStr( FILTER_CONTEXT *fc, const char *pStr,
          p = pSubStrCtx->str;
          while ((c = *p) != 0)
          {
-            if ((c <= 'Z') && (c >= 'A'))
-               *(p++) = c + ('a' - 'A');
-            else if ((c >= 0xA0 + 32)  && (c < 0xA0 + 2*32))
-               *(p++) = latin1LowerCaseTable[c - (0xA0 + 32)];
-            else
-               *(p++) = c;
+            *(p++) = c; //TODO tolower(c);
          }
       }
 
@@ -821,12 +814,7 @@ static void EpgDbFilter_SubstrToLower( const char * src, char * dst, uint maxLen
    len = maxLen - 1;
    while ( ((c = *(src++)) != 0) && (len > 0) )
    {
-      if ((c <= 'Z') && (c >= 'A'))
-         *(dst++) = c + ('a' - 'A');
-      else if ((c >= 0xA0 + 32)  && (c < 0xA0 + 2*32))
-         *(dst++) = latin1LowerCaseTable[c - (0xA0 + 32)];
-      else
-         *(dst++) = c;
+      *(dst++) = c; //TODO tolower(c)
       len--;
    }
    *(dst++) = 0;
@@ -888,9 +876,8 @@ static bool EpgDbFilter_MatchSubstr( const EPGDB_FILT_SUBSTR *ssc,
    char title[255+4];
    bool title_lower;
    bool short_lower;
-   bool long_lower;
 
-   title_lower = short_lower = long_lower = FALSE;
+   title_lower = short_lower = FALSE;
 
    // OR across all substring text matches
    while (ssc != NULL)

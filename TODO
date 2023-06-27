@@ -5,6 +5,7 @@ boost any item's priority, find more points that need to be fixed or if
 you have ideas for additional features.
 
 Post-Nextview EPG:
+- Sub-string search filter: case insensitive search missing in epgdb/epgdbfil.c
 - XMLTV service name: when merging teletext-only use "Merged teletext (%d networks)"
 - bad error message when using "Load teletext EPG" and no files available yet
 - daemon mode: ? make work independent of TV app & ttx grabber cfg. (e.g. windows)
