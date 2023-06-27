@@ -79,6 +79,8 @@ typedef struct
 // ---------------------------------------------------------------------------
 
 #define PI_MAX_THEME_COUNT      7
+#define PI_PARENTAL_UNDEFINED      0xFFU
+#define PI_EDITORIAL_UNDEFINED     0xFFU
 
 #define PI_FEATURE_VIDEO_HD        0x400  // not in Nextview EPG
 #define PI_FEATURE_VIDEO_BW        0x200  // not in Nextview EPG
@@ -107,6 +109,7 @@ typedef struct
   uint16_t  feature_flags;
   uint8_t   parental_rating;
   uint8_t   editorial_rating;
+  uint8_t   editorial_max_val;
 
   uint16_t  lang_title;
   uint16_t  lang_desc;

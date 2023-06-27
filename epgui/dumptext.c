@@ -122,8 +122,21 @@ static void DumpText_Pi( PI_DESCR_BUF * pb, const PI_BLOCK * pPi, const EPGDB_CO
       else
          PiDescription_BufAppend(pb, "\\N\t", 3);  // MySQL NULL
 
-      len = sprintf(str_buf, "%u\t%u\t", pPi->parental_rating *2, pPi->editorial_rating);
-      PiDescription_BufAppend(pb, str_buf, len);
+      if (pPi->parental_rating != PI_PARENTAL_UNDEFINED)
+      {
+         len = sprintf(str_buf, "%u\t", pPi->parental_rating);
+         PiDescription_BufAppend(pb, str_buf, len);
+      }
+      else
+         PiDescription_BufAppend(pb, "\\N\t", 3);  // MySQL NULL
+
+      if (pPi->editorial_rating != PI_EDITORIAL_UNDEFINED)
+      {
+         len = sprintf(str_buf, "%u\t%u\t", pPi->editorial_rating, pPi->editorial_max_val);
+         PiDescription_BufAppend(pb, str_buf, len);
+      }
+      else
+         PiDescription_BufAppend(pb, "\\N\t\\N\t", 2*3);  // MySQL NULL
 
       switch (pPi->feature_flags & PI_FEATURE_SOUND_MASK)
       {
@@ -135,10 +148,9 @@ static void DumpText_Pi( PI_DESCR_BUF * pb, const PI_BLOCK * pPi, const EPGDB_CO
       }
       PiDescription_BufAppend(pb, pStrSoundFormat, -1);
 
-      len = sprintf(str_buf, "%c\t%c\t%c\t%c\t%c\t%c\t%c\t",
+      len = sprintf(str_buf, "%c\t%c\t%c\t%c\t%c\t%c\t",
                        ((pPi->feature_flags & PI_FEATURE_FMT_WIDE) ? '1' : '0'),
                        ((pPi->feature_flags & PI_FEATURE_PAL_PLUS) ? '1' : '0'),
-                       '0', /*((pPi->feature_flags & PI_FEATURE_DIGITAL) ? '1' : '0'),*/ // obsolete
                        ((pPi->feature_flags & PI_FEATURE_ENCRYPTED) ? '1' : '0'),
                        ((pPi->feature_flags & PI_FEATURE_LIVE) ? '1' : '0'),
                        ((pPi->feature_flags & PI_FEATURE_REPEAT) ? '1' : '0'),

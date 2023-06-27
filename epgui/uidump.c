@@ -351,18 +351,19 @@ static int EpgDump_GetRawPi( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_O
             len = sprintf(comm, "Features:\tnone\n");
          APPEND_ASCII(comm, len);
 
-         if (pPiBlock->parental_rating == 0)
+         if (pPiBlock->parental_rating == PI_PARENTAL_UNDEFINED)
             len = sprintf(comm, "Parental rating:\tnone\n");
-         else if (pPiBlock->parental_rating == 1)
+         else if (pPiBlock->parental_rating == 0)
             len = sprintf(comm, "Parental rating:\tgeneral\n");
          else
-            len = sprintf(comm, "Parental rating:\t%d years and up\n", pPiBlock->parental_rating * 2);
+            len = sprintf(comm, "Parental rating:\t%d years and up\n", pPiBlock->parental_rating);
          APPEND_ASCII(comm, len);
 
-         if (pPiBlock->editorial_rating == 0)
+         if (pPiBlock->editorial_rating == PI_EDITORIAL_UNDEFINED)
             len = sprintf(comm, "Editorial rating:\tnone\n");
          else
-            len = sprintf(comm, "Editorial rating:\t%d of 1..7\n", pPiBlock->editorial_rating);
+            len = sprintf(comm, "Editorial rating:\t%d of %d\n",
+                          pPiBlock->editorial_rating, pPiBlock->editorial_max_val);
          APPEND_ASCII(comm, len);
 
          for (index=0; index < pPiBlock->no_themes; index++)

@@ -779,6 +779,8 @@ void Xmltv_TsOpen( void )
    xds.pi.netwop_no = xds.chn_count;
    xds.pi.pil = VPS_PIL_CODE_SYSTEM;
    xds.pi_cat_count = 0;
+   xds.pi.parental_rating = PI_PARENTAL_UNDEFINED;
+   xds.pi.editorial_rating = PI_EDITORIAL_UNDEFINED;
 
    XmlCdata_Reset(&xds.pi_title);
    XmlCdata_Reset(&xds.pi_desc);
@@ -1188,21 +1190,16 @@ void Xmltv_PiRatingAddText( XML_STR_BUF * pBuf )
 
    // first check if it's a plain positive number, regardless of rating system
    age = strtol(pStr, &p, 10);
-   if ((*pStr != 0) && ((*p == 0) || (*p == '+')) && (age >= 0))
+   if ((*pStr != 0) && ((*p == 0) || (*p == '+')) && (age >= 0) && (age <= 18))
    {
       // plain number -> assume age
-      if (age == 0)
-         xds.pi.parental_rating = 1;
-      else if ((age > 0) && (age <= 18))
-         xds.pi.parental_rating = age / 2;
-      else
-         debug1("Xmltv-PiRatingAddText: weird age in parental rating: %s", pStr);
+      xds.pi.parental_rating = age;
    }
    else if (xds.pi_rating_sys == XMLTV_RATING_AGE)
    {
       if (strcasecmp(pStr, "general") == 0)
       {
-         xds.pi.parental_rating = 1;
+         xds.pi.parental_rating = 0;
       }
       else
          debug1("Xmltv-PiRatingAddText: parse error in age: '%s'", pStr);
@@ -1217,17 +1214,12 @@ void Xmltv_PiRatingAddText( XML_STR_BUF * pBuf )
       if (   (nscan >= 1) && ((pStr[scan_pos] == 0) || (pStr[scan_pos] == ' '))
           && (age >= 0) && (age <= 18))
       {
-         if (age == 0)
-            xds.pi.parental_rating = 1;
-         else
-            xds.pi.parental_rating = age / 2;
+         xds.pi.parental_rating = age;
       }
       else if (strstr(pStr, "ohne") != NULL)
-         xds.pi.parental_rating = 1;
+         xds.pi.parental_rating = 0;
       else if ( (strstr(pStr, "keine") != NULL) && (strstr(pStr, "freigabe") != NULL) )
-         xds.pi.parental_rating = 18/2;
-      else if ( (strstr(pStr, "ohne") != NULL) && (strstr(pStr, "beschr") != NULL) )
-         xds.pi.parental_rating = 1;
+         xds.pi.parental_rating = 18;
       else
          debug1("Xmltv-PiRatingAddText: unknown FSK rating '%s'", pStr);
    }
@@ -1237,11 +1229,11 @@ void Xmltv_PiRatingAddText( XML_STR_BUF * pBuf )
       // http://www.movie-ratings.net/movieratings_uk.shtml
 
       if ( (strcasecmp(pStr, "U") == 0) || (strcasecmp(pStr, "unrated") == 0) )
-         xds.pi.parental_rating = 1;
+         xds.pi.parental_rating = 0;
       else if (strcasecmp(pStr, "PG") == 0)
-         xds.pi.parental_rating = 6/2;
+         xds.pi.parental_rating = 6;
       else if ( (strcasecmp(pStr, "R18") == 0) || (strncasecmp(pStr, "X", 1) == 0) )
-         xds.pi.parental_rating = 18/2;
+         xds.pi.parental_rating = 18;
       else
          debug1("Xmltv-PiRatingAddText: unknown BBFC rating '%s'", pStr);
    }
@@ -1251,17 +1243,17 @@ void Xmltv_PiRatingAddText( XML_STR_BUF * pBuf )
       // http://www.mpaa.org/movieratings/
 
       if ( (strcasecmp(pStr, "G") == 0) || (strcasecmp(pStr, "general") == 0) )
-         xds.pi.parental_rating = 1;
+         xds.pi.parental_rating = 0;
       else if (strcasecmp(pStr, "PG") == 0)
-         xds.pi.parental_rating = 6/2;
+         xds.pi.parental_rating = 6;
       else if (strcasecmp(pStr, "PG-13") == 0)
-         xds.pi.parental_rating = 13/2;
+         xds.pi.parental_rating = 13;
       else if (strcasecmp(pStr, "R") == 0)
-         xds.pi.parental_rating = 17/2;
+         xds.pi.parental_rating = 17;
       else if (strcasecmp(pStr, "NC-17") == 0)
-         xds.pi.parental_rating = 18/2;
+         xds.pi.parental_rating = 18;
       else if (strncasecmp(pStr, "X", 1) == 0)
-         xds.pi.parental_rating = 18/2;
+         xds.pi.parental_rating = 18;
       else
          debug1("Xmltv-PiRatingAddText: unknown MPAA rating '%s'", pStr);
    }
@@ -1280,12 +1272,8 @@ static void Xmltv_PiStarRatingSet( double cval, uint max_val )
 {
    if ((cval <= max_val) && (max_val > 0))
    {
-      // many rating systems use a scale 0..5, so we don't fiddle with that
-      // other values are scaled to the nextview rating range 0..7
-      if ((max_val >= 5) && (max_val <= 7))
-         xds.pi.editorial_rating = cval;
-      else
-         xds.pi.editorial_rating = ((cval * 7 + (max_val/2)) / max_val);
+      xds.pi.editorial_rating = (uint8_t)(cval + 0.5);
+      xds.pi.editorial_max_val = max_val;
    }
    else
       debug2("Xmltv-PiStarRatingSet: weird values: %f / %d", cval, max_val);

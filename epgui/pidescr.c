@@ -678,13 +678,14 @@ void PiDescription_AppendFeatureList( const PI_BLOCK *pPiBlock, char * outstr )
    if (pPiBlock->feature_flags & PI_FEATURE_VIDEO_HD)  // XMLTV import only
       strcat(outstr, "HDTV, ");
 
-   if (pPiBlock->editorial_rating > 0)
-      sprintf(outstr + strlen(outstr), "rating: %d of 1..7, ", pPiBlock->editorial_rating);
+   if (pPiBlock->editorial_rating != PI_EDITORIAL_UNDEFINED)
+      sprintf(outstr + strlen(outstr), "rating: %d of %d, ",
+              pPiBlock->editorial_rating, pPiBlock->editorial_max_val);
 
-   if (pPiBlock->parental_rating == 1)
+   if (pPiBlock->parental_rating == 0)
       strcat(outstr, "age: general, ");
-   else if (pPiBlock->parental_rating > 0)
-      sprintf(outstr + strlen(outstr), "age: %d and up, ", pPiBlock->parental_rating * 2);
+   else if (pPiBlock->parental_rating != PI_PARENTAL_UNDEFINED)
+      sprintf(outstr + strlen(outstr), "age: %d and up, ", pPiBlock->parental_rating);
 
    // remove last comma if nothing follows
    len = strlen(outstr);

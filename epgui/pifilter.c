@@ -215,7 +215,7 @@ static int SelectFeatures( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj
 }
 
 // ----------------------------------------------------------------------------
-// Update the editorial rating filter setting
+// Update the parental rating filter setting
 //
 static int SelectParentalRating( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
 {  
@@ -230,7 +230,7 @@ static int SelectParentalRating( ClientData ttp, Tcl_Interp *interp, int objc, T
    }  
    else
    {
-      if (rating != 0)
+      if (rating != 0xFF)
       {
          EpgDbFilterEnable(pPiFilterContext, FILTER_PAR_RAT);
          EpgDbFilterSetParentalRating(pPiFilterContext, rating);
@@ -245,7 +245,7 @@ static int SelectParentalRating( ClientData ttp, Tcl_Interp *interp, int objc, T
 }
 
 // ----------------------------------------------------------------------------
-// Update the parental rating filter setting
+// Update the editorial rating filter setting
 //
 static int SelectEditorialRating( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
 {  
@@ -260,7 +260,7 @@ static int SelectEditorialRating( ClientData ttp, Tcl_Interp *interp, int objc, 
    }  
    else
    {
-      if (rating != 0)
+      if (rating != 0xFF)
       {
          EpgDbFilterEnable(pPiFilterContext, FILTER_EDIT_RAT);
          EpgDbFilterSetEditorialRating(pPiFilterContext, rating);

@@ -359,19 +359,19 @@ uint PiOutput_PrintColumnItem( const PI_BLOCK * pPiBlock, PIBOX_COL_TYPES type,
             break;
 
          case PIBOX_COL_ED_RATING:
-            if ((pPiBlock->editorial_rating > 0) && (maxLen >= 3+1))
+            if ((pPiBlock->editorial_rating != PI_EDITORIAL_UNDEFINED) && (maxLen >= 3*2+2))
             {
-               sprintf(pOutBuffer, "%2d", pPiBlock->editorial_rating);
+               sprintf(pOutBuffer, "%d/%d", pPiBlock->editorial_rating, pPiBlock->editorial_max_val);
                outlen = strlen(pOutBuffer);
             }
             break;
 
          case PIBOX_COL_PAR_RATING:
-            if (pPiBlock->parental_rating == 1)
+            if (pPiBlock->parental_rating == 0)
                pResult = "all";
-            else if ((pPiBlock->parental_rating > 0) && (maxLen >= 3+1))
+            else if ((pPiBlock->parental_rating != PI_PARENTAL_UNDEFINED) && (maxLen >= 3+2))
             {
-               sprintf(pOutBuffer, "%2d", pPiBlock->parental_rating * 2);
+               sprintf(pOutBuffer, "%2d+", pPiBlock->parental_rating);
                outlen = strlen(pOutBuffer);
             }
             break;

@@ -460,29 +460,25 @@ void EpgDbFilterSetThemes( FILTER_CONTEXT *fc, uchar firstTheme, uchar lastTheme
 }
 
 // ---------------------------------------------------------------------------
-// Set the value for the parental rating filter (see ETS 300 707, Annex F.1)
-// - the value 0 stands for "not rated" and should not be used
-// - the value 1 stands for "any rated programme"
-// - the values 2...8 stand for "ok above n*2 years"
-// - the values 9...15 are reserved; 16 and up are invalid b/c PI rating has only 4 bit
+// Set the value for the parental rating filter
+// - values N stands for "ok above N years"
+// - value 0x80 stands for "any rated programme"
+// - value 0xFF stands for "not rated" and should not be used
 //
 void EpgDbFilterSetParentalRating( FILTER_CONTEXT *fc, uchar newParentalRating )
 {
-   ifdebug0(newParentalRating == 0, "EpgDbFilter-SetParentalRating: WARNING: setting parental rating 0");
-   ifdebug1(newParentalRating > 8, "EpgDbFilter-SetParentalRating: WARNING: setting illegal parental rating %d", newParentalRating);
+   ifdebug0(newParentalRating == PI_PARENTAL_UNDEFINED, "EpgDbFilter-SetParentalRating: WARNING: setting illegal parental rating");
 
    fc->pFocus->parentalRating = newParentalRating;
 }
 
 // ---------------------------------------------------------------------------
 // Set the value for the editorial rating filter
-// - the value 0 stands for "not rated" and should not be used
-// - values 8 and up are invalid b/c PI editorial rating uses only 3 bit
+// - value 0xFF stands for "not rated" and should not be used
 //
 void EpgDbFilterSetEditorialRating( FILTER_CONTEXT *fc, uchar newEditorialRating )
 {
-   ifdebug0(newEditorialRating == 0, "EpgDbFilter-SetEditorialRating: WARNING: setting editorial rating 0");
-   ifdebug1(newEditorialRating >= 8, "EpgDbFilter-SetEditorialRating: WARNING: setting illegal editorial rating %d", newEditorialRating);
+   ifdebug0(newEditorialRating == PI_EDITORIAL_UNDEFINED, "EpgDbFilter-SetEditorialRating: WARNING: setting illegal editorial rating");
 
    fc->pFocus->editorialRating = newEditorialRating;
 }
@@ -1172,9 +1168,12 @@ static bool EpgDbFilterMatchAct( const EPGDB_CONTEXT *dbc, const FILTER_CONTEXT 
 
    if (fc_act->enabledFilters & FILTER_PAR_RAT)
    {
-      if (pPi->parental_rating != 0)
+      if (pPi->parental_rating != PI_PARENTAL_UNDEFINED)
       {
-         fail   = (pPi->parental_rating > fc_act->parentalRating);
+         if (fc_act->parentalRating == 0x80U)
+            fail   = FALSE;
+         else
+            fail   = (pPi->parental_rating > fc_act->parentalRating);
 
          invert = ((fc_act->invertedFilters & FILTER_PAR_RAT) != FALSE);
          if (fail ^ invert)
@@ -1188,9 +1187,13 @@ static bool EpgDbFilterMatchAct( const EPGDB_CONTEXT *dbc, const FILTER_CONTEXT 
 
    if (fc_act->enabledFilters & FILTER_EDIT_RAT)
    {
-      if (pPi->editorial_rating != 0)
+      if ((pPi->editorial_rating != PI_EDITORIAL_UNDEFINED) &&
+          (pPi->editorial_max_val != 0))
       {
-         fail   = (pPi->editorial_rating < fc_act->editorialRating);
+         if (fc_act->editorialRating == 0x80U)
+            fail = FALSE;
+         else
+            fail = (pPi->editorial_rating * 10 / pPi->editorial_max_val < fc_act->editorialRating);
 
          invert = ((fc_act->invertedFilters & FILTER_EDIT_RAT) != FALSE);
          if (fail ^ invert)

@@ -250,13 +250,14 @@ static EPGDB_PI_BLOCK * EpgDbMergePiBlocks( PDBC dbc, EPGDB_PI_BLOCK **pFoundBlo
    }
 
    // parental rating
-   pPi->parental_rating = 0;
+   pPi->parental_rating = PI_PARENTAL_UNDEFINED;
    for (dbIdx=0; dbIdx < dbCount; dbIdx++)
    {
       actIdx = dbmc->max[MERGE_TYPE_PARENTAL][dbIdx];
       if (actIdx < dbCount)
       {
-         if ((pFoundBlocks[actIdx] != NULL) && (pFoundBlocks[actIdx]->pi.parental_rating != 0))
+         if ((pFoundBlocks[actIdx] != NULL) &&
+             (pFoundBlocks[actIdx]->pi.parental_rating != PI_PARENTAL_UNDEFINED))
          {
             pPi->parental_rating = pFoundBlocks[actIdx]->pi.parental_rating;
             break;
@@ -267,15 +268,17 @@ static EPGDB_PI_BLOCK * EpgDbMergePiBlocks( PDBC dbc, EPGDB_PI_BLOCK **pFoundBlo
    }
 
    // editorial rating
-   pPi->editorial_rating = 0;
+   pPi->editorial_rating = PI_EDITORIAL_UNDEFINED;
    for (dbIdx=0; dbIdx < dbCount; dbIdx++)
    {
       actIdx = dbmc->max[MERGE_TYPE_EDITORIAL][dbIdx];
       if (actIdx < dbCount)
       {
-         if ((pFoundBlocks[actIdx] != NULL) && (pFoundBlocks[actIdx]->pi.editorial_rating != 0))
+         if ((pFoundBlocks[actIdx] != NULL) &&
+             (pFoundBlocks[actIdx]->pi.editorial_rating != PI_EDITORIAL_UNDEFINED))
          {
             pPi->editorial_rating = pFoundBlocks[actIdx]->pi.editorial_rating;
+            pPi->editorial_max_val = pFoundBlocks[actIdx]->pi.editorial_max_val;
             break;
          }
       }

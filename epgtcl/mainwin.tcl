@@ -1383,31 +1383,37 @@ proc UpdateUserLanguage {} {
 ##  Create the features filter menus
 ##
 proc FilterMenuAdd_EditorialRating {widget is_stand_alone} {
-   $widget add radio -label any -command SelectEditorialRating -variable editorial_rating -value 0
-   $widget add radio -label "all rated programmes" -command SelectEditorialRating -variable editorial_rating -value 1
-   $widget add radio -label "at least 2 of 7" -command SelectEditorialRating -variable editorial_rating -value 2
-   $widget add radio -label "at least 3 of 7" -command SelectEditorialRating -variable editorial_rating -value 3
-   $widget add radio -label "at least 4 of 7" -command SelectEditorialRating -variable editorial_rating -value 4
-   $widget add radio -label "at least 5 of 7" -command SelectEditorialRating -variable editorial_rating -value 5
-   $widget add radio -label "at least 6 of 7" -command SelectEditorialRating -variable editorial_rating -value 6
-   $widget add radio -label "7 of 7" -command SelectEditorialRating -variable editorial_rating -value 7
-   if $is_stand_alone {
+   $widget add radio -label "any" -command SelectEditorialRating -variable editorial_rating -value 0xFF
+   $widget add radio -label "all rated programmes" -command SelectEditorialRating -variable editorial_rating -value 0x80
+   $widget add radio -label "at least 1 of 10" -command SelectEditorialRating -variable editorial_rating -value 1
+   $widget add radio -label "at least 2 of 10" -command SelectEditorialRating -variable editorial_rating -value 2
+   $widget add radio -label "at least 3 of 10" -command SelectEditorialRating -variable editorial_rating -value 3
+   $widget add radio -label "at least 4 of 10" -command SelectEditorialRating -variable editorial_rating -value 4
+   $widget add radio -label "at least 5 of 10" -command SelectEditorialRating -variable editorial_rating -value 5
+   $widget add radio -label "at least 6 of 10" -command SelectEditorialRating -variable editorial_rating -value 6
+   $widget add radio -label "at least 7 of 10" -command SelectEditorialRating -variable editorial_rating -value 7
+   $widget add radio -label "at least 8 of 10" -command SelectEditorialRating -variable editorial_rating -value 8
+   $widget add radio -label "at least 9 of 10" -command SelectEditorialRating -variable editorial_rating -value 9
+   $widget add radio -label "10 of 10" -command SelectEditorialRating -variable editorial_rating -value 10
+   if {$is_stand_alone} {
       $widget add separator
       $widget add checkbutton -label Invert -variable filter_invert(editorial) -command InvertFilter
    }
 }
 
 proc FilterMenuAdd_ParentalRating {widget is_stand_alone} {
-   $widget add radio -label any -command SelectParentalRating -variable parental_rating -value 0
-   $widget add radio -label "ok for all ages" -command SelectParentalRating -variable parental_rating -value 1
-   $widget add radio -label "ok for 4 years or older" -command SelectParentalRating -variable parental_rating -value 2
-   $widget add radio -label "ok for 6 years or older" -command SelectParentalRating -variable parental_rating -value 3
-   $widget add radio -label "ok for 8 years or older" -command SelectParentalRating -variable parental_rating -value 4
-   $widget add radio -label "ok for 10 years or older" -command SelectParentalRating -variable parental_rating -value 5
-   $widget add radio -label "ok for 12 years or older" -command SelectParentalRating -variable parental_rating -value 6
-   $widget add radio -label "ok for 14 years or older" -command SelectParentalRating -variable parental_rating -value 7
-   $widget add radio -label "ok for 16 years or older" -command SelectParentalRating -variable parental_rating -value 8
-   if $is_stand_alone {
+   $widget add radio -label "any" -command SelectParentalRating -variable parental_rating -value 0xFF
+   $widget add radio -label "all rated programmes" -command SelectParentalRating -variable parental_rating -value 0x80
+   $widget add radio -label "ok for all ages" -command SelectParentalRating -variable parental_rating -value 0
+   $widget add radio -label "ok for 2 years or older" -command SelectParentalRating -variable parental_rating -value 2
+   $widget add radio -label "ok for 4 years or older" -command SelectParentalRating -variable parental_rating -value 4
+   $widget add radio -label "ok for 6 years or older" -command SelectParentalRating -variable parental_rating -value 6
+   $widget add radio -label "ok for 8 years or older" -command SelectParentalRating -variable parental_rating -value 8
+   $widget add radio -label "ok for 10 years or older" -command SelectParentalRating -variable parental_rating -value 10
+   $widget add radio -label "ok for 12 years or older" -command SelectParentalRating -variable parental_rating -value 12
+   $widget add radio -label "ok for 14 years or older" -command SelectParentalRating -variable parental_rating -value 14
+   $widget add radio -label "ok for 16 years or older" -command SelectParentalRating -variable parental_rating -value 16
+   if {$is_stand_alone} {
       $widget add separator
       $widget add checkbutton -label Invert -variable filter_invert(parental) -command InvertFilter
    }
@@ -1653,7 +1659,7 @@ proc ResetParentalRating {} {
    global parental_rating editorial_rating
    global filter_invert
 
-   set parental_rating 0
+   set parental_rating 0xFF
    array unset filter_invert parental
 }
 
@@ -1661,7 +1667,7 @@ proc ResetEditorialRating {} {
    global parental_rating editorial_rating
    global filter_invert
 
-   set editorial_rating 0
+   set editorial_rating 0xFF
    array unset filter_invert editorial
 }
 

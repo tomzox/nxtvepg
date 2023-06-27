@@ -36,7 +36,7 @@ proc PreloadShortcuts {} {
        ([string compare -nocase -length 3 $user_language ger] == 0)} {
       # Germany
       set shortcuts(10010) {Abends timsel {timsel {0 0 1215 1410 -1}} {} merge {}}
-      set shortcuts(10020) {{Nächste...} progidx {progidx {1 1}} {} merge {}}
+      set shortcuts(10020) {{NÃ¤chste...} progidx {progidx {1 1}} {} merge {}}
       set shortcuts(10030) {{Heute} timsel {timsel {0 1 0 1439 0}} {} merge {}}
       set shortcuts(10100) {{} {} {} {} merge separator}
       set shortcuts(10110) {{>15 Minuten} dursel {dursel {16 1435}} {} merge {}}
@@ -57,13 +57,13 @@ proc PreloadShortcuts {} {
       set shortcuts(10100) {{} {} {} {} merge separator}
       set shortcuts(10110) {{45 minutes et +} dursel {dursel {45 1435}} {} merge {}}
       set shortcuts(10120) {{80 minutes et +} dursel {dursel {80 1435}} {} merge {}}
-      set shortcuts(10130) {{12 ans et +} parental {parental 5} parental merge {}}
-      set shortcuts(10140) {{16 ans et +} parental {parental 7} parental merge {}}
+      set shortcuts(10130) {{12 ans et +} parental {parental 10} parental merge {}}
+      set shortcuts(10140) {{16 ans et +} parental {parental 15} parental merge {}}
       set shortcuts(10150) {{sous-titre} features {features {256 256}} {} merge {}}
       set shortcuts(10200) {{} {} {} {} merge separator}
       set shortcuts(10210) {Films substr {substr {{film 0 1 0 0 0 0}}} {} merge {}}
-      set shortcuts(10220) {Série substr {substr {{série 0 1 0 0 0 0}}} {} merge {}}
-      set shortcuts(10230) {Météo substr {substr {{Météo 1 0 0 0 0 0}}} {} merge {}}
+      set shortcuts(10220) {SÃ©rie substr {substr {{sÃ©rie 0 1 0 0 0 0}}} {} merge {}}
+      set shortcuts(10230) {MÃ©tÃ©o substr {substr {{MÃ©tÃ©o 1 0 0 0 0 0}}} {} merge {}}
       set shortcut_tree [lsort -integer [array names shortcuts]]
    } else {
       # generic
@@ -73,6 +73,8 @@ proc PreloadShortcuts {} {
       set shortcuts(10100) {{} {} {} {} merge separator}
       set shortcuts(10110) {{>15 minutes} dursel {dursel {16 1435}} {} merge {}}
       set shortcuts(10120) {{>80 minutes} dursel {dursel {80 1435}} {} merge {}}
+      set shortcuts(10130) {{age 12+} parental {parental 10} parental merge {}}
+      set shortcuts(10140) {{age 16+} parental {parental 15} parental merge {}}
       set shortcuts(10130) {{subtitled} features {features {256 256}} {} merge {}}
       set shortcuts(10140) {{2-channel} features {features {3 1}} {} merge {}}
       set shortcuts(10200) {{} {} {} {} merge separator}
@@ -209,10 +211,10 @@ proc CheckShortcutDeselection {} {
                }
             }
             parental {
-               set undo [expr ($valist < $parental_rating) || ($parental_rating == 0)]
+               set undo [expr ($valist < $parental_rating) || ($parental_rating == 0x80)]
             }
             editorial {
-               set undo [expr ($valist > $editorial_rating) || ($editorial_rating == 0)]
+               set undo [expr ($valist > $editorial_rating) || ($editorial_rating == 0x80)]
             }
             progidx {
                set undo [expr ($filter_progidx == 0) || \
@@ -480,11 +482,11 @@ proc SelectShortcuts {sc_tag_list shortcuts_arr} {
                      }
                   }
                   parental {
-                     set parental_rating 0
+                     set parental_rating 0xFF
                      C_SelectParentalRating 0
                   }
                   editorial {
-                     set editorial_rating 0
+                     set editorial_rating 0xFF
                      C_SelectEditorialRating 0
                   }
                   substr {
@@ -565,14 +567,14 @@ proc SelectShortcuts {sc_tag_list shortcuts_arr} {
                }
                parental {
                   set rating [lindex $valist 0]
-                  if {($rating < $parental_rating) || ($parental_rating == 0)} {
+                  if {($rating < $parental_rating) || ($parental_rating == 0x80)} {
                      set parental_rating $rating
                      C_SelectParentalRating $parental_rating
                   }
                }
                editorial {
                   set rating [lindex $valist 0]
-                  if {($rating > $editorial_rating) || ($editorial_rating == 0)} {
+                  if {($rating > $editorial_rating) || ($editorial_rating == 0x80)} {
                      set editorial_rating [lindex $valist 0]
                      C_SelectEditorialRating $editorial_rating
                   }
@@ -1079,11 +1081,11 @@ proc DescribeCurrentFilter {} {
       lappend mask features
    }
 
-   if {$parental_rating > 0} {
+   if {$parental_rating != 0xFF} {
       lappend all "parental" $parental_rating
       lappend mask parental
    }
-   if {$editorial_rating > 0} {
+   if {$editorial_rating != 0xFF} {
       lappend all "editorial" $editorial_rating
       lappend mask editorial
    }
@@ -1278,19 +1280,19 @@ proc ShortcutPrettyPrint {filter inv_list} {
             }
          }
          parental {
-            if {$valist == 1} {
-               append out "${not}Parental rating: general (all ages)\n"
-            } elseif {$valist > 0} {
+            if {$valist == 0x80} {
+               append out "${not}Parental rating: all rated programmes\n"
+            } elseif {$valist != 0xFF} {
                if {[string length $not] == 0} {
-                  append out "Parental rating: ok for age [expr $valist * 2] and up\n"
+                  append out "Parental rating: ok for age $valist and up\n"
                } else {
-                  append out "Parental rating: rated higher than for age [expr $valist * 2]\n"
-                  append out "                 (i.e. suitable only for age [expr ($valist + 1) * 2] or elder)\n"
+                  append out "Parental rating: rated higher than for age $valist\n"
+                  append out "                 (i.e. suitable only for age [expr {$valist + 1}] or elder)\n"
                }
             }
          }
          editorial {
-            append out "${not}Editorial rating: $valist of 1..7\n"
+            append out "${not}Editorial rating: $valist of 10\n"
          }
          progidx {
             set start [lindex $valist 0]

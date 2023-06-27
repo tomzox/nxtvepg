@@ -415,13 +415,13 @@ static void PiOutput_ExtCmdVariable( const PI_BLOCK *pPiBlock, const AI_BLOCK * 
       ShellCmd_AppendString(pCmdBuf, (pPiBlock->feature_flags & 0x100) ? "yes" : "no");
    }
    else if (strncmp(pKeyword, "e_rating", keywordLen) == 0)
-   {  // editorial rating (0 means "none")
-      sprintf(strbuf, "%d", pPiBlock->editorial_rating);
+   {  // editorial rating (255 means "none")
+      sprintf(strbuf, "%d/%d", pPiBlock->editorial_rating, pPiBlock->editorial_max_val);
       ShellCmd_AppendString(pCmdBuf, strbuf);
    }
    else if (strncmp(pKeyword, "p_rating", keywordLen) == 0)
-   {  // parental  rating (0 means "none", 1 "all")
-      sprintf(strbuf, "%d", pPiBlock->parental_rating * 2);
+   {  // parental  rating (255 means "none", 0 "all")
+      sprintf(strbuf, "%d", pPiBlock->parental_rating);
       ShellCmd_AppendString(pCmdBuf, strbuf);
    }
 #ifndef WIN32

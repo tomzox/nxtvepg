@@ -369,14 +369,15 @@ static void EpgDumpXml_WriteProgramme( EPGDB_CONTEXT * pDbContext, const AI_BLOC
       fprintf(fp, "\t<subtitles type=\"teletext\" />\n");
    }
 
-   if (pPiBlock->parental_rating == 1)
+   if (pPiBlock->parental_rating == 0)
       fprintf(fp, "\t<rating system=\"age\">\n\t\t<value>general</value>\n\t</rating>\n");
-   else if (pPiBlock->parental_rating > 0)
+   else if (pPiBlock->parental_rating != PI_PARENTAL_UNDEFINED)
       fprintf(fp, "\t<rating system=\"age\">\n\t\t<value>%d</value>\n\t</rating>\n",
-                  pPiBlock->parental_rating * 2);
-   if (pPiBlock->editorial_rating > 0)
-      fprintf(fp, "\t<star-rating>\n\t\t<value>%d/7</value>\n\t</star-rating>\n",
-                  pPiBlock->editorial_rating);
+                  pPiBlock->parental_rating);
+
+   if (pPiBlock->editorial_rating != PI_EDITORIAL_UNDEFINED)
+      fprintf(fp, "\t<star-rating>\n\t\t<value>%d/%d</value>\n\t</star-rating>\n",
+                  pPiBlock->editorial_rating, pPiBlock->editorial_max_val);
 
    fprintf(fp, "</programme>\n");
 }
