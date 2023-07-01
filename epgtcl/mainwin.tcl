@@ -754,16 +754,8 @@ proc CreateMenubar {} {
    .menubar.config add command -label "Network names..." -command NetworkNamingPopup
    .menubar.config add command -label "Context menu..." -command ContextMenuConfigPopup
    .menubar.config add separator
-   .menubar.config add cascade -label "Themes language" -menu .menubar.config.lang
    .menubar.config add cascade -label "Show/Hide" -menu .menubar.config.show_hide
    .menubar.config add cascade -label "List layout" -menu .menubar.config.layout
-   # Lanugage sub-menu
-   menu .menubar.config.lang
-   .menubar.config.lang add radiobutton -label "automatic" -command UpdateUserLanguage -variable menuUserLanguage -value "auto"
-   .menubar.config.lang add separator
-   .menubar.config.lang add radiobutton -label "English" -command UpdateUserLanguage -variable menuUserLanguage -value "EN"
-   .menubar.config.lang add radiobutton -label "German" -command UpdateUserLanguage -variable menuUserLanguage -value "DE"
-   .menubar.config.lang add radiobutton -label "French" -command UpdateUserLanguage -variable menuUserLanguage -value "FR"
    menu .menubar.config.show_hide
    .menubar.config.show_hide add checkbutton -label "Show shortcuts" -command {ShowOrHideShortcutList showShortcutListbox; UpdateRcFile} -variable showShortcutListbox
    .menubar.config.show_hide add checkbutton -label "Show networks (left)" -command {ShowOrHideShortcutList showNetwopListboxLeft; UpdateRcFile} -variable showNetwopListboxLeft
@@ -795,6 +787,7 @@ proc CreateMenubar {} {
    menu .menubar.reminder.group -tearoff 0
    # Filter menu
    menu .menubar.filter
+   .menubar.filter add command -label "Theme categories..." -command PopupThemesSelection
    .menubar.filter add command -label "Text search..." -command SubStrPopup
    if {$is_unix} {
       .menubar.filter add cascade -label "Recurring titles..." -menu .menubar.filter.titles_alpha
@@ -815,7 +808,6 @@ proc CreateMenubar {} {
    .menubar.filter add cascade -label "VPS/PDC" -menu .menubar.filter.vps_pdc
    .menubar.filter add command -label "Expired display..." -command PopupExpireDelaySelection
    .menubar.filter add separator
-   .menubar.filter add cascade -menu .menubar.filter.themes -label "Themes"
    .menubar.filter add cascade -menu .menubar.filter.features -label "Features"
    .menubar.filter add cascade -menu .menubar.filter.p_rating -label "Parental Rating"
    .menubar.filter add cascade -menu .menubar.filter.e_rating -label "Editorial Rating"
@@ -866,7 +858,6 @@ proc CreateMenubar {} {
    FilterMenuAdd_Subtitles .menubar.filter.features.subtitles 0
 
    menu .menubar.filter.features.featureclass
-   menu .menubar.filter.themes
 
 #=IF=0
    menu .menubar.filter.titles_bynet -postcommand {PostDynamicMenu .menubar.filter.titles_bynet CreateSeriesNetworksMenu {}}
@@ -1000,49 +991,7 @@ proc DisplayMainWindow {iconified} {
 }
 
 ##  ---------------------------------------------------------------------------
-##  Fill the themes filter menu with PDC theme table
-##  - called once during startup and after theme language switches
-##  - if the menu items already exists, only the labels are updated
-##
-proc FilterMenuAdd_Themes {widget is_stand_alone} {
-   global current_theme_class
-
-   # check if the menu is already created
-   # if yes, only labels are updated (upon language switch)
-   set is_new [expr [string length [info commands ${widget}.*]] == 0]
-
-   # create the themes and sub-themes menues from the PDC table
-   set subtheme 0
-   set menidx 0
-   for {set index 0} {$index <= 0x80} {incr index} {
-      set pdc [C_GetPdcString $index]
-      if {[regexp {(.*) - } $pdc {} tlabel]} {
-         # create new sub-menu and add checkbutton
-         set subtheme $index
-         if $is_new {
-            $widget add cascade -label $tlabel -menu ${widget}.$subtheme
-            menu ${widget}.$subtheme
-            ${widget}.$subtheme add checkbutton -label $pdc -command "SelectTheme $subtheme" -variable theme_sel($subtheme)
-            ${widget}.$subtheme add separator
-         } else {
-            incr menidx
-            $widget entryconfigure $menidx -label $tlabel
-            ${widget}.$subtheme entryconfigure 1 -label $pdc
-            set submenidx 3
-         }
-      } elseif {([regexp {^#\d*$} $pdc] == 0) && ($subtheme > 0)} {
-         if $is_new {
-            ${widget}.$subtheme add checkbutton -label $pdc -command "SelectTheme $index" -variable theme_sel($index)
-         } else {
-            ${widget}.$subtheme entryconfigure $submenidx -label $pdc
-            incr submenidx
-         }
-      }
-   }
-}
-
-##  ---------------------------------------------------------------------------
-##  Generate the themes & feature menues
+##  Generate the themes & feature menus
 ##
 proc GenerateFilterMenues {tcc fcc} {
    global theme_class_count feature_class_count
@@ -1051,15 +1000,6 @@ proc GenerateFilterMenues {tcc fcc} {
    set theme_class_count   $tcc
    set feature_class_count $fcc
 
-   FilterMenuAdd_Themes .menubar.filter.themes 0
-
-   # add theme-class sub-menu
-   .menubar.filter.themes add cascade -menu .menubar.filter.themes.themeclass -label "Theme class"
-   menu .menubar.filter.themes.themeclass
-
-   for {set index 1} {$index <= $theme_class_count} {incr index} {
-      .menubar.filter.themes.themeclass add radio -label $index -command SelectThemeClass -variable menuStatusThemeClass -value $index
-   }
    for {set index 1} {$index <= $feature_class_count} {incr index} {
       .menubar.filter.features.featureclass add radio -label $index -command {SelectFeatureClass $current_feature_class} -variable current_feature_class -value $index
    }
@@ -1209,7 +1149,6 @@ set showTuneTvButton 1
 set showLayoutButton 1
 set showDateScale 1
 set hideOnMinimize 1
-set menuUserLanguage "auto"
 
 proc ShowOrHideShortcutList {{changed {}}} {
    global showShortcutListbox showNetwopListbox showNetwopListboxLeft
@@ -1366,16 +1305,6 @@ proc Toggle_PiBoxType {} {
    UpdatePiListboxColumns
    PiListboxColsel_ColUpdate
    C_PiBox_Reset
-   UpdateRcFile
-}
-
-proc UpdateUserLanguage {} {
-   # trigger language update in the C modules
-   C_UpdateLanguage
-
-   # redisplay the PI listbox content with the new language
-   C_PiBox_Refresh
-
    UpdateRcFile
 }
 
@@ -1604,9 +1533,7 @@ proc ResetThemes {} {
    global theme_sel theme_class_sel
    global filter_invert
 
-   if {[info exists theme_sel]} {
-      unset theme_sel
-   }
+   set theme_sel {}
    for {set index 1} {$index <= $theme_class_count} {incr index} {
       set theme_class_sel($index) {}
    }
@@ -1876,13 +1803,22 @@ proc SelectNetwopByIdx {netwop is_on} {
 proc SelectTheme {index} {
    global theme_sel current_theme_class
 
-   set all {}
-   foreach {index value} [array get theme_sel] {
-      if {$value != 0} {
-         lappend all $index
-      }
+   if {[lsearch -integer $theme_sel $index] < 0} {
+      lappend theme_sel $index
    }
-   C_SelectThemes $current_theme_class $all
+   C_SelectThemes [expr {1 << ($current_theme_class - 1)}] $theme_sel
+   C_PiBox_Refresh
+   CheckShortcutDeselection
+}
+
+##
+##  Update the filter context and refresh the listbox
+##
+proc SelectThemeList {themes} {
+   global theme_sel current_theme_class
+
+   set theme_sel $themes
+   C_SelectThemes [expr {1 << ($current_theme_class - 1)}] $themes
    C_PiBox_Refresh
    CheckShortcutDeselection
 }
@@ -1894,18 +1830,24 @@ proc DeselectTheme {class theme} {
    global theme_sel theme_class_sel current_theme_class
 
    if {$class == $current_theme_class} {
-      # selected class is the current one -> handled just like normal theme menu button
-      set theme_sel($theme) 0
-      SelectTheme $theme
-   } elseif {[info exists theme_class_sel($class)]} {
-      # not the current class: have to work with array
-      set arridx [lsearch -exact $theme_class_sel($class) $theme]
-      if {$arridx != -1} {
-         set theme_class_sel($class) [lreplace $theme_class_sel($class) $arridx $arridx]
-         C_SelectThemes $class $theme_class_sel($class)
-         C_PiBox_Refresh
-         CheckShortcutDeselection
+      set list_idx [lsearch -integer $theme_sel $theme]
+      if {$list_idx >= 0} {
+         set theme_sel [lreplace $theme_sel $list_idx $list_idx]
+         set need_update $theme_sel
       }
+   } elseif {[info exists theme_class_sel($class)]} {
+      # not the current class: modify theme list within array
+      set list_idx [lsearch -integer $theme_class_sel($class) $theme]
+      if {$list_idx >= 0} {
+         set theme_class_sel($class) [lreplace $theme_class_sel($class) $list_idx $list_idx]
+         set need_update $theme_class_sel($class)
+      }
+   }
+
+   if {[info exists need_update]} {
+      C_SelectThemes [expr {1 << ($class - 1)}] $need_update
+      C_PiBox_Refresh
+      CheckShortcutDeselection
    }
 }
 
@@ -1924,24 +1866,11 @@ proc SelectThemeClass {} {
 
    if {$menuStatusThemeClass != $current_theme_class} {
       # save settings of current class into list variable
-      set all {}
-      foreach {index value} [array get theme_sel "*"] {
-         if {[expr $value != 0]} {
-            lappend all $index
-         }
-      }
-      set theme_class_sel($current_theme_class) $all
+      set theme_class_sel($current_theme_class) $theme_sel
 
-      # remove the settings of the old class
-      if {[info exists theme_sel]} {
-         unset theme_sel
-      }
       # change to the new class
       set current_theme_class $menuStatusThemeClass
-      # copy the new classes' settings into the array, thereby setting the menu state
-      foreach index $theme_class_sel($current_theme_class) {
-         set theme_sel($index) 1
-      }
+      set theme_sel $theme_class_sel($current_theme_class)
    }
 }
 
@@ -3840,6 +3769,10 @@ proc FilterMenuAdd_Date {widget is_stand_alone} {
       $widget add command -label [C_ClockFormat $start_time {%A, %d. %b. %Y}] -command [list C_PiBox_GotoTime 1 $start_time]
       incr start_time [expr 24*60*60]
    }
+}
+
+proc FilterMenuAdd_Themes {widget is_stand_alone} {
+   $widget add command -label "Theme categories..." -command PopupThemesSelection
 }
 
 proc FilterMenuAdd_Networks {widget is_stand_alone} {

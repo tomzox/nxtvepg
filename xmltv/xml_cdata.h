@@ -53,6 +53,7 @@ void XmlCdata_Free( XML_STR_BUF * pBuf );
 void XmlCdata_Grow( XML_STR_BUF * pBuf, uint len );
 void XmlCdata_Assign( XML_STR_BUF * pDestBuf, XML_STR_BUF * pSrcBuf );
 void XmlCdata_TrimWhitespace( XML_STR_BUF * pBuf );
+void XmlCdata_NormalizeWhitespace( XML_STR_BUF * pBuf );
 void XmlCdata_AppendParagraph( XML_STR_BUF * pBuf, bool insertTwo );
 void XmlCdata_AppendRawNOINLINE( XML_STR_BUF * pBuf, const char * pStr, uint len );
 void XmlCdata_AppendLatin1ToUtf8( XML_STR_BUF * pBuf, const char * pStr, uint len );

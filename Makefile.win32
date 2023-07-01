@@ -111,13 +111,13 @@ EPGSRC  = epgvbi/btdrv4win epgvbi/vbidecode epgvbi/zvbidecoder \
           epgctl/epgacqclnt epgctl/epgacqsrv
 XMLSRC  = xmltv/xml_prolog.tab xmltv/xml_scan.yy xmltv/xml_cdata \
           xmltv/xml_hash xmltv/xmltv_tags xmltv/xmltv_db xmltv/xmltv_cni \
-          xmltv/xmltv_timestamp xmltv/xmltv_themes xmltv/xmltv_main
+          xmltv/xmltv_timestamp xmltv/xmltv_main
 TTXSRC  = epgttx/ttx_scrape epgttx/ttx_date epgttx/ttx_ov_fmt \
           epgttx/ttx_feat epgttx/ttx_pg_ref epgttx/ttx_db epgttx/ttx_util \
           epgttx/ttx_xmltv epgttx/ttx_cif
 GUISRC  = epgui/uictrl epgui/pibox epgui/pilistbox epgui/pinetbox \
           epgui/pidescr epgui/pioutput epgui/pifilter epgui/piremind \
-          epgui/statswin epgui/timescale epgui/pdc_themes epgui/menucmd \
+          epgui/statswin epgui/timescale epgui/menucmd \
           epgui/epgmain epgui/loadtcl epgui/wintv epgui/wintvcfg \
           epgui/wintvui epgui/epgsetup epgui/cmdline epgui/rcfile \
           epgui/dumptext epgui/dumphtml epgui/dumpxml epgui/uidump \
@@ -125,7 +125,7 @@ GUISRC  = epgui/uictrl epgui/pibox epgui/pilistbox epgui/pinetbox \
           epgui/daemon
 CLDSRC  = epgui/daemon_main epgui/daemon epgui/epgsetup epgui/cmdline \
           epgui/rcfile epgui/wintvcfg epgui/dumptext epgui/dumpxml \
-          epgui/pidescr epgui/pdc_themes epgui/epgquery
+          epgui/pidescr epgui/epgquery
 TCLSRC  = epgtcl/mainwin epgtcl/dlg_hwcfg epgtcl/dlg_xawtvcf \
           epgtcl/dlg_ctxmencf epgtcl/dlg_acqmode epgtcl/dlg_netsel \
           epgtcl/dlg_dump epgtcl/dlg_netname epgtcl/dlg_udefcols \
@@ -138,7 +138,7 @@ TCLLSRC = epgtcl/tcl_libs epgtcl/tk_libs epgtcl/ttk_libs
 TVSIM_CSRC    = tvsim/tvsim_main tvsim/winshmclnt
 TVSIM_CSRC2   = epgvbi/btdrv4win epgvbi/tvchan epgvbi/vbidecode epgvbi/zvbidecoder \
                 epgvbi/ttxdecode epgvbi/hamming epgvbi/cni_tables epgvbi/syserrmsg \
-                epgctl/debug epgui/pdc_themes epgui/wintvcfg epgui/wintvui \
+                epgctl/debug epgui/wintvcfg epgui/wintvui \
                 epgui/rcfile
 TVSIM_TCLSRC  = tvsim/tvsim_gui
 VBIREC_CSRC   = tvsim/vbirec_main
@@ -246,7 +246,7 @@ verifyxml : $(BUILD_DIR)/verifyxml
 
 # standalone XMLTV processor for performance tests
 # note: requires uncommenting main() in source module xmltv_db
-XMLTESTSRC  = $(XMLSRC) $(EPGSRC) epgui/pidescr epgui/pdc_themes
+XMLTESTSRC  = $(XMLSRC) $(EPGSRC) epgui/pidescr
 XMLTESTOBJ  = $(addprefix $(BUILD_DIR)/, $(addsuffix .o, $(XMLTESTSRC)))
 $(BUILD_DIR)/parsexmltv : $(XMLTESTOBJ)
 	$(CC) -o $@ $(XMLTESTOBJ) $(LDFLAGS) $(ACQLIBS)

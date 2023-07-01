@@ -29,7 +29,5 @@ void MenuCmd_Init( void );
 void AutoStartAcq( void );
 void MenuCmd_AcqStatsUpdate( void );
 
-void SetUserLanguage( Tcl_Interp *interp );
-
 
 #endif  // __MENUCMD_H

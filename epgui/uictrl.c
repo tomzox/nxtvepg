@@ -452,14 +452,15 @@ void UiControl_AiStateChange( ClientData clientData )
          eval_check(interp, "DownloadUserDefinedColumnFilters");
          eval_check(interp, "UpdatePiListboxColumParams");
 
-         // update the language (if in automatic mode)
-         SetUserLanguage(interp);
-
          // update the netwop prefilter and refresh the display
          PiBox_AiStateChange();
 
          // apply new filter cache to reminders (done after PI-box refresh to reduce delay)
          sprintf(comm, "Reminder_UpdateTimer");
+         eval_check(interp, comm);
+
+         // update list of theme category names defined by provider database
+         sprintf(comm, "UpdateThemeCategories");
          eval_check(interp, comm);
       }
       else

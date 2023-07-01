@@ -402,8 +402,6 @@ static void MainStartDump( void )
 
    if (pUiDbContext != NULL)
    {
-      SetUserLanguage(interp);
-
       EpgDump_Standalone(pUiDbContext, stdout,
                          mainOpts.optDumpMode, mainOpts.optDumpSubMode, mainOpts.optDumpFilter);
 
@@ -2243,7 +2241,6 @@ int main( int argc, char *argv[] )
       #endif
       // pass TV card hardware parameters to the driver
       EpgSetup_CardDriver(mainOpts.videoCardIndex);
-      SetUserLanguage(interp);
       uiMinuteTime  = time(NULL);
       uiMinuteTime -= uiMinuteTime % 60;
 

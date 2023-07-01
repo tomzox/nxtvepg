@@ -398,10 +398,10 @@ static bool CmdLine_GetDumpMode( char * argv[], int argIdx )
          mainOpts.optDumpMode = EPG_DUMP_TEXT;
          mainOpts.optDumpSubMode = DUMP_TEXT_PI;
       }
-      else if (strcasecmp("pdc", pModeStr) == 0)
+      else if (strcasecmp("themes", pModeStr) == 0)
       {
          mainOpts.optDumpMode = EPG_DUMP_TEXT;
-         mainOpts.optDumpSubMode = DUMP_TEXT_PDC;
+         mainOpts.optDumpSubMode = DUMP_TEXT_THEMES;
       }
       else if (strcasecmp("xml", pModeStr) == 0)
       {

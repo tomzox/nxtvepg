@@ -51,6 +51,7 @@ typedef struct
    uint            provCni;
    uint          * netwopMap;
    uint          * revNetwopMap;
+   uint          * themeIdMap;
 } EPGDB_MERGE_PROV_CTX;
 
 typedef struct

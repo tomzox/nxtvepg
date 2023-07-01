@@ -94,6 +94,16 @@ void EpgDbDestroy( PDBC dbc, bool keepAi )
       }
       dbc->pObsoletePi = NULL;
 
+      if (dbc->pThemes != NULL)
+      {
+         for (uint idx = 0; idx < dbc->themeCount; ++idx)
+         {
+            xfree(dbc->pThemes[idx]);
+         }
+         xfree(dbc->pThemes);
+         dbc->pThemes = NULL;
+      }
+
       if (keepAi == FALSE)
       {
          // free AI

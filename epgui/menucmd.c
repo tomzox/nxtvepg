@@ -50,7 +50,6 @@
 #include "epgui/pibox.h"
 #include "epgui/piremind.h"
 #include "epgui/pifilter.h"
-#include "epgui/pdc_themes.h"
 #include "epgui/menucmd.h"
 #include "epgui/uictrl.h"
 #include "epgui/rcfile.h"
@@ -597,60 +596,6 @@ static int MenuCmd_IsAcqExternal( ClientData ttp, Tcl_Interp *interp, int objc, 
       result = TCL_OK;
    }
    return result;
-}
-
-// ----------------------------------------------------------------------------
-// Set user configured language of PDC themes
-// - called during startup and manual config change, and due to automatic language
-//   selection mode also after provider switch and AI version change
-//
-void SetUserLanguage( Tcl_Interp *interp )
-{
-   CONST84 char * pTmpStr;
-   EPG_LANG_CODE langCode = EPG_LANG_UNKNOWN;
-   static EPG_LANG_CODE prevLangCode = EPG_LANG_UNKNOWN;
-
-   pTmpStr = Tcl_GetVar(interp, "menuUserLanguage", TCL_GLOBAL_ONLY);
-   if (pTmpStr != NULL)
-   {
-      if (strcmp(pTmpStr, "auto") == 0)
-      {
-         // automatic mode: determine language from AI block
-         langCode = EpgSetup_GetDefaultLang(pUiDbContext);
-      }
-      else if (strlen(pTmpStr) == 2)
-      {
-         // expect language code in upper-case ASCII characters
-         langCode = EPG_SET_LANG(pTmpStr[0], pTmpStr[1]);
-      }
-      else
-      {
-         debug1("SetUserLanguage: failed to parse language code '%s'", pTmpStr);
-      }
-
-      // pass the language index to the PDC themes module
-      PdcThemeSetLanguage(langCode);
-
-      if ((langCode != prevLangCode) && (prevLangCode != EPG_LANG_UNKNOWN))
-      {
-         // rebuild the themes filter menu
-         eval_check(interp, "FilterMenuAdd_Themes .menubar.filter.themes 0");
-      }
-      prevLangCode = langCode;
-   }
-   else
-      debug0("SetUserLanguage: Tcl var menuUserLanguage is undefined");
-}
-
-// ----------------------------------------------------------------------------
-// Trigger update of user configured language after menu selection
-//
-static int MenuCmd_UpdateLanguage( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
-{
-   // load the new language setting from the Tcl config variable
-   SetUserLanguage(interp);
-
-   return TCL_OK;
 }
 
 // ----------------------------------------------------------------------------
@@ -2559,7 +2504,6 @@ void MenuCmd_Init( void )
       Tcl_CreateObjCommand(interp, "C_ProvMerge_Start", MenuCmd_ProvMerge_Start, (ClientData) NULL, NULL);
       Tcl_CreateObjCommand(interp, "C_MergeTtxProviders", MenuCmd_MergeTtxProviders, (ClientData) NULL, NULL);
 
-      Tcl_CreateObjCommand(interp, "C_UpdateLanguage", MenuCmd_UpdateLanguage, (ClientData) NULL, NULL);
       Tcl_CreateObjCommand(interp, "C_GetProvServiceName", MenuCmd_GetProvServiceName, (ClientData) NULL, NULL);
       Tcl_CreateObjCommand(interp, "C_GetProvServiceInfos", MenuCmd_GetProvServiceInfos, (ClientData) NULL, NULL);
       Tcl_CreateObjCommand(interp, "C_GetCurrentDatabaseCni", MenuCmd_GetCurrentDatabaseCni, (ClientData) NULL, NULL);

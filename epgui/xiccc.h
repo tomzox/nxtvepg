@@ -25,7 +25,7 @@
 // ----------------------------------------------------------------------------
 // Protocol constants and types
 //
-#define ICCCM_PROTO_VSTR      "NETAIP/1.0"
+#define ICCCM_PROTO_VSTR      "NETAIP/3.1"
 
 typedef enum
 {
@@ -58,7 +58,6 @@ typedef struct
    uint         freq;
    char         channelName[15];
    uint         cni;
-   uint         epgPiFormat;
    uint         epgPiCount;
    uint         epgUpdate;
 } XICCC_MSG_SETSTATION;

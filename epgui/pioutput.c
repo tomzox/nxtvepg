@@ -40,7 +40,6 @@
 #include "epgdb/epgdbif.h"
 #include "epgui/epgmain.h"
 #include "epgui/epgsetup.h"
-#include "epgui/pdc_themes.h"
 #include "epgui/pifilter.h"
 #include "epgui/pibox.h"
 #include "epgui/pidescr.h"
@@ -389,7 +388,7 @@ uint PiOutput_PrintColumnItem( const PI_BLOCK * pPiBlock, PIBOX_COL_TYPES type,
          case PIBOX_COL_THEME:
             if (pPiBlock->no_themes > 0)
             {
-               uchar theme;
+               uint  theme;
                uint  themeIdx;
 
                if ( (pPiFilterContext != NULL) &&  // check req. when in cmd-line dump mode
@@ -401,41 +400,18 @@ uint PiOutput_PrintColumnItem( const PI_BLOCK * pPiBlock, PIBOX_COL_TYPES type,
                   for (themeIdx=0; themeIdx < pPiBlock->no_themes; themeIdx++)
                   {
                      theme = pPiBlock->themes[themeIdx];
-                     if ( (theme < 0x80) &&
-                          PdcThemeIsDefined(theme) &&
-                          !EpgDbFilterIsThemeFiltered(pPiFilterContext, theme) )
+                     if ( !EpgDbFilterIsThemeFiltered(pPiFilterContext, theme) )
                      {
                         break;
                      }
                   }
-               }
-               else
-                  themeIdx = PI_MAX_THEME_COUNT;
-
-               if (themeIdx >= pPiBlock->no_themes)
-               {  // no filter enabled or nothing found above
-                  // -> select the "most significant" theme: lowest PDC index
-                  uint minThemeIdx = PI_MAX_THEME_COUNT;
-                  for (themeIdx=0; themeIdx < pPiBlock->no_themes; themeIdx++)
-                  {
-                     theme = pPiBlock->themes[themeIdx];
-                     if ( (theme >= 0x80) || PdcThemeIsDefined(theme) )
-                     {
-                        if ( (minThemeIdx == PI_MAX_THEME_COUNT) ||
-                             (theme < pPiBlock->themes[minThemeIdx]) )
-                        {
-                           minThemeIdx = themeIdx;
-                        }
-                     }
-                  }
-                  if (minThemeIdx < pPiBlock->no_themes)
-                     themeIdx = minThemeIdx;
-                  else
+                  if (themeIdx >= pPiBlock->no_themes)
                      themeIdx = 0;
                }
+               else
+                  themeIdx = 0;
 
-               theme = pPiBlock->themes[themeIdx];
-               pResult = PdcThemeGet(theme);
+               pResult = EpgDbGetThemeStr(pUiDbContext, pPiBlock->themes[themeIdx]);
             }
             break;
 

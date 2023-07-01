@@ -726,3 +726,21 @@ bool EpgDbGetStat( CPDBC dbc, EPGDB_BLOCK_COUNT * pCount, time_t now, time_t tsA
 
    return result;
 }
+
+// ----------------------------------------------------------------------------
+// Returns the string representation of a theme handle
+//
+const char * EpgDbGetThemeStr( const EPGDB_CONTEXT * dbc, uint themeIdx )
+{
+   if (themeIdx < dbc->themeCount)
+   {
+      assert(dbc->pThemes != NULL);  // implied by themeCount > 0
+
+      return dbc->pThemes[themeIdx];
+   }
+   else
+   {
+      debug2("EpgDb-GetThemeStr: invalid idx:%d >= count:%d", themeIdx, dbc->themeCount);
+      return "unknown";
+   }
+}

@@ -144,6 +144,7 @@ FILTER_CONTEXT * EpgDbFilterCopyContext( const FILTER_CONTEXT * fc )
 
       // copy dynamically allocated arrays
       DUP_ARRAY(fc->act.pNetwopFilterField, newfc->act.pNetwopFilterField, fc->act.netwopCount);
+      DUP_ARRAY(fc->act.themeFilterField, newfc->act.themeFilterField, fc->act.themeCount);
 
       // copy filter parameter chain
       newfc->act.pSubStrCtx = EpgDbFilterCopySubContexts(fc->act.pSubStrCtx);
@@ -192,6 +193,9 @@ static void EpgDbFilterDestroyAct( FILTER_CONTEXT * fc, FILTER_CTX_ACT * fc_act 
 
       if (fc_act->pNetwopFilterField != NULL)
          xfree(fc_act->pNetwopFilterField);
+
+      if (fc_act->themeFilterField != NULL)
+         xfree(fc_act->themeFilterField);
 
       fc_next = fc_act->pNext;
       if (fc_act != &fc->act)
@@ -421,42 +425,67 @@ uchar * EpgDbFilterGetNetwopFilter( FILTER_CONTEXT *fc, uint count )
 // - i.e. a PI has to match each enabled class; a class is matched if the
 //   PI has at least one theme attribute of that class
 //
-uchar EpgDbFilterInitThemes( FILTER_CONTEXT *fc, uchar themeClassBitField )
+uchar EpgDbFilterInitThemes( FILTER_CONTEXT *fc, uint themeCount, uchar themeClassBitField )
 {
-   uint index;
+   FILTER_CTX_ACT * fc_act = fc->pFocus;
+
+   if (fc_act->themeCount < themeCount)
+   {
+      uint size = sizeof(*fc_act->themeFilterField) * themeCount;
+      fc_act->themeFilterField = xrealloc(fc_act->themeFilterField, size);
+      memset(fc_act->themeFilterField + fc_act->themeCount, 0,
+             (themeCount - fc_act->themeCount) * sizeof(*fc_act->themeFilterField));
+      fc_act->themeCount = themeCount;
+   }
 
    if (themeClassBitField == 0xff)
    {  // clear all classes
-      memset(fc->pFocus->themeFilterField, 0, sizeof(fc->pFocus->themeFilterField));
-      fc->pFocus->usedThemeClasses = 0;
+      memset(fc_act->themeFilterField, 0, sizeof(*fc_act->themeFilterField) * fc_act->themeCount);
+      fc_act->usedThemeClasses = 0;
    }
    else
    {  // clear the setting of selected classes only
-      for (index=0; index < 256; index++)
+      for (uint index=0; index < fc_act->themeCount; index++)
       {
-         fc->pFocus->themeFilterField[index] &= ~ themeClassBitField;
+         fc_act->themeFilterField[index] &= ~ themeClassBitField;
       }
-      fc->pFocus->usedThemeClasses &= ~ themeClassBitField;
+      fc_act->usedThemeClasses &= ~ themeClassBitField;
    }
 
-   return fc->pFocus->usedThemeClasses;
+   return fc_act->usedThemeClasses;
 }
 
 // ---------------------------------------------------------------------------
 // Assign a range of theme indices to a class
 //
-void EpgDbFilterSetThemes( FILTER_CONTEXT *fc, uchar firstTheme, uchar lastTheme, uchar themeClassBitField )
+void EpgDbFilterSetThemes( FILTER_CONTEXT *fc, uint firstTheme, uint lastTheme, uchar themeClassBitField )
 {
-   uint index;
-
    assert(themeClassBitField != 0);
    assert(firstTheme <= lastTheme);
 
-   for (index = firstTheme; index <= lastTheme; index++)
+   if (lastTheme < fc->pFocus->themeCount)
    {
-      fc->pFocus->themeFilterField[index] |= themeClassBitField;
+      for (uint index = firstTheme; index <= lastTheme; index++)
+      {
+         fc->pFocus->themeFilterField[index] |= themeClassBitField;
+      }
+      fc->pFocus->usedThemeClasses |= themeClassBitField;
    }
-   fc->pFocus->usedThemeClasses |= themeClassBitField;
+   else
+      debug3("EpgDbFilter-SetThemes: invalid theme indices:%d-%d >= count:%d", firstTheme, lastTheme, fc->pFocus->themeCount);
+}
+
+// ---------------------------------------------------------------------------
+// Query if the given theme is selected by the filter
+//
+bool EpgDbFilterIsThemeFiltered( FILTER_CONTEXT *fc, uint index )
+{
+   if (index < fc->pFocus->themeCount)
+   {
+      return (fc->pFocus->themeFilterField[index] & fc->pFocus->usedThemeClasses) != 0;
+   }
+   debug2("EpgDbFilter-IsThemeFiltered: invalid theme index:%d >= count:%d", index, fc->pFocus->themeCount);
+   return FALSE;
 }
 
 // ---------------------------------------------------------------------------
@@ -1235,6 +1264,11 @@ static bool EpgDbFilterMatchAct( const EPGDB_CONTEXT *dbc, const FILTER_CONTEXT 
 
    if ((fc_act->enabledFilters & FILTER_THEMES) && (skipThemes == FALSE))
    {
+      if (fc_act->usedThemeClasses == 0)
+      {  // no theme selected in filter: disable all
+         goto failed;
+      }
+
       for (fclass=1; fclass != 0; fclass <<= 1)
       {  // AND across all classes
          if (fc_act->usedThemeClasses & fclass)
@@ -1242,7 +1276,8 @@ static bool EpgDbFilterMatchAct( const EPGDB_CONTEXT *dbc, const FILTER_CONTEXT 
             fail = TRUE;
             for (index=0; index < pPi->no_themes; index++)
             {  // OR across all themes in a class
-               if (fc_act->themeFilterField[pPi->themes[index]] & fclass)
+               if ((pPi->themes[index] < fc->pFocus->themeCount) &&
+                   (fc_act->themeFilterField[pPi->themes[index]] & fclass))
                {
                   fail = FALSE;
                   break;

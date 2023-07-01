@@ -130,6 +130,7 @@ typedef struct FILTER_CTX_ACT_struct
    uchar     forkCombMode;
    sint      forkTag;
    uint      netwopCount;   // size of dynamically allocated netwopFilterField
+   uint      themeCount;    // size of dynamically allocated themeFilterField
 
    uchar     firstProgIdx, lastProgIdx;
    time_t    timeBegin, timeEnd;
@@ -137,7 +138,7 @@ typedef struct FILTER_CTX_ACT_struct
    uint      duration_min;
    uint      duration_max;
    bool    * pNetwopFilterField;
-   uchar     themeFilterField[256];
+   uchar   * themeFilterField;
    uchar     usedThemeClasses;
    uchar     invertedThemeClasses;
    uchar     parentalRating;
@@ -173,7 +174,6 @@ typedef struct
 #define EpgDbFilterGetExpireTime(FC) ((FC)->expireTime)
 #define EpgDbFilterIsEnabled(FC,TYP) (((FC)->pFocus->enabledFilters & (TYP)) != 0)
 #define EpgDbFilterIsForked(FC)      ((FC)->act.pNext != NULL)
-#define EpgDbFilterIsThemeFiltered(FC,IDX) (((FC)->pFocus->themeFilterField[(IDX)&0xff] & (FC)->pFocus->usedThemeClasses) != 0)
 
 // ----------------------------------------------------------------------------
 // global function declarations
@@ -205,8 +205,9 @@ void   EpgDbFilterSetExpireTime( FILTER_CONTEXT *fc, ulong newExpireTime );
 void   EpgDbFilterSetDateTimeBegin( FILTER_CONTEXT *fc, ulong newTimeBegin );
 void   EpgDbFilterSetDateTimeEnd( FILTER_CONTEXT *fc, ulong newTimeEnd );
 void   EpgDbFilterSetMinMaxDuration( FILTER_CONTEXT *fc, uint dur_min, uint dur_max );
-uchar  EpgDbFilterInitThemes( FILTER_CONTEXT *fc, uchar themeClassBitField );
-void   EpgDbFilterSetThemes( FILTER_CONTEXT *fc, uchar firstTheme, uchar lastTheme, uchar themeClassBitField );
+uchar  EpgDbFilterInitThemes( FILTER_CONTEXT *fc, uint themeCount, uchar themeClassBitField );
+void   EpgDbFilterSetThemes( FILTER_CONTEXT *fc, uint firstTheme, uint lastTheme, uchar themeClassBitField );
+bool   EpgDbFilterIsThemeFiltered( FILTER_CONTEXT *fc, uint index );
 void   EpgDbFilterSetParentalRating( FILTER_CONTEXT *fc, uchar parentalRating );
 void   EpgDbFilterSetEditorialRating( FILTER_CONTEXT *fc, uchar editorialRating );
 void   EpgDbFilterSetFeatureFlags( FILTER_CONTEXT *fc, uchar index, uint flags, uint mask );

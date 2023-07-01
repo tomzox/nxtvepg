@@ -185,6 +185,7 @@ const PI_BLOCK * EpgDbSearchFirstPiAfter( const EPGDB_CONTEXT * dbc, time_t min_
 const PI_BLOCK * EpgDbSearchFirstPi( const EPGDB_CONTEXT * dbc, const FILTER_CONTEXT *fc ) { return pFakePi; }
 const PI_BLOCK * EpgDbSearchNextPi( const EPGDB_CONTEXT * dbc, const FILTER_CONTEXT *fc, const PI_BLOCK * pPiBlock ) { return pFakePi; }
 bool EpgDbContextIsMerged( const EPGDB_CONTEXT * dbc ) { return FALSE; }
+const char * EpgDbGetThemeStr( const EPGDB_CONTEXT * dbc, uint themeIdx ) { return "theme"; }
 
 FILTER_CONTEXT * EpgDbFilterCreateContext( void ) { return NULL; }
 void   EpgDbFilterDestroyContext( FILTER_CONTEXT * fc ) {}

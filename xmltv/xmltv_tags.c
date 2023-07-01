@@ -245,6 +245,7 @@ typedef enum
    XML_NO_PCDATA = 0,
    XML_HAS_PCDATA,
    XML_DISCARD_PCDATA,
+   XML_PCDATA_NORMALIZED,
    XML_PCDATA_UNSTRIPPED
 } XML_PCDATA_DEF;
 
@@ -373,7 +374,7 @@ static const XML_TAGDEF xmltv_tag_def[] =
      { NULL, NULL, Xmltv_PiDateAdd, NULL },
      XMLTV_NO_ATTR,
    },
-   { XMLTV5_PI_CAT, "category", XML_NO_CHILDS, XML_HAS_PCDATA,
+   { XMLTV5_PI_CAT, "category", XML_NO_CHILDS, XML_PCDATA_NORMALIZED,
      { Xmltv_PiCatOpen, Xmltv_PiCatClose, Xmltv_PiCatAddText, NULL },
      XMLTV_ATTR(xmltv5_attr_lang_only),
    },
@@ -682,7 +683,11 @@ void XmltvTags_Data( XML_STR_BUF * pBuf )
    if ( (xmltv_tag_def[state].hasPcData != XML_NO_PCDATA) &&
         (xmltv_tag_def[state].hasPcData != XML_DISCARD_PCDATA) )
    {
-      if (xmltv_tag_def[state].hasPcData != XML_PCDATA_UNSTRIPPED)
+      if (xmltv_tag_def[state].hasPcData == XML_PCDATA_NORMALIZED)
+      {
+         XmlCdata_NormalizeWhitespace(pBuf);
+      }
+      else if (xmltv_tag_def[state].hasPcData != XML_PCDATA_UNSTRIPPED)
       {
          XmlCdata_TrimWhitespace(pBuf);
       }

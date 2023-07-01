@@ -156,6 +156,8 @@ proc CheckShortcutDeselection {} {
    global filter_invert
    global fsc_prevselection
 
+   set all_theme_names [C_GetAllThemesStrings]
+
    foreach sc_tag [ShortcutTree_Curselection .all.shortcuts.list] {
       set undo 0
       foreach {ident valist} [lindex $shortcuts($sc_tag) $::fsc_filt_idx] {
@@ -163,8 +165,9 @@ proc CheckShortcutDeselection {} {
             theme_class* {
                scan $ident "theme_class%d" class
                if {$class == $current_theme_class} {
-                  foreach theme $valist {
-                     if {![info exists theme_sel($theme)] || ($theme_sel($theme) == 0)} {
+                  foreach theme_name $valist {
+                     set theme_idx [lsearch -exact $all_theme_names $theme_name]
+                     if {($theme_idx >= 0) && ([lsearch -integer $theme_sel $theme_idx] < 0)} {
                         set undo 1
                         break
                      }
@@ -320,7 +323,7 @@ proc SelectSingleShortcut {sc_tag} {
       switch -glob $ident {
          theme_class*   {
             scan $ident "theme_class%d" class
-            C_SelectThemes $class $valist
+            C_SelectThemes [expr {1 << ($class - 1)}] $valist
          }
          features {
             C_SelectFeatures $valist
@@ -681,31 +684,49 @@ proc SelectShortcuts {sc_tag_list shortcuts_arr} {
    }
 
    # set the collected themes filter
-   for {set class 1} {$class < $theme_class_count} {incr class} {
+   set all_theme_names [C_GetAllThemesStrings]
+   for {set class 1} {$class <= $theme_class_count} {incr class} {
       if {$class == $current_theme_class} {
+         foreach theme $theme_sel {
+            set tmp_arr($theme) 1
+         }
          if {[info exists tcdesel($class)]} {
-            foreach theme $tcdesel($class) {
-               set theme_sel($theme) 0
+            foreach name $tcdesel($class) {
+               set idx [lsearch -exact $all_theme_names $name]
+               if {$idx >= 0} {
+                  set tmp_arr($idx) 0
+               }
             }
          }
          if {[info exists tcsel($class)]} {
-            foreach theme $tcsel($class) {
-               set theme_sel($theme) 1
+            foreach name $tcsel($class) {
+               set idx [lsearch -exact $all_theme_names $name]
+               if {$idx >= 0} {
+                  set tmp_arr($idx) 1
+               }
             }
          }
          set theme_class_sel($class) {}
-         foreach {index value} [array get theme_sel] {
+         foreach {index value} [array get tmp_arr] {
             if {$value != 0} {
-               set theme_class_sel($class) [concat $theme_class_sel($class) $index]
+               lappend theme_class_sel($class) $index
             }
          }
+         set theme_sel $theme_class_sel($class)
       } else {
          if {[info exists tcsel($class)]} {
-            set theme_class_sel($class) $tcsel($class)
+            set tmp_list {}
+            foreach name $tcsel($class) {
+               set idx [lsearch -exact $all_theme_names $name]
+               if {$idx >= 0} {
+                  lappend tmp_list $idx
+               }
+            }
+            set theme_class_sel($class) $tmp_list
             # XXX TODO: substract tcdesel
          }
       }
-      C_SelectThemes $class $theme_class_sel($class)
+      C_SelectThemes [expr {1 << ($class - 1)}] $theme_class_sel($class)
    }
 
    # unset/set the collected netwop filters
@@ -1050,21 +1071,19 @@ proc DescribeCurrentFilter {} {
    global filter_invert
 
    # save the setting of the current theme class into the array
-   set all {}
-   foreach {index value} [array get theme_sel] {
-      if {[expr $value != 0]} {
-         lappend all $index
-      }
-   }
-   set theme_class_sel($current_theme_class) $all
+   set theme_class_sel($current_theme_class) $theme_sel
 
    set all {}
    set mask {}
 
    # dump all theme classes
    for {set class 1} {$class <= $theme_class_count} {incr class} {
-      if {[string length $theme_class_sel($class)] > 0} {
-         lappend all "theme_class$class" $theme_class_sel($class)
+      if {[llength $theme_class_sel($class)] > 0} {
+         set theme_names {}
+         foreach theme $theme_class_sel($class) {
+            lappend theme_names [C_GetThemesString $theme]
+         }
+         lappend all "theme_class$class" $theme_names
          lappend mask themes
       }
    }
@@ -1193,13 +1212,13 @@ proc ShortcutPrettyPrint {filter inv_list} {
       switch -glob $ident {
          theme_class1 {
             foreach theme $valist {
-               append out "${not}Theme: [C_GetPdcString $theme]\n"
+               append out "${not}Theme: $theme\n"
             }
          }
          theme_class* {
             scan $ident "theme_class%d" class
             foreach theme $valist {
-               append out "${not}Theme, class ${class}: [C_GetPdcString $theme]\n"
+               append out "${not}Theme, class ${class}: $theme\n"
             }
          }
          netwops {

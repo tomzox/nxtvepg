@@ -37,7 +37,6 @@
 #include "epgdb/epgdbif.h"
 #include "epgctl/epgctxctl.h"
 #include "epgui/epgsetup.h"
-#include "epgui/pdc_themes.h"
 #include "epgui/pidescr.h"
 #include "epgui/dumptext.h"
 
@@ -88,6 +87,7 @@ static void DumpText_Pi( PI_DESCR_BUF * pb, const PI_BLOCK * pPi, const EPGDB_CO
    struct tm *pTm;
    time_t start_time;
    time_t stop_time;
+   uint  themeIdx;
    sint  len;
 
    if (pPi != NULL)
@@ -157,15 +157,16 @@ static void DumpText_Pi( PI_DESCR_BUF * pb, const PI_BLOCK * pPi, const EPGDB_CO
                        ((pPi->feature_flags & PI_FEATURE_SUBTITLES) ? '1' : '0') );
       PiDescription_BufAppend(pb, str_buf, len);
 
-      len = sprintf(str_buf, "%u\t%u\t%u\t%u\t%u\t%u\t%u\t",
-              ((pPi->no_themes > 0) ? pPi->themes[0] : 0),
-              ((pPi->no_themes > 1) ? pPi->themes[1] : 0),
-              ((pPi->no_themes > 2) ? pPi->themes[2] : 0),
-              ((pPi->no_themes > 3) ? pPi->themes[3] : 0),
-              ((pPi->no_themes > 4) ? pPi->themes[4] : 0),
-              ((pPi->no_themes > 5) ? pPi->themes[5] : 0),
-              ((pPi->no_themes > 6) ? pPi->themes[6] : 0) );
-      PiDescription_BufAppend(pb, str_buf, len);
+      themeIdx = 0;
+      for ( /**/; themeIdx < pPi->no_themes; ++themeIdx)
+      {
+         len = sprintf(str_buf, "%s\t", EpgDbGetThemeStr(pDbContext, pPi->themes[themeIdx]));
+         PiDescription_BufAppend(pb, str_buf, len);
+      }
+      for ( /**/; themeIdx < PI_MAX_THEME_COUNT; ++themeIdx)
+      {
+         PiDescription_BufAppend(pb, "\\N\t", 3);  // MySQL NULL
+      }
 
       PiDescription_BufAppend(pb, PI_GET_TITLE(pPi), -1);
       PiDescription_BufAppend(pb, "\t", 1);
@@ -215,37 +216,23 @@ static void DumpText_Ai( PI_DESCR_BUF * pb, const AI_BLOCK * pAi )
 }
 
 // ---------------------------------------------------------------------------
-// Export PDC themes table to MySQL
+// Export themes table to MySQL
 //
-static void DumpText_PdcThemes( PI_DESCR_BUF * pb )
+static void DumpText_ThemeNames( EPGDB_CONTEXT * pDbContext, PI_DESCR_BUF * pb )
 {
-   const char * pThemeStr_eng;
-   const char * pThemeStr_ger;
-   const char * pThemeStr_fra;
+   const char * pThemeStr;
    char  str_buf[128];
-   uint  idx;
    uint  len;
 
-   for (idx=0; idx <= 128; idx++)
+   for (uint idx = 0; idx < pDbContext->themeCount; idx++)
    {
-      pThemeStr_eng = PdcThemeGetByLang(idx, EPG_LANG_EN);
-      pThemeStr_ger = PdcThemeGetByLang(idx, EPG_LANG_DE);
-      pThemeStr_fra = PdcThemeGetByLang(idx, EPG_LANG_FR);
-      if ( (pThemeStr_eng != NULL) && (pThemeStr_ger != NULL) && (pThemeStr_fra != NULL) )
-      {
-         len = sprintf(str_buf, "%u\t%u\t",
-                               idx, PdcThemeGetCategory(idx));
-         PiDescription_BufAppend(pb, str_buf, len);
+      pThemeStr = EpgDbGetThemeStr(pDbContext, idx);
 
-         PiDescription_BufAppend(pb, pThemeStr_eng, -1);
-         PiDescription_BufAppend(pb, "\t", 1);
+      len = sprintf(str_buf, "%u\t", idx);
+      PiDescription_BufAppend(pb, str_buf, len);
 
-         PiDescription_BufAppend(pb, pThemeStr_ger, -1);
-         PiDescription_BufAppend(pb, "\t", 1);
-
-         PiDescription_BufAppend(pb, pThemeStr_fra, -1);
-         PiDescription_BufAppend(pb, "\n", 1);
-      }
+      PiDescription_BufAppend(pb, pThemeStr, -1);
+      PiDescription_BufAppend(pb, "\n", 1);
    }
 }
 
@@ -286,7 +273,7 @@ bool EpgDumpText_Single( EPGDB_CONTEXT * pDbContext, const PI_BLOCK * pPi, PI_DE
 }
 
 // ---------------------------------------------------------------------------
-// Export the complete database in "tab-seprarated" format for SQL import
+// Export the complete database in "tab-separated" format for SQL import
 //
 void EpgDumpText_Standalone( EPGDB_CONTEXT * pDbContext, FILTER_CONTEXT * fc,
                              FILE * fp, DUMP_TEXT_MODE mode )
@@ -300,10 +287,10 @@ void EpgDumpText_Standalone( EPGDB_CONTEXT * pDbContext, FILTER_CONTEXT * fc,
 
    EpgDbLockDatabase(pDbContext, TRUE);
 
-   // Dump PDC theme list
-   if (mode == DUMP_TEXT_PDC)
+   // Dump theme list
+   if (mode == DUMP_TEXT_THEMES)
    {
-      DumpText_PdcThemes(&pbuf);
+      DumpText_ThemeNames(pDbContext, &pbuf);
    }
    else if (mode == DUMP_TEXT_AI)
    {  // Dump application information block

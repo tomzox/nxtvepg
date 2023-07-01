@@ -31,10 +31,10 @@
 #=CONST= ::pit_vpspdc_pil 5
 #=CONST= ::pit_prat 6
 #=CONST= ::pit_erat 7
-#=CONST= ::pit_sound 8
-#=CONST= ::pit_is_wide 9
-#=CONST= ::pit_is_palplus 10
-#=CONST= ::pit_is_digital 11
+#=CONST= ::pit_erat_max 8
+#=CONST= ::pit_sound 9
+#=CONST= ::pit_is_wide 10
+#=CONST= ::pit_is_palplus 11
 #=CONST= ::pit_is_encrypted 12
 #=CONST= ::pit_is_live 13
 #=CONST= ::pit_is_repeat 14
@@ -46,9 +46,10 @@
 #=CONST= ::pit_theme_4 20
 #=CONST= ::pit_theme_5 21
 #=CONST= ::pit_theme_6 22
-#=CONST= ::pit_title 23
-#=CONST= ::pit_descr 24
-#=CONST= ::pit_count 25
+#=CONST= ::pit_theme_7 23
+#=CONST= ::pit_title 24
+#=CONST= ::pit_descr 25
+#=CONST= ::pit_count 26
 
 
 set program_title {}
@@ -386,17 +387,23 @@ proc DisplayPiDescription {pi_list} {
 
             set start [C_ClockScanIso [lindex $tmpl $::pit_Dstart] [lindex $tmpl $::pit_Hstart]]
             regexp {\d+:\d+} [lindex $tmpl $::pit_Hstop] stop
+
+            # separator between texts from different providers
             regsub -all { //%// } [lindex $tmpl $::pit_descr] "\n\n" tmps
+            # separator between paragraphs
             regsub -all { // } $tmps "\n" pi_desc
 
             .epgi.pi.desc insert end "[lindex $tmpl $::pit_title]\n" title
-            if {[lindex $tmpl $::pit_theme_0] != 0} {
-               .epgi.pi.desc insert end "[C_GetPdcString [lindex $tmpl $::pit_theme_0]]\n" features
+            if {[lindex $tmpl $::pit_theme_0] != "\\N"} {
+               .epgi.pi.desc insert end "[lindex $tmpl $::pit_theme_0]\n" features
             }
             .epgi.pi.desc insert end "[lindex $tmpl $::pit_netwop_name], " bold
             .epgi.pi.desc insert end "[C_ClockFormat $start {%a %d.%m., %H:%M}] - " bold
             .epgi.pi.desc insert end "$stop: " bold
             .epgi.pi.desc insert end $pi_desc paragraph
+
+         } else {
+             puts "WARNING: dropping malformed info string len: [llength $tmpl]"
          }
       }
    }

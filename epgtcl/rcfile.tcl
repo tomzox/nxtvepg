@@ -27,7 +27,7 @@ proc LoadRcFile {filename} {
    global showNetwopListbox showNetwopListboxLeft showShortcutListbox
    global showTuneTvButton showLayoutButton showStatusLine
    global showColumnHeader showDateScale
-   global hideOnMinimize menuUserLanguage help_winsize help_lang
+   global hideOnMinimize help_winsize help_lang
    global pibox_height pilistbox_cols shortinfo_height
    global pibox_type pinetbox_col_count pinetbox_col_width
    global pinetbox_rows pinetbox_rows_nonl
@@ -199,7 +199,7 @@ proc GetGuiRcData {} {
    global showNetwopListbox showNetwopListboxLeft showShortcutListbox
    global showTuneTvButton showLayoutButton showStatusLine
    global showColumnHeader showDateScale
-   global hideOnMinimize menuUserLanguage help_winsize help_lang
+   global hideOnMinimize help_winsize help_lang
    global pibox_height pilistbox_cols shortinfo_height
    global pibox_type pinetbox_col_count pinetbox_col_width
    global pinetbox_rows pinetbox_rows_nonl
@@ -277,7 +277,6 @@ proc GetGuiRcData {} {
       append rcfile [list set showDateScale $showDateScale] "\n"
       append rcfile [list set showColumnHeader $showColumnHeader] "\n"
       append rcfile [list set hideOnMinimize $hideOnMinimize] "\n"
-      append rcfile [list set menuUserLanguage $menuUserLanguage] "\n"
 
       # dump size of help window, if modified by the user
       if {[info exists help_lang]} {append rcfile [list set help_lang $help_lang] "\n"}

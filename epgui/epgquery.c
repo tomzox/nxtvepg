@@ -35,14 +35,12 @@
 #include "epgdb/epgblock.h"
 #include "epgdb/epgdbfil.h"
 #include "epgdb/epgdbif.h"
-#include "epgui/pdc_themes.h"
 #include "epgui/epgmain.h"
 #include "epgui/pidescr.h"
 #include "epgui/dumptext.h"
 #include "epgui/epgsetup.h"
 #include "epgui/epgquery.h"
 #include "epgui/rcfile.h"
-#include "xmltv/xmltv_themes.h"
 
 
 static const char * const pFilterKeywords[] =
@@ -332,45 +330,6 @@ static bool EpgQuery_PopIntRange( const char * pArg, uint * pArgOff, uint * p_in
 }
 
 // ----------------------------------------------------------------------------
-// Get a PDC code from a theme string
-//
-static bool EpgQuery_PopThemeStr( const char * pArg, uint * pArgOff, uint * p_int,
-                                  EPGDB_CONTEXT * pDbContext )
-{
-   bool result = FALSE;
-   HASHED_THEMES match = {0, 0};
-   char * pLower;
-   char * p;
-
-   // convert given theme category name to lower-case
-   pLower = xstrdup(pArg + *pArgOff);
-   p = pLower;
-   while (*p != 0)
-   {
-      *p = tolower(*p);
-      p++;
-   }
-
-   // determine language for theme categories from AI block
-   switch (EpgSetup_GetDefaultLang(pDbContext))
-   {
-      case EPG_LANG_DE: Xmltv_ParseThemeStringGerman(&match, pLower); break;
-      case EPG_LANG_FR: Xmltv_ParseThemeStringFrench(&match, pLower); break;
-      default:
-      case EPG_LANG_EN: Xmltv_ParseThemeStringEnglish(&match, pLower); break;
-   }
-   xfree(pLower);
-
-   *p_int = (match.theme ? match.theme : match.cat);
-   if (*p_int != 0)
-   {
-      *pArgOff += strlen(pArg + *pArgOff);
-      result = TRUE;
-   }
-   return result;
-}
-
-// ----------------------------------------------------------------------------
 // Parse an integer value in the query
 //
 static bool EpgQuery_PopInt( const char * pArg, uint * pArgOff, uint * p_int )
@@ -383,9 +342,9 @@ static bool EpgQuery_PopInt( const char * pArg, uint * pArgOff, uint * p_int )
 // - only applicable to a subset of filter types
 // - note: does not disable the filter
 //
-static void EpgQuery_FilterInit( FILTER_CONTEXT * fc, int filtType, uint netwopCount )
+static void EpgQuery_FilterInit( FILTER_CONTEXT * fc, int filtType, uint netwopCount, uint themeCount )
 {
-   dprintf1("EpgQuery-FilterInit: type %d\n", filtType);
+   dprintf3("EpgQuery-FilterInit: type:%d netCnt:%d themeCnt:%d\n", filtType, netwopCount, themeCount);
 
    switch (filtType)
    {
@@ -398,7 +357,7 @@ static void EpgQuery_FilterInit( FILTER_CONTEXT * fc, int filtType, uint netwopC
          EpgDbFilterInitNetwop(fc, netwopCount);
          break;
       case FKW_THEMES:
-         EpgDbFilterInitThemes(fc, 0xff);
+         EpgDbFilterInitThemes(fc, themeCount, 0xff);
          break;
 
       case FKW_EXPIRE_TIME:
@@ -532,7 +491,7 @@ static bool EpgQuery_FilterSet( EPGDB_CONTEXT * pDbContext,
             {
                bool isFromAi = FALSE;
                const char * pCfNetname = EpgSetup_GetNetName(pAiBlock, idx, &isFromAi);
-               if (strcasecmp(pArg, pCfNetname) == 0)
+               if (strcmp(pArg, pCfNetname) == 0)
                {
                   dprintf3("EpgQuery-FilterSet: NETNAME '%s': -> idx %u CNI:0x%04X\n", pArg, idx, AI_GET_NET_CNI_N(pAiBlock, idx));
                   EpgDbFilterSetNetwop(fc, idx);
@@ -550,24 +509,23 @@ static bool EpgQuery_FilterSet( EPGDB_CONTEXT * pDbContext,
 
       case FKW_THEMES:
          // TODO: support classes
-         argOff = 0;
-         count = 0;
-         if (EpgQuery_PopIntRange(pArg, &argOff, &int1, &int2))
+         if (pDbContext != NULL)
          {
-            do
+            for (idx = 0; idx < pDbContext->themeCount; ++idx)
             {
-               dprintf3("EpgQuery-FilterSet: THEME '%s': %d-%d\n", pArg, int1, int2);
-               EpgDbFilterSetThemes(fc, int1, int2, 1);
-               count += int2 - int1 + 1;
-            } while (EpgQuery_PopIntRange(pArg, &argOff, &int1, &int2));
+               if (strcmp(pArg, EpgDbGetThemeStr(pDbContext, idx)) == 0)
+               {
+                  dprintf2("EpgQuery-FilterSet: THEME '%s' -> idx:%d\n", pArg, idx);
+                  EpgDbFilterSetThemes(fc, idx, idx, 1);
+                  result = TRUE;
+               }
+            }
          }
-         else if (EpgQuery_PopThemeStr(pArg, &argOff, &int1, pDbContext))
-         {
-            // not numeric -> try to identify a PDC theme by sub-string search
-            EpgDbFilterSetThemes(fc, int1, int1, 1);
-            count += 1;
+         else
+         {  // syntax check only: check if theme string is present
+            result = (*pArg != 0);
          }
-         result = (count > 0);
+         argOff = strlen(pArg);
          break;
 
       case FKW_DURATION:
@@ -760,7 +718,7 @@ FILTER_CONTEXT * EpgQuery_Parse( EPGDB_CONTEXT * pDbContext, const char ** pQuer
                // TODO for some types we need to check there's only one instance
                if ((mask & pFilterMasks[filtType]) == 0)
                {
-                  EpgQuery_FilterInit(fc, filtType, pAiBlock->netwopCount);
+                  EpgQuery_FilterInit(fc, filtType, pAiBlock->netwopCount, pDbContext->themeCount);
                   mask |= pFilterMasks[filtType];
                }
 
@@ -808,7 +766,7 @@ bool EpgQuery_CheckSyntax( const char * pArg, char ** ppErrStr )
 
       if ((mask & pFilterMasks[filtType]) == 0)
       {
-         EpgQuery_FilterInit(fc, filtType, 0);
+         EpgQuery_FilterInit(fc, filtType, 0, 0);
          mask |= pFilterMasks[filtType];
       }
       result = EpgQuery_FilterSet(NULL, NULL, fc, filtType, pArg + argOff, ppErrStr);

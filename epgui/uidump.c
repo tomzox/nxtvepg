@@ -42,7 +42,6 @@
 #include "epgdb/epgdbif.h"
 #include "epgdb/epgdbmerge.h"
 #include "epgctl/epgacqctl.h"
-#include "epgui/pdc_themes.h"
 #include "epgui/pibox.h"
 #include "epgui/pidescr.h"
 #include "epgui/cmdline.h"
@@ -151,8 +150,8 @@ static DUMP_TEXT_MODE EpgDump_GetTextMode( const char * pModeStr )
          mode = DUMP_TEXT_AI;
       else if (strcasecmp("pi", pModeStr) == 0)
          mode = DUMP_TEXT_PI;
-      else if (strcasecmp("pdc", pModeStr) == 0)
-         mode = DUMP_TEXT_PDC;
+      else if (strcasecmp("themes", pModeStr) == 0)
+         mode = DUMP_TEXT_THEMES;
       else
          debug1("EpgDump-GetTextMode: unknown mode: %s", pModeStr);
    }
@@ -257,8 +256,7 @@ static bool EpgDump_ReadTclBool( Tcl_Interp *interp,
 // ---------------------------------------------------------------------------
 // Helper function to append multiple UTF-8 strings within a Tcl object
 //
-static Tcl_Obj * ConcatStringsAsObj( const char * pStr, const char * pStr2,
-                                     const char * pStr3, const char * pStr4 )
+static Tcl_Obj * ConcatStringsAsObj( const char * pStr, const char * pStr2, const char * pStr3 )
 {
    Tcl_Obj * pObj = Tcl_NewStringObj(pStr, -1);
 
@@ -267,9 +265,6 @@ static Tcl_Obj * ConcatStringsAsObj( const char * pStr, const char * pStr2,
 
    if (pStr3 != NULL)
       Tcl_AppendToObj(pObj, pStr3, strlen(pStr3));
-
-   if (pStr4 != NULL)
-      Tcl_AppendToObj(pObj, pStr4, strlen(pStr4));
 
    return pObj;
 }
@@ -285,7 +280,6 @@ static int EpgDump_GetRawPi( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_O
    const PI_BLOCK * pPiBlock;
    const char * pCfNetname;
    const char * pThemeStr;
-   const char * pGeneralStr;
    char start_str[50], stop_str[50];
    time_t start_time;
    time_t stop_time;
@@ -295,7 +289,7 @@ static int EpgDump_GetRawPi( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_O
    Tcl_Obj * pResultList;
    int result;
 #define APPEND_1(A,L) Tcl_ListObjAppendElement(interp, pResultList, Tcl_NewStringObj((A),(L)))
-#define APPEND_4(A,B,C,D) Tcl_ListObjAppendElement(interp, pResultList, ConcatStringsAsObj((A),(B),(C),(D)))
+#define APPEND_3(A,B,C) Tcl_ListObjAppendElement(interp, pResultList, ConcatStringsAsObj((A),(B),(C)))
 #define APPEND_ENC(E,A,B,C) Tcl_ListObjAppendElement(interp, pResultList, TranscodeToUtf8((E),(A),(B),(C)))
 
    if (objc != 1)
@@ -318,11 +312,11 @@ static int EpgDump_GetRawPi( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_O
          Tcl_ListObjAppendElement(interp, pResultList, Tcl_NewIntObj(pPiBlock->start_time));
 
          // third element is the programme title
-         APPEND_4(PI_GET_TITLE(pPiBlock), "\n", NULL, NULL);
+         APPEND_3(PI_GET_TITLE(pPiBlock), "\n", NULL);
 
          // following elements are the contents
          pCfNetname = EpgSetup_GetNetName(pAiBlock, pPiBlock->netwop_no, &isFromAi);
-         APPEND_4("Network: \t", pCfNetname, "\n", NULL);
+         APPEND_3("Network: \t", pCfNetname, "\n");
 
          start_time = pPiBlock->start_time;
          strftime(start_str, sizeof(start_str), "%a %d.%m %H:%M", localtime(&start_time));
@@ -388,9 +382,9 @@ static int EpgDump_GetRawPi( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_O
 
          for (index=0; index < pPiBlock->no_themes; index++)
          {
-            pThemeStr = PdcThemeGetWithGeneral(pPiBlock->themes[index], &pGeneralStr, TRUE);
-            len = sprintf(comm, "Theme:\t0x%02X ", pPiBlock->themes[index]);
-            APPEND_4(comm, pThemeStr, pGeneralStr, "\n");
+            len = sprintf(comm, "Theme:\t%d = ", pPiBlock->themes[index]);
+            pThemeStr = EpgDbGetThemeStr(pUiDbContext, pPiBlock->themes[index]);
+            APPEND_3(comm, pThemeStr, "\n");
          }
       }
       EpgDbLockDatabase(pUiDbContext, FALSE);

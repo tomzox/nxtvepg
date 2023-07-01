@@ -37,7 +37,6 @@
 #include "epgdb/epgdbfil.h"
 #include "epgdb/epgdbif.h"
 #include "epgui/epgmain.h"
-#include "epgui/pdc_themes.h"
 #include "epgui/pidescr.h"
 
 
@@ -596,44 +595,29 @@ void PiDescription_AppendDescriptionText( const PI_BLOCK * pPiBlock,
 }
 
 // ----------------------------------------------------------------------------
-// Print PDC themes into string with removed redundancy
+// Print theme names into string
 //
 void PiDescription_AppendCompressedThemes( const PI_BLOCK *pPiBlock, char * outstr, uint maxlen )
 {
    const char * pThemeStr;
-   uint idx, theme, themeCat, themeStrLen;
+   uint themeStrLen;
    char * po;
 
    if (maxlen > 0)
       outstr[0] = 0;
 
    po = outstr;
-   for (idx=0; idx < pPiBlock->no_themes; idx++)
+   for (uint idx=0; idx < pPiBlock->no_themes; idx++)
    {
-      theme = pPiBlock->themes[idx];
-      if (theme > 0x80)
-         theme = 0x80;
+      pThemeStr = EpgDbGetThemeStr(pUiDbContext, pPiBlock->themes[idx]);
 
-      pThemeStr = PdcThemeGet(theme);
-      themeCat  = PdcThemeGetCategory(theme);
-
-      if ( (pThemeStr != NULL) &&
-           // current theme is general and next same category -> skip
-           ( (themeCat != theme) ||
-             (idx + 1 >= pPiBlock->no_themes) ||
-             (themeCat != PdcThemeGetCategory(pPiBlock->themes[idx + 1])) ) &&
-           // current theme is identical to next -> skip
-           ( (idx + 1 >= pPiBlock->no_themes) ||
-             (theme != pPiBlock->themes[idx + 1]) ))
+      themeStrLen = strlen(pThemeStr);
+      if (maxlen > themeStrLen + 2)
       {
-         themeStrLen = strlen(pThemeStr);
-         if (maxlen > themeStrLen + 2)
-         {
-            strcpy(po, pThemeStr);
-            strcpy(po + themeStrLen, ", ");
-            po     += themeStrLen + 2;
-            maxlen -= themeStrLen + 2;
-         }
+         strcpy(po, pThemeStr);
+         strcpy(po + themeStrLen, ", ");
+         po     += themeStrLen + 2;
+         maxlen -= themeStrLen + 2;
       }
    }
    // remove last comma if nothing follows

@@ -5,6 +5,9 @@ boost any item's priority, find more points that need to be fixed or if
 you have ideas for additional features.
 
 Post-Nextview EPG:
+- Filter "Now" & "Next" are very slow on fully expired, large database
+- update xmltv.dtd support (e.g. video/audio "present")
+- change AI/PI to hold original XMLTV info elements (i.e. reduce conversion)
 - Sub-string search filter: case insensitive search missing in epgdb/epgdbfil.c
 - XMLTV service name: when merging teletext-only use "Merged teletext (%d networks)"
 - bad error message when using "Load teletext EPG" and no files available yet
@@ -21,8 +24,6 @@ Post-Nextview EPG:
   "extended" selection (i.e. allow multiple selections)
 - merge dialog: use multi-col table & display networks
 - netname dialog: add warning that names should be changed in channels.conf?
-- remove use of PDC theme table: create table from themes found in XMLTV
-- change AI/PI to hold original XMLTV info elements (i.e. reduce conversion)
 - allow merge of different channel ID from different providers
 - Remove merge provider limit of 63 (MAX_MERGED_DB_COUNT)
 - Remove RC file limit for netwop selection 8192 (RC_MAX_DB_NETWOPS)
@@ -84,15 +85,10 @@ Teletext grabber:
 - display EPG into in connected TV app, even if captured "late" from TTX
 
 XMLTV import:
-- get language from XMLTV input for SetUserLanguage(), "auto" mode
-  for non-auto mode: pass language selection to XML parser;
-  used by EpgSetup_GetDefaultLang(): pAiBlock->lang
+- pass user language selection to XML parser: may be used to select between
+  elements available in multiple languages
 - programmes with start time only should not be discarded
   automatically set stop time to start of subsequent programme
-- extend PI struct to hold all XMLTV info fields?
-- theme codes: build custom theme table from theme string in XML file (?)
-  problem #1: storing filter shortcuts (must store theme name, not index)
-  problem #2: building theme main categories/hierarchy (e.g. movie/show/news)
 
 XICCC TODO:
 - large data transfers

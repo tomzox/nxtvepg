@@ -58,7 +58,6 @@
 #include "epgui/epgsetup.h"
 #include "epgui/epgquery.h"
 #include "epgui/rcfile.h"
-#include "epgui/pdc_themes.h"
 #include "epgui/pidescr.h"
 #include "epgui/dumptext.h"
 #include "epgui/dumpxml.h"
@@ -242,9 +241,6 @@ void Daemon_StartDump( void )
 
    if (pUiDbContext != NULL)
    {
-      // determine language for theme categories from AI block (copied from SetUserLanguage)
-      PdcThemeSetLanguage( EpgSetup_GetDefaultLang(pUiDbContext) );
-
       if (mainOpts.optDumpFilter != NULL)
       {
          fc = EpgQuery_Parse(pUiDbContext, mainOpts.optDumpFilter);

@@ -264,12 +264,64 @@ void XmlCdata_TrimWhitespace( XML_STR_BUF * pBuf )
 }
 
 // ----------------------------------------------------------------------------
+// Replace all non-printable characters with single space and trim
+//
+void XmlCdata_NormalizeWhitespace( XML_STR_BUF * pBuf )
+{
+   XmlCdata_TrimWhitespace(pBuf);
+
+   if (pBuf != NULL)
+   {
+      if (pBuf->off > 0)
+      {
+         uchar * pSrc = (uchar*)pBuf->pStrBuf + pBuf->skip;
+         bool haveBlank = FALSE;
+
+         // search for first non-printable character or double-space
+         while (*pSrc != 0)
+         {
+            if ((*pSrc > ' ') && (*pSrc != 0x7F))  // printable
+               haveBlank = FALSE;
+            else if ((*pSrc < ' ') || (*pSrc == 0x7F))  // non-printable (control character)
+               break;
+            else if (!haveBlank)  // plain space character
+               haveBlank = TRUE;
+            else  // duplicate space character
+               break;
+            pSrc++;
+         }
+
+         if (*pSrc != 0)
+         {
+            uchar * pDst = pSrc;
+
+            while (*pSrc != 0)
+            {
+               if ((*pSrc > ' ') && (*pSrc != 0x7F))  // printable
+               {
+                  *(pDst++) = *pSrc;
+                  haveBlank = FALSE;
+               }
+               else if (!haveBlank)  // space or non-printable
+               {
+                  *(pDst++) = ' ';
+                  haveBlank = TRUE;
+               }
+               pSrc++;
+            }
+            *pDst = 0;
+         }
+      }
+   }
+}
+
+// ----------------------------------------------------------------------------
 // Append paragraph break to text buffer
 //
 void XmlCdata_AppendParagraph( XML_STR_BUF * pBuf, bool insertTwo )
 {
    // if string is empty, do nothing
-   if (pBuf->off > 0)
+   if (pBuf->off > pBuf->skip)
    {
       if (insertTwo)
       {
@@ -289,7 +341,7 @@ void XmlCdata_AppendParagraph( XML_STR_BUF * pBuf, bool insertTwo )
       }
       else
       {
-         if ( (pBuf->off > 1) &&
+         if ( (pBuf->off > pBuf->skip + 1) &&
               (pBuf->pStrBuf[pBuf->off - 1] != '\n') )
          {
             XmlCdata_AppendRaw(pBuf, "\n", 1);

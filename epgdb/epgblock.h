@@ -78,12 +78,12 @@ typedef struct
 //    PI Block
 // ---------------------------------------------------------------------------
 
-#define PI_MAX_THEME_COUNT      7
+#define PI_MAX_THEME_COUNT         8
 #define PI_PARENTAL_UNDEFINED      0xFFU
 #define PI_EDITORIAL_UNDEFINED     0xFFU
 
-#define PI_FEATURE_VIDEO_HD        0x400  // not in Nextview EPG
-#define PI_FEATURE_VIDEO_BW        0x200  // not in Nextview EPG
+#define PI_FEATURE_VIDEO_HD        0x400
+#define PI_FEATURE_VIDEO_BW        0x200
 #define PI_FEATURE_SUBTITLES       0x100
 #define PI_FEATURE_REPEAT          0x080
 #define PI_FEATURE_LIVE            0x040
@@ -102,10 +102,11 @@ typedef uint8_t EPGDB_MERGE_SRC;
 
 typedef struct
 {
-  uint32_t  netwop_no;
   time32_t  start_time;
   time32_t  stop_time;
   uint32_t  pil;
+  uint32_t  netwop_no;
+
   uint16_t  feature_flags;
   uint8_t   parental_rating;
   uint8_t   editorial_rating;
@@ -114,9 +115,9 @@ typedef struct
   uint16_t  lang_title;
   uint16_t  lang_desc;
 
-  uint8_t   no_themes;
   uint8_t   no_descriptors;              // used by merged db
-  uint8_t   themes[PI_MAX_THEME_COUNT];
+  uint8_t   no_themes;
+  uint      themes[PI_MAX_THEME_COUNT];
 
   uint16_t  off_title;
   uint16_t  off_desc_text;
@@ -179,7 +180,9 @@ typedef struct EPGDB_CONTEXT_STRUCT
    EPGDB_PI_BLOCK *pFirstPi, *pLastPi;
    EPGDB_PI_BLOCK *pObsoletePi;
    EPGDB_PI_BLOCK **pFirstNetwopPi;    // Variable-length array
-   uint32_t    netwopCount;
+   uint            netwopCount;            // array length
+   char         ** pThemes;
+   uint            themeCount;
 
    EPGDB_PI_ACQ_CB *pPiAcqCb;
 } EPGDB_CONTEXT;

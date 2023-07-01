@@ -1,7 +1,7 @@
 /*
  *  XMLTV content processing
  *
- *  Copyright (C) 2007-2011, 2020-2021 T. Zoerner
+ *  Copyright (C) 2007-2011, 2020-2021, 2023 T. Zoerner
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License Version 2 as
@@ -92,7 +92,6 @@
 #include "xmltv/xml_cdata.h"
 #include "xmltv/xml_hash.h"
 #include "xmltv/xmltv_timestamp.h"
-#include "xmltv/xmltv_themes.h"
 #include "xmltv/xmltv_tags.h"
 #include "xmltv/xmltv_cni.h"
 #include "xmltv/xmltv_db.h"
@@ -103,12 +102,6 @@ typedef struct
    const char * p_disp_name;
    uint         cni;
 } XMLTV_CHN;
-
-typedef enum
-{
-   XMLTV_CAT_SYS_NONE,
-   XMLTV_CAT_SYS_PDC,
-} XMLTV_CAT_SYS;
 
 typedef enum
 {
@@ -129,7 +122,10 @@ typedef enum
    XMLTV_RATING_PL,
 } XMLTV_RATING_SYS;
 
-#define XMLTV_PI_CAT_MAX  40   // 3 languages
+typedef struct
+{
+   uint         id;
+} HASHED_THEMES;
 
 typedef struct
 {
@@ -138,7 +134,7 @@ typedef struct
    bool         chn_open;
    char       * p_chn_id_tmp;
    XMLTV_CHN  * p_chn_table;
-   XML_HASH_PTR pChannelHash;
+   XML_HASH_PTR p_chn_hash;
 
    XML_STR_BUF  source_info_name;
    XML_STR_BUF  source_info_url;
@@ -146,7 +142,10 @@ typedef struct
    XML_STR_BUF  gen_info_name;
    XML_STR_BUF  gen_info_url;
 
-   XML_HASH_PTR pThemeHash;
+   XML_HASH_PTR p_theme_hash;
+   char**       p_theme_table;
+   uint         theme_table_size;
+   uint         theme_count;
    PI_BLOCK     pi;
    XML_STR_BUF  pi_title;
    XML_STR_BUF  pi_desc;
@@ -159,10 +158,6 @@ typedef struct
    uint         pi_aspect_y;
    double       pi_star_rating_val;
    uint         pi_star_rating_max;
-   XMLTV_CAT_SYS pi_cat_system;
-   uint         pi_cat_code;
-   uchar        pi_cat_count;
-   uchar        pi_cats[XMLTV_PI_CAT_MAX];
    XMLTV_RATING_SYS pi_rating_sys;
    XMLTV_CODE_TIME_SYS pi_code_time_sys;
    XML_STR_BUF  pi_code_time_str;
@@ -182,74 +177,6 @@ static PARSE_STATE xds;
 #ifndef VPS_PIL_CODE_SYSTEM
 #define VPS_PIL_CODE_SYSTEM ((0 << 15) | (15 << 11) | (31 << 6) | 63)
 #endif
-
-// ----------------------------------------------------------------------------
-// Match theme category string onto PDC theme categories
-// - the passed string is converted into lower-case
-// - themes are added to the PI in the state struct
-//
-static void Xmltv_ParseThemeString( char * pStr, EPG_LANG_CODE lang )
-{
-   HASHED_THEMES * pCache;
-   bool isNew;
-   char * p;
-
-   pCache = (HASHED_THEMES*) XmlHash_CreateEntry(xds.pThemeHash, pStr, &isNew);
-
-   if (isNew)
-   {
-      // convert given theme category name to lower-case (Latin-1 only)
-      p = pStr;
-      while (*p != 0)
-      {
-         if (alphaNumTab[(uchar) *p] == ALNUM_UCHAR)
-         {
-            *p = tolower(*p);
-         }
-         p++;
-      }
-
-      // map theme strings against pre-defined PDC theme category names
-      // note the result is cached inside the hash entries' payload storage
-      switch (lang)
-      {
-         case EPG_LANG_DE:
-            Xmltv_ParseThemeStringGerman(pCache, pStr);
-            break;
-         case EPG_LANG_FR:
-            Xmltv_ParseThemeStringFrench(pCache, pStr);
-            break;
-         case EPG_LANG_EN:
-            Xmltv_ParseThemeStringEnglish(pCache, pStr);
-            break;
-         case EPG_LANG_PL:
-            Xmltv_ParseThemeStringPolish(pCache, pStr);
-            break;
-         case EPG_LANG_UNKNOWN:
-         default:
-            // language unknown -> try all languages until a match is found
-            Xmltv_ParseThemeStringGerman(pCache, pStr);
-            if (pCache->cat == 0)
-               Xmltv_ParseThemeStringFrench(pCache, pStr);
-            if (pCache->cat == 0)
-               Xmltv_ParseThemeStringEnglish(pCache, pStr);
-            break;
-      }
-   }
-
-   // copy theme codes into cache
-   if ((pCache->cat != 0) && (xds.pi_cat_count < XMLTV_PI_CAT_MAX))
-   {
-      xds.pi_cats[xds.pi_cat_count] = pCache->cat;
-      xds.pi_cat_count += 1;
-
-      if ((pCache->theme != 0) && (xds.pi_cat_count < XMLTV_PI_CAT_MAX))
-      {
-         xds.pi_cats[xds.pi_cat_count] = pCache->theme;
-         xds.pi_cat_count += 1;
-      }
-   }
-}
 
 // ----------------------------------------------------------------------------
 // Parse timestamp
@@ -292,39 +219,6 @@ static uint XmltvDb_ParseVpsPdc( const char * pStr )
       debug3("Xmltv-ParseVpsPdc: parse error '%s' after %d tokens (around char #%d)", pStr, nscan, scan_pos);
 
    return pil;
-}
-
-// ----------------------------------------------------------------------------
-// Sort, unify and copy theme categories to PI's data struct
-// - unify means removing redudant values
-//
-static void XmltvDb_PiAssignThemeCategories( void )
-{
-   uint  last;
-   uint  cur;
-   uint  idx;
-
-   last = 0;
-   while (1)
-   {
-      // search for the smallest remaining theme code (well yes, we're bubble sorting)
-      cur = 0x100;
-      for (idx = 0; idx < xds.pi_cat_count; idx++)
-         if ((xds.pi_cats[idx] > last) && (xds.pi_cats[idx] < cur))
-            cur = xds.pi_cats[idx];
-
-      // if none found of the target theme list is full, we quit
-      if (cur == 0x100)
-         break;
-      if (xds.pi.no_themes >= PI_MAX_THEME_COUNT)
-         break;
-
-      // append the theme code to the PI's theme array
-      xds.pi.themes[xds.pi.no_themes] = cur;
-      xds.pi.no_themes += 1;
-
-      last = cur;
-   }
 }
 
 // ----------------------------------------------------------------------------
@@ -640,9 +534,9 @@ void Xmltv_ChannelCreate( void )
 
    if ((xds.p_chn_table == NULL) || (xds.chn_tab_size < xds.chn_count + 1))
    {
-      uint prevSize = xds.chn_tab_size;
+      size_t prev_size = xds.chn_tab_size;
 
-      if (prevSize == 0)
+      if (prev_size == 0)
          xds.chn_tab_size = 256;
       else
          xds.chn_tab_size *= 2;
@@ -650,14 +544,14 @@ void Xmltv_ChannelCreate( void )
       // grow channel name table
       xds.p_chn_table = (XMLTV_CHN*) xrealloc(xds.p_chn_table,
                                               xds.chn_tab_size * sizeof(xds.p_chn_table[0]));
-      memset((xds.p_chn_table + prevSize), 0,
-             (xds.chn_tab_size - prevSize) * sizeof(xds.p_chn_table[0]));
+      memset((xds.p_chn_table + prev_size), 0,
+             (xds.chn_tab_size - prev_size) * sizeof(xds.p_chn_table[0]));
 
       // grow PI table
       xds.pFirstNetwopPi = xrealloc(xds.pFirstNetwopPi,
                                     xds.chn_tab_size * sizeof(xds.pFirstNetwopPi[0]));
-      memset((xds.pFirstNetwopPi + prevSize), 0,
-             (xds.chn_tab_size - prevSize) * sizeof(xds.pFirstNetwopPi[0]));
+      memset((xds.pFirstNetwopPi + prev_size), 0,
+             (xds.chn_tab_size - prev_size) * sizeof(xds.pFirstNetwopPi[0]));
    }
    xds.chn_open = TRUE;
 }
@@ -686,7 +580,7 @@ void Xmltv_ChannelClose( void )
       if ( (xds.p_chn_id_tmp != NULL) &&
            (xds.p_chn_table[xds.chn_count].p_disp_name != NULL) )
       {
-         pChnIdx = (uint*) XmlHash_CreateEntry(xds.pChannelHash, xds.p_chn_id_tmp, &isNew);
+         pChnIdx = (uint*) XmlHash_CreateEntry(xds.p_chn_hash, xds.p_chn_id_tmp, &isNew);
          if (isNew)
          {
             xds.p_chn_table[xds.chn_count].cni = XmltvCni_MapNetCni(&xds.cniCtx, xds.p_chn_id_tmp);
@@ -778,7 +672,6 @@ void Xmltv_TsOpen( void )
    memset(&xds.pi, 0, sizeof(xds.pi));
    xds.pi.netwop_no = xds.chn_count;
    xds.pi.pil = VPS_PIL_CODE_SYSTEM;
-   xds.pi_cat_count = 0;
    xds.pi.parental_rating = PI_PARENTAL_UNDEFINED;
    xds.pi.editorial_rating = PI_EDITORIAL_UNDEFINED;
 
@@ -839,9 +732,6 @@ void Xmltv_TsClose( void )
       }
    }
 
-   // sort, unify and copy collected theme categories
-   XmltvDb_PiAssignThemeCategories();
-
    pBlk = XmltvDb_BuildPi();
    if (XmltvDb_AddPiBlock(xds.pDbContext, pBlk) == FALSE)
    {
@@ -857,7 +747,7 @@ void Xmltv_TsSetChannel( XML_STR_BUF * pBuf )
    const char * pStr = XML_STR_BUF_GET_STR(*pBuf);
    uint * pChnIdx;
 
-   pChnIdx = (uint*) XmlHash_SearchEntry(xds.pChannelHash, pStr);
+   pChnIdx = (uint*) XmlHash_SearchEntry(xds.p_chn_hash, pStr);
    if (pChnIdx != NULL)
    {
       dprintf2("Xmltv-TsSetChannel: %s: %d\n", pStr, *pChnIdx);
@@ -1006,39 +896,48 @@ void Xmltv_PiEpisodeTitleAdd( XML_STR_BUF * pBuf )
 
 void Xmltv_PiCatOpen( void )
 {
-   xds.pi_cat_system = XMLTV_CAT_SYS_NONE;
-   xds.pi_cat_code = 0;
 }
 
 void Xmltv_PiCatClose( void )
 {
-   // TODO: warn if value is out of range
-   if (xds.pi_cat_system == XMLTV_CAT_SYS_PDC)
-   {
-      if ( (xds.pi_cat_code != 0)  && (xds.pi_cat_code < 0x100) )
-      {
-         if (xds.pi_cat_count < XMLTV_PI_CAT_MAX)
-         {
-            // copy codes to an intermediate cache, because they are filtered later
-            xds.pi_cats[xds.pi_cat_count] = xds.pi_cat_code;
-            xds.pi_cat_count += 1;
-         }
-      }
-   }
-   else
-   {
-      //debug0("Xmltv-PiCatClose: no type set");
-   }
 }
 
 // DTD 0.5: themes given as free text
 void Xmltv_PiCatAddText( XML_STR_BUF * pBuf )
 {
    char * pStr = XML_STR_BUF_GET_STR(*pBuf);
+   HASHED_THEMES * pCache;
+   bool isNew;
 
-   if (xds.pi_cat_system != XMLTV_CAT_SYS_PDC)
+   pCache = (HASHED_THEMES*) XmlHash_CreateEntry(xds.p_theme_hash, pStr, &isNew);
+
+   if (isNew)
    {
-      Xmltv_ParseThemeString(pStr, XML_STR_BUF_GET_LANG(*pBuf));
+      pCache->id = xds.theme_count;
+      dprintf2("ADD theme #%d \"%s\"\n", pCache->id, pStr);
+
+      if ((xds.p_theme_table == NULL) || (xds.theme_table_size < xds.theme_count + 1))
+      {
+         // grow theme table
+         xds.theme_table_size = (xds.theme_table_size == 0) ? 256 : (xds.theme_table_size * 2);
+
+         xds.p_theme_table = xrealloc(xds.p_theme_table,
+                                      xds.theme_table_size * sizeof(xds.p_theme_table[0]));
+      }
+      xds.p_theme_table[xds.theme_count] = xstrdup(pStr);
+
+      xds.theme_count += 1;
+   }
+
+   // add category ID to PI theme array
+   if (xds.pi.no_themes < PI_MAX_THEME_COUNT)
+   {
+      xds.pi.themes[xds.pi.no_themes] = pCache->id;
+      xds.pi.no_themes += 1;
+   }
+   else
+   {
+      debug1("Xmltv-PiCatAddText: PI theme array overflow: %s", pStr);
    }
 }
 
@@ -1427,6 +1326,10 @@ EPGDB_CONTEXT * XmltvDb_GetDatabase( const char * pProvName )
    xds.pDbContext->pFirstNetwopPi = xmalloc(xds.chn_count * sizeof(xds.pDbContext->pFirstNetwopPi[0]));
    memset(xds.pDbContext->pFirstNetwopPi, 0, xds.chn_count * sizeof(xds.pDbContext->pFirstNetwopPi[0]));
 
+   xds.pDbContext->pThemes = xds.p_theme_table;
+   xds.pDbContext->themeCount = xds.theme_count;
+   xds.p_theme_table = NULL;
+
    // combine PI of different networks into a single database
    EpgDbMergeLinkNetworkPi(xds.pDbContext, xds.pFirstNetwopPi);
 
@@ -1470,8 +1373,17 @@ void XmltvDb_Destroy( void )
       xfree(xds.pFirstNetwopPi);
       xds.pFirstNetwopPi = NULL;
    }
-   XmlHash_Destroy(xds.pChannelHash, NULL);
-   XmlHash_Destroy(xds.pThemeHash, NULL);
+   if (xds.p_theme_table != NULL)
+   {
+      for (uint idx = 0; idx < xds.theme_count; ++idx)
+      {
+         xfree(xds.p_theme_table[idx]);
+      }
+      xfree(xds.p_theme_table);
+      xds.p_theme_table = NULL;
+   }
+   XmlHash_Destroy(xds.p_chn_hash, NULL);
+   XmlHash_Destroy(xds.p_theme_hash, NULL);
 
    // pi title and desc cache
    XmlCdata_Free(&xds.pi_title);
@@ -1506,8 +1418,8 @@ void XmltvDb_Destroy( void )
 void XmltvDb_Init( uint provCni, time_t mtime, bool isPeek )
 {
    memset(&xds, 0, sizeof(xds));
-   xds.pChannelHash = XmlHash_Init();
-   xds.pThemeHash = XmlHash_Init();
+   xds.p_chn_hash = XmlHash_Init();
+   xds.p_theme_hash = XmlHash_Init();
 
    // set string buffer size hints
    XmlCdata_Init(&xds.pi_title, 256);

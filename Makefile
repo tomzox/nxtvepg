@@ -153,13 +153,13 @@ EPGSRC  = epgvbi/btdrv4linux epgvbi/vbidecode epgvbi/zvbidecoder \
           epgctl/epgacqclnt epgctl/epgacqsrv
 XMLSRC  = xmltv/xml_prolog.tab xmltv/xml_scan.yy xmltv/xml_cdata \
           xmltv/xml_hash xmltv/xmltv_tags xmltv/xmltv_db xmltv/xmltv_cni \
-          xmltv/xmltv_timestamp xmltv/xmltv_themes xmltv/xmltv_main
+          xmltv/xmltv_timestamp xmltv/xmltv_main
 TTXSRC  = epgttx/ttx_scrape epgttx/ttx_date epgttx/ttx_ov_fmt \
           epgttx/ttx_feat epgttx/ttx_pg_ref epgttx/ttx_db epgttx/ttx_util \
           epgttx/ttx_xmltv epgttx/ttx_cif
 GUISRC  = epgui/pibox epgui/pilistbox epgui/pinetbox epgui/piremind \
           epgui/uictrl epgui/pioutput epgui/pidescr epgui/pifilter \
-          epgui/statswin epgui/timescale epgui/pdc_themes epgui/menucmd \
+          epgui/statswin epgui/timescale epgui/menucmd \
           epgui/epgmain epgui/loadtcl epgui/xawtv epgui/wintvcfg \
           epgui/wintvui epgui/epgsetup epgui/cmdline epgui/rcfile \
           epgui/dumptext epgui/dumphtml epgui/dumpxml epgui/uidump \
@@ -167,7 +167,7 @@ GUISRC  = epgui/pibox epgui/pilistbox epgui/pinetbox epgui/piremind \
           epgui/daemon
 CLDSRC  = epgui/daemon_main epgui/daemon epgui/epgsetup epgui/cmdline \
           epgui/rcfile epgui/wintvcfg epgui/dumptext epgui/dumpxml \
-          epgui/pidescr epgui/pdc_themes epgui/epgquery
+          epgui/pidescr epgui/epgquery
 TCLSRC  = epgtcl/mainwin epgtcl/dlg_hwcfg epgtcl/dlg_xawtvcf \
           epgtcl/dlg_ctxmencf epgtcl/dlg_acqmode epgtcl/dlg_netsel \
           epgtcl/dlg_dump epgtcl/dlg_netname epgtcl/dlg_udefcols \
@@ -177,7 +177,7 @@ TCLSRC  = epgtcl/mainwin epgtcl/dlg_hwcfg epgtcl/dlg_xawtvcf \
           epgtcl/mclistbox epgtcl/combobox epgtcl/rnotebook epgtcl/htree
 
 TVSIM_CSRC    = tvsim/tvsim_main
-TVSIM_CSRC2   = epgctl/debug epgui/pdc_themes epgvbi/tvchan epgvbi/syserrmsg \
+TVSIM_CSRC2   = epgctl/debug epgvbi/tvchan epgvbi/syserrmsg \
                 epgvbi/cni_tables epgui/wintvcfg epgui/wintvui epgui/xiccc \
                 epgui/rcfile
 TVSIM_TCLSRC  = tvsim/tvsim_gui
@@ -185,7 +185,7 @@ VBIREC_CSRC   = tvsim/vbirec_main
 VBIREC_CSRC2  = epgvbi/btdrv4linux epgvbi/vbidecode epgvbi/zvbidecoder \
                 epgvbi/ttxdecode epgvbi/hamming epgvbi/cni_tables \
                 epgvbi/syserrmsg epgctl/debug epgui/xawtv epgui/xiccc \
-                epgui/dumptext epgui/pidescr epgui/pdc_themes \
+                epgui/dumptext epgui/pidescr \
                 epgvbi/dvb_demux epgvbi/dvb_scan_pmt
 VBIREC_TCLSRC = tvsim/vbirec_gui epgtcl/combobox
 

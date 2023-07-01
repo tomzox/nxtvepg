@@ -298,12 +298,14 @@ static EPGDB_PI_BLOCK * EpgDbMergePiBlocks( PDBC dbc, EPGDB_PI_BLOCK **pFoundBlo
             pOnePi = &pFoundBlocks[actIdx]->pi;
             for (idx=0; (idx < pOnePi->no_themes) && (pPi->no_themes < PI_MAX_THEME_COUNT); idx++)
             {
+               uint mappedTheme = dbmc->prov[dbIdx].themeIdMap[pOnePi->themes[idx]];
+
                for (idx2=0; idx2 < pPi->no_themes; idx2++)
-                  if (pPi->themes[idx2] == pOnePi->themes[idx])
+                  if (pPi->themes[idx2] == mappedTheme)
                      break;
                if (idx2 >= pPi->no_themes)
                {  // theme is not in the list yet
-                  pPi->themes[pPi->no_themes++] = pOnePi->themes[idx];
+                  pPi->themes[pPi->no_themes++] = mappedTheme;
                }
             }
          }

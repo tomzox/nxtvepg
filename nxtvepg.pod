@@ -2,7 +2,7 @@
 #
 #  nxtvepg online manual
 #
-#  Copyright (C) 1999-2011, 2020-2021 T. Zoerner
+#  Copyright (C) 1999-2011, 2020-2021, 2023 T. Zoerner
 #
 #  This program is free software; you can redistribute it and/or modify
 #  it under the terms of the GNU General Public License Version 2 as
@@ -277,7 +277,7 @@ To export the database into a plain text file (e.g. for import into an
 SQL database) three mode keywords are supported:
 I<pi> to dump programmes (i.e. the complete TV schedules),
 I<ai> to dump the content provider's network table,
-I<pdc> to dump the PDC theme categories table.
+I<themes> to dump the provider's theme categories table.
 For more details see L<"CONTROL MENU: Export as text">.
 
 The output is written to I<stdout> unless you redirect it into a file
@@ -342,8 +342,8 @@ is currently running, index 1 refers to the one which is next up.)
 
 This command will only list programmes running on a network with the
 given name.  To allow for multiple networks, use separate I<-epgquery>
-options for each network.  The name comparison is case-insensitive;
-unknown network names are silently ignored.
+options for each network.  The name has to be specified exactly as it
+appears in the XMLTV file. Unknown names are silently ignored.
 
 =item I<NETIDX=index_list>
 
@@ -366,15 +366,11 @@ This command restricts networks to the same list you have configured
 for the nxtvepg main application. This command has no parameters and
 cannot be combined with any other network selection commands.
 
-=item I<THEME=pdc_code> or I<THEME=name>
+=item I<THEME=name>
 
-This command will only list programmes labeled with the given theme. The
-theme should be specified by its numeric PDC theme code as listed with
-C<-dump pdc> (e.g. C<THEME=16> to search for movies.)  Multiple codes can
-be given when separated by commas, or as a range separated by a dash.
-Alternatively, the theme can be specified as a string (e.g. C<theme=movie>)
-where the language must match that of the database, or English for XMLTV
-sources.
+This command will only list programmes labeled with the given theme
+category. The theme name should be specified exactly as it appears
+in the XMLTV input file. Unknown names are silently ignored.
 
 =item I<TITLE=text>
 
@@ -1275,7 +1271,7 @@ programme (see also L<"FILTERING">).
 The commands in this menu allow controlling which of the programmes in
 the database are presented in the listing. There's a filter for every
 kind of attribute that can be attached to a program, for example its
-network, start time, theme descriptors, or description text.
+network, start time, theme categories, or description text.
 
 Filters can be undone either singularly by selecting the same filter
 menu entry again, or globally by clicking on the I<Reset> button.
@@ -1292,7 +1288,8 @@ I<Examples:>
 If you want to get all programmes listed for either network A B<OR> B,
 simply select both networks in the filter list. If you want to see all
 movies scheduled on A, i.e. all programmes which run on network A B<AND>
-are flagged as movies, select network A and theme "movie - general".
+are flagged as movies, select network A and from the themes dialog all
+categories related to movies.
 
 
 =head2 Filter Types
@@ -1303,19 +1300,28 @@ The following filter types are available:
 
 =item B<Theme categories>
 
-Restrict the listing to programmes that have any of the given theme
-categories attached to them (logical OR). Currently there is an internal
-list of 76 predefined themes, which are structured into 11 main categories
-and subcategories. Categories loaded from XMLTV sources are mapped to
-these themes.
+Restrict the listing to programmes that have any a given theme
+categories attached to them. When selecting more than one category,
+programmes that jave any of the selected categories are shown
+(logical OR).
 
-If you want to restrict the listing to programmes that have more than
-one of the given themes (logical AND) you need to specify them in
-different theme classes. For example: to get a listing of all programmes
-which are both Sci-Fi and Comedy, select theme category Sci-Fi, then
-switch to a different theme class, and select theme category Comedy.
-The actual class numbers do not matter, you just need to use two
-different ones (i.e. you can use either #1 and #2 or #5 and #6 etc.)
+The list of available theme categories is built from categories attached
+to programmes in the database. Therefore the list of categories will
+change between EPG providers. Unfortunately this means that shortcuts
+with theme filters may not work across different providers. (For this
+reason there is no theme shortcut in the default shortcut list.)
+
+For providers using hierarchical theme categories, multiple themes
+may be associated with individual programmes. For example, there may
+be main categories "Movie" and "Series" and sub-categories "Comedy" et.al.
+In that case, selecting theme categories "Movie" and "Comedy" would also
+show comedy series. To show only comedy movies, one needs to apply a
+logical "AND" between the categories. This is done by selecting the
+two categories in different "theme classes". For example, first select
+"Movie", then select class "2" via the selection box at the bottom of
+the theme selection dialog, then select "Comedy". The actual used class
+numbers do not matter, you just need to use two different ones. There
+will be logical "AND" between themes in different classes.
 
 
 =item B<Networks>
@@ -2109,18 +2115,24 @@ See also L<"STATISTICS">, section "Teletext grabber statistics".
 
 Open a dialog that allows to export the complete database into a text
 file.  Each line in the file will represent one item in the database.
-The item's different fields are separated by TAB characters; the line
+The items' different fields are separated by TAB characters; the line
 is terminated by a single new-line character (no line feed character,
 even on Windows).  In some cases missing values are represented by
 C<\N> which is the MySQL I<NULL> identifier (currently only used for
 the VPS/PDC field).
 
+Paragraph breaks within the description text are represented as text
+"C< // >". In a merged database, paragraph breaks between description texts
+originating from different providers are represented as "C< //%// >. When
+using the texts for display, the first should be replaced with a single
+newline character, and the latter with either dual newline, or a horizontal
+ruler.
+
 The generated text file can be loaded directly into a relational
 database.  It's not formatted for viewing in a regular text editor.
-Networks and themes are represented as numerical indices into the
-network and themes table respectively.  Hence these tables are
-required in addition to the programme table.  To load them into
-a database, you need to export them into different files.
+Networks are represented as numerical indices into the network table.
+Hence this table is required in addition to the programme table.
+To load them into a database, you need to export them into different files.
 
 For I<MySQL> you could create the following tables:
 
@@ -2140,13 +2152,14 @@ For I<MySQL> you could create the following tables:
       is_live BOOL,
       is_repeat BOOL,
       is_subtitled BOOL,
-      theme_0 tinyint(3) unsigned,
-      theme_1 tinyint(3) unsigned,
-      theme_2 tinyint(3) unsigned,
-      theme_3 tinyint(3) unsigned,
-      theme_4 tinyint(3) unsigned,
-      theme_5 tinyint(3) unsigned,
-      theme_6 tinyint(3) unsigned,
+      theme_0 text,
+      theme_1 text,
+      theme_2 text,
+      theme_3 text,
+      theme_4 text,
+      theme_5 text,
+      theme_6 text,
+      theme_7 text,
       title varchar(40) NOT NULL,
       descr text,
       PRIMARY KEY (netwop, Dstart, Hstart)
@@ -2163,17 +2176,14 @@ For I<MySQL> you could create the following tables:
       UNIQUE netwop_idx (netwop_idx)
    );
 
-   CREATE TABLE pdc_themes (
+   CREATE TABLE themes (
       theme_idx smallint(3) unsigned NOT NULL,
-      cat_idx smallint(3) unsigned,
-      name_eng text,
-      name_ger text,
-      name_fra text,
+      category_name text,
       UNIQUE theme_idx (theme_idx)
    );
 
 Note that the database can also be exported directly from the command
-line by using B<-dump pi>, B<-dump ai> or B<-dump pdc>.  In this case
+line by using B<-dump pi>, B<-dump ai> or B<-dump themes>.  In this case
 you can use one or more I<-epgquery> options to export only selected
 channels and programmes (for details see L<"OPTIONS">.)
 
@@ -3102,7 +3112,7 @@ You can choose between minutes (default) and seconds by appending "m" or "s".
 =item I<Theme categories>
 
 You can choose between numerical and textual output by appending "n" or "t".
-Use command line option I<-dump pdc> to get a list of theme categories
+Use command line option I<-dump themes> to get a list of theme categories
 (see L<"OPTIONS">.)
 
 =back

@@ -86,6 +86,11 @@ static void EpgDbMergeCloseDatabases( EPGDB_MERGE_CONTEXT * pMergeContext )
          xfree(pMergeContext->prov[dbIdx].revNetwopMap);
          pMergeContext->prov[dbIdx].revNetwopMap = NULL;
       }
+      if (pMergeContext->prov[dbIdx].themeIdMap != NULL)
+      {
+         xfree(pMergeContext->prov[dbIdx].themeIdMap);
+         pMergeContext->prov[dbIdx].themeIdMap = NULL;
+      }
    }
 }
 
@@ -204,6 +209,61 @@ static void EpgContextMergeBuildNetwopMap( EPGDB_MERGE_CONTEXT * pMergeContext,
          debug1("EpgContextMerge-BuildNetwopMap: dropping invalid CNI 0x%04X", pCniTab[tabIdx]);
    }
    *pCniCount = netwopCount;
+}
+
+// ---------------------------------------------------------------------------
+// Allocate and populate theme index mapping tables for each database
+//
+static void EpgContextMergeBuildThemesMap( EPGDB_MERGE_CONTEXT * pMergeContext,
+                                           uint * pThemeCount, char *** ppMergedThemes )
+{
+   uint themeCount = 0;
+   char ** pMergedThemes = NULL;
+
+   // Calculate worst-case size of merge theme table: Sum of all tables
+   uint themeMaxSize = 0;
+   for (uint dbIdx=0; dbIdx < pMergeContext->dbCount; dbIdx++)
+   {
+      themeMaxSize += pMergeContext->prov[dbIdx].pDbContext->themeCount;
+   }
+   if (themeMaxSize > 0)
+   {
+       pMergedThemes = xmalloc(themeMaxSize * sizeof(char*));
+
+       for (uint dbIdx=0; dbIdx < pMergeContext->dbCount; dbIdx++)
+       {
+          EPGDB_CONTEXT * pDbContext = pMergeContext->prov[0].pDbContext;
+
+          pMergeContext->prov[dbIdx].themeIdMap = xmalloc(pDbContext->themeCount *
+                                                          sizeof(pDbContext->pThemes[0]));
+
+          for (uint idx = 0; idx < pDbContext->themeCount; idx++)
+          {
+             // Search if the same theme category name is already in the table
+             // TODO optimize by using hash
+             uint idx2;
+             for (idx2 = 0; idx2 < themeCount; idx2++)
+                if (strcmp(pMergedThemes[idx2], pDbContext->pThemes[idx]) == 0)
+                   break;
+
+             if (idx2 < themeCount)
+             {
+                pMergeContext->prov[dbIdx].themeIdMap[idx] = idx2;
+             }
+             else
+             {
+                pMergeContext->prov[dbIdx].themeIdMap[idx] = themeCount;
+                pMergedThemes[themeCount] = xstrdup(pDbContext->pThemes[idx]);
+                themeCount += 1;
+             }
+          }
+       }
+       // Reduce size of theme table to actual used length
+       pMergedThemes = xrealloc(pMergedThemes, themeCount * sizeof(pMergedThemes[0]));
+   }
+
+   *pThemeCount = themeCount;
+   *ppMergedThemes = pMergedThemes;
 }
 
 // ---------------------------------------------------------------------------
@@ -435,6 +495,7 @@ EPGDB_CONTEXT * EpgContextMerge( uint dbCount, const uint * pCni, MERGE_ATTRIB_V
 
       pMergeContext->prov[dbIdx].netwopMap = NULL;
       pMergeContext->prov[dbIdx].revNetwopMap = NULL;
+      pMergeContext->prov[dbIdx].themeIdMap = NULL;
    }
 
    if ( EpgDbMergeOpenDatabases(pMergeContext, errHand) )
@@ -453,6 +514,8 @@ EPGDB_CONTEXT * EpgContextMerge( uint dbCount, const uint * pCni, MERGE_ATTRIB_V
       pDbContext->pFirstNetwopPi = xmalloc(netwopCount * sizeof(pDbContext->pFirstNetwopPi[0]));
       memset(pDbContext->pFirstNetwopPi, 0, netwopCount * sizeof(pDbContext->pFirstNetwopPi[0]));
       pDbContext->netwopCount = netwopCount;
+
+      EpgContextMergeBuildThemesMap(pMergeContext, &pDbContext->themeCount, &pDbContext->pThemes);
 
       // create AI block
       EpgDbMergeAiBlocks(pDbContext, netwopCount, pNetwopList);

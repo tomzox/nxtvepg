@@ -38,6 +38,8 @@ set piexpire_popup 0
 set piexpire_display 0
 set piexpire_never 0
 
+set themesel_popup 0
+
 
 # called when filters are changed via shortcut
 proc TimeFilterExternalChange {} {
@@ -77,10 +79,19 @@ proc GetNameForWeekday {wday fmt} {
   return [C_ClockFormat $anytime $fmt]
 }
 
+proc UpdateThemeCategories {} {
+   global themesel_popup
+
+   if {$themesel_popup} {
+      ThemeSelectionRefill
+   }
+}
+
 #=LOAD=ProgIdxPopup
 #=LOAD=PopupTimeFilterSelection
 #=LOAD=PopupDurationFilterSelection
 #=LOAD=PopupExpireDelaySelection
+#=LOAD=PopupThemesSelection
 #=DYNAMIC=
 
 ##  --------------------------------------------------------------------------
@@ -747,4 +758,197 @@ proc UpdateExpiryFilter { round {val 0} } {
    }
 
    SelectExpireDelayFilter
+}
+
+##  --------------------------------------------------------------------------
+##  Themes filter selection popup
+##
+proc PopupThemesSelection {} {
+   global menuStatusThemeClass
+   global themesel_list themesel_class
+   global themesel_popup
+
+   if {$themesel_popup == 0} {
+      CreateTransientPopup .themesel "Theme category filter selection"
+      set themesel_popup 1
+
+      ThemeSelectionInitList
+      set themesel_class $menuStatusThemeClass
+
+      # determine listbox height
+      set lbox_height [llength $themesel_list]
+      if {$lbox_height > 25} {
+         set lbox_height 25
+      }
+      # determine listbox width
+      set lbox_width 25
+      foreach theme $themesel_list {
+         set l [string length $theme]
+         if {$l > $lbox_width} { set lbox_width $l }
+      }
+      if {$lbox_width > 50} { set lbox_width 50 }
+
+      ## first row: listbox with all themes
+      frame .themesel.lbox
+      listbox .themesel.lbox.themes -height $lbox_height -width $lbox_width -selectmode extended \
+                                    -yscrollcommand [list .themesel.lbox.sbv set] \
+                                    -xscrollcommand [list .themesel.lbox.sbh set]
+      grid .themesel.lbox.themes -row 0 -column 0 -sticky news
+      scrollbar .themesel.lbox.sbv -orient vertical -command [list .themesel.lbox.themes yview] -takefocus 0
+      grid .themesel.lbox.sbv -row 0 -column 1 -sticky ns
+      scrollbar .themesel.lbox.sbh -orient horizontal -command [list .themesel.lbox.themes xview] -takefocus 0
+      grid .themesel.lbox.sbh -row 1 -column 0 -sticky we
+      grid columnconfigure .themesel.lbox 0 -weight 1
+      grid rowconfigure .themesel.lbox 0 -weight 1
+      pack .themesel.lbox -expand 1 -fill both -side top -padx 5 -pady 5
+
+      ## second row: class selection
+      frame .themesel.tclass
+      label .themesel.tclass.lab -text "Editing theme class:"
+      pack .themesel.tclass.lab -side left -padx 5
+      spinbox .themesel.tclass.val -from 1 -to 8 -increment 1 -width 2 \
+                                   -textvariable themesel_class -validate key \
+                                   -validatecommand [list ThemeSelectionClassChange %P]
+      pack .themesel.tclass.val -side left
+      pack .themesel.tclass -fill x -side top
+
+      ##
+      ##  Command row
+      ##
+      frame  .themesel.cmd
+      button .themesel.cmd.help -text "Help" -command {PopupHelp $helpIndex(Filtering) "Theme categories"}
+      button .themesel.cmd.undo -text "Abort" -command {ThemeSelectionQuit; ResetThemes}
+      button .themesel.cmd.dismiss -text "Ok" -command {ThemeSelectionQuit}
+      pack   .themesel.cmd.help .themesel.cmd.undo .themesel.cmd.dismiss -side left -padx 10
+      pack   .themesel.cmd -side top -pady 5
+
+      wm protocol .themesel WM_DELETE_WINDOW {ThemeSelectionQuit}
+      bind   .themesel <Key-F1> {PopupHelp $helpIndex(Filtering) "Theme categories"}
+      bind   .themesel.lbox.themes <<ListboxSelect>> ThemeSelectionChange
+      bind   .themesel.cmd <Destroy> {+ set themesel_popup 0}
+      focus  .themesel.lbox.themes
+
+      foreach theme $themesel_list {
+         .themesel.lbox.themes insert end [lindex $theme 1]
+      }
+      ThemeSelectionUpdate
+
+      global theme_sel
+      trace variable theme_sel w ThemeSelectionTrace
+
+      wm resizable .themesel 1 1
+      update
+      wm minsize .themesel [winfo reqwidth .themesel] [winfo reqheight .themesel]
+
+   } else {
+      raise .themesel
+   }
+}
+
+proc ThemeSelectionQuit {} {
+   global themesel_list
+   global theme_sel
+
+   destroy .themesel
+   unset themesel_list
+   trace vdelete theme_sel w ThemeSelectionTrace
+}
+
+# Returns the selected themes (as DB indices, not list indices)
+proc ThemeSelectionGetThemes {} {
+   global themesel_list
+
+   set sel {}
+   foreach idx [.themesel.lbox.themes curselection] {
+      lappend sel [lindex $themesel_list $idx 0]
+   }
+   return $sel
+}
+
+# Callback for external change of the filter setting
+proc ThemeSelectionTrace {name1 name2 op} {
+   global themesel_popup themesel_ignore_trace
+   global theme_sel
+
+   if {$themesel_popup && ![info exists themesel_ignore_trace]} {
+      if {[lsort -integer [ThemeSelectionGetThemes]] != [lsort -integer $theme_sel]} {
+         ThemeSelectionUpdate
+      }
+   }
+}
+
+# Callback for selection change within the listbox
+proc ThemeSelectionChange {} {
+   global themesel_ignore_trace
+
+   set themesel_ignore_trace 1
+   SelectThemeList [ThemeSelectionGetThemes]
+   unset themesel_ignore_trace
+}
+
+# Update listbox selection after external changes to the theme filter status
+proc ThemeSelectionUpdate {} {
+   global themesel_popup themesel_list themesel_ignore_trace
+   global theme_sel
+
+   if {$themesel_popup} {
+      array set revmap {}
+      set idx 0
+      foreach theme $themesel_list {
+         set revmap([lindex $theme 0]) $idx
+         incr idx
+      }
+
+      set themesel_ignore_trace 1
+      .themesel.lbox.themes selection clear 0 end
+
+      foreach index $theme_sel {
+         if {[info exists revmap($index)]} {
+            .themesel.lbox.themes selection set $revmap($index)
+         }
+      }
+      unset themesel_ignore_trace
+   }
+}
+
+proc ThemeSelectionInitList {} {
+   global themesel_list
+
+   set idx 0
+   set themesel_list {}
+   foreach name [C_GetAllThemesStrings] {
+      lappend themesel_list [list $idx $name]
+      incr idx
+   }
+   set themesel_list [lsort -dictionary -index 1 $themesel_list]
+}
+
+# Callback for provider change: Reset and refill the listbox content
+proc ThemeSelectionRefill {} {
+   global themesel_list
+
+   .themesel.lbox.themes delete 0 end
+   ThemeSelectionInitList
+
+   foreach theme $themesel_list {
+      .themesel.lbox.themes insert end [lindex $theme 1]
+   }
+}
+
+proc ThemeSelectionClassChange {val} {
+   global menuStatusThemeClass
+
+   if {$val == ""} {
+      return 1
+   }
+   if {[catch {set int_val [expr {int($val)}]}] == 0} {
+      if {($int_val >= 1) && ($int_val <= 8)} {
+         if {$int_val != $menuStatusThemeClass} {
+            set menuStatusThemeClass $int_val
+            SelectThemeClass
+         }
+         return 1
+      }
+   }
+   return 0
 }

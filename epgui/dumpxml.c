@@ -40,7 +40,6 @@
 #include "epgui/epgsetup.h"
 #include "epgui/rcfile.h"
 #include "epgui/pidescr.h"
-#include "epgui/pdc_themes.h"
 #include "epgui/dumpxml.h"
 
 // structure used to pass params through to description text output callback
@@ -315,15 +314,11 @@ static void EpgDumpXml_WriteProgramme( EPGDB_CONTEXT * pDbContext, const AI_BLOC
    // theme categories
    for (idx=0; idx < pPiBlock->no_themes; idx++)
    {
-      pThemeStr = PdcThemeGet(pPiBlock->themes[idx]);
-      if (pThemeStr != NULL)
-      {
-         fprintf(fp, "\t<category>");
+      pThemeStr = EpgDbGetThemeStr(pDbContext, pPiBlock->themes[idx]);
 
-         EpgDumpXml_HtmlWriteString(fp, pThemeStr, -1);
-
-         fprintf(fp, "</category>\n");
-      }
+      fprintf(fp, "\t<category>");
+      EpgDumpXml_HtmlWriteString(fp, pThemeStr, -1);
+      fprintf(fp, "</category>\n");
    }
 
    // attributes

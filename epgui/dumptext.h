@@ -22,7 +22,7 @@
 
 typedef enum
 {
-   DUMP_TEXT_PDC,
+   DUMP_TEXT_THEMES,
    DUMP_TEXT_AI,
    DUMP_TEXT_PI,
    DUMP_TEXT_COUNT

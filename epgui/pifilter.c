@@ -42,7 +42,6 @@
 #include "epgdb/epgdbif.h"
 #include "epgui/epgmain.h"
 #include "epgui/epgsetup.h"
-#include "epgui/pdc_themes.h"
 #include "epgui/pibox.h"
 #include "epgui/pidescr.h"
 #include "epgui/pifilter.h"
@@ -68,7 +67,7 @@ FILTER_CONTEXT *pPiFilterContext = NULL;
 //
 static int SelectThemes( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
 {  
-   const char * const pUsage = "Usage: C_SelectThemes <class 1..8> <themes-list>";
+   const char * const pUsage = "Usage: C_SelectThemes <8_bit_class_mask> <themes-list>";
    Tcl_Obj ** pThemes;
    uchar usedClasses;
    int themeCount;
@@ -76,7 +75,7 @@ static int SelectThemes( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *
    int result; 
    
    if ( (objc != 3)  || Tcl_GetIntFromObj(interp, objv[1], &tclass) ||
-        (tclass == 0) || ((uint)tclass > THEME_CLASS_COUNT) )
+        (tclass == 0) || ((uint)tclass > 0xFFU) )
    {  // illegal parameter count, format or value
       Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
       result = TCL_ERROR; 
@@ -86,8 +85,7 @@ static int SelectThemes( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *
       result = Tcl_ListObjGetElements(interp, objv[2], &themeCount, &pThemes);
       if (result == TCL_OK)
       {
-         tclass = 1 << (tclass - 1);
-         usedClasses = EpgDbFilterInitThemes(pPiFilterContext, tclass);
+         usedClasses = EpgDbFilterInitThemes(pPiFilterContext, pUiDbContext->themeCount, tclass);
 
          for (idx=0; idx < themeCount; idx++)
          {
@@ -914,38 +912,58 @@ static int PiFilter_ContextCacheCtl( ClientData ttp, Tcl_Interp *interp, int obj
 }
 
 // ----------------------------------------------------------------------------
-// Return the name for a given PDC theme category index
+// Return the name for a given theme category index
 //
-static int GetPdcString( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
-{  
-   const char * const pUsage = "Usage: C_GetPdcString <index>";
-   const char * pGeneralStr;
+static int GetThemesString( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
+{
+   const char * const pUsage = "Usage: C_GetThemesString <index>";
    const char * pThemeStr;
-   Tcl_Obj * pTmpObj;
    int index;
-   int result; 
-   
+   int result;
+
    if ( (objc != 2) || (Tcl_GetIntFromObj(interp, objv[1], &index) != TCL_OK) )
    {  // wrong parameter count or no integer parameter
       Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
-      result = TCL_ERROR; 
-   }  
+      result = TCL_ERROR;
+   }
    else
    {
-      pThemeStr = PdcThemeGetWithGeneral(index, &pGeneralStr, FALSE);
-      if (pThemeStr != NULL)
-      {
-         pTmpObj = Tcl_NewStringObj(pThemeStr, -1);
-         Tcl_AppendStringsToObj(pTmpObj, pGeneralStr, NULL);
+      pThemeStr = EpgDbGetThemeStr(pUiDbContext, index);
+      Tcl_SetObjResult(interp, Tcl_NewStringObj(pThemeStr, -1));
 
-         Tcl_SetObjResult(interp, pTmpObj);
-      }
-      else
+      result = TCL_OK;
+   }
+   return result;
+}
+
+// ----------------------------------------------------------------------------
+// Return a list of all theme category names
+//
+static int GetAllThemesStrings( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
+{
+   const char * const pUsage = "Usage: C_GetAllThemesStrings";
+   Tcl_Obj * pThemesList;
+   const char * pThemeStr;
+   int result;
+
+   if (objc != 1)
+   {  // unexpected parameters
+      Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
+      result = TCL_ERROR;
+   }
+   else
+   {
+      pThemesList = Tcl_NewListObj(0, NULL);
+
+      for (uint idx = 0; idx < pUiDbContext->themeCount; ++idx)
       {
-         sprintf(comm, "#%d", index);
-         Tcl_SetResult(interp, comm, TCL_VOLATILE);
+         pThemeStr = EpgDbGetThemeStr(pUiDbContext, idx);
+
+         Tcl_ListObjAppendElement(interp, pThemesList, Tcl_NewStringObj(pThemeStr, -1));
       }
-      result = TCL_OK; 
+      Tcl_SetObjResult(interp, pThemesList);
+
+      result = TCL_OK;
    }
    return result;
 }
@@ -1496,7 +1514,7 @@ static int PiFilter_ContextMenuUndoFilter( ClientData ttp, Tcl_Interp *interp, i
             uint count = 0;
 
             // check if more than one theme filter is set
-            for (uint idx = 0; idx <= 0x80; idx++)
+            for (uint idx = 0; idx < pPiFilterContext->act.themeCount; idx++)
             {
                if (pPiFilterContext->act.themeFilterField[idx] != 0)
                {
@@ -1508,14 +1526,14 @@ static int PiFilter_ContextMenuUndoFilter( ClientData ttp, Tcl_Interp *interp, i
             if (count == 1)
             {
                comm[0] = 0;
-               for (uint tclass = 0; tclass < THEME_CLASS_COUNT; tclass++)
+               for (uint tclass=0; tclass < THEME_CLASS_COUNT; tclass++)
                {
                   // only offer to undo this theme if it is in exactly one class
                   if (pPiFilterContext->act.themeFilterField[theme] & (1 << tclass))
                   {
                      sprintf(comm, "C_SelectThemes %d {};"
                                    "ResetThemes; C_PiBox_Refresh; CheckShortcutDeselection",
-                                   tclass + 1);
+                                   1U << tclass);
                      break;
                   }
                }
@@ -1523,22 +1541,18 @@ static int PiFilter_ContextMenuUndoFilter( ClientData ttp, Tcl_Interp *interp, i
                {
                   Tcl_Obj * pCmdObj = Tcl_NewStringObj(comm, -1);
 
-                  pThemeStr = PdcThemeGet(theme);
-                  if (pThemeStr != NULL)
-                     snprintf(comm, TCL_COMM_BUF_SIZE, "Undo themes filter '%.80s'", pThemeStr);
-                  else
-                     sprintf(comm, "Undo themes filter");
+                  pThemeStr = EpgDbGetThemeStr(pUiDbContext, theme);
+                  snprintf(comm, TCL_COMM_BUF_SIZE, "Undo themes filter '%.80s'", pThemeStr);
                   Tcl_ListObjAppendElement(interp, pResultList, Tcl_NewStringObj(comm, -1));
 
                   Tcl_ListObjAppendElement(interp, pResultList, pCmdObj);
                }
             }
-            else if (count > 1)
+            else if ((count > 1) && (count < 5))
             {
-               for (uint idx = 0; idx <= 128; idx++)
+               for (uint idx = 0; idx < pPiFilterContext->act.themeCount; idx++)
                {
-                  if ( ((pPiFilterContext->act.themeFilterField[idx] & pPiFilterContext->act.usedThemeClasses) != 0) &&
-                       ((pThemeStr = PdcThemeGet(idx)) != NULL) )
+                  if ((pPiFilterContext->act.themeFilterField[idx] & pPiFilterContext->act.usedThemeClasses) != 0)
                   {
                      comm[0] = 0;
                      for (uint tclass=0; tclass < THEME_CLASS_COUNT; tclass++)
@@ -1546,7 +1560,7 @@ static int PiFilter_ContextMenuUndoFilter( ClientData ttp, Tcl_Interp *interp, i
                         // only offer to undo this theme if it is in exactly one class
                         if (pPiFilterContext->act.themeFilterField[idx] == (1 << tclass))
                         {
-                           sprintf(comm + strlen(comm), "DeselectTheme %d %d;", tclass + 1, idx);
+                           sprintf(comm, "DeselectTheme %d %d;", tclass + 1, idx);
                            break;
                         }
                      }
@@ -1554,6 +1568,7 @@ static int PiFilter_ContextMenuUndoFilter( ClientData ttp, Tcl_Interp *interp, i
                      {
                         Tcl_Obj * pCmdObj = Tcl_NewStringObj(comm, -1);
 
+                        pThemeStr = EpgDbGetThemeStr(pUiDbContext, idx);
                         snprintf(comm, TCL_COMM_BUF_SIZE, "Undo themes filter '%.80s'", pThemeStr);
                         Tcl_ListObjAppendElement(interp, pResultList, Tcl_NewStringObj(comm, -1));
 
@@ -1561,6 +1576,13 @@ static int PiFilter_ContextMenuUndoFilter( ClientData ttp, Tcl_Interp *interp, i
                      }
                   }
                }
+            }
+            else if (count > 1)
+            {
+               sprintf(comm, "C_SelectThemes 0xFF {};"
+                             "ResetThemes; C_PiBox_Refresh; CheckShortcutDeselection");
+               Tcl_ListObjAppendElement(interp, pResultList, Tcl_NewStringObj("Undo themes filters", -1));
+               Tcl_ListObjAppendElement(interp, pResultList, Tcl_NewStringObj(comm, -1));
             }
          }
 
@@ -1599,7 +1621,7 @@ static int PiFilter_ContextMenuAddFilter( ClientData ttp, Tcl_Interp *interp, in
    const char * pCfNetname;
    bool  isFromAi;
    uint  idx;
-   uchar theme, themeCat;
+   uint  theme;
    uint netwop;
    Tcl_Obj * pResultList;
    int   result;
@@ -1665,34 +1687,16 @@ static int PiFilter_ContextMenuAddFilter( ClientData ttp, Tcl_Interp *interp, in
             for (idx=0; idx < pPiBlock->no_themes; idx++)
             {
                theme = pPiBlock->themes[idx];
-               if (theme <= 128)
+
+               if ( (EpgDbFilterIsEnabled(pPiFilterContext, FILTER_THEMES) == FALSE) ||
+                    (pPiFilterContext->act.themeFilterField[theme] == FALSE) )
                {
-                  pThemeStr = PdcThemeGet(theme);
-                  if ( (pThemeStr != NULL) &&
-                       ( (EpgDbFilterIsEnabled(pPiFilterContext, FILTER_THEMES) == FALSE) ||
-                         (pPiFilterContext->act.themeFilterField[theme] == FALSE) ) )
-                  {
-                     themeCat  = PdcThemeGetCategory(theme);
-                     if ( EpgDbFilterIsEnabled(pPiFilterContext, FILTER_THEMES) &&
-                          (themeCat != theme) &&
-                          (pPiFilterContext->act.themeFilterField[themeCat] != FALSE) )
-                     {  // special case: undo general theme before sub-theme is enabled, else filter would have no effect (due to OR)
-                        snprintf(comm, TCL_COMM_BUF_SIZE, "Filter theme '%.80s'", pThemeStr);
-                        Tcl_ListObjAppendElement(interp, pResultList, Tcl_NewStringObj(comm, -1));
+                  pThemeStr = EpgDbGetThemeStr(pUiDbContext, theme);
+                  snprintf(comm, TCL_COMM_BUF_SIZE, "Filter theme '%.80s'", pThemeStr);
+                  Tcl_ListObjAppendElement(interp, pResultList, Tcl_NewStringObj(comm, -1));
 
-                        sprintf(comm, "set theme_sel(%d) 0; set theme_sel(%d) 1; SelectTheme %d",
-                                      themeCat, theme, theme);
-                        Tcl_ListObjAppendElement(interp, pResultList, Tcl_NewStringObj(comm, -1));
-                     }
-                     else
-                     {
-                        snprintf(comm, TCL_COMM_BUF_SIZE, "Filter theme '%.80s'", pThemeStr);
-                        Tcl_ListObjAppendElement(interp, pResultList, Tcl_NewStringObj(comm, -1));
-
-                        sprintf(comm, "set theme_sel(%d) 1; SelectTheme %d", theme, theme);
-                        Tcl_ListObjAppendElement(interp, pResultList, Tcl_NewStringObj(comm, -1));
-                     }
-                  }
+                  sprintf(comm, "SelectTheme %d", theme);
+                  Tcl_ListObjAppendElement(interp, pResultList, Tcl_NewStringObj(comm, -1));
                }
             }
 
@@ -1847,7 +1851,8 @@ void PiFilter_Create( void )
       Tcl_CreateObjCommand(interp, "C_PiFilter_ContextCacheCtl", PiFilter_ContextCacheCtl, (ClientData) NULL, NULL);
       Tcl_CreateObjCommand(interp, "C_PiFilter_SelectAirTimes", PiFilter_SelectAirTimes, (ClientData) NULL, NULL);
 
-      Tcl_CreateObjCommand(interp, "C_GetPdcString", GetPdcString, (ClientData) NULL, NULL);
+      Tcl_CreateObjCommand(interp, "C_GetThemesString", GetThemesString, (ClientData) NULL, NULL);
+      Tcl_CreateObjCommand(interp, "C_GetAllThemesStrings", GetAllThemesStrings, (ClientData) NULL, NULL);
       //Tcl_CreateObjCommand(interp, "C_GetNetwopsWithSeries", GetNetwopsWithSeries, (ClientData) NULL, NULL);
       //Tcl_CreateObjCommand(interp, "C_GetNetwopSeriesList", GetNetwopSeriesList, (ClientData) NULL, NULL);
       Tcl_CreateObjCommand(interp, "C_GetSeriesByLetter", GetSeriesByLetter, (ClientData) NULL, NULL);

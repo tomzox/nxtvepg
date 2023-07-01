@@ -284,7 +284,7 @@ Um die Daten in tabellarischer Form in eine Textdatei zu exportieren
 (z.B. für den Import in eine SQL-Datenbank) sind die folgenden
 Schlüsselwörter vorhanden: I<pi>, um die gesamte
 TV-Sendungsbeschreibungen auszugeben; I<ai>, um die Kanal- bzw.
-Sendertabelle auszugeben; I<pdc>, um die Themenkategorien-Tabelle
+Sendertabelle auszugeben; I<themes>, um die Themenkategorien-Tabelle
 auszugeben. Weitere Details siehe L<"CONTROL MENU: Export as text">.
 
 Alle Ausgaben werden auf das Terminal ausgegeben (das so genannte I<stdout>)
@@ -1176,8 +1176,8 @@ in der unten stehenden Liste der Filtertypen erklärt.
 I<Beispiele:> Wollen Sie etwa alle Sendungen aufgelistet bekommen für entweder
 Sender A B<ODER> Sender B, wählen Sie einfach beide Sender in der Filterliste.
 Wollen Sie alle auf A geplanten Filme, d.h. alle Sendungen, die auf Sender A
-laufen B<UND> mit Spielfilm gekennzeichnet sind, wählen Sie Sender A und als
-Thema "Spielfilm - allgemein".
+laufen B<UND> mit Themenkategorie Spielfilm gekennzeichnet sind, wählen Sie
+Sender A und als Themenkategorie "Spielfilm".
 
 =head2 Filter Types
 
@@ -1187,20 +1187,29 @@ Die folgenden Filtertypen sind verfügbar:
 
 =item B<Theme categories>
 
-Begrenzt die Auflistung auf Sendungen, denen eines der vorgegebenen
-Themenkategorien zugeordnet ist (logisches ODER). Aktuell wird eine Liste von
-76 vordefinierten Themen verwendet, die in 11 Hauptkategorien strukturiert
-sind. Kategorien in XMLTV Dateien werden auf diese einheitliche Liste
-abgebildet.
+Begrenzt die Auflistung auf Sendungen denen die ausgewählte Themenkategorie
+zugeordnet ist. Wird mehr als eine Kategorie ausgewählt, zeigt die Auflistung
+Sendungen den eine beliebige der ausgewählten Kategorien zugeordnet ist
+(logisches ODER).
 
-Wollen Sie die Auflistung auf Sendungen begrenzen, die mehr als eines der
-vorgegebenen Themen besitzen (logisches UND), müssen Sie diese in
-unterschiedlichen Themenklassen spezifizieren. Zum Beispiel: um eine Auflistung
-aller Sendungen zu erhalten, die beides sind Sci-Fi und Komödie, wählen Sie die
-Themenkategorie Sci-Fi, dann wechseln Sie zu einer anderen Themenklasse und
-wählen die Themenkategorie Komödie. Die aktuellen Klassennummern spielen keine
-Rolle, Sie sollten einfach nur zwei verschiedene verwenden (d.h. Sie können
-entweder #1 und #2 oder #5 und #6 etc. anwenden).
+Die Liste von verfügbaren Themenkategorien ist die Summe aller Kategorien die
+in der Datenbank verwendet werden. Daher unterscheidet sich die Liste je nach
+der verwendeten Datenbank. Dies bedeutet jedoch leider dass Shortcuts die
+Themen-Filter beinhalten nicht generell zwischn Providern übertragbar sind.
+(Dies ist auch der Grund, dass solche Shortcuts nicht in der Grundeinstellung
+von nxtvepg enthalten sind.)
+
+Für Provider die ein hierarchisches System von Themenkategorien verwenden, ist
+es üblich dass einer Sendung mehrere Kategorien zugeordnet sind. Zum Beispiel,
+es könnte Hauptkategorien "Film" und "Serie" geben und Unterkategorien
+"Komödie" usw. Wenn nun als Kategorien "Film" und "Komödie" ausgewählt wird,
+würden auch komödiantische Serien in der Liste angezeigt. Um nur Filme die
+Komödien sind anzuzeigen, wird ein logisches "UND" zwischen Kategorien
+benötigt. Dies kann erreicht werden, indem man die Kategorien verschiedenen
+"Klassen" zuordnet. Zum Beispiel: Man wählt zuerst in Klasse 1 Kategorie
+"Film", wechselt dann zu Klasse 2 und wählt "Komödie". Welche Nummern verwendet
+werden ist dabei egal, es kommt nur darauf an unterschiedliche Klassen zu
+verwenden um ein "UND" zwischen den Kategorien zu erzwingen.
 
 =item B<Networks>
 
@@ -2016,12 +2025,18 @@ new-line-Zeichen abgeschlossen (d.h. UNIX-Textformat, auch auf Windows).
 Fehlende Werte werden in einigen Fällen durch C<\N> repräsentiert, welches den
 MySQL-NULL-Identifier darstellt (zurzeit nur für das VPS/PDC-Feld verwendet).
 
+Zeilenumbrüche im Beschreibungstext werden im Export durch "C< // >" ersetzt.
+In einer zusammengeführten Datenbank wird zwischen aus mehrereren Quellen
+zusammengesetzten Beschreibungstexten "C< //%// >" eingefügt. Diese
+Ersatzzeichen sollten bei Anzeige der Texte durch Zeilenumbrüche bzw. eine
+horizontale Trennlinie ersetzt werden.
+
 Die erzeugte Textdatei kann direkt in eine relationale Datenbank geladen
 werden. Sie ist nicht für das Betrachten in einem regulären Texteditor
-formatiert. Sender und Themen werden entsprechend als numerische Indizes
-innerhalb Sender- und Thementabelle dargestellt. Deshalb werden diese Tabellen
-zusätzlich zur Programmtabelle benötigt. Um sie in eine Datenbank zu laden,
-müssen Sie sie in unterschiedliche Dateien exportieren.
+formatiert. Sender werden entsprechend als numerische Indizes innerhalb Sender-
+und Thementabelle dargestellt. Deshalb wird die Sendertabelle zusätzlich zur
+Programminformationstabelle benötigt. Um sie in eine Datenbank zu laden, müssen
+Sie sie in unterschiedliche Dateien exportieren.
 
 Für I<MySQL> können Sie die Tabellen wie folgt definieren:
 
@@ -2041,13 +2056,14 @@ Für I<MySQL> können Sie die Tabellen wie folgt definieren:
       is_live BOOL,
       is_repeat BOOL,
       is_subtitled BOOL,
-      theme_0 tinyint(3) unsigned,
-      theme_1 tinyint(3) unsigned,
-      theme_2 tinyint(3) unsigned,
-      theme_3 tinyint(3) unsigned,
-      theme_4 tinyint(3) unsigned,
-      theme_5 tinyint(3) unsigned,
-      theme_6 tinyint(3) unsigned,
+      theme_0 text,
+      theme_1 text,
+      theme_2 text,
+      theme_3 text,
+      theme_4 text,
+      theme_5 text,
+      theme_6 text,
+      theme_7 text,
       title varchar(40) NOT NULL,
       descr text,
       PRIMARY KEY (netwop, Dstart, Hstart)
@@ -2064,18 +2080,15 @@ Für I<MySQL> können Sie die Tabellen wie folgt definieren:
       UNIQUE netwop_idx (netwop_idx)
    );
 
-   CREATE TABLE pdc_themes (
+   CREATE TABLE themes (
       theme_idx smallint(3) unsigned NOT NULL,
-      cat_idx smallint(3) unsigned,
-      name_eng text,
-      name_ger text,
-      name_fra text,
+      category_name text,
       UNIQUE theme_idx (theme_idx)
    );
 
 B<Tipp:> Die Dateien können auch direkt über die Befehlszeile mittels der
-Schalter B<-dump pi>, B<-dump ai> bzw. B<-dump pdc> geschrieben werden. (Siehe
-auch L<"OPTIONS">)
+Schalter B<-dump pi>, B<-dump ai> bzw. B<-dump themes> geschrieben werden.
+(Siehe auch L<"OPTIONS">)
 
 =head2 Export as XMLTV
 
@@ -3052,7 +3065,7 @@ Man kann zwischen Minuten (Vorgabe) und Sekunden durch Anhängen von "m" oder
 
 Man kann zwischen numerischer oder textueller Ausgabe durch Anhängen von "n"
 oder "t" wählen. Eine Liste aller Kategorien erhalten Sie mit der
-Befehlszeilenoption I<-dump pdc> (siehe L<"OPTIONS">.)
+Befehlszeilenoption I<-dump themes> (siehe L<"OPTIONS">.)
 
 =back
 

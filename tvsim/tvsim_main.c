@@ -63,7 +63,6 @@
 #include "epgui/rcfile.h"
 #include "epgui/wintvcfg.h"
 #include "epgui/wintvui.h"
-#include "epgui/pdc_themes.h"
 #include "epgtcl/dlg_hwcfg.h"
 #include "tvsim/winshmclnt.h"
 #include "tvsim/tvsim_gui.h"
@@ -137,12 +136,10 @@ static bool             haveIdleHandler    = FALSE;
 // input source index of the TV tuner with btdrv4win.c
 #define TVSIM_INPUT_IDX  0
 
-// select English language for PDC theme output
-#define TVSIM_PDC_THEME_LANGUAGE  0
-
 // command line options
 static const char * rcfile = NULL;
 static bool isDefaultRcfile = TRUE;
+static bool withoutDevice = FALSE;
 static uint videoCardIndex = TVSIM_CARD_IDX;
 static bool startIconified = FALSE;
 #ifndef WIN32
@@ -158,6 +155,7 @@ typedef struct
    uint         pil;
    uchar        prat;
    uchar        erat;
+   uchar        erat_max;
    char       * pSound;
    bool         is_wide;
    bool         is_palplus;
@@ -166,7 +164,7 @@ typedef struct
    bool         is_live;
    bool         is_repeat;
    bool         is_subtitled;
-   uchar        pdc_themes[7];
+   char       * pThemes[8];  // PI_MAX_THEME_COUNT
    char       * pTitle;
    char       * pDescription;
 } EPG_PI;
@@ -212,7 +210,7 @@ static bool TvSimu_ParsePiDescription( char * pText, EPG_PI * pi )
    char * pOrigText = pText;
    char * pEnd;
    struct tm t;
-   int int_val, nscan, scan_pos;
+   int int_val, int_val2, nscan, scan_pos;
    uint oldMoD;
    uint idx;
 
@@ -263,15 +261,32 @@ static bool TvSimu_ParsePiDescription( char * pText, EPG_PI * pi )
       pText += scan_pos;
    }
 
-   nscan = sscanf(pText, "%d\t%n", &int_val, &scan_pos);
-   if (nscan < 1) goto error;
-   pi->prat = int_val;
-   pText += scan_pos;
+   if (strncmp(pText, "\\N\t", 3) == 0)
+   {
+      pi->prat = 255;  // PI_PARENTAL_UNDEFINED
+      pText += 3;
+   }
+   else
+   {
+      nscan = sscanf(pText, "%d\t%n", &int_val, &scan_pos);
+      if (nscan < 1) goto error;
+      pi->prat = int_val;
+      pText += scan_pos;
+   }
 
-   nscan = sscanf(pText, "%d\t%n", &int_val, &scan_pos);
-   if (nscan < 1) goto error;
-   pi->erat = int_val;
-   pText += scan_pos;
+   if (strncmp(pText, "\\N\t\\N\t", 6) == 0)
+   {
+      pi->erat = 255;  // PI_EDITORIAL_UNDEFINED
+      pText += 6;
+   }
+   else
+   {
+      nscan = sscanf(pText, "%d\t%d\t%n", &int_val, &int_val2, &scan_pos);
+      if (nscan < 2) goto error;
+      pi->erat = int_val;
+      pi->erat_max = int_val2;
+      pText += scan_pos;
+   }
 
    pEnd = strchr(pText, '\t');
    if (pEnd == NULL) goto error;
@@ -287,11 +302,6 @@ static bool TvSimu_ParsePiDescription( char * pText, EPG_PI * pi )
    nscan = sscanf(pText, "%d\t%n", &int_val, &scan_pos);
    if (nscan < 1) goto error;
    pi->is_palplus = int_val;
-   pText += scan_pos;
-
-   nscan = sscanf(pText, "%d\t%n", &int_val, &scan_pos);
-   if (nscan < 1) goto error;
-   pi->is_digital = int_val;
    pText += scan_pos;
 
    nscan = sscanf(pText, "%d\t%n", &int_val, &scan_pos);
@@ -314,12 +324,13 @@ static bool TvSimu_ParsePiDescription( char * pText, EPG_PI * pi )
    pi->is_subtitled = int_val;
    pText += scan_pos;
 
-   for (idx = 0; idx < 7; idx++)
+   for (idx = 0; idx < 8; idx++)  //PI_MAX_THEME_COUNT
    {
-      nscan = sscanf(pText, "%d\t%n", &int_val, &scan_pos);
-      if (nscan < 1) goto error;
-      pi->pdc_themes[idx] = int_val;
-      pText += scan_pos;
+      pEnd = strchr(pText, '\t');
+      if (pEnd == NULL) goto error;
+      pi->pThemes[idx] = pText;
+      *pEnd = 0;
+      pText = pEnd + 1;
    }
 
    pEnd = strchr(pText, '\t');
@@ -344,7 +355,7 @@ error:
       if (*pText == 0)
          *pText = '\t';
    }
-   debug2("TvSimu-ParsePiDescription: parse error at offset %d: %s", idx, pOrigText);
+   debug3("TvSimu-ParsePiDescription: parse error at offset %d: '%s' in %s", idx, pOrigText + idx, pOrigText);
    return FALSE;
 }
 #endif
@@ -1230,35 +1241,6 @@ Tcl_Obj * TranscodeToUtf8( T_EPG_ENCODING enc,
    }
    return pObj;
 }
-// ----------------------------------------------------------------------------
-// Return the name according to a PDC theme index
-//
-static int GetPdcString( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
-{  
-   const char * const pUsage = "Usage: C_GetPdcString <index>";
-   const char * pThemeStr;
-   int index;
-   int result; 
-   
-   if ( (objc != 2) || (Tcl_GetIntFromObj(interp, objv[1], &index) != TCL_OK) )
-   {  // wrong parameter count or no integer parameter
-      Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
-      result = TCL_ERROR; 
-   }  
-   else
-   {
-      if (PdcThemeIsDefined(index))
-      {  // this is a known PDC series code
-         pThemeStr = PdcThemeGet(index);
-      }
-      else
-         pThemeStr = "";
-
-      Tcl_SetObjResult(interp, Tcl_NewStringObj(pThemeStr, -1));
-      result = TCL_OK; 
-   }
-   return result;
-}
 
 // ----------------------------------------------------------------------------
 // Dummy for rcfile.c
@@ -1267,6 +1249,28 @@ static int GetPdcString( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *
 void CmdLine_AddRcFilePostfix( const char * pPostfix )
 {
 }
+
+#ifndef WIN32
+// ---------------------------------------------------------------------------
+// Helper function for allocating a new string for a concatenation of strings
+//
+static char * CmdLine_ConcatPaths( const char * p1, const char * p2, const char * p3 )
+{
+   char * pStr;
+
+   if (p3 != NULL)
+   {
+      pStr = (char*) xmalloc(strlen(p1) + 1 + strlen(p2) + 1 + strlen(p3) + 1);
+      sprintf(pStr, "%s/%s/%s", p1, p2, p3);
+   }
+   else
+   {
+      pStr = (char*) xmalloc(strlen(p1) + 1 + strlen(p2) + 1);
+      sprintf(pStr, "%s/%s", p1, p2);
+   }
+   return pStr;
+}
+#endif
 
 // ---------------------------------------------------------------------------
 // Print Usage and exit
@@ -1303,10 +1307,6 @@ static void Usage( const char *argv0, const char *argvn, const char * reason )
 //
 static void ParseArgv( int argc, char * argv[] )
 {
-#ifndef WIN32
-   char * pHome;
-   char * pTmp;
-#endif
    int argIdx = 1;
 
 #ifdef WIN32
@@ -1314,16 +1314,20 @@ static void ParseArgv( int argc, char * argv[] )
 #endif
 
 #ifndef WIN32
-   pHome = getenv("HOME");
-   if (pHome != NULL)
+   // code copied from epgui/cmdline.c
+
+   char * pEnvHome = getenv("HOME");
+
+   char * pEnvConfig = getenv("XDG_CONFIG_HOME");
+   if (pEnvConfig == NULL)
    {
-      pTmp = xmalloc(strlen(pHome) + 1 + strlen(".nxtvepgrc") + 1);
-      strcpy(pTmp, pHome);
-      strcat(pTmp, "/.nxtvepgrc");
-      rcfile = pTmp;
+      if (pEnvHome != NULL)
+         rcfile = CmdLine_ConcatPaths(pEnvHome, ".config", "nxtvepg/nxtvepgrc");
+      else
+         rcfile = xstrdup("nxtvepgrc");
    }
    else
-      rcfile = xstrdup(".nxtvepgrc");
+      rcfile = CmdLine_ConcatPaths(pEnvConfig, "nxtvepg/nxtvepgrc", NULL);
 #else
    rcfile = xstrdup("nxtvepg.ini");
 #endif
@@ -1349,6 +1353,11 @@ static void ParseArgv( int argc, char * argv[] )
             }
             else
                Usage(argv[0], argv[argIdx], "missing file name after");
+         }
+         else if (!strcmp(argv[argIdx], "-noacq"))
+         {
+            withoutDevice = TRUE;
+            argIdx += 1;
          }
          else if (!strcmp(argv[argIdx], "-card"))
          {
@@ -2133,7 +2142,6 @@ static int ui_init( int argc, char **argv )
 
    Tcl_CreateCommand(interp, "C_GrantTuner", TclCb_GrantTuner, (ClientData) NULL, NULL);
    Tcl_CreateCommand(interp, "C_TuneChan", TclCb_TuneChan, (ClientData) NULL, NULL);
-   Tcl_CreateObjCommand(interp, "C_GetPdcString", GetPdcString, (ClientData) NULL, NULL);
 
    Tcl_CreateObjCommand(interp, "C_ClockSeconds", ClockSeconds, (ClientData) NULL, NULL);
    Tcl_CreateObjCommand(interp, "C_ClockFormat", ClockFormat, (ClientData) NULL, NULL);
@@ -2207,17 +2215,14 @@ int main( int argc, char *argv[] )
       #endif
 
       // pass bt8x8 driver parameters to the driver
-      if (SetHardwareConfig(videoCardIndex))
+      if (withoutDevice || SetHardwareConfig(videoCardIndex))
       {
-         // select language for PDC theme text output
-         PdcThemeSetLanguage(TVSIM_PDC_THEME_LANGUAGE);
-
          // fill channel listbox with names from TV app channel table
          // a warning is issued if the table is empty (used during startup)
          sprintf(comm, "LoadChanTable");
          eval_check(interp, comm);
 
-         if (BtDriver_StartAcq())
+         if (withoutDevice || BtDriver_StartAcq())
          {
             // set window title
             eval_check(interp, "wm title . {TV app simulator " TVSIM_VERSION_STR "}\n");
@@ -2287,6 +2292,7 @@ int main( int argc, char *argv[] )
    #endif
 
    WintvUi_Destroy();
+   WintvCfg_Destroy();
    RcFile_Destroy();
    Tcl_FreeEncoding(encIso88591);
    encIso88591 = NULL;

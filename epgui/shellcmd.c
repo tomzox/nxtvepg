@@ -48,7 +48,6 @@
 #include "epgdb/epgdbif.h"
 #include "epgui/epgmain.h"
 #include "epgui/epgsetup.h"
-#include "epgui/pdc_themes.h"
 #include "epgui/pibox.h"
 #include "epgui/pidescr.h"
 #include "epgui/shellcmd.h"
