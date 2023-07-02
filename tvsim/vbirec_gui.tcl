@@ -392,7 +392,7 @@ proc CreateAbout {} {
       label .about.name -text "VBI recoder - vbirec v$TVSIM_VERSION"
       pack .about.name -side top -pady 8
 
-      label .about.copyr1 -text "Copyright (C) 2002,2004,2005,2007 by T. Zörner"
+      label .about.copyr1 -text "Copyright (C) 2002,2004,2005,2007 by T. Zoerner"
       label .about.copyr2 -text "tomzo@users.sourceforge.net"
       label .about.copyr3 -text "http://nxtvepg.sourceforge.net/" -font [list $font_family_fixed -12 normal] -foreground blue
       pack .about.copyr1 .about.copyr2 -side top

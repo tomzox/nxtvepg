@@ -265,9 +265,6 @@ $(BUILD_DIR)/%.c: %.tcl $(BUILD_DIR)/tcl2c
           false ; \
 	fi
 
-# kill implicit rule for RCS check-out
-%: RCS/%,v
-
 .SUFFIXES: .yy .lex
 
 %.tab.c %.tab.h: %.yy

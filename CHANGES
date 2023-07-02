@@ -429,7 +429,7 @@ from 2.6.0 to 2.7.0 (2004-Apr-02)
   path to the directory with the alternate OS's databases)
 - right mouse button in main window now selects the programme entry below
   the mouse before opening the context menu; Previously the selection was not
-  changed. Thanks to Jörg for the suggestion.
+  changed. Thanks to JÃ¶rg for the suggestion.
 - bugfix in user-defined context menu commands based on !wintv! and !xawtv!:
   argument count which was reported to the external program was wrong, hence
   some apps did not accept the command. Thanks to Rami for debugging support.
@@ -448,7 +448,7 @@ from 2.6.0 to 2.7.0 (2004-Apr-02)
   after the time switch are faults on side if the content providers. Also
   weekdays in the scale are now printed in the local language.
 - added new EPG provider "VT4" (Belgium) as of March 2004.
-  Thanks to "Néo" for providing the info.
+  Thanks to "NÃ©o" for providing the info.
 - UNIX: added support for libzvbi: requires change in Makefile (add compiler
   switch -DUSE_LIBZVBI) and re-compilation; also added preliminary support
   for VBI proxy (add compiler switch -DUSE_LIBZVBI_PROXY; note the proxy API
@@ -525,7 +525,7 @@ from 2.5.1 to 2.5.2 (2003-July-01)
 
 from 2.5.0 to 2.5.1 (2003-April-21)
 
-- fixed French default shortcut "Météo" (did pop up an error message when
+- fixed French default shortcut "MÃ©tÃ©o" (did pop up an error message when
   invoked.  At first start of 2.5.1 the broken shortcut is replaced in the
   rc file; if that does not work remove and re-define the shortcut manually
   via the "Shortcuts" menu)
@@ -596,7 +596,7 @@ from 2.4.2 to 2.5.0 (2003-March-22)
   less than 30 characters length were not removed. Thanks to Thierry for
   pointing this out.  Also fixed a bug which caused text truncation.
 - Fixed bug in text decoder which caused some national characters to be
-  displayed falsely, e.g. "D'ECONSEILL'" instead of "DÉCONSEILLÉ".
+  displayed falsely, e.g. "D'ECONSEILL'" instead of "DÃ‰CONSEILLÃ‰".
 - Fixed bug in "global invert" filter matching (depending on which filter
   types were inverted, expired programmes could have shown up in the listing)
 - added possibility to combine several text searches (logical OR)
@@ -725,7 +725,7 @@ from 2.3.1 to 2.4.0 (2002-November-19)
   loads the script which manages the rcfile - saves apx. 400 kB RAM)
 
 Thanks to everyone who provided feedback and suggestions, especially to
-Thierry Ménétrier.
+Thierry MÃ©nÃ©trier.
 
 
 from 2.3.0 to 2.3.1 (2002-October-13)
@@ -817,7 +817,7 @@ from 2.2.0 to 2.2.1 (2002-August-24)
   VPS/PDC decoding was disabled so that for some networks no title info
   was displayed in K!TV.
 
-Thanks to Thierry Ménétrier for his excellent feedback.
+Thanks to Thierry MÃ©nÃ©trier for his excellent feedback.
 
 
 from 0.7.4 aka 2.1.2 to 2.2.0 (2002-August-18)

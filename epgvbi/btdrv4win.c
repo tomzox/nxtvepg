@@ -4,7 +4,7 @@
  *  Copyright (C) 1999-2008, 2020-2021 T. Zoerner
  *
  *  Original WDM support:
- *      February 2004 by Gérard Chevalier (gd_chevalier@hotmail.com)
+ *      February 2004 by Gerard Chevalier (gd_chevalier@hotmail.com)
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License Version 2 as

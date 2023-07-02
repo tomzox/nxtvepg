@@ -69,8 +69,8 @@
 //
 #if CHK_MALLOC == ON
 // define magic string that allows to detect memory overwrites
-static const char * const pMallocMagic = "Mägi";
-static const char * const pMallocXmark = "Nöpe";
+static const char * const pMallocMagic = "M\xe4gi";
+static const char * const pMallocXmark = "N\xF6pe";
 #define MALLOC_CHAIN_MAGIC_LEN     4
 
 // define structure that's used to chain all malloc'ed memory
@@ -158,9 +158,9 @@ void DebugLogLine( bool doHalt )
    // write a little marker at the end of the debug string and check if it's ever overwritten
    if (debugStrInitialized == FALSE)
    {
-      debugStr[DEBUGSTR_LEN - 1] = 'õ';
+      debugStr[DEBUGSTR_LEN - 1] = 0xF6U;
    }
-   else if (debugStr[DEBUGSTR_LEN - 1] != 'õ')
+   else if ((uchar)debugStr[DEBUGSTR_LEN - 1] != 0xF6U)
    {
       debugStrInitialized = FALSE;
       fatal0("DebugLogLine: exceeded debug str max length");  // note: recursive call!

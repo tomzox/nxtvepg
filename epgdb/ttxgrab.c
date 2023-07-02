@@ -111,7 +111,7 @@ static const uchar * TtxGrab_PrintHeader( const uchar * pHeader, uint headOff, b
          c = pHeader[idx];
 
       if (c >= 0x80)
-         buf[idx] = '¹';
+         buf[idx] = 0xB9;  // superscript '1' in ISO-8859-1
       else if (c == 0x7F)
          buf[idx] = ' ';
       else if (c >= 32)

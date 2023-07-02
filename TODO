@@ -111,7 +111,7 @@ Possible future reminder options:
 - snooze (i.e. repeat) for user-confirmed commands?
 - include clock in reminder popup?
 - allow to specify format (attribute selection) for reminder event popup and
-  optionally include "short info" window in popups (i.e. description) (Jörk)
+  optionally include "short info" window in popups (i.e. description) (Joerk)
 - use VPS/PDC to detect actual programme's start time
   problem: only possible while TV display switched off or on the same channel
   unless the user has multiple cards; even then coord. with acq. is required
