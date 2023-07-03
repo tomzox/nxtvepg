@@ -21,7 +21,7 @@
 #    the GUI.
 #
 
-proc LoadRcFile {filename } {
+proc LoadRcFile {filename} {
    global shortcuts shortcut_tree
    global cfnettimes cfnetjoin
    global showNetwopListbox showNetwopListboxLeft showShortcutListbox
@@ -55,6 +55,8 @@ proc LoadRcFile {filename } {
                          GUI REMINDER {FILTER SHORTCUTS}]
 
    if {[catch {set rcfile [open $filename "r"]} errmsg] == 0} {
+      fconfigure $rcfile -encoding "utf-8"
+
       while {[gets $rcfile line] >= 0} {
          incr line_no
          if {[regexp {^\[(.*)\]$} $line foo sect_name]} {
@@ -64,31 +66,35 @@ proc LoadRcFile {filename } {
          } elseif {[string compare $line "___END___"] == 0} {
             set skip_sect 1
 
-         } elseif {!$skip_sect && ([catch $line] != 0) && !$error} {
-            tk_messageBox -type ok -default ok -icon error -message "Syntax error in rc/ini file, line #$line_no: $line"
-            set error 1
+         } elseif {!$skip_sect && !$error} {
+            # eval the line immediately
+            if {[catch $line] != 0} {
+               tk_messageBox -type ok -default ok -icon error -message "Syntax error in rc/ini file, line #$line_no: $line"
+               set error 1
+            }
 
          } elseif $skip_sect {
-            if {[regexp {^set nxtvepg_version (0x[0-9a-zA-Z]+)$} $line foo nxtvepg_version]} {
-               # old-style config file detected
-               set skip_sect 0
+            # detect C section version declaration: comes before GUI sections
+            if {[regexp {^nxtvepg_version = (0x[0-9a-zA-Z]+)$} $line foo nxtvepg_version]} {
+               if {$nxtvepg_version <= 0x030003} {
+                  # Prior to 3.0.4 the RC file was using system encoding
+                  fconfigure $rcfile -encoding [encoding system]
+               }
             }
          }
       }
       close $rcfile
 
-      if {[info exists nxtvepg_version] && ($nxtvepg_version == 0x020500)} {
-         # fix a bug in a pre-defined shortcut for France in 2.5.0
+      if {[info exists nxtvepg_version] && ($nxtvepg_version == 0x030003)} {
+         # convert themes class
          foreach tag [array names shortcuts] {
             # {Meteo substr {substr {{1 0 0 0 Meteo}}} {} merge 0}
             set ltmp {}
             foreach {ident valist} [lindex $shortcuts($tag) 2] {
-               if {([string compare $ident substr] == 0) && \
-                   ([llength $valist] == 1) && \
-                   ([llength [lindex $valist 0]] == 5) } {
-                  set ltmp0  [lindex $valist 0]
-                  lappend ltmp $ident [list [concat [lindex $ltmp0 4] [lrange $ltmp0 0 3] 0 0]]
-                  unset ltmp0
+               if {[string match $ident theme_class*] == 0} {
+                  # TODO convert numbers to names?
+                  lappend ltmp $ident $valist
+
                } else {
                   lappend ltmp $ident $valist
                }
@@ -124,12 +130,6 @@ proc LoadRcFile {filename } {
          set htyp [lindex $ltmp 2]
          if {([string compare $htyp none] != 0) && \
              ([string compare $htyp "&user_def"] != 0)} {
-            if {([string compare -length 1 $htyp "&"] != 0) && \
-                [info exists nxtvepg_version] && ($nxtvepg_version <= 0x020400)} {
-               # backward compatibility: prepend "&" operator
-               set htyp "&$htyp"
-               set ltmp [lreplace $ltmp 2 2 $htyp]
-            }
             if {[info exists colsel_tabs([string range $htyp 1 end])] == 0} {
                # indirect function reference with unknown column keyword -> remove
                set ltmp [lreplace $ltmp 2 2 none]
@@ -341,4 +341,3 @@ proc GetGuiRcData {} {
    #}
    return $rcfile
 }
-

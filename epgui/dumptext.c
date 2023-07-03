@@ -228,9 +228,9 @@ static void DumpText_PdcThemes( PI_DESCR_BUF * pb )
 
    for (idx=0; idx <= 128; idx++)
    {
-      pThemeStr_eng = PdcThemeGetByLang(idx, 0);
-      pThemeStr_ger = PdcThemeGetByLang(idx, 1);
-      pThemeStr_fra = PdcThemeGetByLang(idx, 4);
+      pThemeStr_eng = PdcThemeGetByLang(idx, EPG_LANG_EN);
+      pThemeStr_ger = PdcThemeGetByLang(idx, EPG_LANG_DE);
+      pThemeStr_fra = PdcThemeGetByLang(idx, EPG_LANG_FR);
       if ( (pThemeStr_eng != NULL) && (pThemeStr_ger != NULL) && (pThemeStr_fra != NULL) )
       {
          len = sprintf(str_buf, "%u\t%u\t",

@@ -254,6 +254,26 @@ static bool EpgDump_ReadTclBool( Tcl_Interp *interp,
 }
 #endif
 
+// ---------------------------------------------------------------------------
+// Helper function to append multiple UTF-8 strings within a Tcl object
+//
+static Tcl_Obj * ConcatStringsAsObj( const char * pStr, const char * pStr2,
+                                     const char * pStr3, const char * pStr4 )
+{
+   Tcl_Obj * pObj = Tcl_NewStringObj(pStr, -1);
+
+   if (pStr2 != NULL)
+      Tcl_AppendToObj(pObj, pStr2, strlen(pStr2));
+
+   if (pStr3 != NULL)
+      Tcl_AppendToObj(pObj, pStr3, strlen(pStr3));
+
+   if (pStr4 != NULL)
+      Tcl_AppendToObj(pObj, pStr4, strlen(pStr4));
+
+   return pObj;
+}
+
 // ----------------------------------------------------------------------------
 // Show info about the currently selected item in pop-up window
 // - used for debugging only
@@ -274,9 +294,9 @@ static int EpgDump_GetRawPi( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_O
    int len;
    Tcl_Obj * pResultList;
    int result;
-#define APPEND_ASCII(A,L) Tcl_ListObjAppendElement(interp, pResultList, Tcl_NewStringObj((A),(L)))
+#define APPEND_1(A,L) Tcl_ListObjAppendElement(interp, pResultList, Tcl_NewStringObj((A),(L)))
+#define APPEND_4(A,B,C,D) Tcl_ListObjAppendElement(interp, pResultList, ConcatStringsAsObj((A),(B),(C),(D)))
 #define APPEND_ENC(E,A,B,C) Tcl_ListObjAppendElement(interp, pResultList, TranscodeToUtf8((E),(A),(B),(C)))
-#define APPEND_ENC2(E,A,B,C,D) Tcl_ListObjAppendElement(interp, pResultList, AppendToUtf8((E), TranscodeToUtf8((E),(A),(B),NULL),(C),(D)))
 
    if (objc != 1)
    {  // parameter count is invalid
@@ -298,11 +318,11 @@ static int EpgDump_GetRawPi( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_O
          Tcl_ListObjAppendElement(interp, pResultList, Tcl_NewIntObj(pPiBlock->start_time));
 
          // third element is the programme title
-         APPEND_ENC(EPG_ENC_XMLTV, NULL, PI_GET_TITLE(pPiBlock), "\n");
+         APPEND_4(PI_GET_TITLE(pPiBlock), "\n", NULL, NULL);
 
          // following elements are the contents
          pCfNetname = EpgSetup_GetNetName(pAiBlock, pPiBlock->netwop_no, &isFromAi);
-         APPEND_ENC(EPG_ENC_NETNAME(isFromAi), "Network: \t", pCfNetname, "\n");
+         APPEND_4("Network: \t", pCfNetname, "\n", NULL);
 
          start_time = pPiBlock->start_time;
          strftime(start_str, sizeof(start_str), "%a %d.%m %H:%M", localtime(&start_time));
@@ -323,7 +343,7 @@ static int EpgDump_GetRawPi( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_O
          {
             len = sprintf(comm, "PIL:\tnone\n");
          }
-         APPEND_ASCII(comm, len);
+         APPEND_1(comm, len);
 
          const char *p;
          switch(pPiBlock->feature_flags & 0x03)
@@ -335,7 +355,7 @@ static int EpgDump_GetRawPi( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_O
            default: p = ""; break;
          }
          len = sprintf(comm, "Sound:\t%s\n", p);
-         APPEND_ASCII(comm, len);
+         APPEND_1(comm, len);
 
          if (pPiBlock->feature_flags & ~0x03)
             len = sprintf(comm, "Features:\t%s%s%s%s%s%s%s\n",
@@ -349,7 +369,7 @@ static int EpgDump_GetRawPi( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_O
                         );
          else
             len = sprintf(comm, "Features:\tnone\n");
-         APPEND_ASCII(comm, len);
+         APPEND_1(comm, len);
 
          if (pPiBlock->parental_rating == PI_PARENTAL_UNDEFINED)
             len = sprintf(comm, "Parental rating:\tnone\n");
@@ -357,20 +377,20 @@ static int EpgDump_GetRawPi( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_O
             len = sprintf(comm, "Parental rating:\tgeneral\n");
          else
             len = sprintf(comm, "Parental rating:\t%d years and up\n", pPiBlock->parental_rating);
-         APPEND_ASCII(comm, len);
+         APPEND_1(comm, len);
 
          if (pPiBlock->editorial_rating == PI_EDITORIAL_UNDEFINED)
             len = sprintf(comm, "Editorial rating:\tnone\n");
          else
             len = sprintf(comm, "Editorial rating:\t%d of %d\n",
                           pPiBlock->editorial_rating, pPiBlock->editorial_max_val);
-         APPEND_ASCII(comm, len);
+         APPEND_1(comm, len);
 
          for (index=0; index < pPiBlock->no_themes; index++)
          {
             pThemeStr = PdcThemeGetWithGeneral(pPiBlock->themes[index], &pGeneralStr, TRUE);
             len = sprintf(comm, "Theme:\t0x%02X ", pPiBlock->themes[index]);
-            APPEND_ENC2(EPG_ENC_XMLTV, comm, pThemeStr, pGeneralStr, "\n");
+            APPEND_4(comm, pThemeStr, pGeneralStr, "\n");
          }
       }
       EpgDbLockDatabase(pUiDbContext, FALSE);

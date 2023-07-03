@@ -189,7 +189,7 @@ static void TvSimu_DisplayPiDescription( const char * pText )
    Tcl_Obj * objv[2];
 
    objv[0] = Tcl_NewStringObj("DisplayPiDescription", -1);
-   objv[1] = TranscodeToUtf8(EPG_ENC_XMLTV, NULL, pText, NULL);
+   objv[1] = Tcl_NewStringObj(pText, -1);
    Tcl_IncrRefCount(objv[0]);
    Tcl_IncrRefCount(objv[1]);
 
@@ -1198,8 +1198,7 @@ Tcl_Obj * TranscodeToUtf8( T_EPG_ENCODING enc,
 
    switch (enc)
    {
-      case EPG_ENC_ASCII:
-      case EPG_ENC_XMLTV:
+      case EPG_ENC_UTF8:
          Tcl_DStringInit(&dstr);
          Tcl_DStringAppend(&dstr, pStr, -1);
          break;
@@ -1255,7 +1254,7 @@ static int GetPdcString( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *
       else
          pThemeStr = "";
 
-      Tcl_SetObjResult(interp, TranscodeToUtf8(EPG_ENC_XMLTV, NULL, pThemeStr, NULL));
+      Tcl_SetObjResult(interp, Tcl_NewStringObj(pThemeStr, -1));
       result = TCL_OK; 
    }
    return result;

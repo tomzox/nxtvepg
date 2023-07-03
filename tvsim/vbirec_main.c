@@ -1051,7 +1051,7 @@ static int TclCb_SendTvCmd(ClientData ttp, Tcl_Interp *interp, int argc, CONST84
       for (idx = 1; idx < argc; idx++)
       {
          tmp_dstr = pass_dstr + idx - 1;
-         // convert Tcl internal Unicode to Latin-1
+         // convert internal UTF-8 to system encoding (might be different, e.g. Latin-1)
          Tcl_UtfToExternalDString(NULL, argv[idx], -1, tmp_dstr);
          //dprintf1("%s ", Tcl_DStringValue(tmp_dstr));
          len += Tcl_DStringLength(tmp_dstr) + 1;

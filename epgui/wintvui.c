@@ -191,7 +191,7 @@ static int WintvUi_GetTvappList( ClientData ttp, Tcl_Interp *interp, int objc, T
       {
          if ( WintvCfg_QueryApp(appIdx, &pAppName, NULL) )
          {
-            Tcl_ListObjAppendElement(interp, pResultList, TranscodeToUtf8(EPG_ENC_ISO_8859_1, NULL, pAppName, NULL));
+            Tcl_ListObjAppendElement(interp, pResultList, Tcl_NewStringObj(pAppName, -1));
          }
       }
       Tcl_SetObjResult(interp, pResultList);

@@ -77,8 +77,7 @@ typedef enum
 #define RC_LINE_BUF_SIZE        (8192 * 11 + 100)  // max len: "0x01234567 " * RC_MAX_DB_NETWOPS
 
 // limit for forwards compatibility
-#define RC_FILE_MIN_VERSION 0x0207C2
-#define RC_FILE_COMPAT_VERSION 0x0207E0
+#define RC_FILE_COMPAT_VERSION 0x030004
 
 // ---------------------------------------------------------------------------
 // Type definitions

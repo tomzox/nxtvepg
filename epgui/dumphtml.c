@@ -112,21 +112,12 @@ static void EpgDumpHtml_WritePi( FILE *fp, const PI_BLOCK * pPiBlock, const AI_B
                pPiBlock->netwop_no, label_str,
                start_str, stop_str);
    EpgDumpXml_HtmlWriteString(fp, PI_GET_TITLE(pPiBlock), -1);
+
    fprintf(fp, "\n"
                "</td>\n"
                "<td rowspan=\"2\" CLASS=\"titlerow\" WIDTH=\"20%%\">\n");
-   if (isFromAi == FALSE)
-   {
-      Tcl_DString dstr;
-      Tcl_DStringInit(&dstr);
-      Tcl_ExternalToUtfDString(NULL, pCfNetname, -1, &dstr);
-      EpgDumpXml_HtmlWriteString(fp, Tcl_DStringValue(&dstr), Tcl_DStringLength(&dstr));
-      Tcl_DStringFree(&dstr);
-   }
-   else
-   {
-      EpgDumpXml_HtmlWriteString(fp, pCfNetname, -1);
-   }
+   EpgDumpXml_HtmlWriteString(fp, pCfNetname, -1);
+
    fprintf(fp, "\n"
                "</td>\n"
                "</tr>\n"

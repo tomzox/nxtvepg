@@ -559,7 +559,7 @@ static void PiNetBox_UpdateNetwopNames( void )
                EpgDbFilterSetNetwopPreFilter2(pPiFilterContext, netwop);
 
                pCfNetname = EpgSetup_GetNetName(pAiBlock, netwop, &isFromAi);
-               pTmpObj = TranscodeToUtf8(EPG_ENC_NETNAME(isFromAi), NULL, pCfNetname, NULL);
+               pTmpObj = Tcl_NewStringObj(pCfNetname, -1);
                Tcl_IncrRefCount(pTmpObj);
 
                if (Tcl_GetCharLength(objv[3]) != 0)

@@ -935,8 +935,9 @@ static int GetPdcString( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *
       pThemeStr = PdcThemeGetWithGeneral(index, &pGeneralStr, FALSE);
       if (pThemeStr != NULL)
       {
-         pTmpObj = TranscodeToUtf8(EPG_ENC_XMLTV, NULL, pThemeStr, NULL);
-         AppendToUtf8(EPG_ENC_XMLTV, pTmpObj, pGeneralStr, NULL);
+         pTmpObj = Tcl_NewStringObj(pThemeStr, -1);
+         Tcl_AppendStringsToObj(pTmpObj, pGeneralStr, NULL);
+
          Tcl_SetObjResult(interp, pTmpObj);
       }
       else
@@ -1076,11 +1077,11 @@ static int GetNetwopSeriesList( ClientData ttp, Tcl_Interp *interp, int objc, Tc
                // check if there's another block with the same title
                if (EpgDbSearchNextPi(dbc, fc, pPiBlock) != NULL)
                {
-                  pTmpObj = TranscodeToUtf8(EPG_ENC_XMLTV, NULL, PI_GET_TITLE(pPiBlock), NULL);
+                  pTmpObj = Tcl_NewStringObj(PI_GET_TITLE(pPiBlock), -1);
                   Tcl_ListObjAppendElement(interp, pResultList, pTmpObj);
 
                   pTitle = PiDescription_DictifyTitle(PI_GET_TITLE(pPiBlock), pPiBlock->lang_title, comm, TCL_COMM_BUF_SIZE);
-                  Tcl_ListObjAppendElement(interp, pResultList, TranscodeToUtf8(EPG_ENC_XMLTV, NULL, pTitle, NULL));
+                  Tcl_ListObjAppendElement(interp, pResultList, Tcl_NewStringObj(pTitle, -1));
                }
                EpgDbFilterDisable(fc, FILTER_SUBSTR);
 
@@ -1173,10 +1174,10 @@ static int GetSeriesByLetter( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_
                if (isNewCacheEntry == FALSE)
                {
                   // found first recurring title -> append the CNI to results
-                  pTmpObj = TranscodeToUtf8(EPG_ENC_XMLTV, NULL, pTitleDict, NULL);
+                  pTmpObj = Tcl_NewStringObj(pTitleDict, -1);
                   Tcl_ListObjAppendElement(interp, pResultList, pTmpObj);
 
-                  pTmpObj = TranscodeToUtf8(EPG_ENC_XMLTV, NULL, pTitleSerial, NULL);
+                  pTmpObj = Tcl_NewStringObj(pTitleSerial, -1);
                   Tcl_ListObjAppendElement(interp, pResultList, pTmpObj);
 
                   Tcl_ListObjAppendElement(interp, pResultList, Tcl_NewIntObj(!isShortened));
@@ -1363,7 +1364,6 @@ static int PiFilter_ContextMenuUndoFilter( ClientData ttp, Tcl_Interp *interp, i
    const PI_BLOCK * pPiBlock;
    const char * pThemeStr;
    const char * pCfNetname;
-   uint  idx;
    Tcl_Obj * pResultList;
    bool  isFromAi;
    int   entryCount;
@@ -1398,10 +1398,11 @@ static int PiFilter_ContextMenuUndoFilter( ClientData ttp, Tcl_Interp *interp, i
               (pPiFilterContext->act.pSubStrCtx != NULL) )
          {
             if (pPiFilterContext->act.pSubStrCtx->pNext == NULL)
-               Tcl_ListObjAppendElement(interp, pResultList, TranscodeToUtf8(EPG_ENC_SYSTEM, "Undo text filter '", pPiFilterContext->act.pSubStrCtx->str, "'"));
+               snprintf(comm, TCL_COMM_BUF_SIZE, "Undo text filter '%.80s'", pPiFilterContext->act.pSubStrCtx->str);
             else
-               Tcl_ListObjAppendElement(interp, pResultList, Tcl_NewStringObj("Undo text filters", -1));
+               sprintf(comm, "Undo text filters");
 
+            Tcl_ListObjAppendElement(interp, pResultList, Tcl_NewStringObj(comm, -1));
             Tcl_ListObjAppendElement(interp, pResultList, Tcl_NewStringObj("ResetSubstr; SubstrUpdateFilter 0", -1));
          }
 
@@ -1409,18 +1410,20 @@ static int PiFilter_ContextMenuUndoFilter( ClientData ttp, Tcl_Interp *interp, i
          if (EpgDbFilterIsEnabled(pPiFilterContext, FILTER_NETWOP))
          {
             // check if more than one network is currently selected
-            idx = 0;
+            uint count = 0;
             if (pPiBlock != NULL)
             {
                for (uint netwop = 0; netwop < pAiBlock->netwopCount; netwop++)
                   if ( (pPiFilterContext->act.pNetwopFilterField[netwop]) &&
                        (netwop != pPiBlock->netwop_no) )
-                     idx += 1;
+                     count += 1;
             }
-            if (idx > 1)
+            if (count > 1)
             {  // more than one network -> offer to remove only the selected one
-               assert(pPiBlock != NULL);  // idx only > 0 if PI selected
-               Tcl_ListObjAppendElement(interp, pResultList, TranscodeToUtf8(EPG_ENC_NETNAME(isFromAi), "Remove network '", pCfNetname, "'"));
+               assert(pPiBlock != NULL);  // count only > 0 if PI selected
+               snprintf(comm, TCL_COMM_BUF_SIZE, "Remove network '%.80s'", pCfNetname);
+               Tcl_ListObjAppendElement(interp, pResultList, Tcl_NewStringObj(comm, -1));
+
                sprintf(comm, "SelectNetwopByIdx %d 0", pPiBlock->netwop_no);
                Tcl_ListObjAppendElement(interp, pResultList, Tcl_NewStringObj(comm, -1));
 
@@ -1489,53 +1492,73 @@ static int PiFilter_ContextMenuUndoFilter( ClientData ttp, Tcl_Interp *interp, i
          // undo themes filters
          if (EpgDbFilterIsEnabled(pPiFilterContext, FILTER_THEMES))
          {
-            int tclass, theme, count;
+            uint theme = 0;
+            uint count = 0;
 
             // check if more than one theme filter is set
-            count = theme = 0;
-            for (idx=0; idx <= 0x80; idx++)
+            for (uint idx = 0; idx <= 0x80; idx++)
             {
                if (pPiFilterContext->act.themeFilterField[idx] != 0)
                {
                   theme = idx;
                   count += 1;
-                  if (count > 1)
-                     break;
                }
             }
 
             if (count == 1)
             {
-               pThemeStr = PdcThemeGet(theme);
-               if (pThemeStr != NULL)
-                  Tcl_ListObjAppendElement(interp, pResultList, TranscodeToUtf8(EPG_ENC_XMLTV, "Undo themes filter ", pThemeStr, NULL));
-               else
-                  Tcl_ListObjAppendElement(interp, pResultList, Tcl_NewStringObj("Undo themes filter", -1));
                comm[0] = 0;
-               for (tclass=0; tclass < THEME_CLASS_COUNT; tclass++)
+               for (uint tclass = 0; tclass < THEME_CLASS_COUNT; tclass++)
                {
+                  // only offer to undo this theme if it is in exactly one class
                   if (pPiFilterContext->act.themeFilterField[theme] & (1 << tclass))
-                     sprintf(comm + strlen(comm), "C_SelectThemes %d {};", tclass + 1);
+                  {
+                     sprintf(comm, "C_SelectThemes %d {};"
+                                   "ResetThemes; C_PiBox_Refresh; CheckShortcutDeselection",
+                                   tclass + 1);
+                     break;
+                  }
                }
-               strcat(comm, "ResetThemes; C_PiBox_Refresh; CheckShortcutDeselection");
-               Tcl_ListObjAppendElement(interp, pResultList, Tcl_NewStringObj(comm, -1));
+               if (comm[0] != 0)
+               {
+                  Tcl_Obj * pCmdObj = Tcl_NewStringObj(comm, -1);
+
+                  pThemeStr = PdcThemeGet(theme);
+                  if (pThemeStr != NULL)
+                     snprintf(comm, TCL_COMM_BUF_SIZE, "Undo themes filter '%.80s'", pThemeStr);
+                  else
+                     sprintf(comm, "Undo themes filter");
+                  Tcl_ListObjAppendElement(interp, pResultList, Tcl_NewStringObj(comm, -1));
+
+                  Tcl_ListObjAppendElement(interp, pResultList, pCmdObj);
+               }
             }
             else if (count > 1)
             {
-               for (idx=0; idx <= 128; idx++)
+               for (uint idx = 0; idx <= 128; idx++)
                {
                   if ( ((pPiFilterContext->act.themeFilterField[idx] & pPiFilterContext->act.usedThemeClasses) != 0) &&
                        ((pThemeStr = PdcThemeGet(idx)) != NULL) )
                   {
-                     Tcl_ListObjAppendElement(interp, pResultList, TranscodeToUtf8(EPG_ENC_XMLTV, "Undo themes filter ", pThemeStr, NULL));
                      comm[0] = 0;
-                     for (tclass=0; tclass < THEME_CLASS_COUNT; tclass++)
+                     for (uint tclass=0; tclass < THEME_CLASS_COUNT; tclass++)
                      {
                         // only offer to undo this theme if it is in exactly one class
                         if (pPiFilterContext->act.themeFilterField[idx] == (1 << tclass))
+                        {
                            sprintf(comm + strlen(comm), "DeselectTheme %d %d;", tclass + 1, idx);
+                           break;
+                        }
                      }
-                     Tcl_ListObjAppendElement(interp, pResultList, Tcl_NewStringObj(comm, -1));
+                     if (comm[0] != 0)
+                     {
+                        Tcl_Obj * pCmdObj = Tcl_NewStringObj(comm, -1);
+
+                        snprintf(comm, TCL_COMM_BUF_SIZE, "Undo themes filter '%.80s'", pThemeStr);
+                        Tcl_ListObjAppendElement(interp, pResultList, Tcl_NewStringObj(comm, -1));
+
+                        Tcl_ListObjAppendElement(interp, pResultList, pCmdObj);
+                     }
                   }
                }
             }
@@ -1605,6 +1628,7 @@ static int PiFilter_ContextMenuAddFilter( ClientData ttp, Tcl_Interp *interp, in
             // substring filter
             if (EpgDbFilterIsEnabled(pPiFilterContext, FILTER_SUBSTR) == FALSE)
             {
+               Tcl_DString dstr;
                const char * pTitle;
                char subStr[256];
 
@@ -1612,27 +1636,26 @@ static int PiFilter_ContextMenuAddFilter( ClientData ttp, Tcl_Interp *interp, in
                if (pTitle[0] != 0)
                {
                   bool isShortened = (pTitle != PI_GET_TITLE(pPiBlock));
+
                   EpgDbFilterSetSubStr(pPiFilterContext, pTitle, TRUE, FALSE, TRUE, !isShortened);
                   EpgDbFilterEnable(pPiFilterContext, FILTER_SUBSTR);
                   if ( (EpgDbSearchPrevPi(pUiDbContext, pPiFilterContext, pPiBlock) != NULL) ||
                        (EpgDbSearchNextPi(pUiDbContext, pPiFilterContext, pPiBlock) != NULL) )
                   {
-                     char par_buf[30];
-                     char * p;
-                     Tcl_ListObjAppendElement(interp, pResultList,
-                                              TranscodeToUtf8(EPG_ENC_XMLTV,
-                                                 "Filter title '", pTitle, "'"));
+                     snprintf(comm, TCL_COMM_BUF_SIZE, "Filter title '%.80s'", pTitle);
+                     Tcl_ListObjAppendElement(interp, pResultList, Tcl_NewStringObj(comm, -1));
 
-                     strncpy(comm, pTitle, TCL_COMM_BUF_SIZE);
-                     comm[TCL_COMM_BUF_SIZE-1] = 0;
-                     while ((p = strchr(comm, '{')) != NULL)
-                        *p = '(';
-                     while ((p = strchr(comm, '}')) != NULL)
-                        *p = ')';
-                     sprintf(par_buf, "} 1 0 1 %d}", !isShortened);
+                     Tcl_DStringInit(&dstr);
+                     Tcl_DStringAppend(&dstr, "SubstrSetFilter", -1);
+                     Tcl_DStringStartSublist(&dstr);
+                     Tcl_DStringAppendElement(&dstr, pTitle); // escapes '{' characters
+
+                     sprintf(comm, " 1 0 1 %d", !isShortened);
+                     Tcl_DStringAppend(&dstr, comm, -1);
+                     Tcl_DStringEndSublist(&dstr);
+
                      Tcl_ListObjAppendElement(interp, pResultList,
-                                              TranscodeToUtf8(EPG_ENC_XMLTV,
-                                                "SubstrSetFilter {{", comm, par_buf));
+                        Tcl_NewStringObj(Tcl_DStringValue(&dstr), Tcl_DStringLength(&dstr)));
                   }
                   EpgDbFilterDisable(pPiFilterContext, FILTER_SUBSTR);
                }
@@ -1654,14 +1677,18 @@ static int PiFilter_ContextMenuAddFilter( ClientData ttp, Tcl_Interp *interp, in
                           (themeCat != theme) &&
                           (pPiFilterContext->act.themeFilterField[themeCat] != FALSE) )
                      {  // special case: undo general theme before sub-theme is enabled, else filter would have no effect (due to OR)
-                        Tcl_ListObjAppendElement(interp, pResultList, TranscodeToUtf8(EPG_ENC_XMLTV, "Filter theme ", pThemeStr, NULL));
+                        snprintf(comm, TCL_COMM_BUF_SIZE, "Filter theme '%.80s'", pThemeStr);
+                        Tcl_ListObjAppendElement(interp, pResultList, Tcl_NewStringObj(comm, -1));
+
                         sprintf(comm, "set theme_sel(%d) 0; set theme_sel(%d) 1; SelectTheme %d",
                                       themeCat, theme, theme);
                         Tcl_ListObjAppendElement(interp, pResultList, Tcl_NewStringObj(comm, -1));
                      }
                      else
                      {
-                        Tcl_ListObjAppendElement(interp, pResultList, TranscodeToUtf8(EPG_ENC_XMLTV, "Filter theme ", pThemeStr, NULL));
+                        snprintf(comm, TCL_COMM_BUF_SIZE, "Filter theme '%.80s'", pThemeStr);
+                        Tcl_ListObjAppendElement(interp, pResultList, Tcl_NewStringObj(comm, -1));
+
                         sprintf(comm, "set theme_sel(%d) 1; SelectTheme %d", theme, theme);
                         Tcl_ListObjAppendElement(interp, pResultList, Tcl_NewStringObj(comm, -1));
                      }
@@ -1717,7 +1744,9 @@ static int PiFilter_ContextMenuAddFilter( ClientData ttp, Tcl_Interp *interp, in
             // netwop filter
             if ( EpgDbFilterIsEnabled(pPiFilterContext, FILTER_NETWOP) == FALSE )
             {  // no network filter yet -> offer to filter for the currently selected
-               Tcl_ListObjAppendElement(interp, pResultList, TranscodeToUtf8(EPG_ENC_NETNAME(isFromAi), "Filter network '", pCfNetname, "'"));
+               snprintf(comm, TCL_COMM_BUF_SIZE, "Filter network '%.80s'", pCfNetname);
+               Tcl_ListObjAppendElement(interp, pResultList, Tcl_NewStringObj(comm, -1));
+
                sprintf(comm, "SelectNetwopByIdx %d 1", pPiBlock->netwop_no);
                Tcl_ListObjAppendElement(interp, pResultList, Tcl_NewStringObj(comm, -1));
             }
@@ -1729,7 +1758,9 @@ static int PiFilter_ContextMenuAddFilter( ClientData ttp, Tcl_Interp *interp, in
                      break;
                if (netwop < pAiBlock->netwopCount)
                {
-                  Tcl_ListObjAppendElement(interp, pResultList, TranscodeToUtf8(EPG_ENC_NETNAME(isFromAi), "Filter only network '", pCfNetname, "'"));
+                  snprintf(comm, TCL_COMM_BUF_SIZE, "Filter only network '%.80s'", pCfNetname);
+                  Tcl_ListObjAppendElement(interp, pResultList, Tcl_NewStringObj(comm, -1));
+
                   sprintf(comm, "ResetNetwops; SelectNetwopByIdx %d 1", pPiBlock->netwop_no);
                   Tcl_ListObjAppendElement(interp, pResultList, Tcl_NewStringObj(comm, -1));
                }

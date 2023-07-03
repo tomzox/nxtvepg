@@ -894,15 +894,13 @@ void UiControlMsg_AcqEvent( ACQ_EVENT acqEvent )
 }
 
 // ---------------------------------------------------------------------------
-// Write config data to disk
+// Write all configuration parameters into a file
 //
 void UpdateRcFile( bool immediate )
 {
-   Tcl_DString dstr;
    const char * pRcFile = ((mainOpts.rcfile != NULL) ? mainOpts.rcfile : mainOpts.defaultRcFile);
    char * pErrMsg = NULL;
    FILE * fp;
-   size_t wlen;
    bool   writeOk;
 
    #ifdef USE_DAEMON
@@ -921,21 +919,23 @@ void UpdateRcFile( bool immediate )
 
       if (ferror(fp) && (pErrMsg == NULL))
       {
-         SystemErrorMessage_Set(&pErrMsg, errno, "Write error in new config file: ", NULL);
+         SystemErrorMessage_Set(&pErrMsg, errno, "Error while writing configuration file: ", NULL);
       }
 
       // write GUI level sections
       if (Tcl_EvalEx(interp, "GetGuiRcData", -1, TCL_EVAL_GLOBAL) == TCL_OK)
       {
-         Tcl_UtfToExternalDString(NULL, Tcl_GetStringResult(interp), -1, &dstr);
-         wlen = fprintf(fp, "\n%s", Tcl_DStringValue(&dstr));
+         // query GUI config in form of a string
+         const char * pExtStr = Tcl_GetStringResult(interp);
 
-         if (wlen != 1 + Tcl_DStringLength(&dstr))
+         // write string to file in internal Tcl encoding (UTF-8) (since version 3.0.4)
+         size_t wlen = fprintf(fp, "\n%s", pExtStr);
+
+         if (wlen != 1 + strlen(pExtStr))
          {
-            debug2("UpdateRcFile: short write: %d of %d", (int)wlen, 1 + Tcl_DStringLength(&dstr));
+            debug2("UpdateRcFile: short write: %d of %d", (int)wlen, (int)(1 + strlen(pExtStr)));
             writeOk = FALSE;
          }
-         Tcl_DStringFree(&dstr);
       }
       else
       {
@@ -961,7 +961,6 @@ void LoadRcFile( void )
    const char * pRcFile = ((mainOpts.rcfile != NULL) ? mainOpts.rcfile : mainOpts.defaultRcFile);
    Tcl_DString msg_dstr;
    Tcl_DString cmd_dstr;
-   Tcl_Obj  * pVarObj;
    bool loadOk;
    char * pErrMsg = NULL;
 
@@ -988,16 +987,6 @@ void LoadRcFile( void )
 
          Tcl_DStringFree(&cmd_dstr);
          Tcl_DStringFree(&msg_dstr);
-
-         pVarObj = Tcl_GetVar2Ex(interp, "rcfileUpgradeStr", NULL, TCL_GLOBAL_ONLY);
-         if (pVarObj != NULL)
-         {
-            Tcl_UtfToExternalDString(NULL, Tcl_GetString(pVarObj), -1, &msg_dstr);
-            RcFile_LoadFromString(Tcl_DStringValue(&msg_dstr));
-            Tcl_DStringFree(&msg_dstr);
-
-            Tcl_UnsetVar(interp, "rcfileUpgradeStr", TCL_GLOBAL_ONLY);
-         }
       }
    }
 }

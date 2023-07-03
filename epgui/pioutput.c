@@ -260,7 +260,7 @@ uint PiOutput_PrintColumnItem( const PI_BLOCK * pPiBlock, PIBOX_COL_TYPES type,
    assert(EpgDbIsLocked(pUiDbContext));
    outlen = 0;
    *pCharLen = 0;
-   transcode = EPG_ENC_ASCII;
+   transcode = EPG_ENC_UTF8;
 
    if ((pOutBuffer != NULL) && (pPiBlock != NULL))
    {
@@ -270,7 +270,6 @@ uint PiOutput_PrintColumnItem( const PI_BLOCK * pPiBlock, PIBOX_COL_TYPES type,
          case PIBOX_COL_NETNAME:
             pAiBlock = EpgDbGetAi(pUiDbContext);
             pResult = EpgSetup_GetNetName(pAiBlock, pPiBlock->netwop_no, &isFromAi);
-            transcode = EPG_ENC_NETNAME(isFromAi);
             break;
             
          case PIBOX_COL_TIME:
@@ -319,7 +318,6 @@ uint PiOutput_PrintColumnItem( const PI_BLOCK * pPiBlock, PIBOX_COL_TYPES type,
 
          case PIBOX_COL_TITLE:
             pResult = PI_GET_TITLE(pPiBlock);
-            transcode = EPG_ENC_XMLTV;
             break;
 
          case PIBOX_COL_DESCR:
@@ -438,7 +436,6 @@ uint PiOutput_PrintColumnItem( const PI_BLOCK * pPiBlock, PIBOX_COL_TYPES type,
 
                theme = pPiBlock->themes[themeIdx];
                pResult = PdcThemeGet(theme);
-               transcode = EPG_ENC_XMLTV;
             }
             break;
 
@@ -462,39 +459,31 @@ uint PiOutput_PrintColumnItem( const PI_BLOCK * pPiBlock, PIBOX_COL_TYPES type,
             case EPG_ENC_SYSTEM:
                status = Tcl_ExternalToUtf(NULL, NULL, pResult, -1, 0, NULL,
                                           pOutBuffer, maxLen, NULL, (int*)&outlen, pCharLen);
-               goto handle_status;
-
-            case EPG_ENC_ISO_8859_1:
-               status = Tcl_ExternalToUtf(NULL, encIso88591, pResult, -1, 0, NULL,
-                                          pOutBuffer, maxLen, NULL, (int*)&outlen, pCharLen);
-               handle_status: ;
                switch (status)
                {
                   case TCL_OK:
                      break;
                   case TCL_CONVERT_NOSPACE:
-                     debug3("PiOutput-PrintColumnItem: output buffer too small: %d, need >=%d for '%s'", maxLen, (int)strlen(pResult), pResult);
+                     debug3("PiOutput-PrintColumnItem: output buffer too small: %d, need >=%d for '%.80s'", maxLen, (int)strlen(pResult), pResult);
                      break;
                   default:
-                     debug2("PiOutput-PrintColumnItem: transcoding error %d in '%s'", status, pResult);
+                     debug2("PiOutput-PrintColumnItem: transcoding error %d in '%.80s'", status, pResult);
                      break;
                }
                break;
 
-            case EPG_ENC_XMLTV:
-            case EPG_ENC_ASCII:
             default:
                // no transcoding required -> plain copy
                strncpy(pOutBuffer, pResult, maxLen);
                outlen = strlen(pResult);
-               *pCharLen = outlen;
 
                if (maxLen < outlen)
                {
-                  debug3("PiOutput-PrintColumnItem: output buffer too small: %d, need %d for '%s'", maxLen, outlen, pResult);
+                  debug3("PiOutput-PrintColumnItem: output buffer too small: %d, need %d for '%.80s'", maxLen, outlen, pResult);
                   pOutBuffer[maxLen - 1] = 0;
                   outlen = maxLen - 1;
                }
+               *pCharLen = outlen;
                break;
          }
       }
@@ -1252,7 +1241,10 @@ static void PiOutput_InsertText( PIBOX_TCLOBJ widgetObjIdx, int trow, T_EPG_ENCO
    else
       objv[2] = tcl_obj[TCLOBJ_STR_END];
 
-   objv[3] = TranscodeToUtf8(enc, NULL, pStr, NULL);
+   if (enc == EPG_ENC_UTF8)
+      objv[3] = Tcl_NewStringObj(pStr, -1);
+   else
+      objv[3] = TranscodeToUtf8(enc, NULL, pStr, NULL);
    Tcl_IncrRefCount(objv[3]);
 
    objv[4] = tcl_obj[tagObjIdx];
@@ -1308,7 +1300,7 @@ static void PiOutput_AppendInfoTextCb( void *fp, const char * pDesc, bool addSep
       }
 
       //Tcl_VarEval(interp, ".all.pi.info.text insert end {", pDesc, "}", NULL);
-      PiOutput_InsertText(TCLOBJ_WID_INFO, -1, EPG_ENC_XMLTV, pDesc, TCLOBJ_STR_PARAGRAPH);
+      PiOutput_InsertText(TCLOBJ_WID_INFO, -1, EPG_ENC_UTF8, pDesc, TCLOBJ_STR_PARAGRAPH);
    }
 }
 
@@ -1343,9 +1335,8 @@ void PiOutput_DescriptionTextUpdate( const PI_BLOCK * pPiBlock, bool keepView )
       if ((pAiBlock != NULL) && (pPiBlock->netwop_no < pAiBlock->netwopCount))
       {
          // top of the info window: programme title text
-         strcpy(comm, PI_GET_TITLE(pPiBlock));
-         strcat(comm, "\n");
-         PiOutput_InsertText(TCLOBJ_WID_INFO, -1, EPG_ENC_XMLTV, comm, TCLOBJ_STR_TITLE);
+         PiOutput_InsertText(TCLOBJ_WID_INFO, -1, EPG_ENC_UTF8, PI_GET_TITLE(pPiBlock), TCLOBJ_STR_TITLE);
+         PiOutput_InsertText(TCLOBJ_WID_INFO, -1, EPG_ENC_UTF8, "\n", TCLOBJ_STR_TITLE);
 
          // now add a feature summary: start with theme list
          PiDescription_AppendCompressedThemes(pPiBlock, comm, TCL_COMM_BUF_SIZE);
@@ -1360,10 +1351,10 @@ void PiOutput_DescriptionTextUpdate( const PI_BLOCK * pPiBlock, bool keepView )
          else
             strcpy(comm + len, ")\n");
          // append the feature string to the text widget content
-         PiOutput_InsertText(TCLOBJ_WID_INFO, -1, EPG_ENC_XMLTV, comm, TCLOBJ_STR_FEATURES);
+         PiOutput_InsertText(TCLOBJ_WID_INFO, -1, EPG_ENC_UTF8, comm, TCLOBJ_STR_FEATURES);
 
          pCfNetname = EpgSetup_GetNetName(pAiBlock, pPiBlock->netwop_no, &isFromAi);
-         PiOutput_InsertText(TCLOBJ_WID_INFO, -1, EPG_ENC_NETNAME(isFromAi), pCfNetname, TCLOBJ_STR_BOLD);
+         PiOutput_InsertText(TCLOBJ_WID_INFO, -1, EPG_ENC_UTF8, pCfNetname, TCLOBJ_STR_BOLD);
 
          // print start- & stop-time
          start_time = pPiBlock->start_time;

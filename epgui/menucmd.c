@@ -67,8 +67,6 @@
 
 static void MenuCmd_EpgScanHandler( ClientData clientData );
 
-#define TRANSCODE_NON_NULL(S) TranscodeToUtf8(EPG_ENC_SYSTEM, NULL, (((S)!=NULL)?(S):""), NULL)
-
 // ----------------------------------------------------------------------------
 // Set the states of the entries in Control menu
 //
@@ -747,7 +745,7 @@ static int MenuCmd_GetProvServiceName( ClientData ttp, Tcl_Interp *interp, int o
             if (pAi != NULL)
             {
                pStr = AI_GET_SERVICENAME(pAi);
-               Tcl_SetObjResult(interp, TranscodeToUtf8(EPG_ENC_XMLTV, NULL, pStr, NULL));
+               Tcl_SetObjResult(interp, Tcl_NewStringObj(pStr, -1));
             }
             EpgDbLockDatabase(pPeek, FALSE);
 
@@ -799,17 +797,17 @@ static int MenuCmd_GetProvServiceInfos( ClientData ttp, Tcl_Interp *interp, int 
 
             // first element is source info
             pStr = AI_GET_SOURCE_INFO(pAi);
-            Tcl_ListObjAppendElement(interp, pResultList, TranscodeToUtf8(EPG_ENC_XMLTV, NULL, pStr, NULL));
+            Tcl_ListObjAppendElement(interp, pResultList, Tcl_NewStringObj(pStr, -1));
 
             // second element is generator info
             pStr = AI_GET_GEN_INFO(pAi);
-            Tcl_ListObjAppendElement(interp, pResultList, TranscodeToUtf8(EPG_ENC_XMLTV, NULL, pStr, NULL));
+            Tcl_ListObjAppendElement(interp, pResultList, Tcl_NewStringObj(pStr, -1));
 
             // append names of all netwops
             for ( netwop = 0; netwop < pAi->netwopCount; netwop++ ) 
             {
                pStr = AI_GET_NETWOP_NAME(pAi, netwop);
-               Tcl_ListObjAppendElement(interp, pResultList, TranscodeToUtf8(EPG_ENC_XMLTV, NULL, pStr, NULL));
+               Tcl_ListObjAppendElement(interp, pResultList, Tcl_NewStringObj(pStr, -1));
             }
             Tcl_SetObjResult(interp, pResultList);
          }
@@ -893,7 +891,8 @@ static int MenuCmd_GetProvCnisAndNames( ClientData ttp, Tcl_Interp *interp, int 
                   sprintf(buf, "0x%04X", pCniList[idx]);
                   Tcl_ListObjAppendElement(interp, pResultList, Tcl_NewStringObj(buf, -1));
 
-                  Tcl_ListObjAppendElement(interp, pResultList, TranscodeToUtf8(EPG_ENC_XMLTV, NULL, AI_GET_SERVICENAME(pAi), NULL));
+                  Tcl_ListObjAppendElement(interp, pResultList,
+                                           Tcl_NewStringObj(AI_GET_SERVICENAME(pAi), -1));
                }
                EpgDbLockDatabase(pPeek, FALSE);
 
@@ -1081,7 +1080,7 @@ static void MenuCmd_AppendNetwopList( Tcl_Interp *interp, Tcl_Obj * pList,
                {
                   pCfNetname = EpgSetup_GetNetName(pAiBlock, netwop, &isFromAi);
                }
-               pNetwopObj = TranscodeToUtf8(EPG_ENC_NETNAME(isFromAi), NULL, pCfNetname, NULL);
+               pNetwopObj = Tcl_NewStringObj(pCfNetname, -1);
                Tcl_SetVar2Ex(interp, pArrName, strbuf, pNetwopObj, 0);
             }
          }
@@ -1217,7 +1216,7 @@ static int MenuCmd_GetNetwopNames( ClientData ttp, Tcl_Interp *interp, int objc,
             sprintf(cni_buf, "0x%04X", pRc->net_names[idx].net_cni);
             Tcl_ListObjAppendElement(interp, pResultList, Tcl_NewStringObj(cni_buf, -1));
 
-            Tcl_ListObjAppendElement(interp, pResultList, TranscodeToUtf8(EPG_ENC_SYSTEM, NULL, pRc->net_names[idx].name, NULL));
+            Tcl_ListObjAppendElement(interp, pResultList, Tcl_NewStringObj(pRc->net_names[idx].name, -1));
          }
          else
             debug1("MenuCmd-GetNetwopNames: skipping empty name for net 0x%04X", pRc->net_names[idx].net_cni);
@@ -1242,7 +1241,6 @@ static int MenuCmd_UpdateNetwopNames( ClientData ttp, Tcl_Interp *interp, int ob
    int objCount;
    uint * pCniList;
    const char ** pNameList;
-   Tcl_DString * pDstrList;
    uint idx;
    int result;
 
@@ -1258,14 +1256,10 @@ static int MenuCmd_UpdateNetwopNames( ClientData ttp, Tcl_Interp *interp, int ob
       {
          pCniList = (uint*) xmalloc(sizeof(*pCniList) * objCount/2);
          pNameList = (const char**) xmalloc(sizeof(*pNameList) * objCount/2);
-         pDstrList = (Tcl_DString*) xmalloc(sizeof(*pDstrList) * objCount/2);
-         for (idx = 0; idx < objCount/2; idx++)
-            Tcl_DStringInit(&pDstrList[idx]);
 
          for (idx = 0; idx < objCount/2; idx++)
          {
-            Tcl_UtfToExternalDString(NULL, Tcl_GetString(pObjArgv[idx*2 + 1]), -1, &pDstrList[idx]);
-            pNameList[idx] = Tcl_DStringValue(&pDstrList[idx]);
+            pNameList[idx] = Tcl_GetString(pObjArgv[idx*2 + 1]);
 
             if (Tcl_GetIntFromObj(interp, pObjArgv[idx*2], (int*)&pCniList[idx]) != TCL_OK)
             {
@@ -1280,9 +1274,6 @@ static int MenuCmd_UpdateNetwopNames( ClientData ttp, Tcl_Interp *interp, int ob
 
          xfree(pCniList);
          xfree(pNameList);
-         for (idx = 0; idx < objCount/2; idx++)
-            Tcl_DStringFree(&pDstrList[idx]);
-         xfree(pDstrList);
       }
    }
    return result;
@@ -2156,15 +2147,17 @@ static int MenuCmd_GetNetAcqConfig( ClientData ttp, Tcl_Interp *interp, int objc
       {
          pArrName = Tcl_GetString(objv[1]);
 
+#define TCL_STRING_IF_NON_NULL(S) Tcl_NewStringObj((((S)!=NULL)?(S):""), -1)
          Tcl_SetVar2Ex(interp, pArrName, "remctl", Tcl_NewIntObj(pRc->netacq.remctl), 0);
          Tcl_SetVar2Ex(interp, pArrName, "do_tcp_ip", Tcl_NewIntObj(pRc->netacq.do_tcp_ip), 0);
-         Tcl_SetVar2Ex(interp, pArrName, "host", TRANSCODE_NON_NULL(pRc->netacq.pHostName), 0);
-         Tcl_SetVar2Ex(interp, pArrName, "ip", TRANSCODE_NON_NULL(pRc->netacq.pIpStr), 0);
-         Tcl_SetVar2Ex(interp, pArrName, "port", TRANSCODE_NON_NULL(pRc->netacq.pPort), 0);
+         Tcl_SetVar2Ex(interp, pArrName, "host", TCL_STRING_IF_NON_NULL(pRc->netacq.pHostName), 0);
+         Tcl_SetVar2Ex(interp, pArrName, "ip", TCL_STRING_IF_NON_NULL(pRc->netacq.pIpStr), 0);
+         Tcl_SetVar2Ex(interp, pArrName, "port", TCL_STRING_IF_NON_NULL(pRc->netacq.pPort), 0);
          Tcl_SetVar2Ex(interp, pArrName, "max_conn", Tcl_NewIntObj(pRc->netacq.max_conn), 0);
          Tcl_SetVar2Ex(interp, pArrName, "sysloglev", Tcl_NewIntObj(pRc->netacq.sysloglev), 0);
          Tcl_SetVar2Ex(interp, pArrName, "fileloglev", Tcl_NewIntObj(pRc->netacq.fileloglev), 0);
-         Tcl_SetVar2Ex(interp, pArrName, "logname", TRANSCODE_NON_NULL(pRc->netacq.pLogfileName), 0);
+         Tcl_SetVar2Ex(interp, pArrName, "logname", TCL_STRING_IF_NON_NULL(pRc->netacq.pLogfileName), 0);
+#undef TCL_STRING_IF_NON_NULL
       }
       result = TCL_OK;
    }
@@ -2179,7 +2172,6 @@ static int MenuCmd_UpdateNetAcqConfig( ClientData ttp, Tcl_Interp *interp, int o
 {
    const char * const pUsage = "Usage: C_UpdateNetAcqConfig <list>";
    RCFILE_NETACQ  rcNet;
-   Tcl_DString    dstr;
    Tcl_Obj     ** cfArgv;
    int  cfArgc, cf_idx;
    const char *pHostName, *pPort, *pIpStr, *pLogfileName;
@@ -2269,30 +2261,11 @@ static int MenuCmd_UpdateNetAcqConfig( ClientData ttp, Tcl_Interp *interp, int o
             rcNet.fileloglev = fileloglev;
             rcNet.sysloglev = sysloglev;
 
-            if (pHostName != NULL)
-            {
-               pHostName = Tcl_UtfToExternalDString(NULL, pHostName, -1, &dstr);
-               rcNet.pHostName = xstrdup(pHostName);
-               Tcl_DStringFree(&dstr);
-            }
-            if (pPort != NULL)
-            {
-               pPort = Tcl_UtfToExternalDString(NULL, pPort, -1, &dstr);
-               rcNet.pPort = xstrdup(pPort);
-               Tcl_DStringFree(&dstr);
-            }
-            if (pIpStr != NULL)
-            {
-               pIpStr = Tcl_UtfToExternalDString(NULL, pIpStr, -1, &dstr);
-               rcNet.pIpStr = xstrdup(pIpStr);
-               Tcl_DStringFree(&dstr);
-            }
-            if (pLogfileName != NULL)
-            {
-               pLogfileName = Tcl_UtfToExternalDString(NULL, pLogfileName, -1, &dstr);
-               rcNet.pLogfileName = xstrdup(pLogfileName);
-               Tcl_DStringFree(&dstr);
-            }
+            rcNet.pHostName = pHostName;
+            rcNet.pPort = pPort;
+            rcNet.pIpStr = pIpStr;
+            rcNet.pLogfileName = pLogfileName;
+
             RcFile_SetNetAcq(&rcNet);
          }
       }

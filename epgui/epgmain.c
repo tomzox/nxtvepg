@@ -1933,8 +1933,7 @@ Tcl_Obj * TranscodeToUtf8( T_EPG_ENCODING enc,
 
    switch (enc)
    {
-      case EPG_ENC_ASCII:
-      case EPG_ENC_XMLTV:
+      case EPG_ENC_UTF8:
          Tcl_DStringInit(&dstr);
          Tcl_DStringAppend(&dstr, pStr, -1);
          break;
@@ -1966,48 +1965,6 @@ Tcl_Obj * TranscodeToUtf8( T_EPG_ENCODING enc,
    }
    return pObj;
 }
-
-// ---------------------------------------------------------------------------
-// Helper function to convert and append text to an UTF-8 string
-// - postfix must be encoded in ASCII and is appended unchanged
-//
-Tcl_Obj * AppendToUtf8( T_EPG_ENCODING enc, Tcl_Obj * pObj,
-                        const char * pStr, const char * pPostfix )
-{
-   Tcl_DString dstr;
-
-   if ((pStr != NULL) && (*pStr != 0))
-   {
-      switch (enc)
-      {
-         case EPG_ENC_ASCII:
-         case EPG_ENC_XMLTV:
-            Tcl_DStringInit(&dstr);
-            Tcl_DStringAppend(&dstr, pStr, -1);
-            break;
-
-         case EPG_ENC_ISO_8859_1:
-            Tcl_ExternalToUtfDString(encIso88591, pStr, -1, &dstr);
-            break;
-
-         case EPG_ENC_SYSTEM:
-         default:
-            Tcl_ExternalToUtfDString(NULL, pStr, -1, &dstr);
-            break;
-      }
-
-      Tcl_AppendToObj(pObj, Tcl_DStringValue(&dstr), Tcl_DStringLength(&dstr));
-      Tcl_DStringFree(&dstr);
-   }
-
-   if ((pPostfix != NULL) && (*pPostfix != 0))
-   {
-      Tcl_AppendToObj(pObj, pPostfix, -1);
-   }
-
-   return pObj;
-}
-
 
 // ---------------------------------------------------------------------------
 // Initialize the Tcl/Tk interpreter
