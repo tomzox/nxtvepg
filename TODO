@@ -5,10 +5,15 @@ boost any item's priority, find more points that need to be fixed or if
 you have ideas for additional features.
 
 Post-Nextview EPG:
-- Filter "Now" & "Next" are very slow on fully expired, large database
+- Add scrollbar to network list in main window
+- Improve key bindings in list boxes: Home/End
+- Network selection dialog: on the left show only removed networks
+- Rename "Load XMLTV file" into "Browse..." and add plain load command;
+  add file extension selection to "Browse" & "Merge dialogs"
 - update xmltv.dtd support (e.g. video/audio "present")
 - change AI/PI to hold original XMLTV info elements (i.e. reduce conversion)
 - Sub-string search filter: case insensitive search missing in epgdb/epgdbfil.c
+  https://www.boost.org/doc/libs/1_36_0/doc/html/string_algo.html
 - XMLTV service name: when merging teletext-only use "Merged teletext (%d networks)"
 - bad error message when using "Load teletext EPG" and no files available yet
 - daemon mode: ? make work independent of TV app & ttx grabber cfg. (e.g. windows)

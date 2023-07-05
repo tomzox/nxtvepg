@@ -1240,7 +1240,7 @@ static bool EpgDbFilterMatchAct( const EPGDB_CONTEXT *dbc, const FILTER_CONTEXT 
 
    if (fc_act->enabledFilters & FILTER_PROGIDX)
    {
-      uint progNo = EpgDbGetProgIdx(dbc, pPi);
+      uint progNo = EpgDbGetProgIdx(dbc, pPi, fc_act->lastProgIdx);
       fail   = ((progNo < fc_act->firstProgIdx) || (progNo > fc_act->lastProgIdx));
 
       invert = ((fc_act->invertedFilters & FILTER_PROGIDX) != FALSE);

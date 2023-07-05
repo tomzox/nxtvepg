@@ -592,61 +592,54 @@ bool EpgDbGetVpsTimestamp( struct tm * pVpsTime, uint pil, time_t startTime )
 }
 
 // ---------------------------------------------------------------------------
-// Get the index of a PI in his netwop's chain
-// - The index of a netwop's first PI is 0, or 1, if it's start time lies in
-//   the future. This is required by the spec of the Nextview prog-no filter.
+// Get the index of a PI in sort order of start time per network.
+// - The index of a netwop's currently running PI is 0. Index is 1 for the
+//   upcoming programme afterward. Index is increased for each subsequent
+//   programme of the same network, regarless of possible gaps between
+//   start/stop times.
+// - Result is 0xFFFF if the PI is already expired, or its index is beyond
+//   the given limit. Note expire time threshold is not considered.
+// - Index calculation is cut off at the given limit to achieve acceptable
+//   performance. Note this function is called by the filter function for each
+//   PI. Iterating across the entire DB for each PI would be very slow.
 //
-uint EpgDbGetProgIdx( CPDBC dbc, const PI_BLOCK * pPiBlock )
+uint EpgDbGetProgIdx( CPDBC dbc, const PI_BLOCK * pPiBlock, uint maxIndex )
 {
-   EPGDB_PI_BLOCK * pBlock;
+   const EPGDB_PI_BLOCK * pBlock;
+   const EPGDB_PI_BLOCK * pWalk;
    uint  nowIdx;
-   uint netwop;
    time_t now = time(NULL);
    uint  result = 0xffff;
 
-   if (dbc->pAiBlock != NULL)
+   if (pPiBlock->stop_time > now)
    {
-      netwop = pPiBlock->netwop_no;
-      if (netwop < dbc->pAiBlock->ai.netwopCount)
+      pBlock = (const EPGDB_PI_BLOCK *)((ulong)pPiBlock - offsetof(EPGDB_PI_BLOCK, pi));
+      pWalk = pBlock;
+      nowIdx = 0;
+
+      // scan backward for the first block on that network not starting in the future
+      while ((pWalk != NULL) && (pWalk->pi.start_time > now))
       {
-         pBlock = dbc->pFirstNetwopPi[netwop];
-         // scan forward for the first unexpired block on that network
-         while ((pBlock != NULL) && (pBlock->pi.stop_time <= now))
-         {
-            pBlock = pBlock->pNextNetwopBlock;
-         }
+         pWalk = pWalk->pPrevNetwopBlock;
+         nowIdx += 1;
 
-         if (pBlock != NULL)
-         {
-            if (pBlock->pi.start_time <= now)
-            {  // found a currently running block -> that block is #0
-               nowIdx = 0;
-            }
-            else
-            {  // 1. there is no current programme on this netwop OR
-               // 2. there is a block missing in the database
-               // We could try to distinguish these two cases, but there's
-               // really no advantage because we couldn't find a better guess
-               // than giving the first present block #1, i.e. NEXT
-               nowIdx = 1;
-            }
+         if (nowIdx > maxIndex)
+            goto abort;
+      }
 
-            if (pPiBlock == &pBlock->pi)
-               result = nowIdx;
-            else if ( (nowIdx == 0) &&
-                      (pBlock->pi.stop_time == pPiBlock->start_time) )
-               result = 1;
-            // else: neither Now nor Next -> return invalid result code
-         }
-         else
-            debug1("EpgDb-GetProgIdx: no unexpired blocks in db for netwop %d", netwop);
+      if ((pWalk == NULL) || (pWalk->pi.stop_time < now))
+      {  // 1. there is no current programme on this netwop OR
+         // 2. there is a block missing in the database
+         // We could try to distinguish these two cases, but there's
+         // really no advantage because we couldn't find a better guess
+         // than giving the first present block #1, i.e. NEXT
+         result = nowIdx + 1;
       }
       else
-         fatal2("EpgDb-GetProgIdx: invalid netwop #%d of %d", netwop, dbc->pAiBlock->ai.netwopCount);
+         result = nowIdx;
    }
-   else
-      fatal0("EpgDb-GetProgIdx: no AI in db");
 
+abort:
    return result;
 }
 

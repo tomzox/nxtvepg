@@ -65,7 +65,7 @@ uint EpgDbCountPrevPi( const EPGDB_CONTEXT * dbc, const FILTER_CONTEXT *fc, cons
 
 const char * EpgDbGetThemeStr( const EPGDB_CONTEXT * dbc, uint themeIdx );
 bool  EpgDbGetVpsTimestamp( struct tm * pVpsTime, uint pil, time_t startTime );
-uint  EpgDbGetProgIdx( const EPGDB_CONTEXT * dbc, const PI_BLOCK * pPiBlock );
+uint  EpgDbGetProgIdx( const EPGDB_CONTEXT * dbc, const PI_BLOCK * pPiBlock, uint maxIndex );
 uint  EpgDbContextGetCni( const EPGDB_CONTEXT * dbc );
 bool  EpgDbContextIsMerged( const EPGDB_CONTEXT * dbc );
 time_t EpgDbGetAiUpdateTime( const EPGDB_CONTEXT * dbc );

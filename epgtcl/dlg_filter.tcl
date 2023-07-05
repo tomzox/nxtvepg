@@ -1,7 +1,7 @@
 #
 #  Filter dialogs
 #
-#  Copyright (C) 1999-2011, 2020-2021 T. Zoerner
+#  Copyright (C) 1999-2011, 2020-2023 T. Zoerner
 #
 #  This program is free software; you can redistribute it and/or modify
 #  it under the terms of the GNU General Public License Version 2 as
@@ -108,13 +108,13 @@ proc ProgIdxPopup {} {
       set progidx_popup 1
 
       frame .progidx.firstidx
-      scale .progidx.firstidx.s -from 0 -to 99 -orient horizontal -label "Minimum index:" \
+      scale .progidx.firstidx.s -from 0 -to 10 -orient horizontal -label "Minimum index:" \
                                 -command {ProgIdxSelection "firstidx"} -variable progidx_first
       pack .progidx.firstidx.s -side left -fill x -expand 1
       pack .progidx.firstidx -side top -fill x -expand 1
 
       frame .progidx.lastidx
-      scale .progidx.lastidx.s -from 0 -to 99 -orient horizontal -label "Maximum index:" \
+      scale .progidx.lastidx.s -from 0 -to 10 -orient horizontal -label "Maximum index:" \
                                -command {ProgIdxSelection "lastidx"} -variable progidx_last
       pack .progidx.lastidx.s -side left -fill x -expand 1
       pack .progidx.lastidx -side top -fill x -expand 1
