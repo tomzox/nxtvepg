@@ -166,6 +166,7 @@ typedef struct
 
    EPGDB_CONTEXT * pDbContext;
    EPGDB_PI_BLOCK **pFirstNetwopPi;
+   EPGDB_PI_BLOCK **pLastNetwopPi;
    time_t       mtime;
    bool         isPeek;
    bool         cniCtxInitDone;
@@ -367,73 +368,95 @@ static EPGDB_AI_BLOCK * XmltvDb_BuildAi( const char * pProvName )
 //
 static bool XmltvDb_AddPiBlock( EPGDB_CONTEXT * dbc, EPGDB_PI_BLOCK *pBlock )
 {
-   EPGDB_PI_BLOCK *pWalk, *pPrev;
+   EPGDB_PI_BLOCK *pWalk;
+   EPGDB_PI_BLOCK *pNext;
    uint netwop;
    bool added;
 
    // when stop time is missing, fake it as start + 1 second (XXX FIXME choose start of next PI)
    if (pBlock->pi.stop_time == 0)
-      *(time32_t*)&pBlock->pi.stop_time = pBlock->pi.start_time + 1;
+      *(time32_t*)&pBlock->pi.stop_time = pBlock->pi.start_time + 1;  // cast to remove const
 
-   if ( (pBlock->pi.start_time != 0) &&
-        (pBlock->pi.start_time < pBlock->pi.stop_time) )
+   netwop = pBlock->pi.netwop_no;
+   if (netwop < xds.chn_count)
    {
-      netwop = pBlock->pi.netwop_no;
-      if (netwop < xds.chn_count)
+      if ( (pBlock->pi.start_time != 0) &&
+           (pBlock->pi.start_time < pBlock->pi.stop_time) )
       {
          dprintf4("ADD PI ptr=%lx: netwop=%d, start=%ld \"%s\"\n", (ulong)pBlock, netwop, pBlock->pi.start_time, PI_GET_TITLE(&pBlock->pi));
 
-         // search inside network chain for insertion point
-         pWalk = xds.pFirstNetwopPi[netwop];
-         pPrev = NULL;
+         // search for insertion point within network chain, which is sorted by start time;
+         // start at the end of the chain, as data in XMLTV usually is already sorted this way.
+         pWalk = xds.pLastNetwopPi[netwop];
 
-         while ( (pWalk != NULL) &&
-                 (pWalk->pi.start_time < pBlock->pi.start_time) )
+         if (pWalk == NULL)
          {
-            pPrev = pWalk;
-            pWalk = pWalk->pNextNetwopBlock;
-         }
-
-         if ( ( (pWalk == NULL) ||
-                (pWalk->pi.start_time >= pBlock->pi.stop_time) ) &&
-              ( (pPrev == NULL) ||
-                (pPrev->pi.stop_time <= pBlock->pi.start_time) ) )
-         {
-            assert((pPrev == NULL) || (pPrev->pNextNetwopBlock == pWalk));
-            assert((pWalk == NULL) || (pWalk->pPrevNetwopBlock == pPrev));
-
-            // insert into the network pointer chain
-            if (pPrev == NULL)
-            {
-               pBlock->pNextNetwopBlock = xds.pFirstNetwopPi[netwop];
-               xds.pFirstNetwopPi[netwop] = pBlock;
-            }
-            else
-            {
-               pBlock->pNextNetwopBlock = pPrev->pNextNetwopBlock;
-               pPrev->pNextNetwopBlock = pBlock;
-            }
-
+            assert(xds.pFirstNetwopPi[netwop] == NULL);
+            xds.pFirstNetwopPi[netwop] = pBlock;
+            xds.pLastNetwopPi[netwop] = pBlock;
             added = TRUE;
          }
          else
          {
-            if ((pWalk != NULL) && (pWalk->pi.start_time < pBlock->pi.stop_time))
-               dprintf1("OVERLAP NEXT start:%ld - dropping PI\n", pWalk->pi.start_time);
+            while ( (pWalk != NULL) &&
+                    (pWalk->pi.start_time > pBlock->pi.start_time) )
+            {
+               pWalk = pWalk->pPrevNetwopBlock;
+            }
+
+            if (pWalk == NULL)
+               pNext = xds.pFirstNetwopPi[netwop];
             else
-               dprintf2("OVERLAP PREV start:%ld stop:%ld - dropping PI\n", pPrev->pi.start_time, pPrev->pi.stop_time);
-            added = FALSE;
+               pNext = pWalk->pNextNetwopBlock;
+
+            if ( ( (pNext == NULL) ||
+                   (pNext->pi.start_time >= pBlock->pi.stop_time) ) &&
+                 ( (pWalk == NULL) ||
+                   (pWalk->pi.stop_time <= pBlock->pi.start_time) ) )
+            {
+               // insert into the network pointer chain
+               if (pWalk == NULL)
+               {
+                  pBlock->pNextNetwopBlock = xds.pFirstNetwopPi[netwop];
+                  xds.pFirstNetwopPi[netwop] = pBlock;
+               }
+               else
+               {
+                  pBlock->pNextNetwopBlock = pWalk->pNextNetwopBlock;
+                  pWalk->pNextNetwopBlock = pBlock;
+               }
+
+               if (pNext == NULL)
+               {
+                  xds.pLastNetwopPi[netwop] = pBlock;
+               }
+               else
+               {
+                  pNext->pPrevNetwopBlock = pBlock;
+               }
+               pBlock->pPrevNetwopBlock = pWalk;
+
+               added = TRUE;
+            }
+            else
+            {
+               if ((pWalk != NULL) && (pWalk->pi.start_time < pBlock->pi.stop_time))
+                  dprintf1("OVERLAP NEXT start:%ld - dropping PI\n", pWalk->pi.start_time);
+               else
+                  dprintf2("OVERLAP PREV start:%ld stop:%ld - dropping PI\n", pPrev->pi.start_time, pPrev->pi.stop_time);
+               added = FALSE;
+            }
          }
       }
       else
-      {  // undefined network
-         debug1("DEFECTIVE block dropped: undefined netwop %d", netwop);
+      {  // defective
+         debug3("AddPi: netwop:%d invalid start or stop times: %d, %d", netwop, (int)pBlock->pi.start_time, (int)pBlock->pi.stop_time);
          added = FALSE;
       }
    }
    else
-   {  // defective
-      debug2("AddPi: invalid start or stop times: %d, %d", (int)pBlock->pi.start_time, (int)pBlock->pi.stop_time);
+   {  // undefined network
+      debug1("DEFECTIVE block dropped: undefined netwop %d", netwop);
       added = FALSE;
    }
 
@@ -547,11 +570,16 @@ void Xmltv_ChannelCreate( void )
       memset((xds.p_chn_table + prev_size), 0,
              (xds.chn_tab_size - prev_size) * sizeof(xds.p_chn_table[0]));
 
-      // grow PI table
+      // grow PI tables
       xds.pFirstNetwopPi = xrealloc(xds.pFirstNetwopPi,
                                     xds.chn_tab_size * sizeof(xds.pFirstNetwopPi[0]));
       memset((xds.pFirstNetwopPi + prev_size), 0,
              (xds.chn_tab_size - prev_size) * sizeof(xds.pFirstNetwopPi[0]));
+
+      xds.pLastNetwopPi = xrealloc(xds.pLastNetwopPi,
+                                    xds.chn_tab_size * sizeof(xds.pLastNetwopPi[0]));
+      memset((xds.pLastNetwopPi + prev_size), 0,
+             (xds.chn_tab_size - prev_size) * sizeof(xds.pLastNetwopPi[0]));
    }
    xds.chn_open = TRUE;
 }
@@ -1372,6 +1400,11 @@ void XmltvDb_Destroy( void )
    {
       xfree(xds.pFirstNetwopPi);
       xds.pFirstNetwopPi = NULL;
+   }
+   if (xds.pLastNetwopPi != NULL)
+   {
+      xfree(xds.pLastNetwopPi);
+      xds.pLastNetwopPi = NULL;
    }
    if (xds.p_theme_table != NULL)
    {
