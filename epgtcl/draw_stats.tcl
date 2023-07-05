@@ -189,7 +189,7 @@ proc TimeScale_AddRange {w netwop pos1 pos2 color hasDesc isLast} {
    $wc create rect [expr $::tsc_cv_stream_x0 + $pos1] $y0 [expr $::tsc_cv_stream_x0 + $pos2] $y1 \
                    -fill $color -outline ""
 
-   if $isLast {
+   if {$isLast} {
       # this was the last block as defined in the AI block
       # -> remove any remaining blocks to the right, esp. the "PI missing" range
       set id_bg $tsc_id("$w.bg.$netwop")

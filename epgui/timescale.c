@@ -348,7 +348,7 @@ static void TimeScale_HighlightNetwop( uint netwop )
 // - converts start time into scale coordinates
 //
 static void TimeScale_DisplayPi( STREAM_COLOR streamCol, uint netwop,
-                                 time_t start, time_t stop, uchar hasDesc, bool isLast )
+                                 time_t start, time_t stop, bool hasDesc, bool isLast )
 {
    time_t now;
    sint corrOff;
@@ -440,8 +440,8 @@ static void TimeScale_AddPi( EPGDB_PI_TSC * ptsc )
                                             PI_TSC_MASK_DAY_MASK));
 
       TimeScale_DisplayPi(col, pPt->netwop, startTime, stopTime,
-                          pPt->flags & PI_TSC_MASK_HAS_DESC_TEXT,
-                          pPt->flags & PI_TSC_MASK_IS_LAST);
+                          (pPt->flags & PI_TSC_MASK_HAS_DESC_TEXT) != 0,
+                          (pPt->flags & PI_TSC_MASK_IS_LAST) != 0);
    }
    sprintf(comm, "TimeScale_RaiseTail %s\n", tsc_wid);
    eval_check(interp, comm);
@@ -525,7 +525,6 @@ static void TimeScale_CreateOrRebuild( ClientData dummy )
             EpgTscQueue_Init(&tsc);
             EpgTscQueue_AddAll(&tsc, pUiDbContext, now, EpgAcqCtl_GetAcqBaseTime(now));
 
-            EpgTscQueue_SetProvCni(&tsc, EpgDbContextGetCni(pUiDbContext));
             TimeScale_AddPi(&tsc);
 
             // just to catch error cases: clear remaining data (normally all data should have been processed and freed)

@@ -51,9 +51,7 @@ static bool EpgTscQueue_CheckConsistancy( EPGDB_PI_TSC * pQueue )
    {
       // check the consistancy of this buffer
       // note: a similar consistancy check if performed in the Push function
-      assert(pWalk->provCni != 0);
-
-      assert(pWalk->fillCount <= PI_TSC_GET_BUF_COUNT());
+      assert(pWalk->fillCount <= PI_TSC_BUF_CHUNK_SIZE);
       assert(pWalk->popIdx <= pWalk->fillCount);  // == is allowed
 
       // check the queue linkage
@@ -134,26 +132,6 @@ static void EpgTscQueue_Unlink( EPGDB_PI_TSC * pQueue, EPGDB_PI_TSC_BUF * pTscBu
 }
 
 // ----------------------------------------------------------------------------
-// Store parameters for subsequent read accesses in queue head
-// - used in subsequent add or pop operations
-// - they are copied into each buffer struct
-// - storing the parameters in the head avoids having to pass them as arguments
-//   through all functions down to the low-level add function. where new buffers
-//   are allocated and initialized
-//
-void EpgTscQueue_SetProvCni( EPGDB_PI_TSC * pQueue, uint provCni )
-{
-   if (pQueue != NULL)
-   {
-      assert(provCni != 0);  // doesn't harm to set it even if 0
-
-      pQueue->readProvCni = provCni;
-   }
-   else
-      fatal0("EpgTscQueue-SetMode: illegal NULL ptr param");
-}
-
-// ----------------------------------------------------------------------------
 // Retrieve the oldest element from the PI timescale queue
 // - the oldest element if the first unpopped index in the last buffer in the queue
 // - when all elements have been popped from a buffer it's freed - but not before
@@ -173,30 +151,16 @@ const EPGDB_PI_TSC_ELEM * EpgTscQueue_PopElem( EPGDB_PI_TSC * pQueue, time_t * p
       if (pTscBuf != NULL)
       {  // queue is not empty
 
-         // search for a non-empty buffer with matching CNI
-         do
-         {
-            if (pTscBuf->popIdx >= pTscBuf->fillCount)
-            {  // found a fully popped buffer -> free it
+         if (pTscBuf->popIdx >= pTscBuf->fillCount)
+         {  // found a fully popped buffer -> free it
 
-               pTemp = pTscBuf->pPrev;
-               // first unlink the buffer from the queue...
-               EpgTscQueue_Unlink(pQueue, pTscBuf);
-               // ...then free it
-               xfree(pTscBuf);
-               pTscBuf = pTemp;
-            }
-            else
-            {  // buffer is not empty: check if it's the expected provider
-               if ( (pTscBuf->locked == FALSE) &&
-                    (pTscBuf->provCni == pQueue->readProvCni) )
-               {  // found one
-                  break;
-               }
-               // try the next buffer
-               pTscBuf = pTscBuf->pPrev;
-            }
-         } while (pTscBuf != NULL);
+            pTemp = pTscBuf->pPrev;
+            // first unlink the buffer from the queue...
+            EpgTscQueue_Unlink(pQueue, pTscBuf);
+            // ...then free it
+            xfree(pTscBuf);
+            pTscBuf = pTemp;
+         }
 
          if (pTscBuf != NULL)
          {
@@ -246,10 +210,8 @@ static void EpgTscQueue_AdjustBaseTime( EPGDB_PI_TSC_BUF * pTscBuf, time_t start
 static EPGDB_PI_TSC_BUF * EpgTscQueue_CreateNew( EPGDB_PI_TSC * pQueue )
 {
    EPGDB_PI_TSC_BUF   * pTscBuf;
-   uint  maxCount;
 
-   maxCount = PI_TSC_GET_BUF_COUNT();
-   pTscBuf = (EPGDB_PI_TSC_BUF*) xmalloc(PI_TSC_GET_BUF_SIZE(maxCount));
+   pTscBuf = (EPGDB_PI_TSC_BUF*) xmalloc(sizeof(EPGDB_PI_TSC_BUF));
 
    // insert the buffer at the head of the queue
    if (pQueue->pHead != NULL)
@@ -266,12 +228,10 @@ static EPGDB_PI_TSC_BUF * EpgTscQueue_CreateNew( EPGDB_PI_TSC * pQueue )
    }
 
    // initialize the buffer parameters
-   pTscBuf->provCni   = pQueue->writeProvCni;
-   pTscBuf->locked    = FALSE;
    pTscBuf->fillCount = 0;
    pTscBuf->popIdx    = 0;
 
-   if ((pTscBuf->pNext != NULL) && (pTscBuf->provCni == pTscBuf->pNext->provCni))
+   if (pTscBuf->pNext != NULL)
       pTscBuf->baseTime = pTscBuf->pNext->baseTime;
    else
       pTscBuf->baseTime = 0;
@@ -318,14 +278,13 @@ static void EpgTscQueue_Append( EPGDB_PI_TSC * pQueue, time_t startTime, time_t 
          {  // concatenate PI
             pTsc->durationMins += (stopTime - startTime) / 60;
             pTsc->flags        |= flags & PI_TSC_MASK_IS_LAST;
-            pTsc->concatCount  += 1;
             concatenated = TRUE;
          }
       }
 
       if (concatenated == FALSE)
       {
-         if (pTscBuf->fillCount >= PI_TSC_GET_BUF_COUNT())
+         if (pTscBuf->fillCount >= PI_TSC_BUF_CHUNK_SIZE)
          {  // buffer is full -> allocate a new one and insert it at the head of the chain
             pTscBuf = EpgTscQueue_CreateNew(pQueue);
          }
@@ -342,7 +301,6 @@ static void EpgTscQueue_Append( EPGDB_PI_TSC * pQueue, time_t startTime, time_t 
          pTsc->startOffMins = (startTime - pTscBuf->baseTime) / 60;
          pTsc->durationMins = (stopTime - startTime) / 60;
          pTsc->netwop       = netwop;
-         pTsc->concatCount  = 1;
          pTsc->flags        = flags;
       }
    }
@@ -371,9 +329,6 @@ void EpgTscQueue_AddAll( EPGDB_PI_TSC * pQueue, EPGDB_CONTEXT * dbc,
       pAi = EpgDbGetAi(dbc);
       if (pAi != NULL)
       {
-         // set parameters for buffer creation
-         pQueue->writeProvCni = EpgDbContextGetCni(dbc);
-
          // loop over all PI in the database (i.e. in parallel across all netwops)
          for (netwop=0; netwop < pAi->netwopCount; netwop++)
          {
@@ -416,16 +371,16 @@ void EpgTscQueue_AddAll( EPGDB_PI_TSC * pQueue, EPGDB_CONTEXT * dbc,
          while (pBlock != NULL)
          {
             pPi = &pBlock->pi;
-            flags = PI_TSC_MASK_IS_DEFECTIVE;
 
-            if (pBlock->pNextNetwopBlock == NULL)
-               flags |= PI_TSC_MASK_IS_LAST;
+            if (pPi->netwop_no < pAi->netwopCount)
+            {
+               flags = PI_TSC_MASK_IS_DEFECTIVE;
 
-            if (PI_HAS_DESC_TEXT(pPi))
-               flags |= PI_TSC_MASK_HAS_DESC_TEXT;
+               if (PI_HAS_DESC_TEXT(pPi))
+                  flags |= PI_TSC_MASK_HAS_DESC_TEXT;
 
-            EpgTscQueue_Append(pQueue, pPi->start_time, pPi->stop_time, pPi->netwop_no, flags);
-
+               EpgTscQueue_Append(pQueue, pPi->start_time, pPi->stop_time, pPi->netwop_no, flags);
+            }
             pBlock = pBlock->pNextBlock;
          }
       }
