@@ -320,7 +320,7 @@ proc PopupTtxGrab {} {
 
       labelframe .ttxgrab.all -text "Teletext options"
       set gridrow 0
-      label .ttxgrab.all.chcnt_lab -text "Number of TV channels to grab:"
+      label .ttxgrab.all.chcnt_lab -text "Number of TV channels to grab from:"
       grid  .ttxgrab.all.chcnt_lab -row $gridrow -column 0 -sticky w -padx 5
       entry .ttxgrab.all.chcnt_ent -textvariable ttxgrab_tmpcf(net_count) -width 4
       grid  .ttxgrab.all.chcnt_ent -row $gridrow -column 1 -sticky we

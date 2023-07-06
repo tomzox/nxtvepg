@@ -48,10 +48,31 @@ proc EpgScan_UpdateTvApp {} {
    }
 }
 
+#=LOAD=LoadXmltvFile
 #=LOAD=ProvWin_Create
 #=LOAD=PopupProviderMerge
 #=LOAD=PopupEpgScan
 #=DYNAMIC=
+
+##  --------------------------------------------------------------------------
+##
+proc LoadXmltvFile {} {
+   # get path of currently loaded file (empty if none)
+   set prev_path [C_GetProviderPath]
+   if {$prev_path eq ""} {
+      set provwin_dir [file normalize "."]
+   }
+
+   set name [tk_getOpenFile -parent . \
+                     -initialfile [file tail $prev_path] \
+                     -initialdir [file dirname $prev_path] \
+                     -defaultextension .xml \
+                     -filetypes {{XML {*.xml}} {XMLTV {*.xmltv}} {all {*.*}}}]
+   if {$name ne ""} {
+      set cni [C_GetProvCniForPath $name]
+      C_ChangeProvider $cni
+   }
+}
 
 ##  --------------------------------------------------------------------------
 ##  Handling of the Provider Selection Pop-up
@@ -60,22 +81,26 @@ proc ProvWin_Create {} {
    global provwin_popup
    global font_normal entry_disabledforeground
    global provwin_servicename
-   global provwin_dir provwin_dir_hist
+   global provwin_dir provwin_dir_hist provwin_ext
 
    if {$provwin_popup == 0} {
-      CreateTransientPopup .provwin "Load XMLTV file"
+      CreateTransientPopup .provwin "Browse and load XMLTV files"
       set provwin_popup 1
 
       # directory selection is kept across dialog being closed/reopened
-      if {![info exists provwin_dir]} {
+      set provwin_dir [file dirname [C_GetProviderPath]]
+      if {$provwin_dir eq ""} {
          set provwin_dir [file normalize "."]
+      }
+      if {![info exists provwin_dir_hist]} {
          set provwin_dir_hist [list $provwin_dir]
+         set provwin_ext "XML (*.xml)"
       }
 
       # entry field for directory
       frame  .provwin.dir
       label  .provwin.dir.prompt -text "Select directory:"
-      pack   .provwin.dir.prompt -side left
+      grid   .provwin.dir.prompt -row 0 -column 0 -sticky w -padx 5
       frame  .provwin.dir.cfrm -relief sunken -borderwidth 1
       entry  .provwin.dir.cfrm.ent -relief flat -borderwidth 0 -width 30 \
                                    -textvariable provwin_dir -font $::font_fixed
@@ -87,7 +112,8 @@ proc ProvWin_Create {} {
       bind   .provwin.dir.cfrm.ent <Return> {ProvWin_PushDirectory $provwin_dir; ProvWin_UpdateList}
       pack   .provwin.dir.cfrm.ent -side left -fill x -expand 1
       pack   .provwin.dir.cfrm.ddb -side left -fill y
-      pack   .provwin.dir.cfrm -side left -fill x -expand 1
+      grid   .provwin.dir.cfrm -row 0 -column 1 -sticky we
+      grid   columnconfigure .provwin.dir 1 -weight 1
 
       button .provwin.dir.dlgbut -image $::fileImage -command {
          set dir [tk_chooseDirectory -initialdir $provwin_dir -mustexist 1 -parent .provwin \
@@ -97,8 +123,16 @@ proc ProvWin_Create {} {
             ProvWin_UpdateList
          }
       }
-      pack  .provwin.dir.dlgbut -side left -padx 5
-      pack  .provwin.dir -side top -pady 10 -fill x -expand 1
+      grid   .provwin.dir.dlgbut -row 0 -column 2 -sticky w
+
+      label  .provwin.dir.ext_prompt -text "File extension:"
+      grid   .provwin.dir.ext_prompt -row 1 -column 0 -sticky w -padx 5
+      set wid [tk_optionMenu .provwin.dir.ext_mb provwin_ext "XML (*.xml)" "XMLTV (*.xmltv)" "all (*.*)"]
+      for {set idx 0} {$idx <= [$wid index end]} {incr idx} {
+         $wid entryconfigure $idx -command ProvWin_UpdateList
+      }
+      grid   .provwin.dir.ext_mb -row 1 -column 1 -sticky w
+      pack   .provwin.dir -side top -pady 5 -fill x
 
       # list of providers at the left side of the window
       frame .provwin.n
@@ -139,13 +173,13 @@ proc ProvWin_Create {} {
       bindtags .provwin.n.info.oimsg {TextReadOnly . all}
       pack .provwin.n.info.oimsg -side top -anchor nw -fill both -expand 1
       pack .provwin.n.info -side left -padx 10 -fill both -expand 1
-      pack .provwin.n -side top -pady 10 -fill both -expand 1
+      pack .provwin.n -side top -pady 5 -fill both -expand 1
 
       # buttons at the bottom of the window
       frame .provwin.cmd
       button .provwin.cmd.help -text "Help" -width 5 -command {PopupHelp $helpIndex(Control menu) "Load XMLTV file"}
       button .provwin.cmd.abort -text "Abort" -width 5 -command {destroy .provwin}
-      button .provwin.cmd.ok -text "Ok" -width 5 -command ProvWin_Exit -default active -state disabled
+      button .provwin.cmd.ok -text "Load" -width 5 -command ProvWin_Exit -default active -state disabled
       bind .provwin.cmd.ok <Return> {tkButtonInvoke .provwin.cmd.ok}
       bind .provwin <Escape> {tkButtonInvoke .provwin.cmd.abort}
       pack .provwin.cmd.help .provwin.cmd.abort .provwin.cmd.ok -side left -padx 10
@@ -170,13 +204,25 @@ proc ProvWin_NameSortCmp {a b} {
    return [string compare -nocase $provwin_names($a) $provwin_names($b)]
 }
 
+proc GetProvExtension {} {
+   global provwin_ext
+
+   if {[string match "XML *" $provwin_ext]} {
+      return ".xml"
+   } elseif {[string match "XMLTV *" $provwin_ext]} {
+      return ".xmltv"
+   } else {
+      return ""
+   }
+}
+
 # callback for directory changes
 proc ProvWin_UpdateList {} {
    global provwin_dir provwin_ailist provwin_names
 
    # build list of available providers
    set provwin_ailist {}
-   foreach {cni name} [C_GetProvCnisAndNames $provwin_dir] {
+   foreach {cni name} [C_GetProvCnisAndNames $provwin_dir [GetProvExtension]] {
       # build list of CNIs
       lappend provwin_ailist $cni
       # build array of provider network names
@@ -305,14 +351,18 @@ proc ProvWin_Exit {} {
 proc PopupProviderMerge {} {
    global provmerge_popup
    global provmerge_ailist provmerge_selist provwin_names provmerge_cf
-   global provwin_dir provwin_dir_hist provmerge_ttx
+   global provwin_dir provwin_ext provwin_dir_hist provmerge_ttx
    global ProvmergeOptLabels
 
    if {$provmerge_popup == 0} {
       # directory selection is kept across dialog being closed/reopened
-      if {![info exists provwin_dir]} {
+      set provwin_dir [file dirname [C_GetProviderPath]]
+      if {$provwin_dir eq ""} {
          set provwin_dir [file normalize "."]
+      }
+      if {![info exists provwin_dir_hist]} {
          set provwin_dir_hist [list $provwin_dir]
+         set provwin_ext "XML (*.xml)"
       }
       set provmerge_ailist {}
       set provmerge_selist {}
@@ -343,12 +393,12 @@ proc PopupProviderMerge {} {
       set provmerge_popup 1
 
       label .provmerge.msg -text "This dialog allows loading and merging multiple XMLTV files. Note the order of\nfiles in the list on the right defines their priority in case of conflicts:"
-      pack .provmerge.msg -side top -expand 1 -fill x -pady 5
+      pack .provmerge.msg -side top -fill x -pady 5
 
       # entry field for directory
       frame  .provmerge.dir
       label  .provmerge.dir.prompt -text "Select directory:"
-      pack   .provmerge.dir.prompt -side left
+      grid   .provmerge.dir.prompt -row 0 -column 0 -sticky w -padx 5
       frame  .provmerge.dir.cfrm -relief sunken -borderwidth 1
       entry  .provmerge.dir.cfrm.ent -relief flat -borderwidth 0 -width 30 \
                                    -textvariable provwin_dir -font $::font_fixed
@@ -360,7 +410,8 @@ proc PopupProviderMerge {} {
       bind   .provmerge.dir.cfrm.ent <Return> {ProvWin_PushDirectory $provwin_dir; ProvMerge_UpdateList}
       pack   .provmerge.dir.cfrm.ent -side left -fill x -expand 1
       pack   .provmerge.dir.cfrm.ddb -side left -fill y
-      pack   .provmerge.dir.cfrm -side left -fill x -expand 1
+      grid   .provmerge.dir.cfrm -row 0 -column 1 -sticky we
+      grid   columnconfigure .provmerge.dir 1 -weight 1
 
       button .provmerge.dir.dlgbut -image $::fileImage -command {
          set dir [tk_chooseDirectory -initialdir $provwin_dir -mustexist 1 -parent .provmerge \
@@ -370,13 +421,21 @@ proc PopupProviderMerge {} {
             ProvMerge_UpdateList
          }
       }
-      pack  .provmerge.dir.dlgbut -side left -padx 5
-      pack  .provmerge.dir -side top -pady 5 -fill x -expand 1
+      grid  .provmerge.dir.dlgbut -row 0 -column 2 -sticky w
+
+      label .provmerge.dir.ext_prompt -text "File extension:"
+      grid  .provmerge.dir.ext_prompt -row 1 -column 0 -sticky w -padx 5
+      set wid [tk_optionMenu .provmerge.dir.ext_mb provwin_ext "XML (*.xml)" "XMLTV (*.xmltv)" "all (*.*)"]
+      for {set idx 0} {$idx <= [$wid index end]} {incr idx} {
+         $wid entryconfigure $idx -command ProvMerge_UpdateList
+      }
+      grid  .provmerge.dir.ext_mb -row 1 -column 1 -sticky w
+      pack  .provmerge.dir -side top -pady 5 -fill x
 
       # create the two listboxes for database selection
       frame .provmerge.lb
       SelBoxCreate .provmerge.lb provmerge_ailist provmerge_selist provwin_names 30 1
-      pack .provmerge.lb -side top
+      pack .provmerge.lb -side top -fill both -expand 1
 
       # populate the AI list
       ProvMerge_UpdateList
@@ -418,7 +477,7 @@ proc PopupProviderMerge {} {
       .provmerge.mfrm.mb.men add command -command {PopupProviderMergeOpt cfvps} -label $ProvmergeOptLabels(cfvps)
       .provmerge.mfrm.mb.men add separator
       .provmerge.mfrm.mb.men add command -command {ProvMerge_Reset} -label "Reset"
-      pack .provmerge.mfrm -side top -fill x -expand 1
+      pack .provmerge.mfrm -side top -fill x
 
       # create cmd buttons at bottom
       frame .provmerge.cmd
@@ -454,7 +513,7 @@ proc ProvMerge_UpdateList {} {
    global provwin_dir
 
    set provmerge_ailist {}
-   foreach {cni name} [C_GetProvCnisAndNames $provwin_dir] {
+   foreach {cni name} [C_GetProvCnisAndNames $provwin_dir [GetProvExtension]] {
       lappend provmerge_ailist $cni
       set provwin_names($cni) $name
    }

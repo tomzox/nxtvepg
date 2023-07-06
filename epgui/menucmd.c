@@ -652,6 +652,53 @@ static int MenuCmd_ChangeProvider( ClientData ttp, Tcl_Interp *interp, int objc,
 }
 
 // ----------------------------------------------------------------------------
+// Get path of the XMLTV the current UI database was loaded from
+// - returns empty string in case of error
+//
+static int MenuCmd_GetProviderPath( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
+{
+   const char * const pUsage = "Usage: C_GetProviderPath";
+   const char * pPath;
+   uint provCni;
+   int result;
+
+   if (objc != 1)
+   {  // parameter count is invalid
+      Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
+      result = TCL_ERROR;
+   }
+   else
+   {
+      pPath = "";
+      provCni = EpgDbContextGetCni(pUiDbContext);
+      if (provCni == MERGED_PROV_CNI)
+      {
+         // Merged DB: use path of the first provider
+         uint  provCount;
+         uint  provCniTab[MAX_MERGED_DB_COUNT];
+
+         if (EpgContextMergeGetCnis(pUiDbContext, &provCount, provCniTab))
+         {
+            for (uint idx = 0; idx < provCount; idx++)
+            {
+               pPath = EpgContextCtl_GetProvPath(provCniTab[idx]);
+               if (pPath != NULL)
+                  break;
+            }
+         }
+      }
+      else if (provCni != 0)
+      {
+         pPath = EpgContextCtl_GetProvPath(provCni);
+      }
+      Tcl_SetObjResult(interp, Tcl_NewStringObj(pPath, -1));
+      result = TCL_OK;
+   }
+
+   return result;
+}
+
+// ----------------------------------------------------------------------------
 // Return service name and list of networks of the given database
 // - used by provider selection popup
 //
@@ -801,17 +848,18 @@ static int MenuCmd_GetCurrentDatabaseCni( ClientData ttp, Tcl_Interp *interp, in
 //
 static int MenuCmd_GetProvCnisAndNames( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
 {
-   const char * const pUsage = "Usage: C_GetProvCnisAndNames <dir>";
+   const char * const pUsage = "Usage: C_GetProvCnisAndNames <dir> <ext>";
    const AI_BLOCK * pAi;
    const uint * pCniList;
    EPGDB_CONTEXT  * pPeek;
    const char * pDir;
+   const char * pExt;
    Tcl_Obj * pResultList;
    char buf[16+2+1];
    uint idx, cniCount;
    int result;
 
-   if (objc != 1+1)
+   if (objc != 1+2)
    {  // parameter count is invalid
       Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
       result = TCL_ERROR;
@@ -819,9 +867,10 @@ static int MenuCmd_GetProvCnisAndNames( ClientData ttp, Tcl_Interp *interp, int 
    else
    {
       pDir = Tcl_GetString(objv[1]);
+      pExt = Tcl_GetString(objv[2]);
       pResultList = Tcl_NewListObj(0, NULL);
 
-      pCniList = EpgContextCtl_GetProvList(pDir, &cniCount);
+      pCniList = EpgContextCtl_GetProvList(pDir, pExt, &cniCount);
       if (pCniList != NULL)
       {
          for (idx=0; idx < cniCount; idx++)
@@ -847,6 +896,38 @@ static int MenuCmd_GetProvCnisAndNames( ClientData ttp, Tcl_Interp *interp, int 
          xfree((void *) pCniList);
       }
       Tcl_SetObjResult(interp, pResultList);
+      result = TCL_OK;
+   }
+
+   return result;
+}
+
+// ----------------------------------------------------------------------------
+// Get list of provider CNIs and names
+// - for provider selection and merge popup
+//
+static int MenuCmd_GetProvCniForPath( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
+{
+   const char * const pUsage = "Usage: C_GetProvCniForPath <path>";
+   const char * pPath;
+   char buf[16+2+1];
+   uint provCni;
+   int result;
+
+   if (objc != 1+1)
+   {  // parameter count is invalid
+      Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
+      result = TCL_ERROR;
+   }
+   else
+   {
+      pPath = Tcl_GetString(objv[1]);
+
+      provCni = EpgContextCtl_StatProvider(pPath);
+
+      sprintf(buf, "0x%04X", provCni);
+      Tcl_SetObjResult(interp, Tcl_NewStringObj(buf, -1));
+
       result = TCL_OK;
    }
 
@@ -2504,8 +2585,10 @@ void MenuCmd_Init( void )
       Tcl_CreateObjCommand(interp, "C_ProvMerge_Start", MenuCmd_ProvMerge_Start, (ClientData) NULL, NULL);
       Tcl_CreateObjCommand(interp, "C_MergeTtxProviders", MenuCmd_MergeTtxProviders, (ClientData) NULL, NULL);
 
+      Tcl_CreateObjCommand(interp, "C_GetProviderPath", MenuCmd_GetProviderPath, (ClientData) NULL, NULL);
       Tcl_CreateObjCommand(interp, "C_GetProvServiceName", MenuCmd_GetProvServiceName, (ClientData) NULL, NULL);
       Tcl_CreateObjCommand(interp, "C_GetProvServiceInfos", MenuCmd_GetProvServiceInfos, (ClientData) NULL, NULL);
+      Tcl_CreateObjCommand(interp, "C_GetProvCniForPath", MenuCmd_GetProvCniForPath, (ClientData) NULL, NULL);
       Tcl_CreateObjCommand(interp, "C_GetCurrentDatabaseCni", MenuCmd_GetCurrentDatabaseCni, (ClientData) NULL, NULL);
       Tcl_CreateObjCommand(interp, "C_GetProvCnisAndNames", MenuCmd_GetProvCnisAndNames, (ClientData) NULL, NULL);
       Tcl_CreateObjCommand(interp, "C_GetProvCniConfig", MenuCmd_GetProvCniConfig, (ClientData) NULL, NULL);

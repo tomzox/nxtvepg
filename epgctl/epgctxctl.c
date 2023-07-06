@@ -872,11 +872,11 @@ bool EpgContextCtl_HaveProviders( void )
 // Get list of available providers
 // - the list is dynamically allocated and must be freed by the caller
 //
-const uint * EpgContextCtl_GetProvList( const char * pPath, uint * pCount )
+const uint * EpgContextCtl_GetProvList( const char * pPath, const char * pExtension, uint * pCount )
 {
    CTX_SCAN_LIST cniList;
 
-   EpgContextCtl_ScanDbDir(pPath, ".xml", &cniList);
+   EpgContextCtl_ScanDbDir(pPath, pExtension, &cniList);
 
    // return the length of the returned list
    if (pCount != NULL)
@@ -884,6 +884,16 @@ const uint * EpgContextCtl_GetProvList( const char * pPath, uint * pCount )
 
    // note: the list must be freed by the caller!
    return cniList.pCniList;
+}
+
+// ---------------------------------------------------------------------------
+// Get path to the XMLTV file of the provider given by CNI
+// - returns NULL if no path is mapped to the given CNI
+// - else a pointer to internal storage is returned (must not be freed by the caller)
+//
+const char * EpgContextCtl_GetProvPath( uint cni )
+{
+   return XmltvCni_LookupProviderPath(cni);
 }
 
 // ---------------------------------------------------------------------------

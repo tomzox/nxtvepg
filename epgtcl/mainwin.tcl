@@ -718,7 +718,8 @@ proc CreateMenubar {} {
    .menubar add cascade -label "Help" -menu .menubar.help -underline 0
    # Control menu
    menu .menubar.ctrl -tearoff 0 -postcommand C_SetControlMenuStates
-   .menubar.ctrl add command -label "Load XMLTV file..." -command ProvWin_Create
+   .menubar.ctrl add command -label "Load XMLTV file..." -command LoadXmltvFile
+   .menubar.ctrl add command -label "Browse XMLTV files..." -command ProvWin_Create
    .menubar.ctrl add command -label "Merge XMLTV files..." -command PopupProviderMerge
 #=IF=defined(USE_TTX_GRABBER)
    .menubar.ctrl add command -label "Load Teletext EPG" -command ProvLoadTeletext
@@ -740,19 +741,19 @@ proc CreateMenubar {} {
    .menubar.ctrl add command -label "Quit" -command {destroy .; update}
    # Config menu
    menu .menubar.config -tearoff 0
+   .menubar.config add command -label "Select networks..." -command PopupNetwopSelection
+   .menubar.config add command -label "Network names..." -command NetworkNamingPopup
+   .menubar.config add command -label "Select attributes..." -command PopupColumnSelection
+   .menubar.config add command -label "Attribute composition..." -command PopupUserDefinedColumns
+   .menubar.config add command -label "Context menu..." -command ContextMenuConfigPopup
+   .menubar.config add command -label "TV app. interaction..." -command XawtvConfigPopup
+   .menubar.config add separator
 #=IF=defined(USE_TTX_GRABBER)
    .menubar.config add command -label "Teletext grabber..." -command PopupTtxGrab
 #=ENDIF=
    .menubar.config add command -label "TV card input..." -command PopupHardwareConfig
-   .menubar.config add command -label "TV app. interaction..." -command XawtvConfigPopup
    .menubar.config add command -label "Client/Server..." -command PopupNetAcqConfig
    .menubar.config add command -label "TV channel scan..." -command PopupEpgScan
-   .menubar.config add separator
-   .menubar.config add command -label "Select attributes..." -command PopupColumnSelection
-   .menubar.config add command -label "Attribute composition..." -command PopupUserDefinedColumns
-   .menubar.config add command -label "Select networks..." -command PopupNetwopSelection
-   .menubar.config add command -label "Network names..." -command NetworkNamingPopup
-   .menubar.config add command -label "Context menu..." -command ContextMenuConfigPopup
    .menubar.config add separator
    .menubar.config add cascade -label "Show/Hide" -menu .menubar.config.show_hide
    .menubar.config add cascade -label "List layout" -menu .menubar.config.layout
