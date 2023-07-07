@@ -333,15 +333,8 @@ static EPGDB_RELOAD_RESULT EpgContextCtl_Load( CTX_CACHE * pContext )
          else
          {  // db context pointer is still in use -> pointer must not change
             // remove all blocks from the old context
-            EpgDbDestroy(pContext->pDbContext, TRUE);
+            EpgDbReplace(pContext->pDbContext, pDbContext);
 
-            // XXX should be done in epgdbmgmt.c
-            if (pContext->pDbContext->pAiBlock != NULL)
-               xfree(pContext->pDbContext->pAiBlock);
-            // overwrite the old context with the new data
-            memcpy(pContext->pDbContext, pDbContext, sizeof(EPGDB_CONTEXT));
-            // free the now obsolete new context structure
-            xfree(pDbContext);
             pDbContext = pContext->pDbContext;  // unused
          }
       }

@@ -135,6 +135,27 @@ void EpgDbDestroy( PDBC dbc, bool keepAi )
 }
 
 // ---------------------------------------------------------------------------
+// Moves the data of second DB context into the first and frees the source
+// - this is used when reloading the same provider's database: context pointer
+//   has to remain unchanged as it is in used, just replace the data.
+//
+void EpgDbReplace( PDBC dbc, PDBC pNewContext )
+{
+   EpgDbDestroy(dbc, TRUE);
+
+   if (dbc->pAiBlock != NULL)
+      xfree(dbc->pAiBlock);
+
+   if (dbc->pFirstNetwopPi != NULL)
+       xfree(dbc->pFirstNetwopPi);
+
+   memcpy(dbc, pNewContext, sizeof(*dbc));
+
+   // free the now obsolete new context structure
+   xfree(pNewContext);
+}
+
+// ---------------------------------------------------------------------------
 // DEBUG ONLY: check pointer chains
 //
 #if DEBUG_GLOBAL_SWITCH == ON

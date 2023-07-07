@@ -260,13 +260,13 @@ static void XmlTv_BuildSourceInfoMessages( XML_STR_BUF * pHeader, XML_STR_BUF * 
    // header
    XmlCdata_AppendRaw(pHeader, XML_STR_BUF_GET_STR(xds.source_info_name), XML_STR_BUF_GET_STR_LEN(xds.source_info_name));
 
-   if (XML_STR_BUF_GET_STR_LEN(xds.source_info_url) > 0)
-   {
-      XmlCdata_AppendParagraph(pHeader, TRUE);
-   }
+   // message
    XmlCdata_AppendRaw(pMessage, XML_STR_BUF_GET_STR(xds.source_info_url), XML_STR_BUF_GET_STR_LEN(xds.source_info_url));
 
-   // message
+   if (XML_STR_BUF_GET_STR_LEN(xds.source_data_url) > 0)
+   {
+      XmlCdata_AppendParagraph(pMessage, TRUE);
+   }
    XmlCdata_AppendRaw(pMessage, XML_STR_BUF_GET_STR(xds.source_data_url), XML_STR_BUF_GET_STR_LEN(xds.source_data_url));
 
    if ( (XML_STR_BUF_GET_STR_LEN(xds.gen_info_name) > 0) ||
@@ -516,26 +516,31 @@ static EPGDB_PI_BLOCK * XmltvDb_BuildPi( void )
 void Xmltv_AboutSetSourceInfoUrl( XML_STR_BUF * pBuf )
 {
    XmlCdata_AssignOrAppend(&xds.source_info_url, pBuf);
+   XmlCdata_NormalizeWhitespace(&xds.source_info_url);
 }
 
 void Xmltv_AboutSetSourceInfoName( XML_STR_BUF * pBuf )
 {
    XmlCdata_AssignOrAppend(&xds.source_info_name, pBuf);
+   XmlCdata_NormalizeWhitespace(&xds.source_info_name);
 }
 
 void Xmltv_AboutSetSourceDataUrl( XML_STR_BUF * pBuf )
 {
    XmlCdata_AssignOrAppend(&xds.source_data_url, pBuf);
+   XmlCdata_NormalizeWhitespace(&xds.source_data_url);
 }
 
 void Xmltv_AboutSetGenInfoName( XML_STR_BUF * pBuf )
 {
    XmlCdata_AssignOrAppend(&xds.gen_info_name, pBuf);
+   XmlCdata_NormalizeWhitespace(&xds.gen_info_name);
 }
 
 void Xmltv_AboutSetGenInfoUrl( XML_STR_BUF * pBuf )
 {
    XmlCdata_AssignOrAppend(&xds.gen_info_url, pBuf);
+   XmlCdata_NormalizeWhitespace(&xds.gen_info_url);
 }
 
 void Xmltv_AboutSetDate( XML_STR_BUF * pBuf )
@@ -1350,22 +1355,32 @@ EPGDB_CONTEXT * XmltvDb_GetDatabase( const char * pProvName )
    // finally generate inventory block with channel table
    xds.pDbContext->pAiBlock = XmltvDb_BuildAi(pProvName);
 
-   xds.pDbContext->netwopCount = xds.chn_count;
-   xds.pDbContext->pFirstNetwopPi = xmalloc(xds.chn_count * sizeof(xds.pDbContext->pFirstNetwopPi[0]));
-   memset(xds.pDbContext->pFirstNetwopPi, 0, xds.chn_count * sizeof(xds.pDbContext->pFirstNetwopPi[0]));
+   if (xds.chn_count > 0)
+   {
+      xds.pDbContext->netwopCount = xds.chn_count;
+      xds.pDbContext->pFirstNetwopPi = xmalloc(xds.chn_count * sizeof(xds.pDbContext->pFirstNetwopPi[0]));
+      memset(xds.pDbContext->pFirstNetwopPi, 0, xds.chn_count * sizeof(xds.pDbContext->pFirstNetwopPi[0]));
+
+      // combine PI of different networks into a single database
+      EpgDbMergeLinkNetworkPi(xds.pDbContext, xds.pFirstNetwopPi);
+
+      //TODO PI+AI: EpgBlockCheckConsistancy(pBlock)
+
+      // free pointer tables, as data is now owned by DB context
+      xfree(xds.pFirstNetwopPi);
+      xds.pFirstNetwopPi = NULL;
+
+      xfree(xds.pLastNetwopPi);
+      xds.pLastNetwopPi = NULL;
+
+#if DEBUG_GLOBAL_SWITCH == ON
+      EpgDbCheckChains(xds.pDbContext);
+#endif
+   }
 
    xds.pDbContext->pThemes = xds.p_theme_table;
    xds.pDbContext->themeCount = xds.theme_count;
    xds.p_theme_table = NULL;
-
-   // combine PI of different networks into a single database
-   EpgDbMergeLinkNetworkPi(xds.pDbContext, xds.pFirstNetwopPi);
-
-   //TODO PI+AI: EpgBlockCheckConsistancy(pBlock)
-
-#if DEBUG_GLOBAL_SWITCH == ON
-   EpgDbCheckChains(xds.pDbContext);
-#endif
 
    pDbContext = xds.pDbContext;
    xds.pDbContext = NULL;
@@ -1396,15 +1411,25 @@ void XmltvDb_Destroy( void )
       xfree(xds.p_chn_id_tmp);
       xds.p_chn_id_tmp = NULL;
    }
+   if (xds.pLastNetwopPi != NULL)
+   {
+      for (uint idx = 0; idx < xds.chn_count; ++idx)
+      {
+         EPGDB_PI_BLOCK *pWalk = xds.pLastNetwopPi[idx];
+         while (pWalk != NULL)
+         {
+            EPGDB_PI_BLOCK * pNext = pWalk->pPrevNetwopBlock;
+            xfree(pWalk);
+            pWalk = pNext;
+         }
+      }
+      xfree(xds.pLastNetwopPi);
+      xds.pLastNetwopPi = NULL;
+   }
    if (xds.pFirstNetwopPi != NULL)
    {
       xfree(xds.pFirstNetwopPi);
       xds.pFirstNetwopPi = NULL;
-   }
-   if (xds.pLastNetwopPi != NULL)
-   {
-      xfree(xds.pLastNetwopPi);
-      xds.pLastNetwopPi = NULL;
    }
    if (xds.p_theme_table != NULL)
    {

@@ -37,5 +37,6 @@ bool EpgDbAddDefectPi( EPGDB_CONTEXT * dbc, EPGDB_PI_BLOCK *pBlock );
 //
 EPGDB_CONTEXT * EpgDbCreate( void );
 void EpgDbDestroy( EPGDB_CONTEXT * dbc, bool keepAi );
+void EpgDbReplace( EPGDB_CONTEXT * dbc, EPGDB_CONTEXT * pNewContext );
 
 #endif  // __EPGDBMGMT_H

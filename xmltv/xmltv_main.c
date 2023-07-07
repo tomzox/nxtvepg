@@ -94,7 +94,7 @@ bool Xmltv_IsXmlDocument( uint detection )
 //
 EPGDB_CONTEXT * Xmltv_Load( FILE * fp, uint provCni, const char * pProvName, time_t mtime, bool isPeek )
 {
-   EPGDB_CONTEXT * pDbContext;
+   EPGDB_CONTEXT * pDbContext = NULL;
 
    // initialize internal state
    XmltvDb_Init(provCni, mtime, isPeek);
@@ -102,7 +102,10 @@ EPGDB_CONTEXT * Xmltv_Load( FILE * fp, uint provCni, const char * pProvName, tim
    // parse the XMLTV file
    XmltvTags_StartScan(fp, TRUE);
 
-   pDbContext = XmltvDb_GetDatabase(pProvName);
+   if (XMLTV_DETECTED_OK(XmltvTags_QueryDetection()))
+   {
+      pDbContext = XmltvDb_GetDatabase(pProvName);
+   }
 
    XmltvDb_Destroy();
 

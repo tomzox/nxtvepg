@@ -179,10 +179,10 @@ typedef struct EPGDB_CONTEXT_STRUCT
    EPGDB_AI_BLOCK *pAiBlock;
    EPGDB_PI_BLOCK *pFirstPi, *pLastPi;
    EPGDB_PI_BLOCK *pObsoletePi;
-   EPGDB_PI_BLOCK **pFirstNetwopPi;    // Variable-length array
-   uint            netwopCount;            // array length
-   char         ** pThemes;
-   uint            themeCount;
+   EPGDB_PI_BLOCK **pFirstNetwopPi;     // dynamically allocated array of pointers
+   uint            netwopCount;         // array length
+   char         ** pThemes;             // dynamically allocated array of ptr to dyn. alloc strings
+   uint            themeCount;          // array length
 
    EPGDB_PI_ACQ_CB *pPiAcqCb;
 } EPGDB_CONTEXT;
