@@ -226,6 +226,14 @@ proc LoadWidgetOptions {} {
    option add *Entry.selectBackground $select_bg userDefault
    option add *Text.selectForeground $select_fg userDefault
    option add *Text.selectBackground $select_bg userDefault
+
+   bind "Listbox" "<Key-Home>" [bind "Listbox" "<Control-Key-Home>"]
+   bind "Listbox" "<Key-End>" [bind "Listbox" "<Control-Key-End>"]
+   bind "Button" "<Return>" [bind "Button" "<Key-Space>"]
+
+   foreach class_name {"Text" "Entry" "Listbox"} {
+      bind $class_name "<Control-Key-a>" {event generate %W "<<SelectAll>>"}
+   }
 }
 
 # helper function to modify a font's size or appearance
@@ -284,7 +292,7 @@ set pinetbox_col_width 125
 #=CONST=  ::pimg_idx_count  2
 
 proc CreateMainWindow {} {
-   global is_unix entry_disabledforeground
+   global tcl_version is_unix entry_disabledforeground
    global text_fg text_bg pi_bg_now pi_bg_past default_bg
    global font_normal pi_font pi_bold_font
    global sctree_font sctree_selfg sctree_selbg
@@ -293,14 +301,30 @@ proc CreateMainWindow {} {
    global dscale_width
 
    # copy event bindings which are required for scrolling and selection (outbound copy&paste)
-   foreach event {<ButtonPress-1> <ButtonRelease-1> <B1-Motion> <Double-Button-1> <Shift-Button-1> \
-                  <Triple-Button-1> <Triple-Shift-Button-1> <Button-2> <B2-Motion> <MouseWheel> \
-                  <<Copy>> <<Clear>> <Shift-Key-Tab> <Control-Key-Tab> <Control-Shift-Key-Tab> \
-                  <Key-Prior> <Key-Next> <Key-Down> <Key-Up> <Key-Left> <Key-Right> \
-                  <Shift-Key-Left> <Shift-Key-Right> <Shift-Key-Up> <Shift-Key-Down> \
-                  <Key-Home> <Key-End> <Shift-Key-Home> <Shift-Key-End> <Control-Key-slash>} {
-      bind TextReadOnly $event [bind Text $event]
+   if {$tcl_version < 8.6} {
+      foreach event {<ButtonPress-1> <ButtonRelease-1> <B1-Motion> <Double-Button-1> <Shift-Button-1> \
+                     <Triple-Button-1> <Triple-Shift-Button-1> <Button-2> <B2-Motion> <MouseWheel> \
+                     <<Copy>> <<Clear>> <Shift-Key-Tab> <Control-Key-Tab> <Control-Shift-Key-Tab> \
+                     <Key-Prior> <Key-Next> <Key-Down> <Key-Up> <Key-Left> <Key-Right> \
+                     <Shift-Key-Left> <Shift-Key-Right> <Shift-Key-Up> <Shift-Key-Down> \
+                     <Key-Home> <Key-End> <Shift-Key-Home> <Shift-Key-End> <Control-Key-slash>} {
+         bind TextReadOnly $event [bind Text $event]
+      }
+   } else {
+      set text_modifier_events {
+         <<Clear>> <<Cut>> <<Paste>> <<PasteSelection>>
+         <<Redo>> <<Undo>> <<TkAccentBackspace>> <Key-BackSpace>
+         <Key> <Key-Delete> <Key-Insert> <Key-Return>
+         # Not modifiers, but events are overridden below
+         <Key-Tab> <Control-Key-c>}
+
+      foreach event [bind Text] {
+         if {[lsearch -exact $text_modifier_events $event] == -1} {
+            bind TextReadOnly $event [bind Text $event]
+         }
+      }
    }
+
    # allow to scroll the text with a wheel mouse
    bind TextReadOnly <Button-4>     {%W yview scroll -3 units}
    bind TextReadOnly <Button-5>     {%W yview scroll 3 units}
@@ -362,8 +386,10 @@ proc CreateMainWindow {} {
    #grid     .all.shortcuts.list -row 3 -column 0 -sticky nwe
 
    frame     .all.netwops
+   scrollbar .all.shortcuts.netwop_sb -orient vertical -command {.all.shortcuts.netwops yview} -takefocus 0
    listbox   .all.shortcuts.netwops -exportselection false -height 2 -width 0 \
-                                    -selectmode extended -cursor top_left_arrow
+                                    -selectmode extended -cursor top_left_arrow \
+                                    -yscrollcommand {.all.shortcuts.netwop_sb set}
    relief_ridge_v84 .all.shortcuts.netwops
    .all.shortcuts.netwops insert end "-all-"
    .all.shortcuts.netwops selection set 0
@@ -1171,35 +1197,40 @@ proc ShowOrHideShortcutList {{changed {}}} {
    if {[lsearch -exact [pack slaves .all] .all.shortcuts] != -1} {
       pack forget .all.shortcuts
    }
+   grid rowconfigure .all.shortcuts 3 -weight 0
+   grid rowconfigure .all.shortcuts 4 -weight 0
 
    if {$showShortcutListbox || $showNetwopListboxLeft} {
-      grid .all.shortcuts.clock -row 0 -column 0 -pady 5 -sticky news
-      grid .all.shortcuts.reset -row 2 -column 0 -sticky news
-      if $showLayoutButton {
-         grid .all.shortcuts.pitype -row 5 -column 0 -sticky news
-      }
-      if $showNetwopListbox {
-         grid configure .all.shortcuts.clock .all.shortcuts.reset -columnspan 2
-      }
-   } elseif $showLayoutButton {
-      grid .all.shortcuts.pitype -row 5 -column 1 -sticky news
+      grid .all.shortcuts.clock -row 0 -column 0 -columnspan 2 -pady 5 -sticky news
+      grid .all.shortcuts.reset -row 2 -column 0 -columnspan 2 -sticky news
    }
-   if $showTuneTvButton {
-      grid .all.shortcuts.tune -row 1 -column 0 -sticky news
-      if $showNetwopListbox {
-         grid configure .all.shortcuts.tune -columnspan 2 
+   if {$showTuneTvButton} {
+      if {$showShortcutListbox && $showNetwopListbox} {
+         grid .all.shortcuts.tune -row 1 -column 0 -columnspan 2 -sticky news
+      } else {
+         grid .all.shortcuts.tune -row 1 -column 0 -columnspan 4 -sticky news
       }
    }
-   if $showShortcutListbox {
-      grid .all.shortcuts.list -row 3 -column 0 -sticky news
+   if {$showLayoutButton} {
+      if {$showShortcutListbox && $showNetwopListbox} {
+         grid .all.shortcuts.pitype -row 5 -column 0 -columnspan 2 -sticky news
+      } else {
+         grid .all.shortcuts.pitype -row 5 -column 0 -columnspan 4 -sticky news
+      }
+   }
+   if {$showShortcutListbox} {
+      grid .all.shortcuts.list -row 3 -column 0 -columnspan 2 -sticky news
       grid rowconfigure .all.shortcuts 3 -weight 1
    }
-   if $showNetwopListbox {
-      grid .all.shortcuts.netwops -row 3 -column 1 -rowspan 2 -sticky news
-   }
-   if $showNetwopListboxLeft {
-      grid .all.shortcuts.netwops -row 4 -column 0 -sticky news
+   if {$showNetwopListboxLeft} {
+      grid .all.shortcuts.netwop_sb -row 4 -column 0 -sticky ns
+      grid .all.shortcuts.netwops -row 4 -column 1 -sticky news
       grid rowconfigure .all.shortcuts 4 -weight 1
+   }
+   if {$showNetwopListbox} {
+      grid .all.shortcuts.netwop_sb -row 0 -column 2 -rowspan 6 -sticky ns
+      grid .all.shortcuts.netwops -row 0 -column 3 -rowspan 6 -sticky news
+      grid rowconfigure .all.shortcuts 3 -weight 1
    }
 
    if {$showShortcutListbox || $showNetwopListboxLeft || $showNetwopListbox} {
