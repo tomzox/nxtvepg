@@ -2092,6 +2092,7 @@ proc SelectExpireDelayFilter {} {
 
    C_SelectExpiredPiDisplay
    C_PiBox_Refresh
+   CheckShortcutDeselection
 }
 
 #

@@ -38,6 +38,7 @@ proc PreloadShortcuts {} {
       set shortcuts(10010) {Abends timsel {timsel {0 0 1215 1410 -1}} {} merge {}}
       set shortcuts(10020) {{Nächste...} progidx {progidx {1 1}} {} merge {}}
       set shortcuts(10030) {{Heute} timsel {timsel {0 1 0 1439 0}} {} merge {}}
+      set shortcuts(10040) {{Vergangene...} piexpire {piexpire -1} {} merge {}}
       set shortcuts(10100) {{} {} {} {} merge separator}
       set shortcuts(10110) {{>15 Minuten} dursel {dursel {16 1435}} {} merge {}}
       set shortcuts(10120) {{>80 Minuten} dursel {dursel {80 1435}} {} merge {}}
@@ -54,6 +55,7 @@ proc PreloadShortcuts {} {
       set shortcuts(10010) {{le soir} timsel {timsel {0 0 1215 1410 -1}} {} merge {}}
       set shortcuts(10020) {{prochaine} progidx {progidx {1 1}} {} merge {}}
       set shortcuts(10030) {{aujourd'hui} timsel {timsel {0 1 0 1439 0}} {} merge {}}
+      set shortcuts(10040) {{expiré} piexpire {piexpire -1} {} merge {}}
       set shortcuts(10100) {{} {} {} {} merge separator}
       set shortcuts(10110) {{45 minutes et +} dursel {dursel {45 1435}} {} merge {}}
       set shortcuts(10120) {{80 minutes et +} dursel {dursel {80 1435}} {} merge {}}
@@ -70,6 +72,7 @@ proc PreloadShortcuts {} {
       set shortcuts(10010) {{evening} timsel {timsel {0 0 1215 1410 -1}} {} merge {}}
       set shortcuts(10020) {{next up} progidx {progidx {1 1}} {} merge {}}
       set shortcuts(10030) {{today} timsel {timsel {0 1 0 1439 0}} {} merge {}}
+      set shortcuts(10040) {{in the past} piexpire {piexpire -1} {} merge {}}
       set shortcuts(10100) {{} {} {} {} merge separator}
       set shortcuts(10110) {{>15 minutes} dursel {dursel {16 1435}} {} merge {}}
       set shortcuts(10120) {{>80 minutes} dursel {dursel {80 1435}} {} merge {}}
@@ -152,7 +155,7 @@ proc CheckShortcutDeselection {} {
    global timsel_relative timsel_absstop timsel_datemode
    global dursel_min dursel_max
    global vpspdc_filt
-   global piexpire_display
+   global piexpire_display piexpire_never
    global filter_invert
    global fsc_prevselection
 
@@ -247,7 +250,9 @@ proc CheckShortcutDeselection {} {
                set undo [expr $vpspdc_filt != [lindex $valist 0]]
             }
             piexpire {
-               set undo [expr $piexpire_display != [lindex $valist 0]]
+               set undo [expr (([lindex $valist 0] == -1) ? \
+                               ($piexpire_never == 0) : \
+                               ($piexpire_display != [lindex $valist 0]))]
             }
             substr {
                # check if all substr param sets are still active, i.e. on the stack
@@ -373,7 +378,11 @@ proc SelectSingleShortcut {sc_tag} {
             set vpspdc_filt [lindex $valist 0]
          }
          piexpire {
-            set piexpire_display [lindex $valist 0]
+            if {[lindex $valist 0] == -1} {
+               set piexpire_never 1
+            } else {
+               set piexpire_display [lindex $valist 0]
+            }
          }
          netwops {
             set all {}
@@ -409,7 +418,7 @@ proc SelectShortcuts {sc_tag_list shortcuts_arr} {
    global timsel_relative timsel_absstop timsel_datemode
    global dursel_min dursel_max dursel_minstr dursel_maxstr
    global vpspdc_filt
-   global piexpire_display
+   global piexpire_display piexpire_never
    global fsc_prevselection
    global filter_invert
 
@@ -516,6 +525,7 @@ proc SelectShortcuts {sc_tag_list shortcuts_arr} {
                   }
                   piexpire {
                      set piexpire_display 0
+                     set piexpire_never 0
                      C_SelectExpiredPiDisplay
                   }
                   netwops {
@@ -661,7 +671,11 @@ proc SelectShortcuts {sc_tag_list shortcuts_arr} {
                   C_SelectVpsPdcFilter $vpspdc_filt
                }
                piexpire {
-                  set piexpire_display [lindex $valist 0]
+                  if {[lindex $valist 0] == -1} {
+                     set piexpire_never 1
+                  } else {
+                     set piexpire_display [lindex $valist 0]
+                  }
                   C_SelectExpiredPiDisplay
                   PiExpTime_ExternalChange
                }
@@ -1067,7 +1081,7 @@ proc DescribeCurrentFilter {} {
    global timsel_relative timsel_absstop timsel_datemode
    global dursel_min dursel_max
    global vpspdc_filt
-   global piexpire_display
+   global piexpire_display piexpire_never
    global filter_invert
 
    # save the setting of the current theme class into the array
@@ -1146,8 +1160,11 @@ proc DescribeCurrentFilter {} {
       lappend mask "vps_pdc"
    }
 
-   # dump PI expire time
-   if {$piexpire_display != 0} {
+   # dump PI expire time disable or cut-off threshold
+   if {$piexpire_never} {
+      lappend all "piexpire" -1
+      lappend mask "piexpire"
+   } elseif {$piexpire_display != 0} {
       lappend all "piexpire" $piexpire_display
       lappend mask "piexpire"
    }
@@ -1368,7 +1385,9 @@ proc ShortcutPrettyPrint {filter inv_list} {
             }
          }
          piexpire {
-            if {[lindex $valist 0] < 60} {
+            if {[lindex $valist 0] == -1} {
+               append out "Expire time: show all expired programmes"
+            } elseif {[lindex $valist 0] < 60} {
                append out "Expire time: include expired programmes up to [lindex $valist 0] minutes"
             } else {
                append out "Expire time: include expired programmes up to [expr int([lindex $valist 0]/60)]:[expr [lindex $valist 0]%60] hours"
