@@ -35,6 +35,7 @@
 #include <tcl.h>
 #include <tk.h>
 
+#include "epgtcl/mainwin.h"
 #include "epgctl/mytypes.h"
 #include "epgctl/debug.h"
 #include "epgdb/epgblock.h"
@@ -174,7 +175,30 @@ static int SelectFeatures( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj
    int idx, featureCount;
    int mask, value;
    int result; 
-   
+
+   _Static_assert(EPGTCL_PI_FEATURE_FMT_WIDE == PI_FEATURE_FMT_WIDE, "");
+   _Static_assert(EPGTCL_PI_FEATURE_VIDEO_NONE == PI_FEATURE_VIDEO_NONE, "");
+   _Static_assert(EPGTCL_PI_FEATURE_VIDEO_HD == PI_FEATURE_VIDEO_HD, "");
+   _Static_assert(EPGTCL_PI_FEATURE_VIDEO_BW == PI_FEATURE_VIDEO_BW, "");
+   _Static_assert(EPGTCL_PI_FEATURE_REPEAT == PI_FEATURE_REPEAT, "");
+   _Static_assert(EPGTCL_PI_FEATURE_LAST_REP == PI_FEATURE_LAST_REP, "");
+   _Static_assert(EPGTCL_PI_FEATURE_PREMIERE == PI_FEATURE_PREMIERE, "");
+   _Static_assert(EPGTCL_PI_FEATURE_NEW == PI_FEATURE_NEW, "");
+   _Static_assert(EPGTCL_PI_FEATURE_SUBTITLE_MASK == PI_FEATURE_SUBTITLE_MASK, "");
+   _Static_assert(EPGTCL_PI_FEATURE_SUBTITLE_NONE == PI_FEATURE_SUBTITLE_NONE, "");
+   _Static_assert(EPGTCL_PI_FEATURE_SUBTITLE_TTX == PI_FEATURE_SUBTITLE_TTX, "");
+   _Static_assert(EPGTCL_PI_FEATURE_SUBTITLE_OSC == PI_FEATURE_SUBTITLE_OSC, "");
+   _Static_assert(EPGTCL_PI_FEATURE_SUBTITLE_SIGN == PI_FEATURE_SUBTITLE_SIGN, "");
+   _Static_assert(EPGTCL_PI_FEATURE_SUBTITLE_ANY == PI_FEATURE_SUBTITLE_ANY, "");
+   _Static_assert(EPGTCL_PI_FEATURE_SOUND_MASK == PI_FEATURE_SOUND_MASK, "");
+   _Static_assert(EPGTCL_PI_FEATURE_SOUND_UNKNOWN == PI_FEATURE_SOUND_UNKNOWN, "");
+   _Static_assert(EPGTCL_PI_FEATURE_SOUND_NONE == PI_FEATURE_SOUND_NONE, "");
+   _Static_assert(EPGTCL_PI_FEATURE_SOUND_MONO == PI_FEATURE_SOUND_MONO, "");
+   _Static_assert(EPGTCL_PI_FEATURE_SOUND_STEREO == PI_FEATURE_SOUND_STEREO, "");
+   _Static_assert(EPGTCL_PI_FEATURE_SOUND_2CHAN == PI_FEATURE_SOUND_2CHAN, "");
+   _Static_assert(EPGTCL_PI_FEATURE_SOUND_SURROUND == PI_FEATURE_SOUND_SURROUND, "");
+   _Static_assert(EPGTCL_PI_FEATURE_SOUND_DOLBY == PI_FEATURE_SOUND_DOLBY, "");
+
    if (objc != 2)
    {  // illegal parameter count
       Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
@@ -1716,25 +1740,27 @@ static int PiFilter_ContextMenuAddFilter( ClientData ttp, Tcl_Interp *interp, in
                      EpgDbFilterSetNoFeatures(pPiFilterContext, 1);
                      oldMask = oldFlags = 0;
                   }
-                  EpgDbFilterSetFeatureFlags(pPiFilterContext, 0, oldFlags & ~0x80, oldMask | 0x80);
+                  EpgDbFilterSetFeatureFlags(pPiFilterContext, 0, oldFlags & ~PI_FEATURE_REPEAT, oldMask | PI_FEATURE_REPEAT);
                   if (EpgDbSearchFirstPi(pUiDbContext, pPiFilterContext) != NULL)
                   {
-                     EpgDbFilterSetFeatureFlags(pPiFilterContext, 0, oldFlags | 0x80, oldMask | 0x80);
+                     EpgDbFilterSetFeatureFlags(pPiFilterContext, 0, oldFlags | PI_FEATURE_REPEAT, oldMask | PI_FEATURE_REPEAT);
                      if (EpgDbSearchFirstPi(pUiDbContext, pPiFilterContext) != NULL)
                      {
                         if ( (wasEnabled == FALSE) ||
-                             ((oldMask & 0x80) == 0) ||
-                             ((oldFlags & 0x80) == 0x80) )
+                             ((oldMask & PI_FEATURE_REPEAT) == 0) ||
+                             ((oldFlags & PI_FEATURE_REPEAT) == PI_FEATURE_REPEAT) )
                         {
                            Tcl_ListObjAppendElement(interp, pResultList, Tcl_NewStringObj("Filter for original transmissions", -1));
-                           Tcl_ListObjAppendElement(interp, pResultList, Tcl_NewStringObj("SelectFeaturesAllClasses 0xc0 0 0", -1));
+                           sprintf(comm, "SelectFeaturesAllClasses 0x%X 0 0", PI_FEATURE_REPEAT);
+                           Tcl_ListObjAppendElement(interp, pResultList, Tcl_NewStringObj(comm, -1));
                         }
                         if ( (wasEnabled == FALSE) ||
-                             ((oldMask & 0x80) == 0) ||
-                             ((oldFlags & 0x80) == 0) )
+                             ((oldMask & PI_FEATURE_REPEAT) == 0) ||
+                             ((oldFlags & PI_FEATURE_REPEAT) == 0) )
                         {
                            Tcl_ListObjAppendElement(interp, pResultList, Tcl_NewStringObj("Filter for repeats", -1));
-                           Tcl_ListObjAppendElement(interp, pResultList, Tcl_NewStringObj("SelectFeaturesAllClasses 0x80 0x80 0x40", -1));
+                           sprintf(comm, "SelectFeaturesAllClasses 0x%X 0x%X 0", PI_FEATURE_REPEAT, PI_FEATURE_REPEAT);
+                           Tcl_ListObjAppendElement(interp, pResultList, Tcl_NewStringObj(comm, -1));
                         }
                      }
                   }

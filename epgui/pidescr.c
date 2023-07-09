@@ -638,29 +638,50 @@ void PiDescription_AppendFeatureList( const PI_BLOCK *pPiBlock, char * outstr )
    int len;
 
    outstr[0] = 0;
-   switch(pPiBlock->feature_flags & 0x03)
+   switch (pPiBlock->feature_flags & PI_FEATURE_SOUND_MASK)
    {
-      case  1: strcat(outstr, "2-channel, "); break;
-      case  2: strcat(outstr, "stereo, "); break;
-      case  3: strcat(outstr, "surround, "); break;
+      case  PI_FEATURE_SOUND_NONE: strcat(outstr, "none, "); break;
+      case  PI_FEATURE_SOUND_MONO: strcat(outstr, "mono, "); break;
+      case  PI_FEATURE_SOUND_STEREO: strcat(outstr, "stereo, "); break;
+      case  PI_FEATURE_SOUND_2CHAN: strcat(outstr, "2-channel, "); break;
+      case  PI_FEATURE_SOUND_SURROUND: strcat(outstr, "surround, "); break;
+      case  PI_FEATURE_SOUND_DOLBY: strcat(outstr, "dolby, "); break;
+      case  PI_FEATURE_SOUND_UNKNOWN:
+      default: break;
    }
 
-   if (pPiBlock->feature_flags & PI_FEATURE_FMT_WIDE)
+   if ((pPiBlock->feature_flags & PI_FEATURE_FMT_WIDE) != 0)
       strcat(outstr, "wide, ");
-   if (pPiBlock->feature_flags & PI_FEATURE_PAL_PLUS)
-      strcat(outstr, "PAL+, ");
-   if (pPiBlock->feature_flags & PI_FEATURE_ENCRYPTED)
-      strcat(outstr, "encrypted, ");
-   if (pPiBlock->feature_flags & PI_FEATURE_LIVE)
-      strcat(outstr, "live, ");
-   if (pPiBlock->feature_flags & PI_FEATURE_REPEAT)
-      strcat(outstr, "repeat, ");
-   if (pPiBlock->feature_flags & PI_FEATURE_SUBTITLES)
-      strcat(outstr, "subtitles, ");
-   if (pPiBlock->feature_flags & PI_FEATURE_VIDEO_BW)  // XMLTV import only
+   if ((pPiBlock->feature_flags & PI_FEATURE_VIDEO_NONE) != 0)
+      strcat(outstr, "radio, ");
+   if ((pPiBlock->feature_flags & PI_FEATURE_VIDEO_BW) != 0)
       strcat(outstr, "b/w, ");
-   if (pPiBlock->feature_flags & PI_FEATURE_VIDEO_HD)  // XMLTV import only
+   if ((pPiBlock->feature_flags & PI_FEATURE_VIDEO_HD) != 0)
       strcat(outstr, "HDTV, ");
+
+   if (pPiBlock->feature_flags & PI_FEATURE_NEW)
+      strcat(outstr, "NEW, ");
+   else if (pPiBlock->feature_flags & PI_FEATURE_PREMIERE)
+      strcat(outstr, "premiere, ");
+   else if (pPiBlock->feature_flags & PI_FEATURE_LAST_REP)
+      strcat(outstr, "last repetition, ");
+   else if (pPiBlock->feature_flags & PI_FEATURE_REPEAT)
+      strcat(outstr, "repeated, ");
+
+   if (pPiBlock->feature_flags & PI_FEATURE_SUBTITLE_MASK)
+   {
+      if ((pPiBlock->feature_flags & (PI_FEATURE_SUBTITLE_OSC | PI_FEATURE_SUBTITLE_SIGN)) ==
+          (PI_FEATURE_SUBTITLE_OSC | PI_FEATURE_SUBTITLE_SIGN))
+         strcat(outstr, "deaf-signed onscreen, ");
+      else if (pPiBlock->feature_flags & PI_FEATURE_SUBTITLE_OSC)
+         strcat(outstr, "subtitled onscreen, ");
+      else if (pPiBlock->feature_flags & PI_FEATURE_SUBTITLE_SIGN)
+         strcat(outstr, "deaf-signed, ");
+      else if (pPiBlock->feature_flags & PI_FEATURE_SUBTITLE_TTX)
+         strcat(outstr, "subtitled teletext, ");
+      else
+         strcat(outstr, "subtitled, ");
+   }
 
    if (pPiBlock->editorial_rating != PI_EDITORIAL_UNDEFINED)
       sprintf(outstr + strlen(outstr), "rating: %d of %d, ",

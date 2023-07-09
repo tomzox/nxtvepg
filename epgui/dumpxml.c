@@ -322,46 +322,83 @@ static void EpgDumpXml_WriteProgramme( EPGDB_CONTEXT * pDbContext, const AI_BLOC
    }
 
    // attributes
-   if ((pPiBlock->feature_flags & (PI_FEATURE_PAL_PLUS |
-                                   PI_FEATURE_FMT_WIDE |
-                                   PI_FEATURE_VIDEO_HD)) != 0)
+   if ((pPiBlock->feature_flags & (PI_FEATURE_FMT_WIDE | PI_FEATURE_VIDEO_NONE |
+                                   PI_FEATURE_VIDEO_HD | PI_FEATURE_VIDEO_BW)) != 0)
    {
       fprintf(fp, "\t<video>\n");
-      if ((pPiBlock->feature_flags & PI_FEATURE_VIDEO_HD) != 0)  // XMLTV import only
-         fprintf(fp, "\t\t<quality>HDTV</quality>\n");
 
-      if ((pPiBlock->feature_flags & PI_FEATURE_PAL_PLUS) != 0)  // always 16:9
-         fprintf(fp, "\t\t<quality>PAL+</quality>\n"
-                     "\t\t<aspect>16:9</aspect>\n");
-      else if ((pPiBlock->feature_flags & PI_FEATURE_FMT_WIDE) != 0)
+      if ((pPiBlock->feature_flags & PI_FEATURE_FMT_WIDE) != 0)
          fprintf(fp, "\t\t<aspect>16:9</aspect>\n");
 
-      if (pPiBlock->feature_flags & PI_FEATURE_VIDEO_BW)  // XMLTV import only
+      if ((pPiBlock->feature_flags & PI_FEATURE_VIDEO_NONE) != 0)
+         fprintf(fp, "\t\t<present>no</present>\n");
+
+      if ((pPiBlock->feature_flags & PI_FEATURE_VIDEO_HD) != 0)
+         fprintf(fp, "\t\t<quality>HDTV</quality>\n");
+
+      if ((pPiBlock->feature_flags & PI_FEATURE_VIDEO_BW) != 0)
          fprintf(fp, "\t\t<colour>no</colour>\n");
+
       fprintf(fp, "\t</video>\n");
    }
 
-   if ((pPiBlock->feature_flags & PI_FEATURE_SOUND_MASK) == PI_FEATURE_SOUND_STEREO)
+   if ((pPiBlock->feature_flags & PI_FEATURE_SOUND_MASK) != PI_FEATURE_SOUND_UNKNOWN)
    {
-      fprintf(fp, "\t<audio>\n\t\t<stereo>stereo</stereo>\n\t</audio>\n");
-   }
-   else if ((pPiBlock->feature_flags & PI_FEATURE_SOUND_MASK) == PI_FEATURE_SOUND_SURROUND)
-   {
-      fprintf(fp, "\t<audio>\n\t\t<stereo>surround</stereo>\n\t</audio>\n");
-   }
-   else if ((pPiBlock->feature_flags & PI_FEATURE_SOUND_MASK) == PI_FEATURE_SOUND_2CHAN)
-   {
-      fprintf(fp, "\t<audio>\n\t\t<stereo>bilingual</stereo>\n\t</audio>\n");
+      if ((pPiBlock->feature_flags & PI_FEATURE_SOUND_MASK) == PI_FEATURE_SOUND_NONE)
+      {
+         fprintf(fp, "\t<audio>\n\t\t<present>no</present>\n\t</audio>\n");
+      }
+      else if ((pPiBlock->feature_flags & PI_FEATURE_SOUND_MASK) == PI_FEATURE_SOUND_MONO)
+      {
+         fprintf(fp, "\t<audio>\n\t\t<stereo>mono</stereo>\n\t</audio>\n");
+      }
+      else if ((pPiBlock->feature_flags & PI_FEATURE_SOUND_MASK) == PI_FEATURE_SOUND_STEREO)
+      {
+         fprintf(fp, "\t<audio>\n\t\t<stereo>stereo</stereo>\n\t</audio>\n");
+      }
+      else if ((pPiBlock->feature_flags & PI_FEATURE_SOUND_MASK) == PI_FEATURE_SOUND_2CHAN)
+      {
+         fprintf(fp, "\t<audio>\n\t\t<stereo>bilingual</stereo>\n\t</audio>\n");
+      }
+      else if ((pPiBlock->feature_flags & PI_FEATURE_SOUND_MASK) == PI_FEATURE_SOUND_SURROUND)
+      {
+         fprintf(fp, "\t<audio>\n\t\t<stereo>surround</stereo>\n\t</audio>\n");
+      }
+      else if ((pPiBlock->feature_flags & PI_FEATURE_SOUND_MASK) == PI_FEATURE_SOUND_DOLBY)
+      {
+         fprintf(fp, "\t<audio>\n\t\t<stereo>dolby</stereo>\n\t</audio>\n");
+      }
    }
 
+   if (pPiBlock->feature_flags & PI_FEATURE_NEW)
+   {
+      fprintf(fp, "\t<new />\n");
+   }
+   if (pPiBlock->feature_flags & PI_FEATURE_PREMIERE)
+   {
+      fprintf(fp, "\t<premiere />\n");
+   }
    if (pPiBlock->feature_flags & PI_FEATURE_REPEAT)
    {
       fprintf(fp, "\t<previously-shown />\n");
    }
-
-   if (pPiBlock->feature_flags & PI_FEATURE_SUBTITLES)
+   if (pPiBlock->feature_flags & PI_FEATURE_LAST_REP)
    {
-      fprintf(fp, "\t<subtitles type=\"teletext\" />\n");
+      fprintf(fp, "\t<last-chance />\n");
+   }
+
+   if ((pPiBlock->feature_flags & PI_FEATURE_SUBTITLE_MASK) == PI_FEATURE_SUBTITLE_ANY)
+   {
+      fprintf(fp, "\t<subtitles />\n");
+   }
+   else
+   {
+      if (pPiBlock->feature_flags & PI_FEATURE_SUBTITLE_TTX)
+         fprintf(fp, "\t<subtitles type=\"teletext\" />\n");
+      if (pPiBlock->feature_flags & PI_FEATURE_SUBTITLE_OSC)
+         fprintf(fp, "\t<subtitles type=\"onscreen\" />\n");
+      if (pPiBlock->feature_flags & PI_FEATURE_SUBTITLE_SIGN)
+         fprintf(fp, "\t<subtitles type=\"deaf-signed\" />\n");
    }
 
    if (pPiBlock->parental_rating == 0)

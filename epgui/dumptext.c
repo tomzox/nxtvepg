@@ -83,7 +83,7 @@ static void DumpText_Pi( PI_DESCR_BUF * pb, const PI_BLOCK * pPi, const EPGDB_CO
    uchar hour, minute, day, month;
    uint  year;
    char  str_buf[128];
-   const char *pStrSoundFormat;
+   const char *pStrFormat;
    struct tm *pTm;
    time_t start_time;
    time_t stop_time;
@@ -140,22 +140,53 @@ static void DumpText_Pi( PI_DESCR_BUF * pb, const PI_BLOCK * pPi, const EPGDB_CO
 
       switch (pPi->feature_flags & PI_FEATURE_SOUND_MASK)
       {
-        case  PI_FEATURE_SOUND_MONO: pStrSoundFormat = "mono\t"; break;
-        case  PI_FEATURE_SOUND_2CHAN: pStrSoundFormat = "2-chan\t"; break;
-        case  PI_FEATURE_SOUND_STEREO: pStrSoundFormat = "stereo\t"; break;
-        case  PI_FEATURE_SOUND_SURROUND: pStrSoundFormat = "surround\t"; break;
-        default: pStrSoundFormat = "\t"; break;  // MySQL error value
+        case  PI_FEATURE_SOUND_UNKNOWN: pStrFormat = "\\N\t"; break;
+        case  PI_FEATURE_SOUND_NONE: pStrFormat = "none\t"; break;
+        case  PI_FEATURE_SOUND_MONO: pStrFormat = "mono\t"; break;
+        case  PI_FEATURE_SOUND_2CHAN: pStrFormat = "2-chan\t"; break;
+        case  PI_FEATURE_SOUND_STEREO: pStrFormat = "stereo\t"; break;
+        case  PI_FEATURE_SOUND_SURROUND: pStrFormat = "surround\t"; break;
+        case  PI_FEATURE_SOUND_DOLBY: pStrFormat = "dolby\t"; break;
+        default: pStrFormat = "\t"; break;  // MySQL error value
       }
-      PiDescription_BufAppend(pb, pStrSoundFormat, -1);
+      PiDescription_BufAppend(pb, pStrFormat, -1);
 
-      len = sprintf(str_buf, "%c\t%c\t%c\t%c\t%c\t%c\t",
+      len = sprintf(str_buf, "%c\t%c\t%c\t%c\t%c\t%c\t%c\t%c\t",
                        ((pPi->feature_flags & PI_FEATURE_FMT_WIDE) ? '1' : '0'),
-                       ((pPi->feature_flags & PI_FEATURE_PAL_PLUS) ? '1' : '0'),
-                       ((pPi->feature_flags & PI_FEATURE_ENCRYPTED) ? '1' : '0'),
-                       ((pPi->feature_flags & PI_FEATURE_LIVE) ? '1' : '0'),
+                       ((pPi->feature_flags & PI_FEATURE_VIDEO_NONE) ? '1' : '0'),
+                       ((pPi->feature_flags & PI_FEATURE_VIDEO_HD) ? '1' : '0'),
+                       ((pPi->feature_flags & PI_FEATURE_VIDEO_BW) ? '1' : '0'),
+
+                       ((pPi->feature_flags & PI_FEATURE_NEW) ? '1' : '0'),
+                       ((pPi->feature_flags & PI_FEATURE_PREMIERE) ? '1' : '0'),
                        ((pPi->feature_flags & PI_FEATURE_REPEAT) ? '1' : '0'),
-                       ((pPi->feature_flags & PI_FEATURE_SUBTITLES) ? '1' : '0') );
+                       ((pPi->feature_flags & PI_FEATURE_LAST_REP) ? '1' : '0'));
       PiDescription_BufAppend(pb, str_buf, len);
+
+      if ((pPi->feature_flags & PI_FEATURE_SUBTITLE_MASK) == PI_FEATURE_SUBTITLE_NONE)
+      {
+         PiDescription_BufAppend(pb, "no\t", -1);
+      }
+      else if ((pPi->feature_flags & PI_FEATURE_SUBTITLE_MASK) == PI_FEATURE_SUBTITLE_ANY)
+      {
+         PiDescription_BufAppend(pb, "yes\t", -1);
+      }
+      else
+      {
+         str_buf[0] = 0;
+         if (pPi->feature_flags & PI_FEATURE_SUBTITLE_SIGN)
+            strcat(str_buf, "deaf-signed,");
+         if (pPi->feature_flags & PI_FEATURE_SUBTITLE_OSC)
+            strcat(str_buf, "onscreen,");
+         if (pPi->feature_flags & PI_FEATURE_SUBTITLE_TTX)
+            strcat(str_buf, "teletext,");
+
+         if (str_buf[0])
+            str_buf[strlen(str_buf) - 1] = '\t';
+         else
+            strcpy(str_buf, "\t"); // MySQL error value
+         PiDescription_BufAppend(pb, str_buf, -1);
+      }
 
       themeIdx = 0;
       for ( /**/; themeIdx < pPi->no_themes; ++themeIdx)

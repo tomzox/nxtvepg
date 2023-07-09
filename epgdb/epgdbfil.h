@@ -58,8 +58,6 @@
 #define FILTER_TIME_ALL      (FILTER_TIME_ONCE | FILTER_TIME_DAILY | \
                               FILTER_TIME_WEEKLY | FILTER_TIME_MONTHLY)
 
-#define FEATURES_ALL           0x01FF
-
 #define LI_DESCR_TYPE        7  //   EPGDBACQ_TYPE_LI
 #define TI_DESCR_TYPE        8  //   EPGDBACQ_TYPE_TI
 

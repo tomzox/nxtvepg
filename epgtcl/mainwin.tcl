@@ -25,6 +25,33 @@
 #=INCLUDE= "epgtcl/dlg_udefcols.h"
 #=INCLUDE= "epgtcl/dlg_remind.h"
 
+# has to match epgdb/epgblock.h
+#=CONST= ::PI_FEATURE_FMT_WIDE       0x8000
+#=CONST= ::PI_FEATURE_VIDEO_HD       0x4000
+#=CONST= ::PI_FEATURE_VIDEO_BW       0x2000
+#=CONST= ::PI_FEATURE_VIDEO_NONE     0x1000
+
+#=CONST= ::PI_FEATURE_SUBTITLE_MASK   0xF00
+#=CONST= ::PI_FEATURE_SUBTITLE_ANY    0x800
+#=CONST= ::PI_FEATURE_SUBTITLE_SIGN   0x400
+#=CONST= ::PI_FEATURE_SUBTITLE_OSC    0x200
+#=CONST= ::PI_FEATURE_SUBTITLE_TTX    0x100
+#=CONST= ::PI_FEATURE_SUBTITLE_NONE   0x000
+
+#=CONST= ::PI_FEATURE_NEW             0x80
+#=CONST= ::PI_FEATURE_PREMIERE        0x40
+#=CONST= ::PI_FEATURE_LAST_REP        0x20
+#=CONST= ::PI_FEATURE_REPEAT          0x10
+
+#=CONST= ::PI_FEATURE_SOUND_MASK      0x07
+#=CONST= ::PI_FEATURE_SOUND_UNKNOWN   0x00
+#=CONST= ::PI_FEATURE_SOUND_NONE      0x01
+#=CONST= ::PI_FEATURE_SOUND_MONO      0x02
+#=CONST= ::PI_FEATURE_SOUND_STEREO    0x03
+#=CONST= ::PI_FEATURE_SOUND_2CHAN     0x04
+#=CONST= ::PI_FEATURE_SOUND_SURROUND  0x05
+#=CONST= ::PI_FEATURE_SOUND_DOLBY     0x06
+
 ##  ---------------------------------------------------------------------------
 ##  Set up global variables which define general widget parameters
 ##  - called once during start-up
@@ -858,10 +885,8 @@ proc CreateMenubar {} {
 
    menu .menubar.filter.features
    .menubar.filter.features add cascade -menu .menubar.filter.features.sound -label "Sound"
-   .menubar.filter.features add cascade -menu .menubar.filter.features.format -label "Format"
-   .menubar.filter.features add cascade -menu .menubar.filter.features.digital -label "Digital"
-   .menubar.filter.features add cascade -menu .menubar.filter.features.encryption -label "Encryption"
-   .menubar.filter.features add cascade -menu .menubar.filter.features.live -label "Live/Repeat"
+   .menubar.filter.features add cascade -menu .menubar.filter.features.video -label "Video"
+   .menubar.filter.features add cascade -menu .menubar.filter.features.repeat -label "New/Repeat"
    .menubar.filter.features add cascade -menu .menubar.filter.features.subtitles -label "Subtitles"
    .menubar.filter.features add separator
    .menubar.filter.features add cascade -menu .menubar.filter.features.featureclass -label "Feature class"
@@ -869,17 +894,11 @@ proc CreateMenubar {} {
    menu .menubar.filter.features.sound
    FilterMenuAdd_Sound .menubar.filter.features.sound 0
 
-   menu .menubar.filter.features.format
-   FilterMenuAdd_Format .menubar.filter.features.format 0
+   menu .menubar.filter.features.video
+   FilterMenuAdd_Video .menubar.filter.features.video 0
 
-   menu .menubar.filter.features.digital
-   FilterMenuAdd_Digital .menubar.filter.features.digital 0
-
-   menu .menubar.filter.features.encryption
-   FilterMenuAdd_Encryption .menubar.filter.features.encryption 0
-
-   menu .menubar.filter.features.live
-   FilterMenuAdd_LiveRepeat .menubar.filter.features.live 0
+   menu .menubar.filter.features.repeat
+   FilterMenuAdd_Repetition .menubar.filter.features.repeat 0
 
    menu .menubar.filter.features.subtitles
    FilterMenuAdd_Subtitles .menubar.filter.features.subtitles 0
@@ -1381,43 +1400,53 @@ proc FilterMenuAdd_ParentalRating {widget is_stand_alone} {
 }
 
 proc FilterMenuAdd_Sound {widget is_stand_alone} {
-   $widget add radio -label any -command {SelectFeatures 0 0 0x03} -variable feature_sound -value 0
-   $widget add radio -label mono -command {SelectFeatures 0x03 0x00 0} -variable feature_sound -value 1
-   $widget add radio -label stereo -command {SelectFeatures 0x03 0x02 0} -variable feature_sound -value 3
-   $widget add radio -label "2-channel" -command {SelectFeatures 0x03 0x01 0} -variable feature_sound -value 2
-   $widget add radio -label surround -command {SelectFeatures 0x03 0x03 0} -variable feature_sound -value 4
+   $widget add radio -label any -command {SelectFeatures 0 0 $::PI_FEATURE_SOUND_MASK} -variable feature_sound -value 0
+   $widget add radio -label "none" -command {SelectFeatures $::PI_FEATURE_SOUND_MASK $::PI_FEATURE_SOUND_NONE 0} -variable feature_sound -value 1
+   $widget add radio -label mono -command {SelectFeatures $::PI_FEATURE_SOUND_MASK $::PI_FEATURE_SOUND_MONO 0} -variable feature_sound -value 2
+   $widget add radio -label stereo -command {SelectFeatures $::PI_FEATURE_SOUND_MASK $::PI_FEATURE_SOUND_STEREO 0} -variable feature_sound -value 3
+   $widget add radio -label "2-channel" -command {SelectFeatures $::PI_FEATURE_SOUND_MASK $::PI_FEATURE_SOUND_2CHAN 0} -variable feature_sound -value 4
+   $widget add radio -label surround -command {SelectFeatures $::PI_FEATURE_SOUND_MASK $::PI_FEATURE_SOUND_SURROUND 0} -variable feature_sound -value 5
+   $widget add radio -label "dolby" -command {SelectFeatures $::PI_FEATURE_SOUND_MASK $::PI_FEATURE_SOUND_DOLBY 0} -variable feature_sound -value 6
 }
 
-proc FilterMenuAdd_Format {widget is_stand_alone} {
-   $widget add radio -label any -command {SelectFeatures 0 0 0x0c} -variable feature_format -value 0
-   $widget add radio -label full -command {SelectFeatures 0x0c 0x00 0x00} -variable feature_format -value 1
-   $widget add radio -label widescreen -command {SelectFeatures 0x04 0x04 0x08} -variable feature_format -value 2
-   $widget add radio -label "PAL+" -command {SelectFeatures 0x08 0x08 0x04} -variable feature_format -value 3
+proc FilterMenuAdd_Video {widget is_stand_alone} {
+   $widget add radio -label "any aspect ratio" -command {SelectFeatures 0 0 $::PI_FEATURE_FMT_WIDE} -variable feature_format -value 0
+   $widget add radio -label fullscreen -command {SelectFeatures $::PI_FEATURE_FMT_WIDE 0 0} -variable feature_format -value 1
+   $widget add radio -label widescreen -command {SelectFeatures $::PI_FEATURE_FMT_WIDE $::PI_FEATURE_FMT_WIDE 0} -variable feature_format -value 2
+
+   $widget add separator
+   $widget add radio -label "any quality" -command {SelectFeatures 0 0 $::PI_FEATURE_VIDEO_HD} -variable feature_video_hd -value 0
+   $widget add radio -label normal -command {SelectFeatures $::PI_FEATURE_VIDEO_HD 0 0} -variable feature_video_hd -value 1
+   $widget add radio -label HDTV -command {SelectFeatures $::PI_FEATURE_VIDEO_HD $::PI_FEATURE_VIDEO_HD 0} -variable feature_video_hd -value 2
+
+   $widget add separator
+   $widget add radio -label "color or b/w" -command {SelectFeatures 0 0 $::PI_FEATURE_VIDEO_BW} -variable feature_video_bw -value 0
+   $widget add radio -label color -command {SelectFeatures $::PI_FEATURE_VIDEO_BW 0 0} -variable feature_video_bw -value 1
+   $widget add radio -label "black & white" -command {SelectFeatures $::PI_FEATURE_VIDEO_BW $::PI_FEATURE_VIDEO_BW 0} -variable feature_video_bw -value 2
+
+   $widget add separator
+   $widget add radio -label "radio or TV" -command {SelectFeatures 0 0 $::PI_FEATURE_VIDEO_NONE} -variable feature_video_none -value 0
+   $widget add radio -label TV -command {SelectFeatures $::PI_FEATURE_VIDEO_NONE 0 0} -variable feature_video_none -value 1
+   $widget add radio -label radio -command {SelectFeatures $::PI_FEATURE_VIDEO_NONE $::PI_FEATURE_VIDEO_NONE 0} -variable feature_video_none -value 2
 }
 
-proc FilterMenuAdd_Digital {widget is_stand_alone} {
-   $widget add radio -label any -command {SelectFeatures 0 0 0x10} -variable feature_digital -value 0
-   $widget add radio -label analog -command {SelectFeatures 0x10 0x00 0} -variable feature_digital -value 1
-   $widget add radio -label digital -command {SelectFeatures 0x10 0x10 0} -variable feature_digital -value 2
-}
-
-proc FilterMenuAdd_Encryption {widget is_stand_alone} {
-   $widget add radio -label any -command {SelectFeatures 0 0 0x20} -variable feature_encryption -value 0
-   $widget add radio -label free -command {SelectFeatures 0x20 0 0} -variable feature_encryption -value 1
-   $widget add radio -label encrypted -command {SelectFeatures 0x20 0x20 0} -variable feature_encryption -value 2
-}
-
-proc FilterMenuAdd_LiveRepeat {widget is_stand_alone} {
-   $widget add radio -label any -command {SelectFeatures 0 0 0xc0} -variable feature_live -value 0
-   $widget add radio -label live -command {SelectFeatures 0x40 0x40 0x80} -variable feature_live -value 2
-   $widget add radio -label new -command {SelectFeatures 0xc0 0 0} -variable feature_live -value 1
-   $widget add radio -label repeat -command {SelectFeatures 0x80 0x80 0x40} -variable feature_live -value 3
+proc FilterMenuAdd_Repetition {widget is_stand_alone} {
+   set mask [expr {$::PI_FEATURE_NEW | $::PI_FEATURE_PREMIERE | $::PI_FEATURE_LAST_REP | $::PI_FEATURE_REPEAT}]
+   $widget add radio -label "any" -command [list SelectFeatures 0 0 $mask] -variable feature_repeat -value 0
+   $widget add radio -label "new" -command [list SelectFeatures $::PI_FEATURE_NEW $::PI_FEATURE_NEW $mask] -variable feature_repeat -value 1
+   $widget add radio -label "premiere" -command [list SelectFeatures $::PI_FEATURE_PREMIERE $::PI_FEATURE_PREMIERE $mask] -variable feature_repeat -value 2
+   $widget add radio -label "last-chance" -command [list SelectFeatures $::PI_FEATURE_LAST_REP $::PI_FEATURE_LAST_REP $mask] -variable feature_repeat -value 3
+   $widget add radio -label "repeated" -command [list SelectFeatures $::PI_FEATURE_REPEAT $::PI_FEATURE_REPEAT $mask] -variable feature_repeat -value 4
+   $widget add radio -label "not repeated" -command [list SelectFeatures $::PI_FEATURE_REPEAT 0 $mask] -variable feature_repeat -value 5
 }
 
 proc FilterMenuAdd_Subtitles {widget is_stand_alone} {
-   $widget add radio -label any -command {SelectFeatures 0 0 0x100} -variable feature_subtitles -value 0
-   $widget add radio -label untitled -command {SelectFeatures 0x100 0 0} -variable feature_subtitles -value 1
-   $widget add radio -label subtitle -command {SelectFeatures 0x100 0x100 0} -variable feature_subtitles -value 2
+   $widget add radio -label "any" -command {SelectFeatures 0 0 $::PI_FEATURE_SUBTITLE_MASK} -variable feature_subtitles -value 0
+   $widget add radio -label "no subtitles" -command {SelectFeatures $::PI_FEATURE_SUBTITLE_ANY 0 $::PI_FEATURE_SUBTITLE_MASK} -variable feature_subtitles -value 1
+   $widget add radio -label "any subtitles" -command {SelectFeatures $::PI_FEATURE_SUBTITLE_ANY $::PI_FEATURE_SUBTITLE_ANY $::PI_FEATURE_SUBTITLE_MASK} -variable feature_subtitles -value 2
+   $widget add radio -label "onscreen" -command {SelectFeatures $::PI_FEATURE_SUBTITLE_OSC $::PI_FEATURE_SUBTITLE_OSC $::PI_FEATURE_SUBTITLE_MASK} -variable feature_subtitles -value 3
+   $widget add radio -label "deaf-signed" -command {SelectFeatures $::PI_FEATURE_SUBTITLE_SIGN $::PI_FEATURE_SUBTITLE_SIGN $::PI_FEATURE_SUBTITLE_MASK} -variable feature_subtitles -value 4
+   $widget add radio -label "teletext" -command {SelectFeatures $::PI_FEATURE_SUBTITLE_TTX $::PI_FEATURE_SUBTITLE_TTX $::PI_FEATURE_SUBTITLE_MASK} -variable feature_subtitles -value 5
 }
 
 proc FilterMenuAdd_ProgIdx {widget is_stand_alone} {
@@ -1426,7 +1455,7 @@ proc FilterMenuAdd_ProgIdx {widget is_stand_alone} {
    $widget add radio -label "running next" -command {SelectProgIdx 1 1} -variable filter_progidx -value 2
    $widget add radio -label "running now or next" -command {SelectProgIdx 0 1} -variable filter_progidx -value 3
    $widget add radio -label "other..." -command ProgIdxPopup -variable filter_progidx -value 4
-   if $is_stand_alone {
+   if {$is_stand_alone} {
       $widget add separator
       $widget add checkbutton -label Invert -variable filter_invert(progidx) -command InvertFilter
    }
@@ -1436,7 +1465,7 @@ proc FilterMenuAdd_VpsPdc {widget is_stand_alone} {
    $widget add radio -label "all shows" -command SelectVpsPdcFilter -variable vpspdc_filt -value 0
    $widget add radio -label "with VPS/PDC start time" -command SelectVpsPdcFilter -variable vpspdc_filt -value 1
    $widget add radio -label "with VPS/PDC differing" -command SelectVpsPdcFilter -variable vpspdc_filt -value 2
-   if $is_stand_alone {
+   if {$is_stand_alone} {
       $widget add separator
       $widget add checkbutton -label Invert -variable filter_invert(vps_pdc) -command InvertFilter
    }
@@ -1449,9 +1478,10 @@ proc FilterMenuAdd_VpsPdc {widget is_stand_alone} {
 proc UpdateFeatureMenuState {} {
    global feature_sound
    global feature_format
-   global feature_digital
-   global feature_encryption
-   global feature_live
+   global feature_video_hd
+   global feature_video_bw
+   global feature_video_none
+   global feature_repeat
    global feature_subtitles
    global feature_class_mask feature_class_value
    global current_feature_class
@@ -1459,12 +1489,64 @@ proc UpdateFeatureMenuState {} {
    set mask $feature_class_mask($current_feature_class)
    set value $feature_class_value($current_feature_class)
 
-   if {[expr ($mask & 3) != 0]} { set feature_sound [expr ($value & 3) + 1]} else {set feature_sound 0}
-   if {[expr ($mask & 0x0c) != 0]} { set feature_format [expr (($value & 0x0c) >> 2) + 1] } else {set feature_format 0}
-   if {[expr ($mask & 0x10) != 0]} { set feature_digital [expr (($value & 0x10) >> 4) + 1]} else {set feature_digital 0}
-   if {[expr ($mask & 0x20) != 0]} { set feature_encryption [expr (($value & 0x20) >> 5) + 1]} else {set feature_encryption 0}
-   if {[expr ($mask & 0xc0) != 0]} { set feature_live [expr (($value & 0xc0) >> 6) + 1]} else {set feature_live 0}
-   if {[expr ($mask & 0x100) != 0]} { set feature_subtitles [expr (($value & 0x100) >> 8) + 1]} else {set feature_subtitles 0}
+   if {[expr {($mask & $::PI_FEATURE_SOUND_MASK) != 0}]} {
+      set feature_sound [expr {$value & $::PI_FEATURE_SOUND_MASK}]
+   } else {
+      set feature_sound 0
+   }
+   if {[expr {($mask & $::PI_FEATURE_FMT_WIDE) != 0}]} {
+      set feature_format [expr {($value & $::PI_FEATURE_FMT_WIDE) ? 1 : 2}]
+   } else {
+      set feature_format 0
+   }
+   if {[expr {($mask & $::PI_FEATURE_VIDEO_HD) != 0}]} {
+      set feature_video_hd [expr {($value & $::PI_FEATURE_VIDEO_HD) ? 1 : 2}]
+   } else {
+      set feature_video_hd 0
+   }
+   if {[expr {($mask & $::PI_FEATURE_VIDEO_BW) != 0}]} {
+      set feature_video_bw [expr {($value & $::PI_FEATURE_VIDEO_BW) ? 1 : 2}]
+   } else {
+      set feature_video_bw 0
+   }
+   if {[expr {($mask & $::PI_FEATURE_VIDEO_NONE) != 0}]} {
+      set feature_video_none [expr {($value & $::PI_FEATURE_VIDEO_NONE) ? 1 : 2}]
+   } else {
+      set feature_video_none 0
+   }
+   if {[expr {($mask & ($::PI_FEATURE_REPEAT | $::PI_FEATURE_LAST_REP | $::PI_FEATURE_NEW | $::PI_FEATURE_PREMIERE)) != 0}]} {
+      if {($value & $mask) == $::PI_FEATURE_NEW} {
+         set feature_repeat 1
+      } elseif {($value & $mask) == $::PI_FEATURE_PREMIERE} {
+         set feature_repeat 2
+      } elseif {($value & $mask) == $::PI_FEATURE_LAST_REP} {
+         set feature_repeat 3
+      } elseif {($value & $mask) == $::PI_FEATURE_REPEAT} {
+         set feature_repeat 4
+      } elseif {(($mask & $::PI_FEATURE_REPEAT) == $::PI_FEATURE_REPEAT) && (($value & $::PI_FEATURE_REPEAT) == 0)} {
+         set feature_repeat 5
+      } else {
+         # none of the pre-defined settings
+         set feature_repeat 6
+      }
+   } else {
+      set feature_repeat 0
+   }
+   if {[expr {($mask & $::PI_FEATURE_SUBTITLE_MASK) != 0}]} {
+      if {($value & $mask) == $::PI_FEATURE_SUBTITLE_ANY} {
+         set feature_repeat 2
+      } elseif {($value & $mask) == $::PI_FEATURE_SUBTITLE_OSC} {
+         set feature_repeat 3
+      } elseif {($value & $mask) == $::PI_FEATURE_SUBTITLE_SIGN} {
+         set feature_repeat 4
+      } elseif {($value & $mask) == $::PI_FEATURE_SUBTITLE_TTX} {
+         set feature_repeat 5
+      } elseif {(($mask & $::PI_FEATURE_SUBTITLE_ANY) == $::PI_FEATURE_SUBTITLE_ANY) && (($value & $::PI_FEATURE_SUBTITLE_ANY) == 0)} {
+         set feature_repeat 1
+      }
+   } else {
+      set feature_subtitles 0
+   }
 }
 
 ##  ---------------------------------------------------------------------------
@@ -3468,12 +3550,12 @@ array set colsel_tabs {
    pil            {91  VPS/PDC  FilterMenuAdd_VpsPdc     "VPS/PDC code"} \
    theme          {74  Theme    FilterMenuAdd_Themes     "Theme"} \
    sound          {71  Sound    FilterMenuAdd_Sound      "Sound"} \
-   format         {41  Format   FilterMenuAdd_Format     "Format"} \
+   format         {41  Video    FilterMenuAdd_Video      "Video"} \
+   subtitles      {56  Subtitles FilterMenuAdd_Subtitles "Subtitles"} \
+   live_repeat    {55  New/Rep  FilterMenuAdd_Repetition "New / repetition"} \
    ed_rating      {30  ER       FilterMenuAdd_EditorialRating "Editorial rating"} \
    par_rating     {30  PR       FilterMenuAdd_ParentalRating  "Parental rating"} \
-   live_repeat    {47  L/R      FilterMenuAdd_LiveRepeat "Live or repeat"} \
    description    {18  I        none                     "Flag description"} \
-   subtitles      {25  ST       FilterMenuAdd_Subtitles  "Flag subtitles"} \
    weekcol        {20  Day      FilterMenuAdd_Date       "Weekday colors"} \
    reminder       {30  Mark     FilterMenuAdd_AllReminders "Reminder marks"} \
 }
@@ -3481,8 +3563,8 @@ array set colsel_tabs {
 # define presentation order for configuration listbox
 set colsel_ailist_predef [list \
    title netname time duration weekday day day_month day_month_year \
-   pil theme sound format ed_rating par_rating live_repeat description \
-   subtitles weekcol reminder]
+   pil theme sound format ed_rating par_rating live_repeat subtitles \
+   weekcol reminder]
 
 # define default column configuration - is overridden by rc/ini config
 set pilistbox_cols {weekcol day_month time title netname reminder}

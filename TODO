@@ -42,6 +42,24 @@ Post-Nextview EPG:
 - port to WIN32: "Broadcast Driver Architecture" (filter graph)
 - move "air times" config from GUI/Tcl config section into C section
 
+XMLTV dtd:
+- skipped <programme> tags:
+    - review
+    - keyword
+    - language
+    - orig-language
+    - country
+    - date
+    - length
+    - episode-num
+    - url
+    - icon
+    - image
+- video <aspect>: store actual ratio instead of "wide" flag
+- video <quality>: store PCDATA
+- <premiere>, <last-chance>: store PCDATA
+- <previously-shown>: store attributes
+
 Missing documentation:
 - TV Tune config in context menu dialog
 - WDM and source "none" in Win32 TV card config dialog

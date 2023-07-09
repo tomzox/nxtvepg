@@ -170,9 +170,11 @@ static EPGDB_PI_BLOCK * EpgDbMergePiBlocks( PDBC dbc, EPGDB_PI_BLOCK **pFoundBlo
       actIdx = dbmc->max[MERGE_TYPE_SOUND][dbIdx];
       if (actIdx < dbCount)
       {
-         if (pFoundBlocks[actIdx] != NULL) 
+         const uint16_t mask = PI_FEATURE_SOUND_MASK;
+
+         if ((pFoundBlocks[actIdx] != NULL) &&
+             ((pFoundBlocks[actIdx]->pi.feature_flags & mask) != PI_FEATURE_SOUND_UNKNOWN))
          {
-            const uint16_t mask = PI_FEATURE_SOUND_MASK;
             pPi->feature_flags |= pFoundBlocks[actIdx]->pi.feature_flags & mask;
             break;
          }
@@ -188,7 +190,7 @@ static EPGDB_PI_BLOCK * EpgDbMergePiBlocks( PDBC dbc, EPGDB_PI_BLOCK **pFoundBlo
       {
          if (pFoundBlocks[actIdx] != NULL) 
          {
-            const uint16_t mask = PI_FEATURE_PAL_PLUS | PI_FEATURE_FMT_WIDE |
+            const uint16_t mask = PI_FEATURE_VIDEO_NONE | PI_FEATURE_FMT_WIDE |
                                   PI_FEATURE_VIDEO_HD | PI_FEATURE_VIDEO_BW;
             pPi->feature_flags |= pFoundBlocks[actIdx]->pi.feature_flags & mask;
             break;
@@ -205,7 +207,9 @@ static EPGDB_PI_BLOCK * EpgDbMergePiBlocks( PDBC dbc, EPGDB_PI_BLOCK **pFoundBlo
       {
          if (pFoundBlocks[actIdx] != NULL) 
          {
-            const uint16_t mask = PI_FEATURE_REPEAT;
+            const uint16_t mask = PI_FEATURE_REPEAT | PI_FEATURE_LAST_REP |
+                                  PI_FEATURE_PREMIERE | PI_FEATURE_NEW;
+
             pPi->feature_flags |= pFoundBlocks[actIdx]->pi.feature_flags & mask;
             break;
          }
@@ -219,28 +223,11 @@ static EPGDB_PI_BLOCK * EpgDbMergePiBlocks( PDBC dbc, EPGDB_PI_BLOCK **pFoundBlo
       actIdx = dbmc->max[MERGE_TYPE_SUBT][dbIdx];
       if (actIdx < dbCount)
       {
-         if (pFoundBlocks[actIdx] != NULL) 
+         const uint16_t mask = PI_FEATURE_SUBTITLE_MASK;
+
+         if ((pFoundBlocks[actIdx] != NULL)  &&
+             ((pFoundBlocks[actIdx]->pi.feature_flags & mask) != PI_FEATURE_SUBTITLE_NONE))
          {
-            const uint16_t mask = PI_FEATURE_SUBTITLES;
-            pPi->feature_flags |= pFoundBlocks[actIdx]->pi.feature_flags & mask;
-            break;
-         }
-      }
-      else
-         break;
-   }
-   // feature others
-   for (dbIdx=0; dbIdx < dbCount; dbIdx++)
-   {
-      actIdx = dbmc->max[MERGE_TYPE_OTHERFEAT][dbIdx];
-      if (actIdx < dbCount)
-      {
-         if (pFoundBlocks[actIdx] != NULL) 
-         {
-            const uint16_t mask = 0xFFFFu & ~(PI_FEATURE_SOUND_MASK |
-                                              PI_FEATURE_PAL_PLUS | PI_FEATURE_FMT_WIDE |
-                                              PI_FEATURE_VIDEO_HD | PI_FEATURE_VIDEO_BW |
-                                              PI_FEATURE_REPEAT | PI_FEATURE_SUBTITLES);
             pPi->feature_flags |= pFoundBlocks[actIdx]->pi.feature_flags & mask;
             break;
          }

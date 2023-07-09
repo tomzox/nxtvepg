@@ -524,7 +524,7 @@ void EpgDbFilterSetFeatureFlags( FILTER_CONTEXT *fc, uchar index, uint flags, ui
    if (index < FEATURE_CLASS_COUNT)
    {
       ifdebug2((flags & ~mask) != 0, "EpgDbFilter-SetFeatureFlags: flags=%x outside of mask=%x", flags, mask);
-      ifdebug2((flags | mask) & ~FEATURES_ALL, "EpgDbFilter-SetFeatureFlags: flags=%x or mask=%x have invalid bits", flags, mask);
+      ifdebug2((flags | mask) & ~PI_FEATURES_ALL, "EpgDbFilter-SetFeatureFlags: flags=%x or mask=%x have invalid bits", flags, mask);
 
       fc->pFocus->featureFilterFlagField[index] = flags;
       fc->pFocus->featureFilterMaskField[index] = mask;

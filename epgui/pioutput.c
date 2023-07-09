@@ -84,6 +84,7 @@ typedef enum
 
 static Tcl_Obj * tcl_obj[TCLOBJ_COUNT];
 
+// Keywords must match Tcl array "colsel_tabs"
 static const char * const pColTypeKeywords[] =
 {
    "day",
@@ -336,23 +337,46 @@ uint PiOutput_PrintColumnItem( const PI_BLOCK * pPiBlock, PIBOX_COL_TYPES type,
             break;
 
          case PIBOX_COL_SOUND:
-            switch(pPiBlock->feature_flags & PI_FEATURE_SOUND_MASK)
+            switch (pPiBlock->feature_flags & PI_FEATURE_SOUND_MASK)
             {
-               case PI_FEATURE_SOUND_2CHAN: pResult = "2-channel"; break;
+               case PI_FEATURE_SOUND_NONE: pResult = "none"; break;
+               case PI_FEATURE_SOUND_MONO: pResult = "mono"; break;
                case PI_FEATURE_SOUND_STEREO: pResult = "stereo"; break;
+               case PI_FEATURE_SOUND_2CHAN: pResult = "2-channel"; break;
                case PI_FEATURE_SOUND_SURROUND: pResult = "surround"; break;
+               case PI_FEATURE_SOUND_DOLBY: pResult = "dolby"; break;
             }
             break;
 
          case PIBOX_COL_FORMAT:
-            if (pPiBlock->feature_flags & PI_FEATURE_PAL_PLUS)
-               pResult = "PAL+";
-            else if (pPiBlock->feature_flags & PI_FEATURE_VIDEO_HD)
-               pResult = "HDTV";
-            else if (pPiBlock->feature_flags & PI_FEATURE_FMT_WIDE)
-               pResult = "wide";
-            else if (pPiBlock->feature_flags & PI_FEATURE_VIDEO_BW)
-               pResult = "b/w";
+            if (pPiBlock->feature_flags & PI_FEATURE_VIDEO_NONE)
+            {
+               pResult = "radio";
+            }
+            else if ((pPiBlock->feature_flags &
+                       (PI_FEATURE_VIDEO_HD | PI_FEATURE_FMT_WIDE | PI_FEATURE_VIDEO_BW)) != 0)
+            {
+               str_buf[0] = 0;
+               if (pPiBlock->feature_flags & PI_FEATURE_VIDEO_HD)
+               {
+                  strcpy(str_buf, "HDTV");
+               }
+               if (pPiBlock->feature_flags & PI_FEATURE_FMT_WIDE)
+               {
+                  if (str_buf[0] != 0)
+                     strcat(str_buf, ",wide");
+                  else
+                     strcpy(str_buf, "wide");
+               }
+               if (pPiBlock->feature_flags & PI_FEATURE_VIDEO_BW)
+               {
+                  if (str_buf[0] != 0)
+                     strcat(str_buf, ",b/w");
+                  else
+                     strcpy(str_buf, "b/w");
+               }
+               pResult = str_buf;
+            }
             break;
 
          case PIBOX_COL_ED_RATING:
@@ -374,15 +398,28 @@ uint PiOutput_PrintColumnItem( const PI_BLOCK * pPiBlock, PIBOX_COL_TYPES type,
             break;
 
          case PIBOX_COL_LIVE_REPEAT:
-            if (pPiBlock->feature_flags & PI_FEATURE_LIVE)
-               pResult = "live";
+            if (pPiBlock->feature_flags & PI_FEATURE_NEW)
+               pResult = "new";
+            else if (pPiBlock->feature_flags & PI_FEATURE_PREMIERE)
+               pResult = "premiere";
+            else if (pPiBlock->feature_flags & PI_FEATURE_LAST_REP)
+               pResult = "last rep.";
             else if (pPiBlock->feature_flags & PI_FEATURE_REPEAT)
-               pResult = "repeat";
+               pResult = "repeated";
             break;
 
          case PIBOX_COL_SUBTITLES:
-            if (pPiBlock->feature_flags & PI_FEATURE_SUBTITLES)
-               pResult = "ST";
+            if (pPiBlock->feature_flags & PI_FEATURE_SUBTITLE_MASK)
+            {
+               if (pPiBlock->feature_flags & PI_FEATURE_SUBTITLE_SIGN)
+                  pResult = "deaf-signed";
+               else if (pPiBlock->feature_flags & PI_FEATURE_SUBTITLE_OSC)
+                  pResult = "onscreen";
+               else if (pPiBlock->feature_flags & PI_FEATURE_SUBTITLE_TTX)
+                  pResult = "teletext";
+               else
+                  pResult = "subtitled";
+            }
             break;
 
          case PIBOX_COL_THEME:

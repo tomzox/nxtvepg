@@ -813,22 +813,6 @@ void Xmltv_TsSetStopTime( XML_STR_BUF * pBuf )
    dprintf2("Xmltv-TsSetStopTime: stop time %s: %d\n", pStr, (int)xds.pi.stop_time);
 }
 
-// liveness    (live | joined | prerecorded) #IMPLIED
-void Xmltv_TsSetFeatLive( XML_STR_BUF * pBuf )
-{
-   const char * pStr = XML_STR_BUF_GET_STR(*pBuf);
-
-   if (strcasecmp(pStr, "live") == 0)
-   {
-      xds.pi.feature_flags |= PI_FEATURE_LIVE;
-   }
-}
-
-void Xmltv_TsSetFeatCrypt( XML_STR_BUF * pBuf )
-{
-   xds.pi.feature_flags |= PI_FEATURE_ENCRYPTED;
-}
-
 // ----------------------------------------------------------------------------
 
 static void XmltvDb_TsCodeTimeAssign( XMLTV_CODE_TIME_SYS system, XML_STR_BUF * pBuf )
@@ -1029,18 +1013,27 @@ void Xmltv_PiVideoQualityAdd( XML_STR_BUF * pBuf )
 {
    const char * pStr = XML_STR_BUF_GET_STR(*pBuf);
 
-   if ( (strcasecmp(pStr, "PAL+") == 0) ||
-        (strcasecmp(pStr, "PALplus") == 0) ||
-        (strcasecmp(pStr, "PAL-plus") == 0) )
-   {
-      xds.pi.feature_flags |= PI_FEATURE_PAL_PLUS;
-      xds.pi.feature_flags &= ~PI_FEATURE_VIDEO_HD;
-   }
-   else if (strncasecmp(pStr, "HD", 2) == 0)
+   if (strncasecmp(pStr, "HD", 2) == 0)
    {
       xds.pi.feature_flags |= PI_FEATURE_VIDEO_HD;
    }
 }
+
+void Xmltv_PiVideoPresentAdd( XML_STR_BUF * pBuf )
+{
+   const char * pStr = XML_STR_BUF_GET_STR(*pBuf);
+
+   if (strcasecmp(pStr, "yes") == 0)
+   {
+   }
+   else if (strcasecmp(pStr, "no") == 0)
+   {
+      xds.pi.feature_flags |= PI_FEATURE_VIDEO_NONE;
+   }
+   else
+      debug1("Xmltv-PiVideoPresenceAdd: unknown keyword '%s'", pStr);
+}
+
 
 // DTD 0.5: "stereo-ness" specified as free text
 void Xmltv_PiAudioStereoAdd( XML_STR_BUF * pBuf )
@@ -1063,6 +1056,11 @@ void Xmltv_PiAudioStereoAdd( XML_STR_BUF * pBuf )
       xds.pi.feature_flags &= ~PI_FEATURE_SOUND_MASK;
       xds.pi.feature_flags |= PI_FEATURE_SOUND_SURROUND;
    }
+   else if (strncasecmp(pStr, "dolby", 5) == 0)
+   {
+      xds.pi.feature_flags &= ~PI_FEATURE_SOUND_MASK;
+      xds.pi.feature_flags |= PI_FEATURE_SOUND_DOLBY;
+   }
    else if (strcasecmp(pStr, "bilingual") == 0)
    {
       xds.pi.feature_flags &= ~PI_FEATURE_SOUND_MASK;
@@ -1072,18 +1070,52 @@ void Xmltv_PiAudioStereoAdd( XML_STR_BUF * pBuf )
       debug1("Xmltv-PiAudioStereoAdd: unknown keyword '%s'", pStr);
 }
 
+// DTD 0.5: presence of audio specified as free text
+void Xmltv_PiAudioPresentAdd( XML_STR_BUF * pBuf )
+{
+   const char * pStr = XML_STR_BUF_GET_STR(*pBuf);
+
+   if (strcasecmp(pStr, "yes") == 0)
+   {
+   }
+   else if (strcasecmp(pStr, "no") == 0)
+   {
+      xds.pi.feature_flags &= ~PI_FEATURE_SOUND_MASK;
+      xds.pi.feature_flags |= PI_FEATURE_SOUND_NONE;
+   }
+   else
+      debug1("Xmltv-PiAudioPresenceAdd: unknown keyword '%s'", pStr);
+}
+
 // DTD 0.5 only: attribute type set as attribute
 void Xmltv_PiSubtitlesSetType( XML_STR_BUF * pBuf )
 {
    const char * pStr = XML_STR_BUF_GET_STR(*pBuf);
 
-   if ( (strcmp(pStr, "teletext") == 0) ||
-        (strcmp(pStr, "onscreen") == 0) )
+   if (strcasecmp(pStr, "teletext") == 0)
    {
-      xds.pi.feature_flags |= PI_FEATURE_SUBTITLES;
+      xds.pi.feature_flags |= PI_FEATURE_SUBTITLE_TTX;
+   }
+   else if (strcasecmp(pStr, "onscreen") == 0)
+   {
+      xds.pi.feature_flags |= PI_FEATURE_SUBTITLE_OSC;
+   }
+   else if (strcasecmp(pStr, "deaf-signed") == 0)
+   {
+      xds.pi.feature_flags |= PI_FEATURE_SUBTITLE_SIGN;
    }
    else
+   {
       debug1("Xmltv-PiSubtitlesSetType: unknown subtitles type '%s'", pStr);
+   }
+   // flag is always set in addition to support filtering regardless of type
+   xds.pi.feature_flags |= PI_FEATURE_SUBTITLE_ANY;
+}
+
+void Xmltv_PiSubtitlesClose( void )
+{
+   // set flag here in case no type attribute was specified
+   xds.pi.feature_flags |= PI_FEATURE_SUBTITLE_ANY;
 }
 
 void Xmltv_PiRatingSetSystem( XML_STR_BUF * pBuf )
@@ -1240,6 +1272,46 @@ void Xmltv_PiStarRatingClose( void )
    Xmltv_PiStarRatingSet(xds.pi_star_rating_val, xds.pi_star_rating_max);
 }
 
+void Xmltv_PiPreviouslyShown( void )
+{
+   xds.pi.feature_flags |= PI_FEATURE_REPEAT;
+}
+
+void Xmltv_PiPreviouslyShownStart( XML_STR_BUF * pBuf )
+{
+   // TODO
+}
+
+void Xmltv_PiPreviouslyShownChannel( XML_STR_BUF * pBuf )
+{
+   // TODO
+}
+
+void Xmltv_PiLastChanceOpen( void )
+{
+   xds.pi.feature_flags |= PI_FEATURE_LAST_REP;
+}
+
+void Xmltv_PiLastChanceAddText( XML_STR_BUF * pBuf )
+{
+   // TODO
+}
+
+void Xmltv_PiPremiereOpen( void )
+{
+   xds.pi.feature_flags |= PI_FEATURE_PREMIERE;
+}
+
+void Xmltv_PiPremiereAddText( XML_STR_BUF * pBuf )
+{
+   //TODO
+}
+
+void Xmltv_PiIsNew( void )
+{
+   xds.pi.feature_flags |= PI_FEATURE_NEW;
+}
+
 void Xmltv_PiDescOpen( void )
 {
 }
@@ -1342,6 +1414,7 @@ void Xmltv_PiCreditsAddGuest( XML_STR_BUF * pBuf )
 // date when the programme originally was produced (not air date)
 void Xmltv_PiDateAdd( XML_STR_BUF * pBuf )
 {
+   // TODO
 }
 
 // ----------------------------------------------------------------------------

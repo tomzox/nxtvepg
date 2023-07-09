@@ -84,13 +84,19 @@ typedef enum
          XMLTV5_PI_VIDEO_ASPECT,
          XMLTV5_PI_VIDEO_COLOUR,
          XMLTV5_PI_VIDEO_QUALITY,
+         XMLTV5_PI_VIDEO_PRESENT,
       XMLTV5_PI_AUDIO,
          XMLTV5_PI_AUDIO_STEREO,
+         XMLTV5_PI_AUDIO_PRESENT,
       XMLTV5_PI_SUBT,
       XMLTV5_PI_PRAT,
          XMLTV5_PI_PRAT_VAL,
       XMLTV5_PI_ERAT,
          XMLTV5_PI_ERAT_VAL,
+      XMLTV5_PI_PREV_SHOWN,
+      XMLTV5_PI_LAST_CHANCE,
+      XMLTV5_PI_PREMIERE,
+      XMLTV5_PI_NEW,
    // format detection & catch-all for unrecognized tags
    XMLTV_DETECT,
       XMLTV_DETECT_TV,
@@ -128,6 +134,10 @@ static const XMLTV_TAG xmltv5_tags_programme[] =
    XMLTV5_PI_PRAT,
    XMLTV5_PI_ERAT,
    XMLTV5_PI_SUBT,
+   XMLTV5_PI_PREV_SHOWN,
+   XMLTV5_PI_LAST_CHANCE,
+   XMLTV5_PI_PREMIERE,
+   XMLTV5_PI_NEW,
    XMLTV5_PI_DATE,
    XMLTV5_PI_CREDITS,
    XMLTV5_PI_TITLE2
@@ -147,11 +157,13 @@ static const XMLTV_TAG xmltv5_tags_video[] =
 {
    XMLTV5_PI_VIDEO_ASPECT,
    XMLTV5_PI_VIDEO_COLOUR,
-   XMLTV5_PI_VIDEO_QUALITY
+   XMLTV5_PI_VIDEO_QUALITY,
+   XMLTV5_PI_VIDEO_PRESENT
 };
 static const XMLTV_TAG xmltv5_tags_audio[] =
 {
-   XMLTV5_PI_AUDIO_STEREO
+   XMLTV5_PI_AUDIO_STEREO,
+   XMLTV5_PI_AUDIO_PRESENT
 };
 static const XMLTV_TAG xmltv5_tags_prat[] =
 {
@@ -232,6 +244,11 @@ static const XMLTV_ATTS xmltv5_attr_pi_subt[] =
 static const XMLTV_ATTS xmltv5_attr_pi_prat[] =
 {
    { "system", Xmltv_PiRatingSetSystem, FALSE }
+};
+static const XMLTV_ATTS xmltv5_attr_previously_shown[] =
+{
+   { "start", Xmltv_PiPreviouslyShownStart, FALSE },
+   { "channel", Xmltv_PiPreviouslyShownChannel, FALSE }
 };
 static const XMLTV_ATTS xmltv5_attr_lang_only[] =
 {
@@ -394,6 +411,10 @@ static const XML_TAGDEF xmltv_tag_def[] =
      { NULL, NULL, Xmltv_PiVideoQualityAdd, NULL },
      XMLTV_NO_ATTR,
    },
+   { XMLTV5_PI_VIDEO_PRESENT, "present", XML_NO_CHILDS, XML_HAS_PCDATA,
+     { NULL, NULL, Xmltv_PiVideoPresentAdd, NULL },
+     XMLTV_NO_ATTR,
+   },
    { XMLTV5_PI_AUDIO, "audio", XML_CHILDS(xmltv5_tags_audio), XML_NO_PCDATA,
      XMLTV_NO_OPEN_CLOSE_CB,
      XMLTV_NO_ATTR,
@@ -402,8 +423,12 @@ static const XML_TAGDEF xmltv_tag_def[] =
      { NULL, NULL, Xmltv_PiAudioStereoAdd, NULL },
      XMLTV_NO_ATTR,
    },
+   { XMLTV5_PI_AUDIO_PRESENT, "present", XML_NO_CHILDS, XML_HAS_PCDATA,
+     { NULL, NULL, Xmltv_PiAudioPresentAdd, NULL },
+     XMLTV_NO_ATTR,
+   },
    { XMLTV5_PI_SUBT, "subtitles", XML_NO_CHILDS, XML_NO_PCDATA,
-     XMLTV_NO_OPEN_CLOSE_CB,
+     { NULL, Xmltv_PiSubtitlesClose, NULL, NULL },
      XMLTV_ATTR(xmltv5_attr_pi_subt),
    },
    { XMLTV5_PI_PRAT, "rating", XML_CHILDS(xmltv5_tags_prat), XML_NO_PCDATA,
@@ -420,6 +445,22 @@ static const XML_TAGDEF xmltv_tag_def[] =
    },
    { XMLTV5_PI_ERAT_VAL, "value", XML_NO_CHILDS, XML_HAS_PCDATA,
      { NULL, NULL, Xmltv_PiStarRatingAddText, NULL },
+     XMLTV_NO_ATTR,
+   },
+   { XMLTV5_PI_PREV_SHOWN, "previously-shown", XML_NO_CHILDS, XML_NO_PCDATA,
+     { Xmltv_PiPreviouslyShown, NULL, NULL, NULL },
+     XMLTV_ATTR(xmltv5_attr_previously_shown)
+   },
+   { XMLTV5_PI_LAST_CHANCE, "last-chance", XML_NO_CHILDS, XML_HAS_PCDATA,
+     { Xmltv_PiLastChanceOpen, NULL, Xmltv_PiLastChanceAddText, NULL },
+     XMLTV_NO_ATTR,
+   },
+   { XMLTV5_PI_PREMIERE, "premiere", XML_NO_CHILDS, XML_HAS_PCDATA,
+     { Xmltv_PiPremiereOpen, NULL, Xmltv_PiPremiereAddText, NULL },
+     XMLTV_NO_ATTR,
+   },
+   { XMLTV5_PI_NEW, "new", XML_NO_CHILDS, XML_NO_PCDATA,
+     { Xmltv_PiIsNew, NULL, NULL, NULL },
      XMLTV_NO_ATTR,
    },
    // format detection
@@ -703,7 +744,7 @@ void XmltvTags_Data( XML_STR_BUF * pBuf )
 
 // ----------------------------------------------------------------------------
 // Notify that opening tag is closed, i.e. all attributes processed
-// - when the callback returns FALSE, it's content and child elements are skipped;
+// - when the callback returns FALSE, its content and child elements are skipped;
 //   this is an optimization for skipping tags which fall outside certain criteria
 // - note this function is currently not called for empty tags, i.e. when the
 //   has no childs nor content

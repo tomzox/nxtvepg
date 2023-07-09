@@ -158,12 +158,14 @@ typedef struct
    uchar        erat_max;
    char       * pSound;
    bool         is_wide;
-   bool         is_palplus;
-   bool         is_digital;
-   bool         is_encrypted;
-   bool         is_live;
-   bool         is_repeat;
-   bool         is_subtitled;
+   bool         no_video;
+   bool         is_video_hd;
+   bool         is_video_bw;
+   bool         is_new;
+   bool         is_premiere;
+   bool         is_repeated;
+   bool         is_last_rep;
+   char       * pSubtitles;
    char       * pThemes[8];  // PI_MAX_THEME_COUNT
    char       * pTitle;
    char       * pDescription;
@@ -301,28 +303,44 @@ static bool TvSimu_ParsePiDescription( char * pText, EPG_PI * pi )
 
    nscan = sscanf(pText, "%d\t%n", &int_val, &scan_pos);
    if (nscan < 1) goto error;
-   pi->is_palplus = int_val;
+   pi->no_video = int_val;
    pText += scan_pos;
 
    nscan = sscanf(pText, "%d\t%n", &int_val, &scan_pos);
    if (nscan < 1) goto error;
-   pi->is_encrypted = int_val;
+   pi->is_video_hd = int_val;
    pText += scan_pos;
 
    nscan = sscanf(pText, "%d\t%n", &int_val, &scan_pos);
    if (nscan < 1) goto error;
-   pi->is_live = int_val;
+   pi->is_video_bw = int_val;
    pText += scan_pos;
 
    nscan = sscanf(pText, "%d\t%n", &int_val, &scan_pos);
    if (nscan < 1) goto error;
-   pi->is_repeat = int_val;
+   pi->is_new = int_val;
    pText += scan_pos;
 
    nscan = sscanf(pText, "%d\t%n", &int_val, &scan_pos);
    if (nscan < 1) goto error;
-   pi->is_subtitled = int_val;
+   pi->is_premiere = int_val;
    pText += scan_pos;
+
+   nscan = sscanf(pText, "%d\t%n", &int_val, &scan_pos);
+   if (nscan < 1) goto error;
+   pi->is_repeated = int_val;
+   pText += scan_pos;
+
+   nscan = sscanf(pText, "%d\t%n", &int_val, &scan_pos);
+   if (nscan < 1) goto error;
+   pi->is_last_rep = int_val;
+   pText += scan_pos;
+
+   pEnd = strchr(pText, '\t');
+   if (pEnd == NULL) goto error;
+   pi->pSubtitles = pText;
+   *pEnd = 0;
+   pText = pEnd + 1;
 
    for (idx = 0; idx < 8; idx++)  //PI_MAX_THEME_COUNT
    {

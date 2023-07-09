@@ -473,7 +473,6 @@ proc PopupProviderMerge {} {
       .provmerge.mfrm.mb.men add command -command {PopupProviderMergeOpt cfformat} -label $ProvmergeOptLabels(cfformat)
       .provmerge.mfrm.mb.men add command -command {PopupProviderMergeOpt cfrepeat} -label $ProvmergeOptLabels(cfrepeat)
       .provmerge.mfrm.mb.men add command -command {PopupProviderMergeOpt cfsubt} -label $ProvmergeOptLabels(cfsubt)
-      .provmerge.mfrm.mb.men add command -command {PopupProviderMergeOpt cfmisc} -label $ProvmergeOptLabels(cfmisc)
       .provmerge.mfrm.mb.men add command -command {PopupProviderMergeOpt cfvps} -label $ProvmergeOptLabels(cfvps)
       .provmerge.mfrm.mb.men add separator
       .provmerge.mfrm.mb.men add command -command {ProvMerge_Reset} -label "Reset"

@@ -82,20 +82,33 @@ typedef struct
 #define PI_PARENTAL_UNDEFINED      0xFFU
 #define PI_EDITORIAL_UNDEFINED     0xFFU
 
-#define PI_FEATURE_VIDEO_HD        0x400
-#define PI_FEATURE_VIDEO_BW        0x200
-#define PI_FEATURE_SUBTITLES       0x100
-#define PI_FEATURE_REPEAT          0x080
-#define PI_FEATURE_LIVE            0x040
-#define PI_FEATURE_ENCRYPTED       0x020
-//#define PI_FEATURE_DIGITAL        0x010
-#define PI_FEATURE_PAL_PLUS        0x008
-#define PI_FEATURE_FMT_WIDE        0x004
-#define PI_FEATURE_SOUND_MASK      0x003
-#define PI_FEATURE_SOUND_MONO      0x000
-#define PI_FEATURE_SOUND_2CHAN     0x001
-#define PI_FEATURE_SOUND_STEREO    0x002
-#define PI_FEATURE_SOUND_SURROUND  0x003
+#define PI_FEATURES_ALL           0xFFF7
+
+#define PI_FEATURE_FMT_WIDE       0x8000    // video aspect ratio > 4:3
+#define PI_FEATURE_VIDEO_HD       0x4000    // video "quality" contains "HD"
+#define PI_FEATURE_VIDEO_BW       0x2000    // video color := "no"
+#define PI_FEATURE_VIDEO_NONE     0x1000    // video present := "no"
+
+#define PI_FEATURE_SUBTITLE_MASK   0xF00
+#define PI_FEATURE_SUBTITLE_ANY    0x800    // <subtitles> (any type, or unspecified type)
+#define PI_FEATURE_SUBTITLE_SIGN   0x400    // deaf-signed
+#define PI_FEATURE_SUBTITLE_OSC    0x200    // on-screen
+#define PI_FEATURE_SUBTITLE_TTX    0x100    // teletext
+#define PI_FEATURE_SUBTITLE_NONE   0x000    // no <subtitles> in XMLTV
+
+#define PI_FEATURE_NEW             0x080
+#define PI_FEATURE_PREMIERE        0x040
+#define PI_FEATURE_LAST_REP        0x020    // last repetition
+#define PI_FEATURE_REPEAT          0x010    // previously shown
+
+#define PI_FEATURE_SOUND_MASK      0x007
+#define PI_FEATURE_SOUND_UNKNOWN   0x000    // audio stero unspecified
+#define PI_FEATURE_SOUND_NONE      0x001    // audio present := none
+#define PI_FEATURE_SOUND_MONO      0x002
+#define PI_FEATURE_SOUND_STEREO    0x003
+#define PI_FEATURE_SOUND_2CHAN     0x004
+#define PI_FEATURE_SOUND_SURROUND  0x005
+#define PI_FEATURE_SOUND_DOLBY     0x006
 
 // for merged PI: indices of source databases
 typedef uint8_t EPGDB_MERGE_SRC;
