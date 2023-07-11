@@ -44,7 +44,6 @@ Post-Nextview EPG:
 
 XMLTV dtd:
 - skipped <programme> tags:
-    - review
     - keyword
     - language
     - orig-language

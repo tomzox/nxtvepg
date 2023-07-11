@@ -87,7 +87,6 @@ void Xmltv_ParagraphAdd( XML_STR_BUF * pBuf );
 void Xmltv_PiCreditsOpen( void );
 void Xmltv_PiCreditsClose( void );
 void Xmltv_PiCreditsAddDirector( XML_STR_BUF * pBuf );
-void Xmltv_PiCreditsAddActor( XML_STR_BUF * pBuf );
 void Xmltv_PiCreditsAddWriter( XML_STR_BUF * pBuf );
 void Xmltv_PiCreditsAddAdapter( XML_STR_BUF * pBuf );
 void Xmltv_PiCreditsAddProducer( XML_STR_BUF * pBuf );
@@ -97,6 +96,18 @@ void Xmltv_PiCreditsAddCommentator( XML_STR_BUF * pBuf );
 void Xmltv_PiCreditsAddNarrator( XML_STR_BUF * pBuf );
 void Xmltv_PiCreditsAddCompany( XML_STR_BUF * pBuf );
 void Xmltv_PiCreditsAddGuest( XML_STR_BUF * pBuf );
+
+void Xmltv_PiCreditsOpenActor( void );
+void Xmltv_PiCreditsAddActor( XML_STR_BUF * pBuf );
+void Xmltv_PiActorSetRole( XML_STR_BUF * pBuf );
+void Xmltv_PiActorSetGuest( XML_STR_BUF * pBuf );
+
+void Xmltv_PiReviewOpen( void );
+void Xmltv_PiReviewClose( void );
+void Xmltv_PiReviewType( XML_STR_BUF * pBuf );
+void Xmltv_PiReviewSource( XML_STR_BUF * pBuf );
+void Xmltv_PiReviewAuthor( XML_STR_BUF * pBuf );
+void Xmltv_PiReviewContent( XML_STR_BUF * pBuf );
 
 // ----------------------------------------------------------------------------
 // Interface to main control module

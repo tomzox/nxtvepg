@@ -34,6 +34,7 @@ typedef struct
 } XML_STR_BUF;
 
 #define XML_STR_BUF_GET_LEN(S)     ((S).off)
+#define XML_STR_BUF_STR_EMPTY(S)   ((S).off <= (S).skip)
 #define XML_STR_BUF_GET_STR_LEN(S) ((S).off - (S).skip)
 #define XML_STR_BUF_GET_STR(S)     (((S).pStrBuf != NULL) \
                                     ? ((S).pStrBuf + (S).skip) \
@@ -90,6 +91,8 @@ bool XmlCdata_CheckUtf8Name( const char * pStr, bool isNmtoken );
       (PBUF)->off += (LEN); \
       (PBUF)->pStrBuf[(PBUF)->off] = 0; \
    } while(0)
+#define XmlCdata_AppendCdata(PBUF,CDATA) \
+      XmlCdata_AppendRaw(PBUF, XML_STR_BUF_GET_STR(CDATA), XML_STR_BUF_GET_STR_LEN(CDATA));
 #define XmlCdata_AppendString(PBUF,PSTR) \
    do { \
       uint tmp_len = strlen(PSTR); \

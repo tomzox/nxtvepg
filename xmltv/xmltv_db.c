@@ -151,6 +151,13 @@ typedef struct
    XML_STR_BUF  pi_desc;
    XML_STR_BUF  pi_credits;
    XML_STR_BUF  pi_actors;
+   XML_STR_BUF  pi_actor_role;
+   bool         pi_actor_is_guest;
+   XML_STR_BUF  pi_reviews;
+   XML_STR_BUF  pi_review_text;
+   XML_STR_BUF  pi_review_source;
+   XML_STR_BUF  pi_review_author;
+   bool         pi_review_is_url;
    EPG_LANG_CODE pi_title_lang;
    EPG_LANG_CODE pi_desc_lang;
 
@@ -258,25 +265,25 @@ static void XmlTv_BuildSourceInfoMessages( XML_STR_BUF * pHeader, XML_STR_BUF * 
    memset(pMessage, 0, sizeof(*pMessage));
 
    // header
-   XmlCdata_AppendRaw(pHeader, XML_STR_BUF_GET_STR(xds.source_info_name), XML_STR_BUF_GET_STR_LEN(xds.source_info_name));
+   XmlCdata_AppendCdata(pHeader, xds.source_info_name);
 
    // message
-   XmlCdata_AppendRaw(pMessage, XML_STR_BUF_GET_STR(xds.source_info_url), XML_STR_BUF_GET_STR_LEN(xds.source_info_url));
+   XmlCdata_AppendCdata(pMessage, xds.source_info_url);
 
-   if (XML_STR_BUF_GET_STR_LEN(xds.source_data_url) > 0)
+   if (!XML_STR_BUF_STR_EMPTY(xds.source_data_url))
    {
       XmlCdata_AppendParagraph(pMessage, TRUE);
    }
-   XmlCdata_AppendRaw(pMessage, XML_STR_BUF_GET_STR(xds.source_data_url), XML_STR_BUF_GET_STR_LEN(xds.source_data_url));
+   XmlCdata_AppendCdata(pMessage, xds.source_data_url);
 
-   if ( (XML_STR_BUF_GET_STR_LEN(xds.gen_info_name) > 0) ||
-        (XML_STR_BUF_GET_STR_LEN(xds.gen_info_url) > 0) )
+   if ( !XML_STR_BUF_STR_EMPTY(xds.gen_info_name) ||
+        !XML_STR_BUF_STR_EMPTY(xds.gen_info_url) )
    {
       XmlCdata_AppendParagraph(pMessage, TRUE);
       XmlCdata_AppendString(pMessage, "Generator: ");
-      XmlCdata_AppendRaw(pMessage, XML_STR_BUF_GET_STR(xds.gen_info_name), XML_STR_BUF_GET_STR_LEN(xds.gen_info_name));
+      XmlCdata_AppendCdata(pMessage, xds.gen_info_name);
       XmlCdata_AppendParagraph(pMessage, FALSE);
-      XmlCdata_AppendRaw(pMessage, XML_STR_BUF_GET_STR(xds.gen_info_url), XML_STR_BUF_GET_STR_LEN(xds.gen_info_url));
+      XmlCdata_AppendCdata(pMessage, xds.gen_info_url);
    }
 
    // producer date
@@ -475,7 +482,7 @@ static EPGDB_PI_BLOCK * XmltvDb_BuildPi( void )
    // concatenate the various parts of PI to a compound structure
    // 1st step: sum up the length & compute the offsets of each element from the start
    piLen = sizeof(PI_BLOCK);
-   if (XML_STR_BUF_GET_STR_LEN(xds.pi_title) > 0)
+   if ( !XML_STR_BUF_STR_EMPTY(xds.pi_title) )
    {
       xds.pi.off_title = piLen;
       piLen += XML_STR_BUF_GET_STR_LEN(xds.pi_title) + 1;
@@ -485,7 +492,7 @@ static EPGDB_PI_BLOCK * XmltvDb_BuildPi( void )
       xds.pi.off_title = piLen;
       piLen += 1;
    }
-   if (XML_STR_BUF_GET_STR_LEN(xds.pi_desc) > 0)
+   if ( !XML_STR_BUF_STR_EMPTY(xds.pi_desc) )
    {
       xds.pi.off_desc_text = piLen;
       piLen += XML_STR_BUF_GET_STR_LEN(xds.pi_desc) + 1;
@@ -502,7 +509,7 @@ static EPGDB_PI_BLOCK * XmltvDb_BuildPi( void )
    strcpy((char *) PI_GET_TITLE(pPi), XML_STR_BUF_GET_STR(xds.pi_title));
 
    // copy description text: only if present (else no memory was allocated above)
-   if (XML_STR_BUF_GET_STR_LEN(xds.pi_desc) > 0)
+   if ( !XML_STR_BUF_STR_EMPTY(xds.pi_desc) )
       strcpy((char *) PI_GET_DESC_TEXT(pPi), XML_STR_BUF_GET_STR(xds.pi_desc));
 
    pPi->lang_title = xds.pi_title_lang;
@@ -712,6 +719,7 @@ void Xmltv_TsOpen( void )
    XmlCdata_Reset(&xds.pi_desc);
    XmlCdata_Reset(&xds.pi_credits);
    XmlCdata_Reset(&xds.pi_actors);
+   XmlCdata_Reset(&xds.pi_reviews);
 
    XmlCdata_Reset(&xds.pi_code_sv);
    XmlCdata_Reset(&xds.pi_code_vp);
@@ -729,39 +737,46 @@ void Xmltv_TsClose( void )
    dprintf0("Xmltv_TsClose\n");
 
    // append credits section (director, actors, crew)
-   if ( (XML_STR_BUF_GET_STR_LEN(xds.pi_actors) > 0) ||
-        (XML_STR_BUF_GET_STR_LEN(xds.pi_credits) > 0) )
+   if ( !XML_STR_BUF_STR_EMPTY(xds.pi_actors) ||
+        !XML_STR_BUF_STR_EMPTY(xds.pi_credits) )
    {
       XmlCdata_AppendParagraph(&xds.pi_desc, FALSE);
       XmlCdata_AppendString(&xds.pi_desc, "Credits: ");
 
-      if (XML_STR_BUF_GET_STR_LEN(xds.pi_credits) > 0)
+      if ( !XML_STR_BUF_STR_EMPTY(xds.pi_credits) )
       {
-         XmlCdata_AppendRaw(&xds.pi_desc, XML_STR_BUF_GET_STR(xds.pi_credits), XML_STR_BUF_GET_STR_LEN(xds.pi_credits));
-         if (XML_STR_BUF_GET_STR_LEN(xds.pi_actors) > 0)
+         XmlCdata_AppendCdata(&xds.pi_desc, xds.pi_credits);
+         if ( !XML_STR_BUF_STR_EMPTY(xds.pi_actors) )
             XmlCdata_AppendRaw(&xds.pi_desc, "; ", 2);
       }
-      if (XML_STR_BUF_GET_STR_LEN(xds.pi_actors) > 0)
-         XmlCdata_AppendRaw(&xds.pi_desc, XML_STR_BUF_GET_STR(xds.pi_actors), XML_STR_BUF_GET_STR_LEN(xds.pi_actors));
+      if ( !XML_STR_BUF_STR_EMPTY(xds.pi_actors) )
+         XmlCdata_AppendCdata(&xds.pi_desc, xds.pi_actors);
+   }
+
+   // append review
+   if ( !XML_STR_BUF_STR_EMPTY(xds.pi_reviews) )
+   {
+      XmlCdata_AppendParagraph(&xds.pi_desc, FALSE);
+      XmlCdata_AppendCdata(&xds.pi_desc, xds.pi_reviews);
    }
 
    // append ShowV*ew and Video+ codes (for programming VCR)
-   if ( (XML_STR_BUF_GET_STR_LEN(xds.pi_code_sv) > 0) ||
-        (XML_STR_BUF_GET_STR_LEN(xds.pi_code_vp) > 0) )
+   if ( !XML_STR_BUF_STR_EMPTY(xds.pi_code_sv) ||
+        !XML_STR_BUF_STR_EMPTY(xds.pi_code_vp) )
    {
       XmlCdata_AppendParagraph(&xds.pi_desc, FALSE);
-      if (XML_STR_BUF_GET_STR_LEN(xds.pi_code_sv) > 0)
+      if ( !XML_STR_BUF_STR_EMPTY(xds.pi_code_sv) )
       {
          XmlCdata_AppendString(&xds.pi_desc, "SV-Code: ");
-         XmlCdata_AppendRaw(&xds.pi_desc, XML_STR_BUF_GET_STR(xds.pi_code_sv), XML_STR_BUF_GET_STR_LEN(xds.pi_code_sv));
+         XmlCdata_AppendCdata(&xds.pi_desc, xds.pi_code_sv);
 
-         if (XML_STR_BUF_GET_STR_LEN(xds.pi_code_vp) > 0)
+         if ( !XML_STR_BUF_STR_EMPTY(xds.pi_code_vp) )
             XmlCdata_AppendRaw(&xds.pi_desc, "; ", 2);
       }
-      if (XML_STR_BUF_GET_STR_LEN(xds.pi_code_vp) > 0)
+      if ( !XML_STR_BUF_STR_EMPTY(xds.pi_code_vp) )
       {
          XmlCdata_AppendString(&xds.pi_desc, "V+ Code: ");
-         XmlCdata_AppendRaw(&xds.pi_desc, XML_STR_BUF_GET_STR(xds.pi_code_vp), XML_STR_BUF_GET_STR_LEN(xds.pi_code_vp));
+         XmlCdata_AppendCdata(&xds.pi_desc, xds.pi_code_vp);
       }
    }
 
@@ -1346,7 +1361,7 @@ void Xmltv_PiCreditsClose( void )
 
 static void Xmltv_PiCreditsAppend( const char * pKind, XML_STR_BUF * pBuf )
 {
-   if (XML_STR_BUF_GET_STR_LEN(xds.pi_credits) > 0)
+   if ( !XML_STR_BUF_STR_EMPTY(xds.pi_credits) )
       XmlCdata_AppendRaw(&xds.pi_credits, ", ", 2);
    XmlCdata_AppendString(&xds.pi_credits, pKind);
    XmlCdata_AssignOrAppend(&xds.pi_credits, pBuf);
@@ -1357,13 +1372,54 @@ void Xmltv_PiCreditsAddDirector( XML_STR_BUF * pBuf )
    Xmltv_PiCreditsAppend("directed by: ", pBuf);
 }
 
+void Xmltv_PiCreditsOpenActor( void )
+{
+   XmlCdata_Reset(&xds.pi_actor_role);
+   xds.pi_actor_is_guest = FALSE;
+}
+
+void Xmltv_PiActorSetRole( XML_STR_BUF * pBuf )
+{
+   XmlCdata_AssignOrAppend(&xds.pi_actor_role, pBuf);
+}
+
+void Xmltv_PiActorSetGuest( XML_STR_BUF * pBuf )
+{
+   const char * pStr = XML_STR_BUF_GET_STR(*pBuf);
+
+   if (strcasecmp(pStr, "yes") == 0)
+   {
+      xds.pi_actor_is_guest = TRUE;
+   }
+   else if (strcasecmp(pStr, "no") == 0)
+   {
+      xds.pi_actor_is_guest = FALSE;
+   }
+   else
+      debug1("Xmltv-SetGuest: unknown value for attr 'guest': '%s'\n", pStr);
+}
+
 void Xmltv_PiCreditsAddActor( XML_STR_BUF * pBuf )
 {
-   if (XML_STR_BUF_GET_STR_LEN(xds.pi_actors) == 0)
-      XmlCdata_AppendString(&xds.pi_actors, "With: ");
-   else
-      XmlCdata_AppendRaw(&xds.pi_actors, ", ", 2);
-   XmlCdata_AppendRaw(&xds.pi_actors, XML_STR_BUF_GET_STR(*pBuf), XML_STR_BUF_GET_STR_LEN(*pBuf));
+   if ( !XML_STR_BUF_STR_EMPTY(*pBuf) )
+   {
+      if ( !XML_STR_BUF_STR_EMPTY(xds.pi_actors) )
+         XmlCdata_AppendRaw(&xds.pi_actors, ", ", 2);
+      else
+         XmlCdata_AppendString(&xds.pi_actors, "With: ");
+
+      XmlCdata_AppendCdata(&xds.pi_actors, *pBuf);
+
+      if ( !XML_STR_BUF_STR_EMPTY(xds.pi_actor_role) )
+      {
+         XmlCdata_AppendString(&xds.pi_actors, " as ");
+         XmlCdata_AppendCdata(&xds.pi_actors, xds.pi_actor_role);
+      }
+      if (xds.pi_actor_is_guest)
+      {
+         XmlCdata_AppendString(&xds.pi_actors, " (guest)");
+      }
+   }
 }
 
 void Xmltv_PiCreditsAddWriter( XML_STR_BUF * pBuf )
@@ -1409,6 +1465,70 @@ void Xmltv_PiCreditsAddCompany( XML_STR_BUF * pBuf )
 void Xmltv_PiCreditsAddGuest( XML_STR_BUF * pBuf )
 {
    Xmltv_PiCreditsAppend("guest: ", pBuf);
+}
+
+void Xmltv_PiReviewOpen( void )
+{
+   XmlCdata_Reset(&xds.pi_review_text);
+   XmlCdata_Reset(&xds.pi_review_source);
+   XmlCdata_Reset(&xds.pi_review_author);
+   xds.pi_review_is_url = FALSE;
+}
+
+void Xmltv_PiReviewType( XML_STR_BUF * pBuf )
+{
+   const char * pStr = XML_STR_BUF_GET_STR(*pBuf);
+
+   if (strcasecmp(pStr, "url") == 0)
+      xds.pi_review_is_url = TRUE;
+   else if (strcasecmp(pStr, "text") == 0)
+      xds.pi_review_is_url = FALSE;
+   else
+      debug1("Xmltv-PiReviewType: unknown type:'%s'\n", pStr);
+}
+
+void Xmltv_PiReviewSource( XML_STR_BUF * pBuf )
+{
+   XmlCdata_Assign(&xds.pi_review_source, pBuf);
+}
+
+void Xmltv_PiReviewAuthor( XML_STR_BUF * pBuf )
+{
+   XmlCdata_Assign(&xds.pi_review_author, pBuf);
+}
+
+void Xmltv_PiReviewContent( XML_STR_BUF * pBuf )
+{
+   XmlCdata_AppendParagraph(&xds.pi_review_text, FALSE);
+   XmlCdata_AssignOrAppend(&xds.pi_review_text, pBuf);
+}
+
+void Xmltv_PiReviewClose( void )
+{
+   if ( !XML_STR_BUF_STR_EMPTY(xds.pi_review_source) ||
+        !XML_STR_BUF_STR_EMPTY(xds.pi_review_author) )
+   {
+      XmlCdata_AppendParagraph(&xds.pi_reviews, FALSE);
+      XmlCdata_AppendString(&xds.pi_reviews, "Review (");
+
+      if ( !XML_STR_BUF_STR_EMPTY(xds.pi_review_author) )
+      {
+         XmlCdata_AppendString(&xds.pi_reviews, "by ");
+         XmlCdata_AppendCdata(&xds.pi_reviews, xds.pi_review_author);
+         if ( !XML_STR_BUF_STR_EMPTY(xds.pi_review_source) )
+            XmlCdata_AppendString(&xds.pi_reviews, ", ");
+      }
+      if ( !XML_STR_BUF_STR_EMPTY(xds.pi_review_source) )
+      {
+         XmlCdata_AppendString(&xds.pi_reviews, "source: ");
+         XmlCdata_AppendCdata(&xds.pi_reviews, xds.pi_review_source);
+      }
+      XmlCdata_AppendString(&xds.pi_reviews, "): ");
+   }
+   else
+      XmlCdata_AppendString(&xds.pi_reviews, "Review: ");
+
+   XmlCdata_AppendCdata(&xds.pi_reviews, xds.pi_review_text);
 }
 
 // date when the programme originally was produced (not air date)
@@ -1521,6 +1641,12 @@ void XmltvDb_Destroy( void )
    XmlCdata_Free(&xds.pi_desc);
    XmlCdata_Free(&xds.pi_credits);
    XmlCdata_Free(&xds.pi_actors);
+   XmlCdata_Free(&xds.pi_actor_role);
+
+   XmlCdata_Free(&xds.pi_review_text);
+   XmlCdata_Free(&xds.pi_review_source);
+   XmlCdata_Free(&xds.pi_review_author);
+   XmlCdata_Free(&xds.pi_reviews);
 
    XmlCdata_Free(&xds.pi_code_time_str);
    XmlCdata_Free(&xds.pi_code_sv);

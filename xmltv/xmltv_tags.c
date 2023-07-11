@@ -78,6 +78,7 @@ typedef enum
          XMLTV5_PI_CRED_PRES,
          XMLTV5_PI_CRED_COMM,
          XMLTV5_PI_CRED_GUEST,
+      XMLTV5_PI_REVIEW,
       XMLTV5_PI_DATE,
       XMLTV5_PI_CAT,
       XMLTV5_PI_VIDEO,
@@ -140,6 +141,7 @@ static const XMLTV_TAG xmltv5_tags_programme[] =
    XMLTV5_PI_NEW,
    XMLTV5_PI_DATE,
    XMLTV5_PI_CREDITS,
+   XMLTV5_PI_REVIEW,
    XMLTV5_PI_TITLE2
 };
 static const XMLTV_TAG xmltv5_tags_credits[] =
@@ -239,16 +241,27 @@ static const XMLTV_ATTS xmltv5_attr_prog[] =
 };
 static const XMLTV_ATTS xmltv5_attr_pi_subt[] =
 {
-   { "type", Xmltv_PiSubtitlesSetType, FALSE }
+   { "type", Xmltv_PiSubtitlesSetType, TRUE }
 };
 static const XMLTV_ATTS xmltv5_attr_pi_prat[] =
 {
-   { "system", Xmltv_PiRatingSetSystem, FALSE }
+   { "system", Xmltv_PiRatingSetSystem, TRUE }
 };
 static const XMLTV_ATTS xmltv5_attr_previously_shown[] =
 {
    { "start", Xmltv_PiPreviouslyShownStart, FALSE },
    { "channel", Xmltv_PiPreviouslyShownChannel, FALSE }
+};
+static const XMLTV_ATTS xmltv5_attr_actor[] =
+{
+   { "role", Xmltv_PiActorSetRole, FALSE },
+   { "guest", Xmltv_PiActorSetGuest, TRUE },
+};
+static const XMLTV_ATTS xmltv5_attr_review[] =
+{
+   { "type", Xmltv_PiReviewType, TRUE },
+   { "source", Xmltv_PiReviewSource, FALSE },
+   { "reviewer", Xmltv_PiReviewAuthor, FALSE },
 };
 static const XMLTV_ATTS xmltv5_attr_lang_only[] =
 {
@@ -360,8 +373,8 @@ static const XML_TAGDEF xmltv_tag_def[] =
      XMLTV_NO_ATTR,
    },
    { XMLTV5_PI_CRED_ACT, "actor", XML_NO_CHILDS, XML_HAS_PCDATA,
-     { NULL, NULL, Xmltv_PiCreditsAddActor, NULL },
-     XMLTV_NO_ATTR,
+     { Xmltv_PiCreditsOpenActor, NULL, Xmltv_PiCreditsAddActor, NULL },
+     XMLTV_ATTR(xmltv5_attr_actor),
    },
    { XMLTV5_PI_CRED_WRI, "writer", XML_NO_CHILDS, XML_HAS_PCDATA,
      { NULL, NULL, Xmltv_PiCreditsAddWriter, NULL },
@@ -386,6 +399,10 @@ static const XML_TAGDEF xmltv_tag_def[] =
    { XMLTV5_PI_CRED_GUEST, "guest", XML_NO_CHILDS, XML_HAS_PCDATA,
      { NULL, NULL, Xmltv_PiCreditsAddGuest, NULL },
      XMLTV_NO_ATTR,
+   },
+   { XMLTV5_PI_REVIEW, "review", XML_NO_CHILDS, XML_HAS_PCDATA,
+     { Xmltv_PiReviewOpen, Xmltv_PiReviewClose, Xmltv_PiReviewContent, NULL },
+     XMLTV_ATTR(xmltv5_attr_review),
    },
    { XMLTV5_PI_DATE, "date", XML_NO_CHILDS, XML_HAS_PCDATA,
      { NULL, NULL, Xmltv_PiDateAdd, NULL },
