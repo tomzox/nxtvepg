@@ -8,8 +8,9 @@ Post-Nextview EPG:
 - Network selection dialog: on the left show only removed networks
 - update xmltv.dtd support (e.g. video/audio "present")
 - change AI/PI to hold original XMLTV info elements (i.e. reduce conversion)
-- Sub-string search filter: case insensitive search missing in epgdb/epgdbfil.c
-  https://www.boost.org/doc/libs/1_36_0/doc/html/string_algo.html
+- during XMLTV import, skip programmes from channels de-selected by user
+- remove use of CNI for networks: use "netwop" index instead for browser
+  use XMLTV channel_id for configuration (netwop selection, netname)
 - XMLTV service name: when merging teletext-only use "Merged teletext (%d networks)"
 - bad error message when using "Load teletext EPG" and no files available yet
 - daemon mode: ? make work independent of TV app & ttx grabber cfg. (e.g. windows)

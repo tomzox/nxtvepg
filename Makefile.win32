@@ -66,6 +66,9 @@ TCL_L   = 85
 GUILIBS += -L$(BUILD_DIR) -ltk$(TCL_L) -ltcl$(TCL_L)
 ACQLIBS += -lws2_32
 
+# use TCL library for UTF-8 string matching (i.e. required even without GUI)
+TCL_LIB  = -L$(BUILD_DIR) -ltcl$(TCL_L)
+
 # define this if you don't want to load external Tcl/Tk init scripts
 DEFS   += -DUSE_PRECOMPILED_TCL_LIBS
 # define this if you have patched nxtvepg.ico into the tk DLL
@@ -177,7 +180,7 @@ $(BUILD_DIR)/nxtvepg.exe: $(NXTV_OBJS) $(TCL_TK_LIBS)
 	$(LD) $(LDFLAGS) $(NXTV_OBJS) $(GUILIBS) $(ACQLIBS) -o $@
 
 $(BUILD_DIR)/nxtvepgd.exe: $(DAEMON_OBJS)
-	$(LD) $(LDFLAGS) $(DAEMON_OBJS) $(ACQLIBS) -o $@
+	$(LD) $(LDFLAGS) $(DAEMON_OBJS) $(ACQLIBS) $(TCL_LIB) -o $@
 
 $(BUILD_DIR)/tvsim.exe: $(TVSIM_OBJS) $(TCL_TK_LIBS)
 	$(LD) $(LDFLAGS) $(TVSIM_OBJS) $(GUILIBS) $(ACQLIBS) -o $@

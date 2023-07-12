@@ -32,6 +32,8 @@
 #include <ctype.h>
 #include <time.h>
 
+#include <tcl.h>  // for UTF-8 string matching
+
 #include "epgctl/mytypes.h"
 #include "epgctl/debug.h"
 
@@ -794,14 +796,12 @@ void EpgDbFilterSetSubStr( FILTER_CONTEXT *fc, const char *pStr,
 {
    EPGDB_FILT_SUBSTR * pSubStrCtx;
    uint   size;
-   char * p;
-   uchar  c;
 
    assert(scopeTitle || scopeDesc);
 
    if (pStr != NULL)
    {
-      size = sizeof(EPGDB_FILT_SUBSTR) + strlen(pStr) + 1 - 1;
+      size = sizeof(EPGDB_FILT_SUBSTR) + strlen(pStr) * 2 + 2 + 1 - 1;
       pSubStrCtx = (EPGDB_FILT_SUBSTR*) xmalloc(size);
 
       pSubStrCtx->elem_size    = size;
@@ -809,15 +809,30 @@ void EpgDbFilterSetSubStr( FILTER_CONTEXT *fc, const char *pStr,
       pSubStrCtx->scopeDesc    = scopeDesc;
       pSubStrCtx->strMatchCase = matchCase;
       pSubStrCtx->strMatchFull = matchFull;
-      strcpy(pSubStrCtx->str, pStr);
 
-      if (matchCase == FALSE)
-      {  // convert search string to all lowercase
-         p = pSubStrCtx->str;
-         while ((c = *p) != 0)
+      if (!matchFull && !matchCase)
+      {
+         const char * in = pStr;
+         char * out = pSubStrCtx->str;
+
+         if (!matchFull)
+            *(out++) = '*';
+
+         while (*in)
          {
-            *(p++) = c; //TODO tolower(c);
+            if ((*in == '?') || (*in == '*'))
+               *(out++) = '\\';
+
+            *(out++) = *(in++);
          }
+
+         if (!matchFull)
+            *(out++) = '*';
+         *out = 0;
+      }
+      else
+      {
+         strcpy(pSubStrCtx->str, pStr);
       }
 
       // link the new context at the head of the substring parameter chain
@@ -829,50 +844,17 @@ void EpgDbFilterSetSubStr( FILTER_CONTEXT *fc, const char *pStr,
 }
 
 // ---------------------------------------------------------------------------
-// Make a lower-case copy of a string for case-insensitive comparisons
-//
-static void EpgDbFilter_SubstrToLower( const char * src, char * dst, uint maxLen )
-{
-   register uchar c;
-   register int  len;
-
-   len = maxLen - 1;
-   while ( ((c = *(src++)) != 0) && (len > 0) )
-   {
-      *(dst++) = c; //TODO tolower(c)
-      len--;
-   }
-   *(dst++) = 0;
-}
-
-// ---------------------------------------------------------------------------
 // Compare text with search string according to search parameters
 // - parameter #1: ignore case
 // - parameter #2: exact => search string must match start and end of text
 //
-static bool xstrcmp( const EPGDB_FILT_SUBSTR *ssc, const char * str,
-                     char * pCache, uint cacheSize,  bool * pIsLower )
+static bool xstrcmp( const EPGDB_FILT_SUBSTR *ssc, const char * str )
 {
    bool match;
 
    if (ssc->strMatchCase == FALSE)
    {
-      if (ssc->strMatchFull == FALSE)
-      {
-         // make a lower-case copy of the haystack and then use the strstr library func.
-         // the needle already has to be lower-case
-         if (*pIsLower == FALSE)
-         {
-            EpgDbFilter_SubstrToLower(str, pCache, cacheSize);
-            *pIsLower = TRUE;
-         }
-
-         match = (strstr(pCache, ssc->str) != NULL);
-      }
-      else
-      {
-         match = (strcasecmp(str, ssc->str) == 0);
-      }
+      match = Tcl_StringCaseMatch(str, ssc->str, TCL_MATCH_NOCASE);
    }
    else
    {
@@ -897,26 +879,19 @@ static bool xstrcmp( const EPGDB_FILT_SUBSTR *ssc, const char * str,
 static bool EpgDbFilter_MatchSubstr( const EPGDB_FILT_SUBSTR *ssc,
                                      const char * pTitleStr, const char * pDescStr )
 {
-   char desc_buf[3*(256+2048+4)]; // XXX FIXME merged db description can be much longer
-   char title[255+4];
-   bool title_lower;
-   bool short_lower;
-
-   title_lower = short_lower = FALSE;
-
    // OR across all substring text matches
    while (ssc != NULL)
    {
       if (ssc->scopeTitle)
       {
-         if (xstrcmp(ssc, pTitleStr, title, sizeof(title), &title_lower))
+         if (xstrcmp(ssc, pTitleStr))
          {
             break;
          }
       }
       if (ssc->scopeDesc)
       {
-         if ((pDescStr != NULL) && xstrcmp(ssc, pDescStr, desc_buf, sizeof(desc_buf), &short_lower))
+         if ((pDescStr != NULL) && xstrcmp(ssc, pDescStr))
          {
             break;
          }

@@ -71,6 +71,9 @@ endif
 
 GUILIBS  = -ltk$(TCL_VER) -ltcl$(TCL_VER) -L/usr/X11R6/lib -lX11 -lXmu -ldl
 
+# use TCL library for UTF-8 string matching (i.e. required even without GUI)
+TCL_LIB  = -ltcl$(TCL_VER)
+
 # use static libraries for debugging only
 #GUILIBS += -Ldbglib -static
 
@@ -211,7 +214,7 @@ $(BUILD_DIR)/nxtvepg: $(NXTV_OBJS)
 	$(CPP) -o $@ $(NXTV_OBJS) $(GUILIBS) $(ACQLIBS) $(LDFLAGS)
 
 $(BUILD_DIR)/nxtvepgd: $(DAEMON_OBJS)
-	$(CPP) -o $@ $(DAEMON_OBJS) $(LDFLAGS) $(ACQLIBS)
+	$(CPP) -o $@ $(DAEMON_OBJS) $(LDFLAGS) $(ACQLIBS) $(TCL_LIB)
 
 $(BUILD_DIR)/tvsimu: $(TVSIM_OBJS)
 	$(CPP) -o $@ $(TVSIM_OBJS) $(LDFLAGS) $(GUILIBS) $(ACQLIBS)
