@@ -1100,30 +1100,33 @@ der Auswahl ist relevant; Details siehe unten).
 Sie einen Dialog mit zwei Listenfeldern: das Linke davon enthält eine
 Liste von XMLTV Dateien. Ein anderes Verzeichnis kann mit Klick auf den
 Knopf neben dem Eingabefeld gewählt werden. Der Verzeichnisname kann
-auch manuell editiert werden; Nach Drücken der Return-Taste wird die
-Liste der Dateien aktualisiert. (Zu beachten ist dass nur Dateien mit
-Endung ".xml" und gültigem XMLTV Format in der Liste angezeigt werden.)
+auch manuell editiert werden; Nach Drücken der Return-Taste wird die Liste der
+Dateien aktualisiert. Normalerweise werden nur Dateien mit Endung "C<.xml>"
+angezeigt; Diese Beschränkung kann jedoch durch Auswahl von "C<all (*.*)>" im
+Menü unterhalb des Pfadeingabefelds aufgehoben werden.
 
 Das rechte Liste stellt die Dateien dar, die Sie zusammenführen wollen.
 Bei der ersten Verwendung des Dialogs wird die Liste leer sein; Bei
-späteren Aufrufen wird die zuletzt verwendete Auswahl wieder angezeigt.
-Sie können Einträge in dieser Liste hinzufügen, durch Auswahl eines
+folgenden Aufrufen wird die zuletzt verwendete Auswahl wieder angezeigt,
+falls dieselben Dateien noch existieren.
+Sie können Einträge in der rechten Liste hinzufügen, durch Auswahl eines
 Eintrags in der linken Liste und Drücken des "Add" Knopfes. Einträge
-können aus der Liste gelöscht werden durch Auswahl eines oder mehrerer
+können aus der rechten Liste gelöscht werden durch Auswahl eines oder mehrerer
 Einträge und Drücken des "Delete" Knopfes. Die Reihenfolge kann durch
 Auswahl von einem oder mehreren Einträgen und Drücken der beiden
 Pfeil-Knöpfe geändert werden. Sind Sie fertig mit Ihrer Auswahl, drücken
 Sie B<OK>, um das Zusammenführen der ausgewählten Dateien zu starten und
 die so neu erzeugte EPG Datenbank anzuzeigen.
 
-Durch das Anordnen der Provider in Ihrer Auswahl, weisen Sie ihnen Prioritäten
-zu, die für eine Konfliktlösung sehr wichtig sind. Ein Konflikt tritt dann auf,
-wenn Start- und Stopzeiten der Sendung bei den Providern verschieden sind. Die
-Wahrscheinlichkeit solch eines Konfliktes hängt von der Qualität Ihrer Provider
-ab; theoretisch sollten sie nie auftreten, außer wenn kurzfristige
-Programmänderungen erfolgen. In der Realität sind solche Konflikte gar nicht so
-unwahrscheinlich, speziell bei Sendungen, die früh am Morgen ausgestrahlt
-werden. Sie sollten den verlässlichsten Provider an die erste Stelle setzen, da
+Durch die Reihenfolge der Provider in Ihrer Auswahl weisen Sie ihnen
+Prioritäten zu, die für eine Konfliktlösung von Bedeutung. Ein Konflikt tritt
+dann auf, wenn Start- und Stopzeiten der Sendung bei den Providern verschieden
+sind. Die Wahrscheinlichkeit solch eines Konfliktes hängt von der Qualität
+Ihrer Provider ab; theoretisch sollten sie nie auftreten, außer wenn
+kurzfristige Programmänderungen erfolgen. In der Realität sind solche Konflikte
+gar nicht so unwahrscheinlich (erfahrungsgemäß speziell bei Sendungen, die früh
+am Morgen ausgestrahlt werden.)
+Sie sollten den verlässlichsten Provider an die erste Stelle setzen, da
 widersprüchliche Sendungen von darunter stehenden Providern abgelehnt werden,
 d.h. nicht mit in die zusammengeführte Datenbank aufgenommen werden.
 

@@ -411,7 +411,8 @@ proc PopupTtxGrab {} {
 #X#         foreach widget [info commands .acqmode.lb.*] {
 #X#            destroy $widget
 #X#         }
-#X#         SelBoxCreate .acqmode.lb acqmode_ailist acqmode_names
+#X#         SelBoxCreate .acqmode.lb acqmode_ailist acqmode_names \
+#X#                      "Available:" "Selected:"
 #X#      }
 #X#   } else {
 #X#      foreach widget [info commands .acqmode.lb.*] {

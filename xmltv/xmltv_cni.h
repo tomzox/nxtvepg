@@ -48,8 +48,7 @@ typedef struct
 // ----------------------------------------------------------------------------
 // Interface functions
 //
-void XmltvCni_MapInit( XMLTV_CNI_CTX * pCniCtx, uint provCni,
-                       const char * pSourceName, const char * pSourceUrl );
+void XmltvCni_MapInit( XMLTV_CNI_CTX * pCniCtx, uint provCni );
 void XmltvCni_MapDestroy( XMLTV_CNI_CTX * pCniCtx );
 uint XmltvCni_MapNetCni( XMLTV_CNI_CTX * pCniCtx, const char * pChannelId );
 

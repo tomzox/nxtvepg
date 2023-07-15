@@ -273,8 +273,8 @@ static void XmlTv_BuildSourceInfoMessages( XML_STR_BUF * pHeader, XML_STR_BUF * 
    if (!XML_STR_BUF_STR_EMPTY(xds.source_data_url))
    {
       XmlCdata_AppendParagraph(pMessage, TRUE);
+      XmlCdata_AppendCdata(pMessage, xds.source_data_url);
    }
-   XmlCdata_AppendCdata(pMessage, xds.source_data_url);
 
    if ( !XML_STR_BUF_STR_EMPTY(xds.gen_info_name) ||
         !XML_STR_BUF_STR_EMPTY(xds.gen_info_url) )
@@ -611,9 +611,7 @@ void Xmltv_ChannelClose( void )
       if (xds.cniCtxInitDone == FALSE)
       {
          // load the channel ID mapping table from file
-         XmltvCni_MapInit(&xds.cniCtx, xds.pDbContext->provCni,
-                          XML_STR_BUF_GET_STR(xds.source_info_name),
-                          XML_STR_BUF_GET_STR(xds.source_data_url));
+         XmltvCni_MapInit(&xds.cniCtx, xds.pDbContext->provCni);
          xds.cniCtxInitDone = TRUE;
       }
 

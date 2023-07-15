@@ -29,10 +29,10 @@ proc UpdateProvCniTable {prov} {
    global netwop_ai2sel netwop_sel2ai
 
    # fetch CNI list from AI block in database
-   set ailist [C_GetAiNetwopList 0 {}]
+   set ailist [C_GetAiNetwopList "" {}]
 
    # fetch or initialize network selection
-   set net_cf [C_GetProvCniConfig $prov]
+   set net_cf [C_GetProvCniConfig]
    set selist [lindex $net_cf 0]
    set suplist [lindex $net_cf 1]
    if {([llength $selist] == 0) && ([llength $suplist] == 0)} {
@@ -94,22 +94,23 @@ proc RemoveObsoleteCnisFromList {alist ref_list} {
 ##
 proc PopupNetwopSelection {} {
    global entry_disabledforeground
-   global netsel_popup
-   global netsel_prov netsel_ailist netsel_selist netsel_names
+   global netsel_popup netsel_provider
+   global netsel_ailist netsel_selist netsel_names
 
    if {$netsel_popup == 0} {
-      # get CNI of currently selected provider (or 0 if db is empty)
-      set netsel_prov [C_GetCurrentDatabaseCni]
-      if {$netsel_prov != 0} {
+      if {[C_IsDatabaseLoaded]} {
          CreateTransientPopup .netsel "Network Selection"
          set netsel_popup 1
+
+         # remember provider to detect changes before saving
+         set netsel_provider [C_GetProviderPath]
 
          # fetch CNI list from AI block in database
          # as a side effect this function stores all netwop names into the array netsel_names
          set netsel_ailist [C_GetAiNetwopList 0 netsel_names allmerged]
 
          # initialize list of user-selected CNIs
-         set tmpl [C_GetProvCniConfig $netsel_prov]
+         set tmpl [C_GetProvCniConfig]
          if {([llength [lindex $tmpl 0]] == 0) && ([llength [lindex $tmpl 1]] == 0)} {
             set netsel_selist $netsel_ailist
          } else {
@@ -123,7 +124,8 @@ proc PopupNetwopSelection {} {
          }
 
          frame .netsel.lb
-         SelBoxCreate .netsel.lb netsel_ailist netsel_selist netsel_names 20 1
+         SelBoxCreate .netsel.lb netsel_ailist netsel_selist netsel_names 20 1 \
+                      "Available networks:" "Selected networks:"
          pack  .netsel.lb -side top -fill both -expand 1
 
          global cfnettimes netsel_times netsel_start netsel_stop netsel_cni
@@ -171,7 +173,8 @@ proc PopupNetwopSelection {} {
          wm minsize .netsel [winfo reqwidth .netsel] [winfo reqheight .netsel]
       } else {
          # no AI block in database
-         tk_messageBox -type ok -default ok -icon error -message "You have to open a provider database before you can configure networks."
+         tk_messageBox -type ok -default ok -icon error -parent . \
+                       -message "You have to load an XMLTV file before configuring networks."
       }
    } else {
       raise .netsel
@@ -180,8 +183,14 @@ proc PopupNetwopSelection {} {
 
 # finished -> save and apply the user selection
 proc SaveSelectedNetwopList {} {
-   global netsel_prov netsel_selist netsel_ailist netsel_names
-   global cfnettimes netsel_times
+   global netsel_selist netsel_ailist netsel_names
+   global cfnettimes netsel_times netsel_provider
+
+   if {$netsel_provider != [C_GetProviderPath]} {
+      tk_messageBox -type ok -default ok -icon error -parent .netsel \
+                    -message "Provider has changed - cannot save."
+      return
+   }
 
    # close popup
    destroy .netsel
@@ -194,7 +203,7 @@ proc SaveSelectedNetwopList {} {
          lappend sup $cni
       }
    }
-   C_UpdateProvCniConfig $netsel_prov $netsel_selist $sup
+   C_UpdateProvCniConfig $netsel_selist $sup
 
    # store start & stop time of the last CNI and store the air times list
    NetselUpdateTimes
@@ -204,7 +213,7 @@ proc SaveSelectedNetwopList {} {
    array unset netsel_names
 
    # merged database: merge the requested networks
-   if {$netsel_prov == 0x00FF} {
+   if {[C_IsDatabaseMerged]} {
       C_ProvMerge_Start
    }
 
@@ -286,7 +295,7 @@ proc NetselUpdateTimes {} {
 ##  --------------------------------------------------------------------------
 ##  Helper functions for selecting and ordering list items
 ##
-proc SelBoxCreate {lbox arr_ailist arr_selist arr_names lwidth do_scrollbar} {
+proc SelBoxCreate {lbox arr_ailist arr_selist arr_names lwidth do_scrollbar lab_ai lab_sel} {
    upvar $arr_ailist ailist
    upvar $arr_selist selist
    upvar $arr_names names
@@ -307,12 +316,18 @@ proc SelBoxCreate {lbox arr_ailist arr_selist arr_names lwidth do_scrollbar} {
 
    ## first column: listbox with all netwops in AI order
    frame $lbox.ai
+   label $lbox.ai.lab -text $lab_ai
+   grid $lbox.ai.lab -row 0 -column 0 -columnspan 2 -sticky we
    scrollbar $lbox.ai.sb -orient vertical -command [list $lbox.ai.ailist yview] -takefocus 0
-   if {$do_scrollbar} { pack $lbox.ai.sb -fill y -side left }
+   if {$do_scrollbar} {
+      grid $lbox.ai.sb -row 1 -column 0 -sticky ns
+   }
    listbox $lbox.ai.ailist -exportselection false -height $lbox_height -width $lwidth \
                            -selectmode extended -yscrollcommand [list $lbox.ai.sb set]
    relief_listbox $lbox.ai.ailist
-   pack $lbox.ai.ailist -side left -fill both -expand 1
+   grid $lbox.ai.ailist -row 1 -column 1 -sticky news
+   grid columnconfigure $lbox.ai 1 -weight 1
+   grid rowconfigure $lbox.ai 1 -weight 1
    pack $lbox.ai -anchor nw -side left -pady 10 -padx 10 -fill both -expand 1
    bind $lbox.ai.ailist <<ListboxSelect>> [list + after idle [list SelBoxButtonPress $lbox orig]]
    bind $lbox.ai.ailist <Return> [list tkButtonInvoke $lbox.cmd.add]
@@ -334,12 +349,18 @@ proc SelBoxCreate {lbox arr_ailist arr_selist arr_names lwidth do_scrollbar} {
 
    ## third column: selected providers in selected order
    frame $lbox.sel
+   label $lbox.sel.lab -text $lab_sel
+   grid $lbox.sel.lab -row 0 -column 0 -columnspan 2 -sticky we
    scrollbar $lbox.sel.sb -orient vertical -command [list $lbox.sel.selist yview] -takefocus 0
    listbox $lbox.sel.selist -exportselection false -height $lbox_height -width $lwidth \
                             -selectmode extended -yscrollcommand [list $lbox.sel.sb set]
    relief_listbox $lbox.sel.selist
-   if {$do_scrollbar} { pack $lbox.sel.sb -fill y -side left }
-   pack $lbox.sel.selist -side left -fill both -expand 1
+   if {$do_scrollbar} {
+      grid $lbox.sel.sb -row 1 -column 0 -sticky ns
+   }
+   grid $lbox.sel.selist -row 1 -column 1 -sticky news
+   grid columnconfigure $lbox.sel 1 -weight 1
+   grid rowconfigure $lbox.sel 1 -weight 1
    pack $lbox.sel -anchor nw -side left -pady 10 -padx 10 -fill both -expand 1
    bind $lbox.sel.selist <<ListboxSelect>> [list + after idle [list SelBoxButtonPress $lbox sel]]
    bind $lbox.sel.selist <Key-Delete> [list tkButtonInvoke $lbox.cmd.delnet]
@@ -381,8 +402,8 @@ proc SelBoxUpdateList {lbox arr_ailist arr_selist arr_names} {
       }
       $lbox.ai.ailist configure -height $lbox_height
       $lbox.sel.selist configure -height $lbox_height
-      if {$do_scrollbar} { pack $lbox.ai.sb -fill y -side left }
-      if {$do_scrollbar} { pack $lbox.sel.sb -fill y -side left }
+      if {$do_scrollbar} { grid $lbox.ai.sb -row 1 -column 0 -sticky ns }
+      if {$do_scrollbar} { grid $lbox.sel.sb -row 1 -column 0 -sticky ns }
    }
 }
 

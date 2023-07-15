@@ -106,8 +106,7 @@ static const char * XmltvCni_GetFullPath( const char * pPath )
 // Initialize the context struct for a provider network CNI table
 // - must be called once before a database is loaded
 //
-void XmltvCni_MapInit( XMLTV_CNI_CTX * pCniCtx, uint provCni,
-                       const char * pSourceName, const char * pSourceUrl )
+void XmltvCni_MapInit( XMLTV_CNI_CTX * pCniCtx, uint provCni )
 {
    const RCFILE * pRc;
    uint * pCniVal;

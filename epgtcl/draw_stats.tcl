@@ -52,12 +52,12 @@
 ## ---------------------------------------------------------------------------
 ## Open or update a timescale popup window
 ##
-proc TimeScale_Open {w cni scaleWidth} {
+proc TimeScale_Open {w scaleWidth} {
    global default_bg pi_font
    global tsc_tail tsc_id
 
    # fetch network list from AI block in database
-   set netsel_ailist [C_GetAiNetwopList $cni netnames]
+   set netsel_ailist [C_GetAiNetwopList "" netnames]
 
    # add space for Now & Next boxes to scale width
    incr scaleWidth $::tsc_cv_stream_x0

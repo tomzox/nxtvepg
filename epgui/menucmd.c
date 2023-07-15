@@ -63,6 +63,8 @@
 #include "epgvbi/btdrv.h"
 #include "epgtcl/dlg_hwcfg.h"
 
+// special values for DB index in attribute matrix
+#define MERGE_ATTRIB_EXCLUDE_ALL 0xFF  // ATTN: has to be >= MAX_MERGED_DB_COUNT
 
 static void MenuCmd_EpgScanHandler( ClientData clientData );
 
@@ -501,7 +503,7 @@ static int MenuCmd_IsAcqEnabled( ClientData ttp, Tcl_Interp *interp, int objc, T
       Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
       result = TCL_ERROR;
    }
-   else 
+   else
    {
       EpgAcqCtl_DescribeAcqState(&acqState);
       isActive = acqState.ttxGrabState != ACQDESCR_DISABLED;
@@ -530,7 +532,7 @@ static int MenuCmd_IsNetAcqActive( ClientData ttp, Tcl_Interp *interp, int objc,
       Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
       result = TCL_ERROR;
    }
-   else 
+   else
    {
       #ifdef USE_DAEMON
       EpgAcqCtl_DescribeAcqState(&acqState);
@@ -581,7 +583,7 @@ static int MenuCmd_IsAcqExternal( ClientData ttp, Tcl_Interp *interp, int objc, 
       Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
       result = TCL_ERROR;
    }
-   else 
+   else
    {
       EpgAcqCtl_DescribeAcqState(&acqState);
 
@@ -605,9 +607,11 @@ static int MenuCmd_IsAcqExternal( ClientData ttp, Tcl_Interp *interp, int objc, 
 //
 static int MenuCmd_ChangeProvider( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
 {
-   const char * const pUsage = "Usage: C_ChangeProvider <cni>";
+   const char * const pUsage = "Usage: C_ChangeProvider <file_name>";
    EPGDB_CONTEXT * pDbContext;
-   int cni;
+   const char * pPath;
+   uint cni;
+   bool success = FALSE;
    int result;
 
    if (objc != 2)
@@ -617,47 +621,43 @@ static int MenuCmd_ChangeProvider( ClientData ttp, Tcl_Interp *interp, int objc,
    }
    else
    {
-      // get the CNI of the selected provider
-      if (Tcl_GetIntFromObj(interp, objv[1], &cni) == TCL_OK)
+      pPath = Tcl_GetString(objv[1]);
+      cni = EpgContextCtl_StatProvider(pPath);
+
+      pDbContext = EpgContextCtl_Open(cni, TRUE, CTX_RELOAD_ERR_REQ);
+      if (pDbContext != NULL)
       {
-         // note: illegal CNIs 0 and 0x00ff are caught in the open function
-         pDbContext = EpgContextCtl_Open(cni, TRUE, CTX_RELOAD_ERR_REQ);
-         if (pDbContext != NULL)
-         {
-            EpgContextCtl_Close(pUiDbContext);
-            pUiDbContext = pDbContext;
+         EpgContextCtl_Close(pUiDbContext);
+         pUiDbContext = pDbContext;
 
-            UiControl_AiStateChange(NULL);
-            StatsWin_UiStatsUpdate(TRUE, TRUE);
-            eval_check(interp, "ResetFilterState");
+         UiControl_AiStateChange(NULL);
+         StatsWin_UiStatsUpdate(TRUE, TRUE);
+         eval_check(interp, "ResetFilterState");
 
-            PiBox_Reset();
+         PiBox_Reset();
 
-            // put the new CNI at the front of the selection order and update the config file
-            RcFile_UpdateProvSelection(cni);
-            UpdateRcFile(TRUE);
-         }
+         // put the new CNI at the front of the selection order and update the config file
+         RcFile_UpdateProvSelection(cni);
+         UpdateRcFile(TRUE);
 
-         result = TCL_OK;
+         success = TRUE;
       }
-      else
-      {
-         sprintf(comm, "C_ChangeProvider: expected hex CNI but got: %s", Tcl_GetString(objv[1]));
-         Tcl_SetResult(interp, comm, TCL_VOLATILE);
-         result = TCL_ERROR;
-      }
+
+      Tcl_SetObjResult(interp, Tcl_NewIntObj(success));
+      result = TCL_OK;
    }
 
    return result;
 }
 
 // ----------------------------------------------------------------------------
-// Get path of the XMLTV the current UI database was loaded from
-// - returns empty string in case of error
+// Query list of paths of the XMLTV files the current UI database was loaded from
+// - returns empty list in case of error
 //
 static int MenuCmd_GetProviderPath( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
 {
    const char * const pUsage = "Usage: C_GetProviderPath";
+   Tcl_Obj * pResultList;
    const char * pPath;
    uint provCni;
    int result;
@@ -669,7 +669,8 @@ static int MenuCmd_GetProviderPath( ClientData ttp, Tcl_Interp *interp, int objc
    }
    else
    {
-      pPath = "";
+      pResultList = Tcl_NewListObj(0, NULL);
+
       provCni = EpgDbContextGetCni(pUiDbContext);
       if (provCni == MERGED_PROV_CNI)
       {
@@ -683,217 +684,19 @@ static int MenuCmd_GetProviderPath( ClientData ttp, Tcl_Interp *interp, int objc
             {
                pPath = EpgContextCtl_GetProvPath(provCniTab[idx]);
                if (pPath != NULL)
-                  break;
+                  Tcl_ListObjAppendElement(interp, pResultList, Tcl_NewStringObj(pPath, -1));
+               else
+                  debug1("MenuCmd-GetProviderPath: unknown CNI:%X", provCniTab[idx]);
             }
          }
       }
       else if (provCni != 0)
       {
          pPath = EpgContextCtl_GetProvPath(provCni);
-      }
-      Tcl_SetObjResult(interp, Tcl_NewStringObj(pPath, -1));
-      result = TCL_OK;
-   }
-
-   return result;
-}
-
-// ----------------------------------------------------------------------------
-// Return service name and list of networks of the given database
-// - used by provider selection popup
-//
-static int MenuCmd_GetProvServiceName( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
-{
-   const char * const pUsage = "Usage: C_GetProvServiceName <cni>";
-   const AI_BLOCK * pAi;
-   EPGDB_CONTEXT  * pPeek;
-   const char * pStr;
-   int cni;
-   int result;
-
-   if (objc != 1+1)
-   {  // parameter count is invalid
-      Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
-      result = TCL_ERROR;
-   }
-   else if ( Tcl_GetIntFromObj(interp, objv[1], &cni) )
-   {  // the parameter is not an integer
-      result = TCL_ERROR;
-   }
-   else
-   {
-      if (cni == MERGED_PROV_CNI)
-      {
-         Tcl_SetObjResult(interp, Tcl_NewStringObj("merged", -1));
-      }
-      else
-      {
-         pPeek = EpgContextCtl_Peek(cni, CTX_RELOAD_ERR_ANY);
-         if (pPeek != NULL)
-         {
-            // TODO optimize to avoid PEEK? - XML file name is sufficient
-            EpgDbLockDatabase(pPeek, TRUE);
-            pAi = EpgDbGetAi(pPeek);
-            if (pAi != NULL)
-            {
-               pStr = AI_GET_SERVICENAME(pAi);
-               Tcl_SetObjResult(interp, Tcl_NewStringObj(pStr, -1));
-            }
-            EpgDbLockDatabase(pPeek, FALSE);
-
-            EpgContextCtl_ClosePeek(pPeek);
-         }
+         if (pPath != NULL)
+            Tcl_ListObjAppendElement(interp, pResultList, Tcl_NewStringObj(pPath, -1));
          else
-            Tcl_SetObjResult(interp, Tcl_NewStringObj("unknown", -1));
-      }
-      result = TCL_OK;
-   }
-
-   return result;
-}
-
-// ----------------------------------------------------------------------------
-// Return service name and list of networks of the given database
-// - used by provider selection popup
-//
-static int MenuCmd_GetProvServiceInfos( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
-{
-   const char * const pUsage = "Usage: C_GetProvServiceInfos <cni>";
-   const AI_BLOCK * pAi;
-   EPGDB_CONTEXT  * pPeek;
-   Tcl_Obj * pResultList;
-   const char * pStr;
-   int cni, netwop;
-   int result;
-
-   if (objc != 2)
-   {  // parameter count is invalid
-      Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
-      result = TCL_ERROR;
-   }
-   else if ( Tcl_GetIntFromObj(interp, objv[1], &cni) )
-   {  // the parameter is not an integer
-      result = TCL_ERROR;
-   }
-   else
-   {
-      pPeek = EpgContextCtl_Peek(cni, CTX_RELOAD_ERR_ANY);
-      if (pPeek != NULL)
-      {
-         EpgDbLockDatabase(pPeek, TRUE);
-         pAi = EpgDbGetAi(pPeek);
-
-         if (pAi != NULL)
-         {
-            pResultList = Tcl_NewListObj(0, NULL);
-
-            // first element is source info
-            pStr = AI_GET_SOURCE_INFO(pAi);
-            Tcl_ListObjAppendElement(interp, pResultList, Tcl_NewStringObj(pStr, -1));
-
-            // second element is generator info
-            pStr = AI_GET_GEN_INFO(pAi);
-            Tcl_ListObjAppendElement(interp, pResultList, Tcl_NewStringObj(pStr, -1));
-
-            // append names of all netwops
-            for ( netwop = 0; netwop < pAi->netwopCount; netwop++ ) 
-            {
-               pStr = AI_GET_NETWOP_NAME(pAi, netwop);
-               Tcl_ListObjAppendElement(interp, pResultList, Tcl_NewStringObj(pStr, -1));
-            }
-            Tcl_SetObjResult(interp, pResultList);
-         }
-         EpgDbLockDatabase(pPeek, FALSE);
-
-         EpgContextCtl_ClosePeek(pPeek);
-      }
-      result = TCL_OK;
-   }
-
-   return result;
-}
-
-// ----------------------------------------------------------------------------
-// Return the CNI of the database currently open for the browser
-// - result is 0 if none is opened or 0x00ff for the merged db
-//
-static int MenuCmd_GetCurrentDatabaseCni( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
-{
-   const char * const pUsage = "Usage: C_GetCurrentDatabaseCni";
-   char buf[16+2+1];
-   uint dbCni;
-   int result;
-
-   if (objc != 1)
-   {  // parameter count is invalid
-      Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
-      result = TCL_ERROR;
-   }
-   else
-   {  // return the CNI of the currently used browser database
-      dbCni = EpgDbContextGetCni(pUiDbContext);
-
-      sprintf(buf, "0x%04X", dbCni);
-      Tcl_SetObjResult(interp, Tcl_NewStringObj(buf, -1));
-
-      result = TCL_OK;
-   }
-
-   return result;
-}
-
-// ----------------------------------------------------------------------------
-// Get list of provider CNIs and names
-// - for provider selection and merge popup
-//
-static int MenuCmd_GetProvCnisAndNames( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
-{
-   const char * const pUsage = "Usage: C_GetProvCnisAndNames <dir> <ext>";
-   const AI_BLOCK * pAi;
-   const uint * pCniList;
-   EPGDB_CONTEXT  * pPeek;
-   const char * pDir;
-   const char * pExt;
-   Tcl_Obj * pResultList;
-   char buf[16+2+1];
-   uint idx, cniCount;
-   int result;
-
-   if (objc != 1+2)
-   {  // parameter count is invalid
-      Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
-      result = TCL_ERROR;
-   }
-   else
-   {
-      pDir = Tcl_GetString(objv[1]);
-      pExt = Tcl_GetString(objv[2]);
-      pResultList = Tcl_NewListObj(0, NULL);
-
-      pCniList = EpgContextCtl_GetProvList(pDir, pExt, &cniCount);
-      if (pCniList != NULL)
-      {
-         for (idx=0; idx < cniCount; idx++)
-         {
-            pPeek = EpgContextCtl_Peek(pCniList[idx], CTX_RELOAD_ERR_ANY);
-            if (pPeek != NULL)
-            {
-               EpgDbLockDatabase(pPeek, TRUE);
-               pAi = EpgDbGetAi(pPeek);
-               if (pAi != NULL)
-               {
-                  sprintf(buf, "0x%04X", pCniList[idx]);
-                  Tcl_ListObjAppendElement(interp, pResultList, Tcl_NewStringObj(buf, -1));
-
-                  Tcl_ListObjAppendElement(interp, pResultList,
-                                           Tcl_NewStringObj(AI_GET_SERVICENAME(pAi), -1));
-               }
-               EpgDbLockDatabase(pPeek, FALSE);
-
-               EpgContextCtl_ClosePeek(pPeek);
-            }
-         }
-         xfree((void *) pCniList);
+            debug1("MenuCmd-GetProviderPath: unknown CNI:%X", provCni);
       }
       Tcl_SetObjResult(interp, pResultList);
       result = TCL_OK;
@@ -903,18 +706,22 @@ static int MenuCmd_GetProvCnisAndNames( ClientData ttp, Tcl_Interp *interp, int 
 }
 
 // ----------------------------------------------------------------------------
-// Get list of provider CNIs and names
-// - for provider selection and merge popup
+// Return source info, generator info and list of network names of the given XMLTV file
+// - returns empty list in case of error
+// - used by provider selection popup
 //
-static int MenuCmd_GetProvCniForPath( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
+static int MenuCmd_PeekProvider( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
 {
-   const char * const pUsage = "Usage: C_GetProvCniForPath <path>";
+   const char * const pUsage = "Usage: C_PeekProvider <path>";
+   const AI_BLOCK * pAi;
+   EPGDB_CONTEXT  * pPeek;
+   Tcl_Obj * pResultList;
    const char * pPath;
-   char buf[16+2+1];
-   uint provCni;
+   const char * pStr;
+   int cni;
    int result;
 
-   if (objc != 1+1)
+   if (objc != 2)
    {  // parameter count is invalid
       Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
       result = TCL_ERROR;
@@ -922,11 +729,65 @@ static int MenuCmd_GetProvCniForPath( ClientData ttp, Tcl_Interp *interp, int ob
    else
    {
       pPath = Tcl_GetString(objv[1]);
+      cni = EpgContextCtl_StatProvider(pPath);
+      if (cni != 0)
+      {
+         pPeek = EpgContextCtl_Peek(cni, CTX_RELOAD_ERR_REQ);
+         if (pPeek != NULL)
+         {
+            EpgDbLockDatabase(pPeek, TRUE);
+            pAi = EpgDbGetAi(pPeek);
 
-      provCni = EpgContextCtl_StatProvider(pPath);
+            if (pAi != NULL)
+            {
+               pResultList = Tcl_NewListObj(0, NULL);
 
-      sprintf(buf, "0x%04X", provCni);
-      Tcl_SetObjResult(interp, Tcl_NewStringObj(buf, -1));
+               // first element is source info
+               pStr = AI_GET_SOURCE_INFO(pAi);
+               Tcl_ListObjAppendElement(interp, pResultList, Tcl_NewStringObj(pStr, -1));
+
+               // second element is generator info
+               pStr = AI_GET_GEN_INFO(pAi);
+               Tcl_ListObjAppendElement(interp, pResultList, Tcl_NewStringObj(pStr, -1));
+
+               // append names of all netwops
+               for (uint netwop = 0; netwop < pAi->netwopCount; netwop++)
+               {
+                  pStr = AI_GET_NETWOP_NAME(pAi, netwop);
+                  Tcl_ListObjAppendElement(interp, pResultList, Tcl_NewStringObj(pStr, -1));
+               }
+               Tcl_SetObjResult(interp, pResultList);
+            }
+            EpgDbLockDatabase(pPeek, FALSE);
+
+            EpgContextCtl_ClosePeek(pPeek);
+         }
+      }
+      result = TCL_OK;
+   }
+
+   return result;
+}
+
+// ----------------------------------------------------------------------------
+// Query if a database is currently open for the browser
+//
+static int MenuCmd_IsDatabaseLoaded( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
+{
+   const char * const pUsage = "Usage: C_IsDatabaseLoaded";
+   uint dbCni;
+   int result;
+
+   if (objc != 1)
+   {  // parameter count is invalid
+      Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
+      result = TCL_ERROR;
+   }
+   else
+   {
+      dbCni = EpgDbContextGetCni(pUiDbContext);
+
+      Tcl_SetObjResult(interp, Tcl_NewBooleanObj(dbCni != 0));
 
       result = TCL_OK;
    }
@@ -935,7 +796,33 @@ static int MenuCmd_GetProvCniForPath( ClientData ttp, Tcl_Interp *interp, int ob
 }
 
 // ----------------------------------------------------------------------------
-// Get network selection configuration for a given provider
+// Query if the database loaded for the browser is a merged database
+//
+static int MenuCmd_IsDatabaseMerged( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
+{
+   const char * const pUsage = "Usage: C_IsDatabaseMerged";
+   uint dbCni;
+   int result;
+
+   if (objc != 1)
+   {  // parameter count is invalid
+      Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
+      result = TCL_ERROR;
+   }
+   else
+   {
+      dbCni = EpgDbContextGetCni(pUiDbContext);
+
+      Tcl_SetObjResult(interp, Tcl_NewBooleanObj(dbCni == MERGED_PROV_CNI));
+
+      result = TCL_OK;
+   }
+
+   return result;
+}
+
+// ----------------------------------------------------------------------------
+// Get network selection and suppression configuration for the current database
 // - called when the network selection configuration dialog is opened
 // - returns a list of two lists:
 //   (1) List of CNIs of selected networks: defined network order
@@ -943,7 +830,7 @@ static int MenuCmd_GetProvCniForPath( ClientData ttp, Tcl_Interp *interp, int ob
 //
 static int MenuCmd_GetProvCniConfig( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
 {
-   const char * const pUsage = "Usage: C_GetProvCniConfig <prov_cni>";
+   const char * const pUsage = "Usage: C_GetProvCniConfig";
    Tcl_Obj * pResultList;
    Tcl_Obj * pOrdList;
    Tcl_Obj * pSupList;
@@ -951,11 +838,10 @@ static int MenuCmd_GetProvCniConfig( ClientData ttp, Tcl_Interp *interp, int obj
    const uint * pSelCnis;
    const uint * pSupCnis;
    uint selCount, supCount;
-   uint netIdx;
-   int prov_cni;
+   int provCni;
    int result;
 
-   if ((objc != 1+1) || (Tcl_GetIntFromObj(interp, objv[1], &prov_cni) != TCL_OK))
+   if (objc != 1)
    {  // parameter count is invalid
       Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
       result = TCL_ERROR;
@@ -966,12 +852,14 @@ static int MenuCmd_GetProvCniConfig( ClientData ttp, Tcl_Interp *interp, int obj
       pOrdList = Tcl_NewListObj(0, NULL);
       pSupList = Tcl_NewListObj(0, NULL);
 
+      provCni = EpgDbContextGetCni(pUiDbContext);
+
       // retrieve config from rc/ini file
-      RcFile_GetNetworkSelection(prov_cni, &selCount, &pSelCnis, &supCount, &pSupCnis);
+      RcFile_GetNetworkSelection(provCni, &selCount, &pSelCnis, &supCount, &pSupCnis);
 
       if (pSelCnis != NULL)
       {
-         for (netIdx = 0; netIdx < selCount; netIdx++)
+         for (uint netIdx = 0; netIdx < selCount; netIdx++)
          {
             sprintf(cni_buf, "0x%04X", pSelCnis[netIdx]);
             Tcl_ListObjAppendElement(interp, pOrdList, Tcl_NewStringObj(cni_buf, -1));
@@ -979,7 +867,7 @@ static int MenuCmd_GetProvCniConfig( ClientData ttp, Tcl_Interp *interp, int obj
       }
       if (pSupCnis != NULL)
       {
-         for (netIdx = 0; netIdx < supCount; netIdx++)
+         for (uint netIdx = 0; netIdx < supCount; netIdx++)
          {
             sprintf(cni_buf, "0x%04X", pSupCnis[netIdx]);
             Tcl_ListObjAppendElement(interp, pSupList, Tcl_NewStringObj(cni_buf, -1));
@@ -995,14 +883,14 @@ static int MenuCmd_GetProvCniConfig( ClientData ttp, Tcl_Interp *interp, int obj
 }
 
 // ----------------------------------------------------------------------------
-// Get network selection configuration for a given provider
+// Update network selection configuration for the current database
 // - called when the network selection configuration dialog is closed
-// - gets the provider's CNI and two lists with network CNIs as parameters;
+// - gets two lists with network CNIs as parameters;
 //   meaning of the lists is the same is in the "Get" function above
 //
 static int MenuCmd_UpdateProvCniConfig( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
 {
-   const char * const pUsage = "Usage: C_UpdateProvCniConfig <prov_cni> <selected_list> <suppressed_list>";
+   const char * const pUsage = "Usage: C_UpdateProvCniConfig <selected_list> <suppressed_list>";
    Tcl_Obj ** pSelCniObjv;
    Tcl_Obj ** pSupCniObjv;
    uint * pSelCni, * pSupCni;
@@ -1012,25 +900,29 @@ static int MenuCmd_UpdateProvCniConfig( ClientData ttp, Tcl_Interp *interp, int 
    uint idx;
    int result;
 
-   if ((objc != 1+3) || (Tcl_GetIntFromObj(interp, objv[1], (int*)&provCni) != TCL_OK))
+   if (objc != 1+2)
    {
       Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
       result = TCL_ERROR;
    }
    else
    {
-      result = Tcl_ListObjGetElements(interp, objv[2], (int*)&cniSelCount, &pSelCniObjv);
+      result = Tcl_ListObjGetElements(interp, objv[1], (int*)&cniSelCount, &pSelCniObjv);
       if (result == TCL_OK)
       {
+         provCni = EpgDbContextGetCni(pUiDbContext);
+
          if (cniSelCount > RC_MAX_DB_NETWOPS)
             cniSelCount = RC_MAX_DB_NETWOPS;
          pSelCni = (uint*) xmalloc(sizeof(*pSelCni) * (cniSelCount + 1));  // +1 to avoid zero-len alloc
          for (idx = 0; (idx < cniSelCount) && (result == TCL_OK); idx++)
+         {
             result = Tcl_GetIntFromObj(interp, pSelCniObjv[idx], (int*)&pSelCni[idx]);
+         }
 
          if (result == TCL_OK)
          {
-            result = Tcl_ListObjGetElements(interp, objv[3], (int*)&cniSupCount, &pSupCniObjv);
+            result = Tcl_ListObjGetElements(interp, objv[2], (int*)&cniSupCount, &pSupCniObjv);
             if (result == TCL_OK)
             {
                if (cniSupCount > RC_MAX_DB_NETWOPS)
@@ -1038,7 +930,9 @@ static int MenuCmd_UpdateProvCniConfig( ClientData ttp, Tcl_Interp *interp, int 
 
                pSupCni = (uint*) xmalloc(sizeof(*pSupCni) * (cniSupCount + 1));
                for (idx = 0; (idx < cniSupCount) && (result == TCL_OK); idx++)
+               {
                   result = Tcl_GetIntFromObj(interp, pSupCniObjv[idx], (int*)&pSupCni[idx]);
+               }
 
                if (result == TCL_OK)
                {
@@ -1073,7 +967,6 @@ static void MenuCmd_AppendNetwopList( Tcl_Interp *interp, Tcl_Obj * pList,
    char strbuf[16+2+1];
    Tcl_Obj * pNetwopObj;
    bool  isFromAi;
-   uint  netwop;
    uint  cni;
 
    EpgDbLockDatabase(pDbContext, TRUE);
@@ -1081,7 +974,7 @@ static void MenuCmd_AppendNetwopList( Tcl_Interp *interp, Tcl_Obj * pList,
    if (pAiBlock != NULL)
    {
       pNetwop = AI_GET_NETWOPS(pAiBlock);
-      for ( netwop = 0; netwop < pAiBlock->netwopCount; netwop++, pNetwop++ ) 
+      for (uint netwop = 0; netwop < pAiBlock->netwopCount; netwop++, pNetwop++ )
       {
          cni = AI_GET_NET_CNI(pNetwop);
          sprintf(strbuf, "0x%04X", cni);
@@ -1118,7 +1011,7 @@ static void MenuCmd_AppendNetwopList( Tcl_Interp *interp, Tcl_Obj * pList,
 }
 
 // ----------------------------------------------------------------------------
-// Get List of netwop CNIs and array of names from AI for netwop selection
+// Get list of netwop CNIs and array of names from AI for netwop selection
 // - 1st argument selects the provider; 0 for the current browser database
 // - 2nd argument names a Tcl array where to store the network names;
 //   may be 0-string if not needed
@@ -1128,84 +1021,87 @@ static void MenuCmd_AppendNetwopList( Tcl_Interp *interp, Tcl_Obj * pList,
 //
 static int MenuCmd_GetAiNetwopList( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
 {
-   const char * const pUsage = "Usage: C_GetAiNetwopList <CNI> <varname> [allmerged|ai_names]";
+   const char * const pUsage = "Usage: C_GetAiNetwopList <provider> <varname> [allmerged|ai_names]";
    EPGDB_CONTEXT  * pPeek;
+   const char * pXmltvPath;
    char * pVarName;
    Tcl_Obj * pResultList;
    bool allmerged = FALSE;
    bool ai_names = FALSE;
-   int result, cni;
+   uint provCni;
+   int result;
 
    if ((objc != 2+1) && (objc != 3+1))
    {  // wrong # of parameters for this TCL cmd -> display error msg
       Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
-      result = TCL_ERROR; 
-   }  
+      result = TCL_ERROR;
+   }
    else
    {
+      pXmltvPath = Tcl_GetString(objv[1]);
+      provCni = EpgContextCtl_StatProvider(pXmltvPath);
+
       if (objc == 3+1)
       {
          allmerged = (strcmp(Tcl_GetString(objv[3]), "allmerged") == 0);
          ai_names = (strcmp(Tcl_GetString(objv[3]), "ai_names") == 0);
       }
-      result = Tcl_GetIntFromObj(interp, objv[1], &cni);
-      if (result == TCL_OK)
-      {
-         pResultList = Tcl_NewListObj(0, NULL);
 
-         // clear the network names result array
-         pVarName = Tcl_GetString(objv[2]);
-         if (Tcl_GetCharLength(objv[2]) != 0)
-            Tcl_UnsetVar(interp, pVarName, 0);
+      pResultList = Tcl_NewListObj(0, NULL);
 
-         // special case: CNI 0 refers to the current browser db
-         if (cni == 0)
-            cni = EpgDbContextGetCni(pUiDbContext);
+      // clear the network names result array
+      pVarName = Tcl_GetString(objv[2]);
+      if (Tcl_GetCharLength(objv[2]) != 0)
+         Tcl_UnsetVar(interp, pVarName, 0);
 
-         if (cni == 0)
-         {  // no provider selected -> return empty list (no error)
-         }
-         else if (cni != MERGED_PROV_CNI)
-         {  // regular (non-merged) database -> get "peek" with (at least) AI
-            pPeek = EpgContextCtl_Peek(cni, CTX_RELOAD_ERR_ANY);
-            if (pPeek != NULL)
-            {
-               MenuCmd_AppendNetwopList(interp, pResultList, pPeek, pVarName, FALSE, ai_names);
+      // special case: CNI 0 refers to the current browser db
+      if (provCni == 0)
+         provCni = EpgDbContextGetCni(pUiDbContext);
 
-               EpgContextCtl_ClosePeek(pPeek);
-            }
-            else
-               debug1("MenuCmd-GetAiNetwopList: requested db %04X not available", cni);
+      if (provCni == 0)
+      {  // no provider selected -> return empty list (no error)
+      }
+      else if (provCni != MERGED_PROV_CNI)
+      {  // regular (non-merged) database -> get "peek" with (at least) AI
+         pPeek = EpgContextCtl_Peek(provCni, CTX_RELOAD_ERR_ANY);
+         if (pPeek != NULL)
+         {
+            MenuCmd_AppendNetwopList(interp, pResultList, pPeek, pVarName, FALSE, ai_names);
+
+            EpgContextCtl_ClosePeek(pPeek);
          }
          else
-         {  // merged database
+            debug1("MenuCmd-GetAiNetwopList: requested db %04X not available", provCni);
+      }
+      else
+      {  // merged database
 
-            if (allmerged == FALSE)
-            {  // merged db -> use the merged AI with the user-configured netwop list
-               MenuCmd_AppendNetwopList(interp, pResultList, pUiDbContext, pVarName, FALSE, ai_names);
-            }
-            else
-            {  // special mode for merged db: return all CNIs from all source dbs
-               uint dbIdx, provCount, provCniTab[MAX_MERGED_DB_COUNT];
+         if (allmerged == FALSE)
+         {  // merged db -> use the merged AI with the user-configured netwop list
+            MenuCmd_AppendNetwopList(interp, pResultList, pUiDbContext, pVarName, FALSE, ai_names);
+         }
+         else
+         {  // special mode for merged db: return all CNIs from all source dbs
+            uint provCount, provCniTab[MAX_MERGED_DB_COUNT];
 
-               if (EpgContextMergeGetCnis(pUiDbContext, &provCount, provCniTab))
+            if (EpgContextMergeGetCnis(pUiDbContext, &provCount, provCniTab))
+            {
+               // peek into all merged dbs
+               for (uint dbIdx=0; dbIdx < provCount; dbIdx++)
                {
-                  // peek into all merged dbs
-                  for (dbIdx=0; dbIdx < provCount; dbIdx++)
+                  pPeek = EpgContextCtl_Peek(provCniTab[dbIdx], CTX_RELOAD_ERR_ANY);
+                  if (pPeek != NULL)
                   {
-                     pPeek = EpgContextCtl_Peek(provCniTab[dbIdx], CTX_RELOAD_ERR_ANY);
-                     if (pPeek != NULL)
-                     {
-                        MenuCmd_AppendNetwopList(interp, pResultList, pPeek, pVarName, TRUE, ai_names);
+                     MenuCmd_AppendNetwopList(interp, pResultList, pPeek, pVarName, TRUE, ai_names);
 
-                        EpgContextCtl_ClosePeek(pPeek);
-                     }
+                     EpgContextCtl_ClosePeek(pPeek);
                   }
                }
             }
          }
-         Tcl_SetObjResult(interp, pResultList);
       }
+      Tcl_SetObjResult(interp, pResultList);
+      result = TCL_OK;
    }
    return result;
 }
@@ -1221,21 +1117,20 @@ static int MenuCmd_GetNetwopNames( ClientData ttp, Tcl_Interp *interp, int objc,
    const RCFILE * pRc;
    Tcl_Obj * pResultList;
    char cni_buf[16+2+1];
-   uint idx;
    int result;
 
    if (objc != 1)
    {  // wrong # of parameters for this TCL cmd -> display error msg
       Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
-      result = TCL_ERROR; 
-   }  
+      result = TCL_ERROR;
+   }
    else
    {
       pResultList = Tcl_NewListObj(0, NULL);
 
       pRc = RcFile_Query();
 
-      for (idx = 0; idx < pRc->net_names_count; idx++)
+      for (uint idx = 0; idx < pRc->net_names_count; idx++)
       {
          if (pRc->net_names[idx].name != NULL)
          {
@@ -1255,7 +1150,7 @@ static int MenuCmd_GetNetwopNames( ClientData ttp, Tcl_Interp *interp, int objc,
 }
 
 // ----------------------------------------------------------------------------
-// Update list of network name definitions
+// Update list of network name definitions for the current provider
 // - parameter is a flat list of CNIs and names, alternating
 //   (i.e. same format as delivered by _GetNetwopNames)
 // - called when the network name configuration dialog is closed with "OK"
@@ -1267,14 +1162,13 @@ static int MenuCmd_UpdateNetwopNames( ClientData ttp, Tcl_Interp *interp, int ob
    int objCount;
    uint * pCniList;
    const char ** pNameList;
-   uint idx;
    int result;
 
    if (objc != 1+1)
    {  // wrong # of parameters for this TCL cmd -> display error msg
       Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
-      result = TCL_ERROR; 
-   }  
+      result = TCL_ERROR;
+   }
    else
    {
       result = Tcl_ListObjGetElements(interp, objv[1], &objCount, &pObjArgv);
@@ -1283,7 +1177,7 @@ static int MenuCmd_UpdateNetwopNames( ClientData ttp, Tcl_Interp *interp, int ob
          pCniList = (uint*) xmalloc(sizeof(*pCniList) * objCount/2);
          pNameList = (const char**) xmalloc(sizeof(*pNameList) * objCount/2);
 
-         for (idx = 0; idx < objCount/2; idx++)
+         for (uint idx = 0; idx < objCount/2; idx++)
          {
             pNameList[idx] = Tcl_GetString(pObjArgv[idx*2 + 1]);
 
@@ -1313,9 +1207,10 @@ static int MenuCmd_UpdateMergeOptions( Tcl_Interp *interp, Tcl_Obj * pAttrListOb
 {
    Tcl_Obj       ** pAttrArgv;
    Tcl_Obj       ** pIdxArgv;
+   const char * pPath;
    uint cniBuf[MAX_MERGED_DB_COUNT];
    uint cniBufCount;
-   int attrCount, idxCount, idx, ati, matIdx, cni;
+   int attrCount, idxCount, matIdx;
    int  result;
 
    // note order must match that of enum MERGE_ATTRIB_TYPE
@@ -1326,15 +1221,15 @@ static int MenuCmd_UpdateMergeOptions( Tcl_Interp *interp, Tcl_Obj * pAttrListOb
    result = Tcl_ListObjGetElements(interp, pAttrListObj, &attrCount, &pAttrArgv);
    if (result == TCL_OK)
    {
-      // initialize the attribute matrix with default (empty CNI list means "all providers
-      // in original order"; to exclude all providers 0xFF is inserted, see below)
-      for (ati = 0; ati < MERGE_TYPE_COUNT; ati++)
+      // initialize the attribute matrix with default (empty list means "all providers
+      // in original order"; to exclude all providers, special value is inserted, see below)
+      for (uint ati = 0; ati < MERGE_TYPE_COUNT; ati++)
       {
          RcFile_UpdateDbMergeOptions(ati, NULL, 0);
       }
 
       // options are stored in a Tcl list in pairs of keyword and a CNI sub-list
-      for (ati = 0; (ati+1 < attrCount) && (result == TCL_OK); ati += 2)
+      for (uint ati = 0; (ati+1 < attrCount) && (result == TCL_OK); ati += 2)
       {
          result = Tcl_GetIndexFromObj(interp, pAttrArgv[ati], pKeywords, "keyword", TCL_EXACT, &matIdx);
          if (result == TCL_OK)
@@ -1344,21 +1239,20 @@ static int MenuCmd_UpdateMergeOptions( Tcl_Interp *interp, Tcl_Obj * pAttrListOb
             if (result== TCL_OK)
             {
                cniBufCount = 0;
-               for (idx=0; (idx < idxCount) && (result == TCL_OK); idx++)
+               for (uint idx=0; (idx < idxCount) && (result == TCL_OK); idx++)
                {
-                  result = Tcl_GetIntFromObj(interp, pIdxArgv[idx], &cni);
-                  if (result == TCL_OK)
-                  {
-                     cniBuf[cniBufCount++] = cni;
-                  }
+                  pPath = Tcl_GetString(pIdxArgv[idx]);
+                  cniBuf[cniBufCount] = EpgContextCtl_StatProvider(pPath);
+                  if (cniBuf[cniBufCount] == 0)
+                     break;
+                  cniBufCount += 1;
                }
                if (cniBufCount == 0)
                {  // special case: all providers excluded
-                  cniBuf[0] = 0xFF;
-                  RcFile_UpdateDbMergeOptions(matIdx, cniBuf, 1);
+                  cniBuf[0] = MERGE_ATTRIB_EXCLUDE_ALL;
+                  cniBufCount = 1;
                }
-               else
-                  RcFile_UpdateDbMergeOptions(matIdx, cniBuf, cniBufCount);
+               RcFile_UpdateDbMergeOptions(matIdx, cniBuf, cniBufCount);
             }
          }
       }
@@ -1371,29 +1265,25 @@ static int MenuCmd_UpdateMergeOptions( Tcl_Interp *interp, Tcl_Obj * pAttrListOb
 // Update database merge provider list in the rc file
 // - called after merge dialog is left with OK
 //
-static int MenuCmd_UpdateMergeProviders( Tcl_Interp *interp, Tcl_Obj * pCniListObj )
+static int MenuCmd_UpdateMergeProviders( Tcl_Interp *interp, Tcl_Obj * pPathListObj )
 {
-   Tcl_Obj ** pCniObjv;
+   Tcl_Obj ** pPathObjv;
    uint cniBuf[MAX_MERGED_DB_COUNT];
-   int  cniCount, cni, idx;
+   int  pathCount;
    int  result;
 
-   result = Tcl_ListObjGetElements(interp, pCniListObj, &cniCount, &pCniObjv);
+   result = Tcl_ListObjGetElements(interp, pPathListObj, &pathCount, &pPathObjv);
    if (result == TCL_OK)
    {
-      if (cniCount > MAX_MERGED_DB_COUNT)
-         cniCount = MAX_MERGED_DB_COUNT;
+      if (pathCount > MAX_MERGED_DB_COUNT)
+         pathCount = MAX_MERGED_DB_COUNT;
 
-      for (idx=0; (idx < cniCount) && (result == TCL_OK); idx++)
+      for (uint idx=0; idx < pathCount; idx++)
       {
-         result = Tcl_GetIntFromObj(interp, pCniObjv[idx], &cni);
-         cniBuf[idx] = cni;
+         cniBuf[idx] = EpgContextCtl_StatProvider(Tcl_GetString(pPathObjv[idx]));
       }
 
-      if (result == TCL_OK)
-      {
-         RcFile_UpdateDbMergeCnis(cniBuf, cniCount);
-      }
+      RcFile_UpdateDbMergeCnis(cniBuf, pathCount);
    }
 
    return result;
@@ -1407,8 +1297,7 @@ static int MenuCmd_GetMergeProviderList( ClientData ttp, Tcl_Interp *interp, int
    const char * const pUsage = "Usage: C_GetMergeProviderList [rc_only|with_auto_ttx]";
    const RCFILE * pRc;
    Tcl_Obj * pResultList;
-   char cni_buf[16+2+1];
-   int  idx;
+   const char * pPath;
    bool with_auto_ttx;
    int  result;
 
@@ -1429,10 +1318,10 @@ static int MenuCmd_GetMergeProviderList( ClientData ttp, Tcl_Interp *interp, int
 
          if (EpgContextMergeGetCnis(pUiDbContext, &provCount, provCniTab))
          {
-            for (idx = 0; idx < provCount; idx++)
+            for (uint idx = 0; idx < provCount; idx++)
             {
-               sprintf(cni_buf, "0x%04X", provCniTab[idx]);
-               Tcl_ListObjAppendElement(interp, pResultList, Tcl_NewStringObj(cni_buf, -1));
+               pPath = EpgContextCtl_GetProvPath(provCniTab[idx]);
+               Tcl_ListObjAppendElement(interp, pResultList, Tcl_NewStringObj(pPath, -1));
             }
          }
       }
@@ -1440,12 +1329,12 @@ static int MenuCmd_GetMergeProviderList( ClientData ttp, Tcl_Interp *interp, int
       {
          pRc = RcFile_Query();
 
-         for (idx = 0; idx < pRc->db.prov_merge_count; idx++)
+         for (uint idx = 0; idx < pRc->db.prov_merge_count; idx++)
          {
             // Note: need to return CNI as string due to use as array index and lsearch
             // (which doesn't do hex->dec conversion even with -integer)
-            sprintf(cni_buf, "0x%04X", pRc->db.prov_merge_cnis[idx]);
-            Tcl_ListObjAppendElement(interp, pResultList, Tcl_NewStringObj(cni_buf, -1));
+            pPath = EpgContextCtl_GetProvPath(pRc->db.prov_merge_cnis[idx]);
+            Tcl_ListObjAppendElement(interp, pResultList, Tcl_NewStringObj(pPath, -1));
          }
       }
       Tcl_SetObjResult(interp, pResultList);
@@ -1461,10 +1350,9 @@ static int MenuCmd_GetMergeOptions( ClientData ttp, Tcl_Interp *interp, int objc
 {
    const char * const pUsage = "Usage: C_GetMergeOptions";
    const RCFILE * pRc;
+   const char * pPath;
    Tcl_Obj * pResultList;
-   Tcl_Obj * pCniList;
-   char cni_buf[16+2+1];
-   int  ati, idx;
+   Tcl_Obj * pPathList;
    int  result;
 
    // note order must match that of enum MERGE_ATTRIB_TYPE
@@ -1483,25 +1371,26 @@ static int MenuCmd_GetMergeOptions( ClientData ttp, Tcl_Interp *interp, int objc
       pRc = RcFile_Query();
 
       // initialize the attribute matrix with default index order: 0,1,2,...,n-1,0xff,...
-      for (ati=0; ati < MERGE_TYPE_COUNT; ati++)
+      for (uint ati=0; ati < MERGE_TYPE_COUNT; ati++)
       {
          // skip attributes with default value (empty list means default; "all providers
-         // removed" is represented by CNI 0xff, see below)
+         // removed" is represented by special value, see below)
          if (pRc->db.prov_merge_opt_count[ati] != 0)
          {
-            Tcl_ListObjAppendElement(interp, pResultList, Tcl_NewStringObj(pKeywords[ati], -1));
-            pCniList = Tcl_NewListObj(0, NULL);
+            pPathList = Tcl_NewListObj(0, NULL);
 
             if ( (pRc->db.prov_merge_opt_count[ati] != 1) ||
-                 (pRc->db.prov_merge_opts[ati][0] != 0xff) )
+                 (pRc->db.prov_merge_opts[ati][0] != MERGE_ATTRIB_EXCLUDE_ALL) )
             {
-               for (idx = 0; idx < pRc->db.prov_merge_opt_count[ati]; idx++)
+               for (uint idx = 0; idx < pRc->db.prov_merge_opt_count[ati]; idx++)
                {
-                  sprintf(cni_buf, "0x%04X", pRc->db.prov_merge_opts[ati][idx]);
-                  Tcl_ListObjAppendElement(interp, pCniList, Tcl_NewStringObj(cni_buf, -1));
+                  pPath = EpgContextCtl_GetProvPath(pRc->db.prov_merge_opts[ati][idx]);
+                  Tcl_ListObjAppendElement(interp, pPathList, Tcl_NewStringObj(pPath, -1));
                }
             }
-            Tcl_ListObjAppendElement(interp, pResultList, pCniList);
+
+            Tcl_ListObjAppendElement(interp, pResultList, Tcl_NewStringObj(pKeywords[ati], -1));
+            Tcl_ListObjAppendElement(interp, pResultList, pPathList);
          }
       }
       Tcl_SetObjResult(interp, pResultList);
@@ -1518,7 +1407,7 @@ static int MenuCmd_GetMergeOptions( ClientData ttp, Tcl_Interp *interp, int objc
 //
 static int MenuCmd_ProvMerge_Start( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
 {
-   const char * const pUsage = "Usage: C_ProvMerge_Start [<auto-merge-TTX> <prov-list> <options>]";
+   const char * const pUsage = "Usage: C_ProvMerge_Start [<auto-merge-TTX> <file_list> <options>]";
    EPGDB_CONTEXT * pDbContext;
    int  autoMergeTtx;
    int  result;
@@ -2586,11 +2475,9 @@ void MenuCmd_Init( void )
       Tcl_CreateObjCommand(interp, "C_MergeTtxProviders", MenuCmd_MergeTtxProviders, (ClientData) NULL, NULL);
 
       Tcl_CreateObjCommand(interp, "C_GetProviderPath", MenuCmd_GetProviderPath, (ClientData) NULL, NULL);
-      Tcl_CreateObjCommand(interp, "C_GetProvServiceName", MenuCmd_GetProvServiceName, (ClientData) NULL, NULL);
-      Tcl_CreateObjCommand(interp, "C_GetProvServiceInfos", MenuCmd_GetProvServiceInfos, (ClientData) NULL, NULL);
-      Tcl_CreateObjCommand(interp, "C_GetProvCniForPath", MenuCmd_GetProvCniForPath, (ClientData) NULL, NULL);
-      Tcl_CreateObjCommand(interp, "C_GetCurrentDatabaseCni", MenuCmd_GetCurrentDatabaseCni, (ClientData) NULL, NULL);
-      Tcl_CreateObjCommand(interp, "C_GetProvCnisAndNames", MenuCmd_GetProvCnisAndNames, (ClientData) NULL, NULL);
+      Tcl_CreateObjCommand(interp, "C_PeekProvider", MenuCmd_PeekProvider, (ClientData) NULL, NULL);
+      Tcl_CreateObjCommand(interp, "C_IsDatabaseLoaded", MenuCmd_IsDatabaseLoaded, (ClientData) NULL, NULL);
+      Tcl_CreateObjCommand(interp, "C_IsDatabaseMerged", MenuCmd_IsDatabaseMerged, (ClientData) NULL, NULL);
       Tcl_CreateObjCommand(interp, "C_GetProvCniConfig", MenuCmd_GetProvCniConfig, (ClientData) NULL, NULL);
       Tcl_CreateObjCommand(interp, "C_UpdateProvCniConfig", MenuCmd_UpdateProvCniConfig, (ClientData) NULL, NULL);
       Tcl_CreateObjCommand(interp, "C_GetAiNetwopList", MenuCmd_GetAiNetwopList, (ClientData) NULL, NULL);

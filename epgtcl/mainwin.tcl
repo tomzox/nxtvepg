@@ -1597,13 +1597,10 @@ proc UpdateNetwopMenuState {netlist} {
 ##
 proc UpdateNetwopFilterBar {} {
 
-   # fetch CNI of current db (may be 0 if none available)
-   set prov [C_GetCurrentDatabaseCni]
-
    # fetch CNI list and netwop names from AI block in database
-   set ailist [C_GetAiNetwopList 0 netnames]
+   set ailist [C_GetAiNetwopList "" netnames]
 
-   set tmpl [lindex [C_GetProvCniConfig $prov] 0]
+   set tmpl [lindex [C_GetProvCniConfig] 0]
    if {[llength $tmpl] != 0} {
       set ailist $tmpl
    }
@@ -1897,7 +1894,7 @@ proc SelectNetwopByIdx {netwop is_on} {
          if $is_on {
             C_SelectNetwops $netwop
          } else {
-            set ailist [C_GetAiNetwopList 0 dummy]
+            set ailist [C_GetAiNetwopList "" dummy]
             set temp [C_GetNetwopFilterList]
             set idx [lsearch -exact $temp [lindex $ailist $netwop]]
             if {$idx != -1} {
@@ -2680,14 +2677,13 @@ proc CreateSeriesNetworksMenu {w dummy} {
    if {[llength $series_nets] != 0} {
 
       # fetch all network names from AI into an array
-      C_GetAiNetwopList 0 netsel_names
+      C_GetAiNetwopList "" netsel_names
 
       # get the CNI of the currently selected db
-      set prov [C_GetCurrentDatabaseCni]
-      if {$prov != 0} {
+      if {[C_IsDatabaseLoaded]} {
 
          # sort the cni list according to the user network selection
-         set cni_selist [lindex [C_GetProvCniConfig $prov] 0]
+         set cni_selist [lindex [C_GetProvCniConfig] 0]
          if {[llength $cni_selist] != 0} {
             set tmp {}
             foreach cni $cni_selist {
@@ -3598,7 +3594,8 @@ proc PopupColumnSelection {} {
       pack .colsel.intromsg -side top -fill x
 
       frame .colsel.all
-      SelBoxCreate .colsel.all colsel_ailist colsel_selist colsel_names 12 0
+      SelBoxCreate .colsel.all colsel_ailist colsel_selist colsel_names 12 0 \
+                   "Available:" "Selected:"
       .colsel.all.ai.ailist configure -width 20
       .colsel.all.sel.selist configure -width 20
 
@@ -3897,10 +3894,9 @@ proc FilterMenuAdd_Networks {widget is_stand_alone} {
 
    # fetch CNI list from AI block in database
    # as a side effect this function stores all netwop names into the array netsel_names
-   set netsel_prov [C_GetCurrentDatabaseCni]
-   set netsel_ailist [C_GetAiNetwopList 0 netsel_names]
+   set netsel_ailist [C_GetAiNetwopList "" netsel_names]
 
-   set netsel_selist [lindex [C_GetProvCniConfig $netsel_prov] 0]
+   set netsel_selist [lindex [C_GetProvCniConfig] 0]
    if {[llength $netsel_selist] == 0} {
       set netsel_selist $netsel_ailist
    }

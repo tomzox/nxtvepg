@@ -505,8 +505,7 @@ static void TimeScale_CreateOrRebuild( ClientData dummy )
          tscaleState.widthPixels = tscaleState.widthSecs / tscaleState.secsPerPixel;
 
          // create (or update) network table: each row has a label and scale
-         sprintf(comm, "TimeScale_Open %s 0x%04X %d\n",
-                       tsc_wid, EpgDbContextGetCni(pUiDbContext), tscaleState.widthPixels);
+         sprintf(comm, "TimeScale_Open %s %d\n", tsc_wid, tscaleState.widthPixels);
          eval_check(interp, comm);
 
          EpgDbLockDatabase(pUiDbContext, TRUE);

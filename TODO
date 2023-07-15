@@ -8,9 +8,15 @@ Post-Nextview EPG:
 - Network selection dialog: on the left show only removed networks
 - update xmltv.dtd support (e.g. video/audio "present")
 - change AI/PI to hold original XMLTV info elements (i.e. reduce conversion)
+  e.g. parental rating: store native string; support multiple ratings
+- XMLTV DTD declares <programme> as optional
 - during XMLTV import, skip programmes from channels de-selected by user
 - remove use of CNI for networks: use "netwop" index instead for browser
   use XMLTV channel_id for configuration (netwop selection, netname)
+- allow merge of different channel ID from different providers
+- Remove merge provider limit of 63 (MAX_MERGED_DB_COUNT)
+- Remove RC file limit for netwop selection 8192 (RC_MAX_DB_NETWOPS)
+- netwop name config start: for after auto-config message, do not count names that were exactly the same
 - XMLTV service name: when merging teletext-only use "Merged teletext (%d networks)"
 - bad error message when using "Load teletext EPG" and no files available yet
 - daemon mode: ? make work independent of TV app & ttx grabber cfg. (e.g. windows)
@@ -26,9 +32,6 @@ Post-Nextview EPG:
   "extended" selection (i.e. allow multiple selections)
 - merge dialog: use multi-col table & display networks
 - netname dialog: add warning that names should be changed in channels.conf?
-- allow merge of different channel ID from different providers
-- Remove merge provider limit of 63 (MAX_MERGED_DB_COUNT)
-- Remove RC file limit for netwop selection 8192 (RC_MAX_DB_NETWOPS)
 - DVB TTX stream decoding issues: "Illegal line order", "Unknown data_unit_id"
 - DVB: suppress TTX header change detection
 - replace "now" acq phase with DVB EPG (EIT) except for analog TV cards
@@ -39,7 +42,6 @@ Post-Nextview EPG:
 - teletext acq stats: percentage cycle loaded (i.e. cycles done vs. max. sub-page count)
 - teletext configuration dialog: allow channel-specific config of page range, exclusion & duration
 - teletext emit XML encoding UTF-8
-- netwop name config start: for after auto-config message, do not count names that were exactly the same
 - port to WIN32: "Broadcast Driver Architecture" (filter graph)
 - move "air times" config from GUI/Tcl config section into C section
 
@@ -58,6 +60,8 @@ XMLTV dtd:
 - video <aspect>: store actual ratio instead of "wide" flag
 - video <quality>: store PCDATA
 - <premiere>, <last-chance>: store PCDATA
+- <rating>: store PCDATA, allow multiple ratings of different systems
+- <star-rating>: allow multiple ratings of different systems
 - <previously-shown>: store attributes
 
 Missing documentation:

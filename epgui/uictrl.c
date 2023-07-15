@@ -72,8 +72,6 @@ typedef enum
    EPGDB_PROV_NONE_BUT_ACQ,
    EPGDB_PROV_NONE_BUT_TTX,
    EPGDB_PROV_NONE,
-   EPGDB_PROV_SEL_OR_TTX,
-   EPGDB_PROV_SEL,
    EPGDB_ACQ_NO_TUNER,
    EPGDB_ACQ_ACCESS_DEVICE,
    EPGDB_ACQ_PASSIVE,
@@ -133,17 +131,6 @@ static const char * UiControl_GetDbStateMsg( EPGDB_STATE state )
       case EPGDB_PROV_NONE:
          pMsg = "No EPG data is loaded. If you have XMLTV files with EPG data, "
                 "use the Control menu for loading them.";
-         break;
-
-      case EPGDB_PROV_SEL_OR_TTX:
-         pMsg = "No EPG data loaded. Please load one or more XMLTV files via the "
-                "Control menu, or configure the Teletext EPG grabber for creating "
-                "XMLTV files via acquisition from a TV capture card.";
-         break;
-
-      case EPGDB_PROV_SEL:
-         pMsg = "No EPG data loaded. Please load one or more XMLTV files via the "
-                "Control menu.";
          break;
 
       case EPGDB_ACQ_NO_TUNER:
@@ -255,10 +242,10 @@ static EPGDB_STATE UiControl_GetDbState( void )
          else
             dbState = EPGDB_PROV_NONE_BUT_ACQ;
       }
-      else if (EpgContextCtl_HaveProviders() == FALSE)
-         dbState = ((drvType != BTDRV_SOURCE_NONE) ? EPGDB_PROV_NONE_BUT_TTX : EPGDB_PROV_NONE);
       else
-         dbState = ((drvType != BTDRV_SOURCE_NONE) ? EPGDB_PROV_SEL_OR_TTX : EPGDB_PROV_SEL);
+      {
+         dbState = ((drvType != BTDRV_SOURCE_NONE) ? EPGDB_PROV_NONE_BUT_TTX : EPGDB_PROV_NONE);
+      }
    }
    else
    {  // AI present, but no PI in database
@@ -653,10 +640,11 @@ void UiControl_ReloadError( ClientData clientData )
    {
       case EPGDB_RELOAD_ACCESS:
          pReason = "of file access permissions";
-         pHint = "Please make this file readable and writable for all users. ";
+         pHint = "Check if the parent directories and the file are readable. ";
          break;
       case EPGDB_RELOAD_EXIST:
-         pReason = "the database file does not exist";
+         pReason = "the XMLTV file does not exist";
+         pHint = "Check the path and file name. ";
          break;
       case EPGDB_RELOAD_MERGE:
          pReason = "databases could not be merged";

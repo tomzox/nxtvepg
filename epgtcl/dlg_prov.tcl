@@ -16,8 +16,8 @@
 #
 #  Description:
 #
-#    Implements configuration dialogs that allow to select a provider from
-#    the list or merge providers.
+#    Implements configuration dialogs that allow to select an XMLTV file to load,
+#    or browsing for multiple XMLTV files to merge.
 #
 set provwin_popup 0
 set provmerge_popup 0
@@ -55,10 +55,11 @@ proc EpgScan_UpdateTvApp {} {
 #=DYNAMIC=
 
 ##  --------------------------------------------------------------------------
+##  XMLTV file load menu command: Opening standard file selector dialog
 ##
 proc LoadXmltvFile {} {
    # get path of currently loaded file (empty if none)
-   set prev_path [C_GetProviderPath]
+   set prev_path [lindex [C_GetProviderPath] 0]
    if {$prev_path eq ""} {
       set provwin_dir [file normalize "."]
    }
@@ -69,13 +70,12 @@ proc LoadXmltvFile {} {
                      -defaultextension .xml \
                      -filetypes {{XML {*.xml}} {XMLTV {*.xmltv}} {all {*.*}}}]
    if {$name ne ""} {
-      set cni [C_GetProvCniForPath $name]
-      C_ChangeProvider $cni
+      C_ChangeProvider $name
    }
 }
 
 ##  --------------------------------------------------------------------------
-##  Handling of the Provider Selection Pop-up
+##  XMLTV file browser dialog
 ##
 proc ProvWin_Create {} {
    global provwin_popup
@@ -88,8 +88,10 @@ proc ProvWin_Create {} {
       set provwin_popup 1
 
       # directory selection is kept across dialog being closed/reopened
-      set provwin_dir [file dirname [C_GetProviderPath]]
-      if {$provwin_dir eq ""} {
+      set provwin_dir [lindex [C_GetProviderPath] 0]
+      if {$provwin_dir ne ""} {
+         set provwin_dir [file dirname $provwin_dir]
+      } else {
          set provwin_dir [file normalize "."]
       }
       if {![info exists provwin_dir_hist]} {
@@ -134,7 +136,7 @@ proc ProvWin_Create {} {
       grid   .provwin.dir.ext_mb -row 1 -column 1 -sticky w
       pack   .provwin.dir -side top -pady 5 -fill x
 
-      # list of providers at the left side of the window
+      # list of XMLTV file names at the left side of the window
       frame .provwin.n
       frame .provwin.n.b
       scrollbar .provwin.n.b.sb -orient vertical -command {.provwin.n.b.list yview} -takefocus 0
@@ -151,7 +153,7 @@ proc ProvWin_Create {} {
       if {[info exists provwin_servicename]} {unset provwin_servicename}
       frame .provwin.n.info
       frame .provwin.n.info.service
-      label .provwin.n.info.service.header -text "Provider name"
+      label .provwin.n.info.service.header -text "Provider service name"
       pack  .provwin.n.info.service.header -side top -anchor nw
       entry .provwin.n.info.service.name -state disabled $entry_disabledforeground black \
                                          -textvariable provwin_servicename -width 40
@@ -200,46 +202,44 @@ proc ProvWin_Create {} {
 }
 
 proc ProvWin_NameSortCmp {a b} {
-   global provwin_names
-   return [string compare -nocase $provwin_names($a) $provwin_names($b)]
+   return [string compare -nocase [file tail $a] [file tail $b]]
 }
 
 proc GetProvExtension {} {
    global provwin_ext
 
    if {[string match "XML *" $provwin_ext]} {
-      return ".xml"
+      return "*.xml"
    } elseif {[string match "XMLTV *" $provwin_ext]} {
-      return ".xmltv"
+      return "*.xmltv"
    } else {
-      return ""
+      return "*"
    }
 }
 
 # callback for directory changes
 proc ProvWin_UpdateList {} {
-   global provwin_dir provwin_ailist provwin_names
+   global provwin_dir provwin_ailist
 
-   # build list of available providers
    set provwin_ailist {}
-   foreach {cni name} [C_GetProvCnisAndNames $provwin_dir [GetProvExtension]] {
-      # build list of CNIs
-      lappend provwin_ailist $cni
-      # build array of provider network names
-      set provwin_names($cni) $name
+   foreach name [glob -nocomplain -directory $provwin_dir [GetProvExtension]] {
+      lappend provwin_ailist [file normalize $name]
    }
-   # sort CNI list by provider name
    set provwin_ailist [lsort -command ProvWin_NameSortCmp $provwin_ailist]
 
    .provwin.n.b.list delete 0 end
-
-   # fill the listbox with the provider's network names
-   foreach cni $provwin_ailist {
-      .provwin.n.b.list insert end $provwin_names($cni)
+   if {[llength $provwin_ailist] > 0} {
+      foreach name $provwin_ailist {
+         .provwin.n.b.list insert end [file tail $name]
+      }
+   } else {
+      .provwin.n.b.list insert end "No files found"
+      .provwin.n.b.list itemconfigure 0 -foreground red
    }
 
    # select the entry of the currently opened provider (if any)
-   set index [lsearch -exact $provwin_ailist [C_GetCurrentDatabaseCni]]
+   set cur_path [lindex [C_GetProviderPath] 0]
+   set index [lsearch -exact $provwin_ailist $cur_path]
    if {$index >= 0} {
       .provwin.n.b.list selection set $index
    }
@@ -312,9 +312,10 @@ proc ProvWin_Select {} {
    .provwin.n.info.oimsg configure -state normal
    .provwin.n.info.oimsg delete 1.0 end
 
-   set index [.provwin.n.b.list curselection]
-   if {$index ne ""} {
-      set names [C_GetProvServiceInfos [lindex $provwin_ailist $index]]
+   set sel [.provwin.n.b.list curselection]
+   if {([llength $sel] > 0) && ([lindex $sel 0] < [llength $provwin_ailist])} {
+      set index [lindex $sel 0]
+      set names [C_PeekProvider [lindex $provwin_ailist $index]]
       # display service name in entry widget
       set provwin_servicename [lindex $names 0]
       # display source & generator info in text widget
@@ -333,31 +334,36 @@ proc ProvWin_Select {} {
    }
 }
 
-# callback for OK button: activate the selected provider
+# callback for OK button & double-click: activate the selected provider
 proc ProvWin_Exit {} {
    global provwin_ailist
 
-   set index [.provwin.n.b.list curselection]
-   if {$index ne ""} {
-      C_ChangeProvider [lindex $provwin_ailist $index]
+   set sel [.provwin.n.b.list curselection]
+   if {([llength $sel] > 0) && ([lindex $sel 0] < [llength $provwin_ailist])} {
+      set index [lindex $sel -1]
+
+      if {[C_ChangeProvider [lindex $provwin_ailist $index]]} {
+         destroy .provwin
+      }
    }
-   destroy .provwin
 }
 
 
 ##  --------------------------------------------------------------------------
-##  Provider merge popup
+##  Provider merge dialog
 ##
 proc PopupProviderMerge {} {
    global provmerge_popup
-   global provmerge_ailist provmerge_selist provwin_names provmerge_cf
+   global provmerge_ailist provmerge_selist provmerge_names provmerge_cf
    global provwin_dir provwin_ext provwin_dir_hist provmerge_ttx
    global ProvmergeOptLabels
 
    if {$provmerge_popup == 0} {
       # directory selection is kept across dialog being closed/reopened
-      set provwin_dir [file dirname [C_GetProviderPath]]
-      if {$provwin_dir eq ""} {
+      set provwin_dir [lindex [C_GetProviderPath] 0]
+      if {$provwin_dir ne ""} {
+         set provwin_dir [file dirname $provwin_dir]
+      } else {
          set provwin_dir [file normalize "."]
       }
       if {![info exists provwin_dir_hist]} {
@@ -367,14 +373,13 @@ proc PopupProviderMerge {} {
       set provmerge_ailist {}
       set provmerge_selist {}
       set dropped {}
-      foreach cni [C_GetMergeProviderList rc_only] {
-         set name [C_GetProvServiceName $cni]
-         if {$name ne ""} {
-            lappend provmerge_selist $cni
-            set provwin_names($cni) $name
+      foreach name [C_GetMergeProviderList rc_only] {
+         if {[llength [C_PeekProvider $name]] > 0} {
+            lappend provmerge_selist $name
+            set provmerge_names($name) [file tail $name]
          } else {
             # file no longer exists
-            lappend dropped $cni
+            lappend dropped $name
          }
       }
       catch {array set provmerge_cf [C_GetMergeOptions]}
@@ -434,7 +439,8 @@ proc PopupProviderMerge {} {
 
       # create the two listboxes for database selection
       frame .provmerge.lb
-      SelBoxCreate .provmerge.lb provmerge_ailist provmerge_selist provwin_names 30 1
+      SelBoxCreate .provmerge.lb provmerge_ailist provmerge_selist provmerge_names 30 1 \
+                   "Files in directory:" "Files to be merged:"
       pack .provmerge.lb -side top -fill both -expand 1
 
       # populate the AI list
@@ -499,7 +505,7 @@ proc PopupProviderMerge {} {
       wm minsize .provmerge [winfo reqwidth .provmerge] [winfo reqheight .provmerge]
 
       if {[llength $dropped] > 0} {
-         tk_messageBox -type ok -icon warning -parent .provmerge -message "Formerly used XMLTV files were dropped from the selection as the file no longer exists."
+         tk_messageBox -type ok -icon warning -parent .provmerge -message "Formerly used XMLTV files were dropped from the selection as the file no longer exists or is not readable."
       }
    } else {
       raise .provmerge
@@ -508,18 +514,18 @@ proc PopupProviderMerge {} {
 
 # callback for directory changes
 proc ProvMerge_UpdateList {} {
-   global provmerge_ailist provmerge_selist provwin_names
+   global provmerge_ailist provmerge_selist provmerge_names
    global provwin_dir
 
    set provmerge_ailist {}
-   foreach {cni name} [C_GetProvCnisAndNames $provwin_dir [GetProvExtension]] {
-      lappend provmerge_ailist $cni
-      set provwin_names($cni) $name
+   foreach name [glob -nocomplain -directory $provwin_dir [GetProvExtension]] {
+      set name [file normalize $name]
+      lappend provmerge_ailist $name
+      set provmerge_names($name) [file tail $name]
    }
-   # sort CNI list by provider name
    set provmerge_ailist [lsort -command ProvWin_NameSortCmp $provmerge_ailist]
 
-   SelBoxUpdateList .provmerge.lb provmerge_ailist provmerge_selist provwin_names
+   SelBoxUpdateList .provmerge.lb provmerge_ailist provmerge_selist provmerge_names
 }
 
 # callback for quick-link for selecting grabber directory
@@ -532,13 +538,13 @@ proc ProvMerge_SelectTeletextDir {path} {
 set provmergeopt_popup {}
 
 proc PopupProviderMergeOpt {cfoption} {
-   global provmerge_selist provmerge_cf provwin_names
+   global provmerge_selist provmerge_cf provmerge_names
    global provmerge_popup provmergeopt_popup
    global ProvmergeOptLabels
 
    if {$provmerge_popup == 1} {
       if {[string length $provmergeopt_popup] == 0} {
-         CreateTransientPopup .provmergeopt "Database Selection for $ProvmergeOptLabels($cfoption)" .provmerge
+         CreateTransientPopup .provmergeopt "Source selection for $ProvmergeOptLabels($cfoption)" .provmerge
          set provmergeopt_popup $cfoption
 
          # initialize the result array: default is all databases
@@ -546,12 +552,13 @@ proc PopupProviderMergeOpt {cfoption} {
             set provmerge_cf($cfoption) $provmerge_selist
          }
 
-         message .provmergeopt.msg -aspect 800 -text "Select the databases from which the [string tolower $ProvmergeOptLabels($cfoption)] shall be extracted:"
+         message .provmergeopt.msg -aspect 800 -text "Select the XMLTV files from which the [string tolower $ProvmergeOptLabels($cfoption)] shall be extracted:"
          pack .provmergeopt.msg -side top -expand 1 -fill x -pady 5
 
          # create the two listboxes for database selection
          frame .provmergeopt.lb
-         SelBoxCreate .provmergeopt.lb provmerge_selist provmerge_cf($cfoption) provwin_names 12 0
+         SelBoxCreate .provmergeopt.lb provmerge_selist provmerge_cf($cfoption) provmerge_names 12 0 \
+                      "Files to be merged:" "Used for this attribute:"
          pack .provmergeopt.lb -side top
 
          # create cmd buttons at bottom
@@ -580,7 +587,8 @@ proc PopupProviderMergeOpt {cfoption} {
          foreach widget [info commands .provmergeopt.lb.*] {
             destroy $widget
          }
-         SelBoxCreate .provmergeopt.lb provmerge_selist provmerge_cf($cfoption) provwin_names 12 0
+         SelBoxCreate .provmergeopt.lb provmerge_selist provmerge_cf($cfoption) provmerge_names 12 0 \
+                      "Files to be merged:" "Used for this attribute:"
 
          # make the sure the popup is not obscured by other windows
          raise .provmergeopt
@@ -607,35 +615,35 @@ proc ProvMerge_Reset {} {
 proc ProvMerge_Quit {cause} {
    global provmerge_popup provmergeopt_popup
    global provmerge_selist provmerge_cf provmerge_ttx
-   global provwin_names ProvmergeOptLabels
+   global provmerge_names ProvmergeOptLabels
 
    # check the configuration parameters for consistancy
    if {[string compare $cause "Ok"] == 0} {
 
       # check if the provider list is empty
       if {[llength $provmerge_selist] == 0} {
-         tk_messageBox -type ok -icon error -parent .provmerge -message "You have to add at least one provider from the left to the listbox on the right."
+         tk_messageBox -type ok -icon error -parent .provmerge -message "You have to add at least one file from the left to the listbox on the right."
          return
       }
 
       # compare the new configuration with the one stored in global variables
       set tmp_cf {}
       if {[info exists provmerge_cf]} {
-         foreach {name vlist} [array get provmerge_cf] {
+         foreach {opt_name vlist} [array get provmerge_cf] {
             if {[string compare $vlist $provmerge_selist] != 0} {
-               foreach cni $vlist {
-                  if {[lsearch -exact $provmerge_selist $cni] == -1} {
-                     if {[info exists provwin_names($cni)]} {
-                        set provname " ($provwin_names($cni))"
+               foreach name $vlist {
+                  if {[lsearch -exact $provmerge_selist $name] == -1} {
+                     if {[info exists provmerge_names($name)]} {
+                        set provname " ($provmerge_names($name))"
                      } else {
                         set provname {}
                      }
                      tk_messageBox -type ok -icon error -parent .provmerge \
-                                   -message "The provider list for [string tolower $ProvmergeOptLabels($name)] contains a database$provname that's not in the provider selection (right list). Either remove the provider or use 'Reset' to reset the configuration."
+                                   -message "The file list for [string tolower $ProvmergeOptLabels($opt_name)] contains a database$provname that's not in the provider selection (right list). Either remove the provider or use 'Reset' to reset the configuration."
                      return
                   }
                }
-               lappend tmp_cf $name $vlist
+               lappend tmp_cf $opt_name $vlist
             }
          }
       }

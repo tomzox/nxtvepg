@@ -387,7 +387,7 @@ proc SelectSingleShortcut {sc_tag} {
          netwops {
             set all {}
             set index 0
-            foreach cni [C_GetAiNetwopList 0 {}] {
+            foreach cni [C_GetAiNetwopList "" {}] {
                if {[lsearch -exact $valist $cni] != -1} {
                   lappend all $index
                }
@@ -767,7 +767,7 @@ proc SelectShortcuts {sc_tag_list shortcuts_arr} {
       # convert CNIs to netwop indices
       set all {}
       set index 0
-      foreach cni [C_GetAiNetwopList 0 {}] {
+      foreach cni [C_GetAiNetwopList "" {}] {
          if {[lsearch -exact $selcnis $cni] != -1} {
             lappend all $index
          }
@@ -1211,7 +1211,7 @@ proc DescribeCurrentFilter {} {
 proc ShortcutPrettyPrint {filter inv_list} {
 
    # fetch CNI list from AI block in database
-   set netsel_ailist [C_GetAiNetwopList 0 netnames]
+   set netsel_ailist [C_GetAiNetwopList "" netnames]
 
    set out {}
 

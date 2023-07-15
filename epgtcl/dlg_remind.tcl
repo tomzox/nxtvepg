@@ -455,7 +455,7 @@ proc RemAlarm_SetSelection {topwid tline} {
 # helper function: get network name for given AI netwop index
 proc RemAlarm_GetNetname {netwop} {
 
-   set netsel_ailist [C_GetAiNetwopList 0 netsel_names]
+   set netsel_ailist [C_GetAiNetwopList "" netsel_names]
 
    set cni [lindex $netsel_ailist $netwop]
    if [info exists netsel_names($cni)] {
@@ -1232,7 +1232,7 @@ proc RemPiList_FillPi {mode} {
       set remlist_pilist [lsort -command SortPiReminders $remlist_pilist]
 
       # fetch CNI list and netwop names from AI block in database
-      set ailist [C_GetAiNetwopList 0 netnames]
+      set ailist [C_GetAiNetwopList "" netnames]
 
       ${frm1}.selist delete 0 end
 

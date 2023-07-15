@@ -1218,19 +1218,20 @@ menu, you will get a dialog with two listboxes: the left one contains a
 list of XMLTV files in the directory selected at the top of the dialog
 window. Click the button next to the entry field to open a directory
 selector dialog. You can also edit the directory name directly and press
-the Return key to update the list of files. (Note only files that have
-extension ".xml" and contain valid XMLTV syntax are shown in the list.)
+the Return key to update the list of files. By default, only files with
+extension "C<.xml>" are shown; You can remove this filter by selecting
+"C<all (*.*)>" from the drop down menu below the directory name.
 
-The list on the right side of the dialog shows XMLTV files selected for
-merge. Initially the list will be empty; After having merged databases
-once, the right side will show the last used configuration. You can add
-files to the list on the right by selecting an entry in the list on the
-left side and pressing "Add". Inversely, you can remove entries in the
-right by selecting them and pressing "Delete". You can reorder entries in
-the list on the right side by selecting one or more entries and pressing
-the arrow buttons in the middle between the two boxes. When you're done
-with your selection, press B<Ok> to start the merge and switch the
-browser to the newly merged database.
+The list on the right side of the dialog shows XMLTV files selected for merge.
+Initially the list will be empty; After having merged databases once, the right
+side will show the previously used configuration, if the used files still
+exist. You can add files to the list on the right by selecting an entry in the
+list on the left side and pressing "Add". Inversely, you can remove entries
+from the list on the right side by selecting them and pressing "Delete".
+Entries can be reordered in the list on the right side by selecting one or more
+entries and pressing the arrow buttons in the middle between the two boxes.
+When you're done with your selection, press B<Ok> to start the merge and switch
+the browser to the newly merged database.
 
 By ordering providers in your selection, you assign priorities which are
 important for conflict resolution. A conflict occurs when programme start

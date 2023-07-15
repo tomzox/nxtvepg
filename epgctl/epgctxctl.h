@@ -50,8 +50,6 @@ void EpgContextCtl_Close( EPGDB_CONTEXT * pContext );
 void EpgContextCtl_ClosePeek( EPGDB_CONTEXT * pDbContext );
 
 uint EpgContextCtl_StatProvider( const char * pXmlPath );
-bool EpgContextCtl_HaveProviders( void );
-const uint * EpgContextCtl_GetProvList( const char * pPath, const char * pExtension, uint * pCount );
 const char * EpgContextCtl_GetProvPath( uint cni );
 bool EpgContextCtl_CheckFileModified( uint cni );
 

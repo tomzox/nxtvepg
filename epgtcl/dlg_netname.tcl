@@ -25,7 +25,7 @@ proc NetworkNaming_UpdateTvApp {} {
    global netname_ailist netname_names netname_idx
    global netname_popup
 
-   if $netname_popup {
+   if {$netname_popup} {
       # read TV app channel table
       NetworkNameReadTvChanTab
 
@@ -54,34 +54,23 @@ proc NetworkNaming_UpdateTvApp {} {
 ##
 proc NetworkNamingPopup {} {
    global netname_ailist netname_names netname_idx netname_xawtv netname_automatch
-   global netname_prov_cnis netname_prov_names netname_provnets
+   global netname_prov_cnis netname_provnets
    global netname_entry
    global netname_popup font_fixed entry_disabledforeground
 
    if {$netname_popup == 0} {
 
-      set cur_prov_cni [C_GetCurrentDatabaseCni]
-      if {$cur_prov_cni == 0} {
-         tk_messageBox -type ok -default ok -icon error -message "You have to open a provider database before you can configure networks."
+      if {![C_IsDatabaseLoaded]} {
+         tk_messageBox -type ok -default ok -icon error -parent . \
+                       -message "You have to load an XMLTV file before configuring networks."
          return
       }
 
       # build list of currently used providers
-      if {$cur_prov_cni == 0x00FF} {
-         set netname_prov_cnis [C_GetMergeProviderList with_auto_ttx]
-      } else {
-         set netname_prov_cnis [list $cur_prov_cni]
-      }
+      set netname_prov_cnis [C_GetProviderPath]
 
       # build array of providers' network names
       foreach prov $netname_prov_cnis {
-         set name [C_GetProvServiceName $prov]
-         if {$name eq ""} {
-            # should never happen as file is open
-            set name "Missing: $prov"
-         }
-         set netname_prov_names($prov) $name
-
          array unset tmparr
          set cnilist [C_GetAiNetwopList $prov tmparr ai_names]
          foreach cni $cnilist {
@@ -91,11 +80,11 @@ proc NetworkNamingPopup {} {
       array unset tmparr
 
       # retrieve list of all networks of the current provider
-      set netname_ailist [eval concat [C_GetProvCniConfig $cur_prov_cni]]
+      set netname_ailist [eval concat [C_GetProvCniConfig]]
 
       if {[llength $netname_ailist] == 0} {
          # network selection dialog was not used yet
-         set netname_ailist [C_GetAiNetwopList $cur_prov_cni tmparr ai_names]
+         set netname_ailist [C_GetAiNetwopList "" tmparr ai_names]
       }
 
       # build array with all names from .xawtv rc file
@@ -160,7 +149,7 @@ proc NetworkNamingPopup {} {
       relief_listbox .netname.list.ailist
       pack .netname.list.ailist -anchor nw -side left -fill both -expand 1
       scrollbar .netname.list.sc -orient vertical -command {.netname.list.ailist yview} -takefocus 0
-      if $do_scrollbar {pack .netname.list.sc -side left -fill y}
+      if {$do_scrollbar} {pack .netname.list.sc -side left -fill y}
       pack .netname.list -side left -pady 10 -padx 10 -fill both -expand 1
       bind .netname.list.ailist <ButtonPress-1> [list + after idle NetworkNameSelection]
       bind .netname.list.ailist <Key-space>     [list + after idle NetworkNameSelection]
@@ -297,8 +286,7 @@ proc NetworkNameSaveEntry {} {
          set sel [lsearch -exact $netname_automatch $cni]
          if {$sel != -1} {
             # remove the CNI from the auto list
-            set netname_automatch [concat [lrange $netname_automatch 0 [expr $sel - 1]] \
-                                          [lrange $netname_automatch [expr $sel + 1] end]]
+            set netname_automatch [lreplace $netname_automatch $sel $sel]
          }
       }
    }
@@ -414,7 +402,7 @@ proc NetworkNameReadTvChanTab {} {
    array unset netname_xawtv
 
    set xawtv_enabled [expr [lindex [C_Tvapp_GetConfig] 0] != 0]
-   if $xawtv_enabled {
+   if {$xawtv_enabled} {
       set xawtv_list [C_Tvapp_GetStationNames 1]
       foreach name $xawtv_list {
          set netname_xawtv($name) $name
@@ -462,7 +450,7 @@ proc NetworkName_KeyEscape {} {
 # -> requires update of the information displayed on the right
 proc NetworkNameSelection {} {
    global netname_ailist netname_names netname_idx netname_xawtv
-   global netname_prov_cnis netname_prov_names netname_provnets netname_provlist
+   global netname_prov_cnis netname_provnets netname_provlist
    global netname_entry
 
    set sel [.netname.list.ailist curselection]
@@ -486,7 +474,8 @@ proc NetworkNameSelection {} {
          if [info exists netname_provnets($key)] {
             # the netname_provlist keeps track which providers are listed in the box
             lappend netname_provlist $prov
-            .netname.ctrl.id.provnams.lbox insert end [list $netname_prov_names($prov) $netname_provnets($key)]
+            .netname.ctrl.id.provnams.lbox insert end \
+                [list [file tail $prov] $netname_provnets($key)]
          }
       }
    }
@@ -495,7 +484,7 @@ proc NetworkNameSelection {} {
 # callback for selection of a name in the provider listbox
 proc NetworkNameProvSelection {} {
    global netname_ailist netname_names netname_idx
-   global netname_prov_cnis netname_prov_names netname_provnets netname_provlist
+   global netname_prov_cnis netname_provnets netname_provlist
    global netname_entry
 
    set cni [lindex $netname_ailist $netname_idx]
@@ -541,7 +530,7 @@ proc NetworkNames_CheckAbort {} {
       }
    }
 
-   if $changed {
+   if {$changed} {
       set answer [tk_messageBox -type okcancel -icon warning -parent .netname -message "Discard all changes?"]
       if {[string compare $answer cancel] == 0} {
          return 0
@@ -556,7 +545,7 @@ proc NetworkNames_CheckAbort {} {
             break
          }
       }
-      if $auto {
+      if {$auto} {
          set answer [tk_messageBox -type okcancel -icon warning -parent .netname -message "Network names have been configured automatically. Really discard them?"]
          if {[string compare $answer cancel] == 0} {
             return 0
@@ -569,14 +558,14 @@ proc NetworkNames_CheckAbort {} {
 # "OK" command button
 proc NetworkNamesQuit {is_abort} {
    global netname_ailist netname_names netname_idx netname_xawtv netname_automatch
-   global netname_prov_cnis netname_prov_names netname_provnets netname_provlist
+   global netname_prov_cnis netname_provnets netname_provlist
    global netname_entry netname_simi_upd_sched
 
    # save name of the currently selected network, if changed
    NetworkNameSaveEntry
 
    # warn about losing changes when doing abort
-   if $is_abort {
+   if {$is_abort} {
       if {[NetworkNames_CheckAbort] == 0} {
          return
       }
@@ -602,7 +591,7 @@ proc NetworkNamesQuit {is_abort} {
 
    # free memory
    foreach var {netname_ailist netname_names netname_idx netname_xawtv netname_automatch
-                netname_prov_cnis netname_prov_names netname_provnets netname_provlist
+                netname_prov_cnis netname_provnets netname_provlist
                 netname_entry netname_simi_upd_sched} {
       catch {unset $var}
    }
