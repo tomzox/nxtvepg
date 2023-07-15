@@ -1240,11 +1240,13 @@ proc ShowOrHideShortcutList {{changed {}}} {
    if {$showShortcutListbox} {
       grid .all.shortcuts.list -row 3 -column 0 -columnspan 2 -sticky news
       grid rowconfigure .all.shortcuts 3 -weight 1
+      grid columnconfigure .all.shortcuts 1 -weight 1
    }
    if {$showNetwopListboxLeft} {
       grid .all.shortcuts.netwop_sb -row 4 -column 0 -sticky ns
       grid .all.shortcuts.netwops -row 4 -column 1 -sticky news
       grid rowconfigure .all.shortcuts 4 -weight 1
+      grid columnconfigure .all.shortcuts 1 -weight 1
    }
    if {$showNetwopListbox} {
       grid .all.shortcuts.netwop_sb -row 0 -column 2 -rowspan 6 -sticky ns
