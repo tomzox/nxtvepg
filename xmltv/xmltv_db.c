@@ -119,6 +119,7 @@ typedef enum
    XMLTV_RATING_FSK,
    XMLTV_RATING_BBFC,
    XMLTV_RATING_MPAA,
+   XMLTV_RATING_VCHIP,
    XMLTV_RATING_PL,
 } XMLTV_RATING_SYS;
 
@@ -1151,6 +1152,10 @@ void Xmltv_PiRatingSetSystem( XML_STR_BUF * pBuf )
    {
       xds.pi_rating_sys = XMLTV_RATING_MPAA;
    }
+   else if (strcasecmp(pStr, "VCHIP") == 0)
+   {
+      xds.pi_rating_sys = XMLTV_RATING_VCHIP;
+   }
    else if (strcasecmp(pStr, "PL") == 0)
    {
       xds.pi_rating_sys = XMLTV_RATING_PL;
@@ -1231,6 +1236,28 @@ void Xmltv_PiRatingAddText( XML_STR_BUF * pBuf )
          xds.pi.parental_rating = 18;
       else if (strncasecmp(pStr, "X", 1) == 0)
          xds.pi.parental_rating = 18;
+      else
+         debug1("Xmltv-PiRatingAddText: unknown MPAA rating '%s'", pStr);
+   }
+   else if (xds.pi_rating_sys == XMLTV_RATING_VCHIP)
+   {
+      // official ratings: TV-Y, TV-Y7, TV-Y7-FV, TV-G, TV-PG, TV-14, TV-MA
+      // https://www.fcc.gov/consumers/guides/v-chip-putting-restrictions-what-your-children-watch
+
+      if (strcasecmp(pStr, "TV-G") == 0)
+         xds.pi.parental_rating = 0;
+      else if (strcasecmp(pStr, "TV-Y") == 0)
+         xds.pi.parental_rating = 2;
+      else if (strcasecmp(pStr, "TV-Y7") == 0)
+         xds.pi.parental_rating = 7;
+      else if (strcasecmp(pStr, "TV-Y7-FV") == 0)
+         xds.pi.parental_rating = 10;
+      else if (strcasecmp(pStr, "TV-PG") == 0)
+         xds.pi.parental_rating = 12;
+      else if (strcasecmp(pStr, "TV-14") == 0)
+         xds.pi.parental_rating = 14;
+      else if (strcasecmp(pStr, "TV-MA") == 0)
+         xds.pi.parental_rating = 17;
       else
          debug1("Xmltv-PiRatingAddText: unknown MPAA rating '%s'", pStr);
    }
