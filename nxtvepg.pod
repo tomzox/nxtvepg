@@ -2945,34 +2945,33 @@ notifications by the TV applications.  For many networks there will be
 no need to change anything, but for some there exist different variants,
 e.g. in Germany "Super RTL" vs. "S-RTL" or "MDR3" vs. "MDR".
 
-Initially, you need to select which TV application
-you want to synchronize with and where the configuration files are
-located.  This is done in the I<TV app. interaction> dialog in the Configure
-menu (see L<"CONFIGURE MENU">, section "TV application interaction").
+If you are using one of the TV applications supported by nxtvepg and
+want to use the "Tune TV" button and other interaction features, then you
+should configure the TV application via the I<TV app. interaction> dialog
+in the L<"CONFIGURE MENU">. Otherwise you can use the dialog to freely
+edit channel names according to your personal preference.
 
-Another use of this dialog is to make network naming consistent across
-all XMLTV EPG providers. The names you specify here will be used in the
-programme listbox and all filter menus, independently of the provider.
+On the left side of the network name dialog you find a list of all networks
+used in the currently loaded or merged XMLTV files. When opening the dialog for
+the first time, and a TV application is configured, nxtvepg will automatically
+synchronize names with those used in the TV application. This means that when
+there is a channel name in the TV application that only differs in spaces or
+non-alpanumeric letters from the one in XMLTV, then the name from the TV
+application is used. Names for which no obvious match is found are kept
+undhanged and marked in red text color. If no TV application is configured, the
+network names used by your currently selected EPG provider are taken directly
+from the XMLTV files In case of a merged database, the channel name found in
+the first merged XMLTV file is used.
 
-On the left side of the dialog you find a list of all networks used in the
-currently loaded or merged XMLTV files. The names used here
-are the ones you configured before, or if you haven't done so yet, the
-names that match the station names of your TV application best. Unmatched
-names are marked red.  If no TV application is configured, the network
-names used by your currently selected EPG provider are kept unchanged.
+On the right side, you are offered three ways to change the channel name used by
+nxtvepg: Top-most is a plain entry field where you can type in an arbitrary
+name. Below is a listbox which lists similar channel names found in your TV
+application's channel table. The bottom-most frame lists the original names
+used in the XMLTV file. If you double-click on an entry in either list, the
+name is copied to the entry field at the top.
 
-On the right side, you're offered four ways to change the name: Topmost
-is a simple entry field where you can type in an arbitrary name. Below
-is a popup menu which contains all network names defined in your TV app.'s
-channel table.  Below is a button which contains the one name in your
-TV app.'s channel table which resembles the current string in the entry
-field most, or I<none>. It's marked red
-until it's identical to the entry field. You can copy the name to the
-entry field by clicking the button. Below is a listbox with the original
-names used in the various provider databases. When you select a name from
-the menu or the listbox, it will be copied into the entry field and the
-network name list on the left. If you want to save the changed list,
-leave the dialog with I<Save>, else use I<Abort>.
+If you want to save the changed list, leave the dialog with I<Save>, else use
+I<Abort>.
 
 B<Note:> If you receive channels that carry multiple networks, e.g.
 in Germany "Arte / Kinderkanal", it's recommended to include all

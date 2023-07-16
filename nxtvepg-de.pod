@@ -2883,53 +2883,50 @@ verändern.
 
 =head2 Network names
 
-Öffnet einen Dialog zur Konfiguration der Sendernamen. Dessen Hauptzweck ist,
-die Sendernamen zwischen nxtvepg und Ihrer TV-Anwendungen zu synchronisieren.
-Dies ist notwendig, weil der Sendername der Kommunikation dient, wenn Sie die
+Öffnet einen Dialog zur Konfiguration der Sendernamen. Der Hauptzweck des
+Dialogs ist die Sendernamen zwischen nxtvepg und Ihrer TV-Anwendungen zu
+synchronisieren.  Dies ist notwendig, weil der Sendername der Kommunikation
+dient, wenn Sie die
 "I<Tune TV>"-Fernbedienung verwenden und ebenso für die Bekanntgaben der
 Kanalwechsel von Seiten der TV-Anwendungen. Bei vielen Sendern muss nichts
 verändert werden, bei anderen jedoch bestehen mehrere Varianten, z.B. in
 Deutschland "Super RTL" versus "S-RTL" oder "MDR3" versus "MDR".
 
-Zuerst sollten Sie auswählen, mit welcher TV-Anwendung Sie
-synchronisieren wollen und wo sich die Konfigurationsdateien befinden.
-Dies geschieht über den Dialog "I<TV app. interaction>" im
-Configure-Menü (siehe L<"CONFIGURE MENU">, Kapitel "TV application
-interaction").
-
-Ein weiterer Zweck dieses Dialoges ist es, die Namen der Sender über alle XMLTV
-Quellen hinweg einheitlich zu machen. Die hier angegebenen Namen, werden
-unabhängig vom Provider, in der Programmübersicht und allen Filter-Menüs
-verwendet.
+Falls Sie also eine der von nxtvepg unterstützten TV-Applikationen verwenden
+und Features wie den "Tune-TV" Knopf zum Senderwechsel verwenden wollen,
+sollten Sie diese zuerst mittels des Dialogs "I<TV app. interaction>" im
+L<"CONFIGURE MENU"> konfigurieren. Ansonsten können Sie den Dialog verwenden
+um die Sendernamen individuall anzupassen.
 
 Auf der linken Seite des Dialogs finden Sie eine Liste aller Sender der aktuell
-geladenen bzw. zusammengeführten XMLTV Dateien. Die hier benutzten Namen sind
-jene, welche Sie zuvor konfiguriert haben, oder falls Sie dies noch nicht getan
-haben, welche am besten auf die Stationsnamen Ihrer TV-Anwendung zutreffen.
-Nicht zutreffende Namen sind rot markiert. Ist keine TV-Anwendung konfiguriert,
-werden die von der aktuell geladenen XMLTV Datei gewählten Namen übernommen.
+geladenen bzw. zusammengeführten XMLTV Dateien. Beim ersten Aufruf des Dialogs
+nachdem eine TV-Applikation konfiguriert wurde, wird nxtvepg nach ähnlichen
+Namen in der TV-Sendertabelle suchen, die sich nur durch Leerzeichen oder
+Punktierung vom Namen in der XMLTV Datei unterscheidet. Diese Namen werden
+automatisch in der Namensliste ersetzt. Falls keiner TV-Applikation
+konfiguriert ist, wird der Name aus der XMLTV unverändert übernommen. Im Fall
+einer zusammengeführten Datenbank, wird der Name der ersten XMLTV Datei
+übernommen.
 
-Auf der rechten Seite werden Ihnen vier Möglichkeiten angeboten, den Namen zu
-ändern: zuoberst liegt ein Eingabefeld, in das Sie einen beliebigen Namen
-eintippen können. Darunter befindet sich ein Popupmenü, welches alle in der
-Kanaltabelle Ihrer TV-Anwendung definierten Sendernamen enthält. Darunter liegt
-ein Button, der einen ähnlichen Namen aus der Kanaltabelle Ihrer TV-Anwendung
-enthält, oder I<none>. Er ist rot markiert, solange er sich durch Leerzeichen,
-Bindestriche oder ähnliches vom Eingabefeld unterscheidet. Durch einen Klick
-auf den Button können Sie den Namen in das Eingabefeld kopieren. Darunter liegt
-ein Listenfeld mit den Originalnamen, die in den verschiedenen
-Provider-Datenbanken benutzt werden. Wenn Sie einen Namen aus dem Menü oder dem
-Listenfeld wählen, wird er in das Eingabefeld und in die Liste der Sendernamen
-links daneben kopiert.
+Namen in der linken Liste sind rot markiert, wenn eine TV-Applikation
+konfiguriert ist aber der Name nicht in der TV-Sendertabelle enthalten ist.
+
+Auf der rechten Seite werden Ihnen drei Möglichkeiten angeboten, den Namen zu
+ändern: zuoberst liegt ein normales Eingabefeld, in das Sie einen beliebigen
+Namen eintippen können. Im Rahmen darunter werden änlich lautende Namen in
+der Sendertabelle der TV-Applikation aufgeführt. Im untersten Rahmen werden die
+Originalnamen in der XMLTV Datei angezeigt. Sie können einen Namen aus den
+Listen durch einen Doppelclick in das Eingebefeld übernehmen.
 
 Wollen Sie die geänderte Liste speichern, verlassen Sie den Dialog mit I<Save>,
 andernfalls benutzen Sie I<Abort>.
 
 B<Wichtig>: wenn Sie Kanäle empfangen, die mehrere Sender übertragen, z.B. in
 Deutschland "Arte / Kinderkanal", ist zu empfehlen, alle Sendernamen im Namen
-des Senders seitens der TV-Anwendung, durch einen Schrägstrich "/" getrennt,
+des Senders auf Seite der TV-Anwendung durch einen Schrägstrich "/" getrennt
 einzubeziehen. Der Schrägstrich wird von nxtvepg als ein Trennzeichen erkannt
-und so lassen sich alle daraus ergebenden Abschnitte als Sendernamen verwenden.
+und so lassen sich alle daraus ergebenden Abschnitte als Sendernamen in nxtvepg
+verwenden.
 
 =head2 Context menu configuration
 

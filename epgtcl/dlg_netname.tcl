@@ -33,7 +33,7 @@ proc NetworkNaming_UpdateTvApp {} {
       .netname.list.ailist delete 0 end
       foreach cni $netname_ailist {
          .netname.list.ailist insert end $netname_names($cni)
-         if {![NetworkNameIsInXawtv $netname_names($cni)]} {
+         if {[NetworkNameIsInXawtv $netname_names($cni)] == 0} {
             .netname.list.ailist itemconfigure end -foreground red -selectforeground red
          }
       }
@@ -55,7 +55,7 @@ proc NetworkNaming_UpdateTvApp {} {
 proc NetworkNamingPopup {} {
    global netname_ailist netname_names netname_idx netname_xawtv netname_automatch
    global netname_prov_cnis netname_provnets
-   global netname_entry
+   global netname_entry netname_tvsync_state
    global netname_popup font_fixed entry_disabledforeground
 
    if {$netname_popup == 0} {
@@ -96,7 +96,7 @@ proc NetworkNamingPopup {} {
       set xawtv_auto_match 0
       array set cfnetnames [C_GetNetwopNames]
       foreach cni $netname_ailist {
-         if [info exists cfnetnames($cni)] {
+         if {[info exists cfnetnames($cni)]} {
             # network name is already configured by the user
             set netname_names($cni) $cfnetnames($cni)
          } else {
@@ -104,17 +104,21 @@ proc NetworkNamingPopup {} {
             lappend netname_automatch $cni
             foreach prov $netname_prov_cnis {
                set key "$prov,$cni"
-               if [info exists netname_provnets($key)] {
+               if {[info exists netname_provnets($key)]} {
                   # remove non-alphanumeric ASCII characters from the name
                   regsub -all -- {[\0-\/\:-\?\[\\\]\^\_\{\|\}\~]*} $netname_provnets($key) {} name
                   # make it lower-case
                   set name [string tolower $name]
-                  if [info exists netname_xawtv($netname_provnets($key))] {
-                     incr xawtv_auto_match
+                  if {[info exists netname_xawtv($netname_provnets($key))]} {
+                     if {$name ne $netname_provnets($key)} {
+                        incr xawtv_auto_match
+                     }
                      set netname_names($cni) $netname_xawtv($netname_provnets($key))
                      break
-                  } elseif [info exists netname_xawtv($name)] {
-                     incr xawtv_auto_match
+                  } elseif {[info exists netname_xawtv($name)]} {
+                     if {$name ne $netname_provnets($key)} {
+                        incr xawtv_auto_match
+                     }
                      set netname_names($cni) $netname_xawtv($name)
                      break
                   } elseif {![info exists netname_names($cni)]} {
@@ -157,7 +161,7 @@ proc NetworkNamingPopup {} {
       ## second column: info and commands for the selected network
       frame .netname.ctrl
       # first row: entry field
-      label .netname.ctrl.lab_myname -text "Enter your preferred name:" -font $::font_normal
+      label .netname.ctrl.lab_myname -text "Enter your preferred name:"
       pack .netname.ctrl.lab_myname -side top -anchor nw
       entry .netname.ctrl.myname -textvariable netname_entry -font $font_fixed -width 40
       bind .netname.ctrl.myname <Key-Return> NetworkName_KeyReturn
@@ -166,35 +170,33 @@ proc NetworkNamingPopup {} {
       trace variable netname_entry w NetworkNameEdited
 
       labelframe .netname.ctrl.tv -text "Name synchronization with [TvAppGetName]"
-      checkbutton .netname.ctrl.tv.chk_tvsync -text "TV app. name sync status " -onvalue 0 \
+      checkbutton .netname.ctrl.tv.chk_tvsync -text "TV app. name sync status " -variable netname_tvsync_state \
                                -disabledforeground black -takefocus 0 -font $::font_normal
       pack .netname.ctrl.tv.chk_tvsync -side top -anchor nw
       bindtags .netname.ctrl.tv.chk_tvsync {.netname .}
 
       # second row: xawtv selection
       label .netname.ctrl.tv.lab_tvapp -text "Similar names in TV channel table:" -font $::font_normal
-      pack .netname.ctrl.tv.lab_tvapp -side top -anchor nw
+      #pack .netname.ctrl.tv.lab_tvapp -side top -anchor nw
       frame .netname.ctrl.tv.tvl
       listbox .netname.ctrl.tv.tvl.ailist -exportselection false -height 5 -width 0 \
                          -selectmode single -yscrollcommand {.netname.ctrl.tv.tvl.sc set}
       pack .netname.ctrl.tv.tvl.ailist -anchor nw -side left -fill both -expand 1
       scrollbar .netname.ctrl.tv.tvl.sc -orient vertical -command {.netname.ctrl.tv.tvl.ailist yview} -takefocus 0
       pack .netname.ctrl.tv.tvl.sc -side left -fill y
-      pack .netname.ctrl.tv.tvl -side top -fill both -expand 1
+      #pack .netname.ctrl.tv.tvl -side top -fill both -expand 1
       bind .netname.ctrl.tv.tvl.ailist <Double-Button-1> NetworkNameXawtvSelection
       pack .netname.ctrl.tv -side top -fill both -expand 1 -pady 5
 
       # third row: provider name selection
-      labelframe .netname.ctrl.id -text "Network identification"
-      label .netname.ctrl.id.lprovnams -text "Original names for this network:" -font $::font_normal -justify left
-      pack .netname.ctrl.id.lprovnams -side top -anchor nw
+      labelframe .netname.ctrl.id -text "Original names used in XMLTV file"
       frame .netname.ctrl.id.provnams
       mclistbox::mclistbox .netname.ctrl.id.provnams.lbox -relief sunken -columnrelief flat -labelanchor c \
                                 -height 4 -selectmode browse -columnborderwidth 0 \
                                 -exportselection 0 -font $::font_normal -labelfont [DeriveFont $::font_normal 0 bold] \
                                 -yscrollcommand [list .netname.ctrl.id.provnams.sc set] -fillcolumn title
-      .netname.ctrl.id.provnams.lbox column add state -label "Provider" -width 20
-      .netname.ctrl.id.provnams.lbox column add group -label "Network name" -width 20
+      .netname.ctrl.id.provnams.lbox column add "provider" -label "Provider" -width 25
+      .netname.ctrl.id.provnams.lbox column add "netname" -label "Network name" -width 30
       bind .netname.ctrl.id.provnams.lbox <Double-Button-1> NetworkNameProvSelection
       bind .netname.ctrl.id.provnams.lbox <Key-Return>      NetworkNameProvSelection
       bind .netname.ctrl.id.provnams.lbox <Key-space>       NetworkNameProvSelection
@@ -224,7 +226,7 @@ proc NetworkNamingPopup {} {
       # insert network names from all providers into listbox on the left
       foreach cni $netname_ailist {
          .netname.list.ailist insert end $netname_names($cni)
-         if {![NetworkNameIsInXawtv $netname_names($cni)]} {
+         if {[NetworkNameIsInXawtv $netname_names($cni)] == 0} {
             .netname.list.ailist itemconfigure end -foreground red -selectforeground red
          }
       }
@@ -234,10 +236,10 @@ proc NetworkNamingPopup {} {
       NetworkNameSelection
 
       # notify the user if names have been automatically modified
-      if [array exists netname_xawtv] {
+      if {[array exists netname_xawtv]} {
          set automatch_count $xawtv_auto_match
       } else {
-         set automatch_count [llength $netname_automatch]
+         set automatch_count 0
       }
       if {$automatch_count > 0} {
          if {$automatch_count > 1} {
@@ -278,7 +280,7 @@ proc NetworkNameSaveEntry {} {
          .netname.list.ailist delete $netname_idx
          .netname.list.ailist insert $netname_idx $netname_names($cni)
          .netname.list.ailist selection set $sel
-         if {![NetworkNameIsInXawtv $netname_names($cni)]} {
+         if {[NetworkNameIsInXawtv $netname_names($cni)] == 0} {
             .netname.list.ailist itemconfigure $netname_idx -foreground red -selectforeground red
          }
 
@@ -304,7 +306,7 @@ proc NetworkNameEdited {trname trops trcmd} {
 
 proc NetworkNameUpdateSimilar {} {
    global netname_entry netname_ailist netname_idx netname_names netname_xawtv
-   global netname_simi_upd_sched
+   global netname_simi_upd_sched netname_tvsync_state
 
    catch {unset netname_simi_upd_sched}
 
@@ -328,6 +330,7 @@ proc NetworkNameUpdateSimilar {} {
                if {$netname_xawtv($netname_entry) eq $netname_entry} {
                   set sync_color "green"
                   set sync_text "Identical name in TV channel table"
+                  set netname_tvsync_state 1
                   lappend nl $netname_xawtv($netname_entry)
                }
             }
@@ -336,6 +339,7 @@ proc NetworkNameUpdateSimilar {} {
                if {[llength $nl] == 0} {
                   set sync_color "yellow"
                   set sync_text "Slightly different name in TV channel table"
+                  set netname_tvsync_state 0
                }
                lappend nl $netname_xawtv($name)
             }
@@ -386,9 +390,24 @@ proc NetworkNameUpdateSimilar {} {
          }
 
       }
+
+      if {$sync_color eq "red"} {
+         set netname_tvsync_state 0
+      }
+      # show the listbox showing TV app channel names in case it was hidden earlier
+      pack .netname.ctrl.tv.lab_tvapp -side top -anchor nw
+      pack .netname.ctrl.tv.tvl -side top -fill both -expand 1
+      pack configure .netname.ctrl.tv -expand 1
+
    } else {
-      set sync_color "red"
+      set sync_color "#C0C0C0"
       set sync_text "No TV application is configured"
+      set netname_tvsync_state 0
+
+      # hide the listbox showing TV app channel names from display
+      pack forget .netname.ctrl.tv.lab_tvapp
+      pack forget .netname.ctrl.tv.tvl
+      pack configure .netname.ctrl.tv -expand 0
    }
 
    # sync status
@@ -471,7 +490,7 @@ proc NetworkNameSelection {} {
       .netname.ctrl.id.provnams.lbox delete 0 end
       foreach prov $netname_prov_cnis {
          set key "$prov,$cni"
-         if [info exists netname_provnets($key)] {
+         if {[info exists netname_provnets($key)]} {
             # the netname_provlist keeps track which providers are listed in the box
             lappend netname_provlist $prov
             .netname.ctrl.id.provnams.lbox insert end \
@@ -492,7 +511,7 @@ proc NetworkNameProvSelection {} {
    if {([string length $sel] > 0) && ($sel < [llength $netname_provlist])} {
       set prov [lindex $netname_provlist $sel]
       set key "$prov,$cni"
-      if [info exists netname_provnets($key)] {
+      if {[info exists netname_provnets($key)]} {
          set netname_entry $netname_provnets($key)
       }
    }
@@ -516,16 +535,16 @@ proc NetworkNames_CheckAbort {} {
 
    set cfnetname_list [C_GetNetwopNames]
    set changed 0
-   if {[llength $cfnetname_list] > 0} {
-      array set cfnetnames $cfnetname_list
-      # check if any names have changed (or if there are new CNIs)
-      foreach cni [array names netname_names] {
-         # ignore automatic name config
-         if {[lsearch -exact $netname_automatch $cni] == -1} {
-            if {![info exists cfnetnames($cni)] || ([string compare $cfnetnames($cni) $netname_names($cni)] != 0)} {
-               set changed 1
-               break
-            }
+   array set cfnetnames $cfnetname_list
+
+   # check if any names have changed (or if there are new CNIs)
+   foreach cni [array names netname_names] {
+      # ignore automatic name config
+      if {[lsearch -exact $netname_automatch $cni] == -1} {
+         if {![info exists cfnetnames($cni)] ||
+             ([string compare $cfnetnames($cni) $netname_names($cni)] != 0)} {
+            set changed 1
+            break
          }
       }
    }
@@ -539,7 +558,7 @@ proc NetworkNames_CheckAbort {} {
       # failed auto-matches would not have been saved
       set auto 0
       foreach cni $netname_automatch {
-         if [NetworkNameIsInXawtv $netname_names($cni)] {
+         if {[NetworkNameIsInXawtv $netname_names($cni)] > 0} {
             # there's at least one auto-matched name that would get saved
             set auto 1
             break
@@ -601,10 +620,10 @@ proc NetworkNamesQuit {is_abort} {
 proc NetworkNameIsInXawtv {name} {
    global netname_xawtv netname_names
 
-   if [array exists netname_xawtv] {
+   if {[array exists netname_xawtv]} {
       set result 0
       # check if the exact or similar (non-alphanums removed) name is known by TV app
-      if [info exists netname_xawtv($name)] {
+      if {[info exists netname_xawtv($name)]} {
          # check if the name in xawtv is exactly the same
          if {[string compare $name $netname_xawtv($name)] == 0} {
             set result 1
@@ -612,7 +631,7 @@ proc NetworkNameIsInXawtv {name} {
       }
    } else {
       # no TV app config file found -> no checking
-      set result 1
+      set result -1
    }
    return $result
 }
