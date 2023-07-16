@@ -1,7 +1,7 @@
 /*
  *  XMLTV provider and network ID mapping
  *
- *  Copyright (C) 2007-2011, 2020-2021 T. Zoerner
+ *  Copyright (C) 2007-2011, 2020-2023 T. Zoerner
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License Version 2 as

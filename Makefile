@@ -1,7 +1,7 @@
 #
 #  UNIX Makefile for nxtvepg - A XMLTV browser and Teletext EPG grabber
 #
-#  Copyright (C) 1999-2011, 2020-2021 T. Zoerner
+#  Copyright (C) 1999-2011, 2020-2023 T. Zoerner
 #
 #  This program is free software; you can redistribute it and/or modify
 #  it under the terms of the GNU General Public License Version 2 as
@@ -372,7 +372,7 @@ epgtcl/helptexts_de.tcl: nxtvepg-de.pod pod2help.pl
 nxtvepg.1: nxtvepg.pod epgctl/epgversion.h
 	EPG_VERSION_STR=`egrep '[ \t]*#[ \t]*define[ \t]*EPG_VERSION_STR' epgctl/epgversion.h | head -1 | sed -e 's#.*"\(.*\)".*#\1#'`; \
 	pod2man -date " " -center "nxtvepg XMLTV browser" -section "1" \
-	        -release "nxtvepg "$$EPG_VERSION_STR" (C) 2021 T. Zoerner" \
+	        -release "nxtvepg "$$EPG_VERSION_STR" (C) 2023 T. Zoerner" \
 	   nxtvepg.pod > nxtvepg.1
 
 nxtvepgd.1: nxtvepg.1

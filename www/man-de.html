@@ -262,8 +262,8 @@ width="125" height="37" alt="SourceForge.net Logo"></a></span></span>
 
 <p>UNIX Warnung: Aus Sicherheitsgr&uuml;nden ist davon abzuraten, den Daemon-Prozess mit Administrator-Rechten laufen zu lassen (d.h. als &quot;root&quot;). Nxtvepg wurde nicht auf m&ouml;gliche Schwachstellen untersucht. Wenn der Daemon schon beim Systemstart geladen werden soll, sollten Sie das &quot;su&quot;-Kommando verwenden. Auch ist zu beachten, dass wahrscheinlich die Optionen <i>-rcfile</i> und <i>-dbdir</i> angegeben werden m&uuml;ssen, da die Umgebungsvariable $HOME m&ouml;glicherweise nicht (korrekt) gesetzt ist. Beispiel:</p>
 
-<pre><code>   su nobody -c &quot;/usr/local/bin/nxtvepg -daemon \
-                 -rcfile /usr/local/etc/nxtvepgrc&quot;</code></pre>
+<pre><code>su nobody -c &quot;/usr/local/bin/nxtvepg -daemon \
+              -rcfile /usr/local/etc/nxtvepgrc&quot;</code></pre>
 
 <p>Zum Beenden des Daemon-Prozesses siehe unten stehende Option <i>-daemonstop</i>.</p>
 
@@ -283,18 +283,18 @@ width="125" height="37" alt="SourceForge.net Logo"></a></span></span>
 
 <p>F&uuml;r die Abfrage aus anderen Programmen heraus kann der Status auch direkt vom Hintergrundproze&szlig; abgefragt werden, d.h. ohne Option <i>-daemonquery</i>. Dazu mu&szlig; eine TCP Verbindung zum Host und Port an dem der Daemon Client-Verbindungen annimmt aufgebaut werden und der Bin&auml;r-String &quot;\x00\x11\x00\x00ACQSTAT&quot; gesendet werden. Der Daemon antwortet dann mit einem 4-Byte Header und danach dem Statustext in variabler L&auml;nge. Die ersten beiden Bytes des Headers spezifizieren die L&auml;nge des Texts inklusive Header in &quot;Big-Endian&quot;; die n&auml;chsten zwei Bytes k&ouml;nnen in diesem Fall ignoriert werden. Hier ist ein Beispielprogramm implementiert in der Programmiersprache <i>Tcl</i>:</p>
 
-<pre><code>   #!/usr/bin/tclsh
-   if {[catch {set sock_fd [socket localhost 7658]} err] == 0} {
-      fconfigure $sock_fd -buffering none -encoding binary
-      puts -nonewline $sock_fd [binary format Scxa7 11 0 ACQSTAT]
-      set line [read $sock_fd 4]
-      binary scan $line &quot;Scx&quot; len type
-      set line [read $sock_fd [expr {$len - 4}]]
-      binary scan $line &quot;a*&quot; msg
-      puts -nonewline $msg
-   } else {
-      puts stderr &quot;Failed to connect to daemon ($err)&quot;
-   }</code></pre>
+<pre><code>#!/usr/bin/tclsh
+if {[catch {set sock_fd [socket localhost 7658]} err] == 0} {
+   fconfigure $sock_fd -buffering none -encoding binary
+   puts -nonewline $sock_fd [binary format Scxa7 11 0 ACQSTAT]
+   set line [read $sock_fd 4]
+   binary scan $line &quot;Scx&quot; len type
+   set line [read $sock_fd [expr {$len - 4}]]
+   binary scan $line &quot;a*&quot; msg
+   puts -nonewline $msg
+} else {
+   puts stderr &quot;Failed to connect to daemon ($err)&quot;
+}</code></pre>
 
 </dd>
 <dt id="nodetach"><b>-nodetach</b></dt>
@@ -326,7 +326,7 @@ width="125" height="37" alt="SourceForge.net Logo"></a></span></span>
 
 <p>Verwenden Sie das Schl&uuml;sselwort <i>html</i> als Modus, um Programmdaten in ein HTML Dokument zu exportieren. Es werden die zuletzt im HTML-Export Dialog eingestellten Optionen verwendet. (Es sei denn &quot;nxtvepgd&quot;, d.h. der reine Akquisitions-Daemon wird f&uuml;r den Export verwendet.) Weitere Details siehe <a href="#CONTROL-MENU:-Export-as-HTML">&quot;CONTROL MENU: Export as HTML&quot;</a>. Zus&auml;tzlich k&ouml;nnen Sie die Zahl der exportierten Programme limitieren indem Sie das Limit durch Doppelpunkt getrennt anh&auml;ngen (z.B. <code>-dump html:50</code>.) Das Format der Programmliste ist jedoch nicht &uuml;ber Kommandozeilenparameter konfigurierbar.</p>
 
-<p>Um die Daten in tabellarischer Form in eine Textdatei zu exportieren (z.B. f&uuml;r den Import in eine SQL-Datenbank) sind die folgenden Schl&uuml;sselw&ouml;rter vorhanden: <i>pi</i>, um die gesamte TV-Sendungsbeschreibungen auszugeben; <i>ai</i>, um die Kanal- bzw. Sendertabelle auszugeben; <i>pdc</i>, um die Themenkategorien-Tabelle auszugeben. Weitere Details siehe <a href="#CONTROL-MENU:-Export-as-text">&quot;CONTROL MENU: Export as text&quot;</a>.</p>
+<p>Um die Daten in tabellarischer Form in eine Textdatei zu exportieren (z.B. f&uuml;r den Import in eine SQL-Datenbank) sind die folgenden Schl&uuml;sselw&ouml;rter vorhanden: <i>pi</i>, um die gesamte TV-Sendungsbeschreibungen auszugeben; <i>ai</i>, um die Kanal- bzw. Sendertabelle auszugeben; <i>themes</i>, um die Themenkategorien-Tabelle auszugeben. Weitere Details siehe <a href="#CONTROL-MENU:-Export-as-text">&quot;CONTROL MENU: Export as text&quot;</a>.</p>
 
 <p>Alle Ausgaben werden auf das Terminal ausgegeben (das so genannte <i>stdout</i>) falls sie nicht per Pipeline &quot;|&quot; in ein anderes Programm oder per &quot;&gt;&quot; in eine Datei umgelenkt werden. Siehe auch Option <i>-outfile</i>.</p>
 
@@ -340,8 +340,8 @@ width="125" height="37" alt="SourceForge.net Logo"></a></span></span>
 
 <p><b>Tipp:</b> Anstelle der Option -outfile k&ouml;nnen Sie die Ausgabe auch mit &quot;&gt;&quot; oder &quot;|&quot; umleiten. Dies funktioniert unter UNIX in jedem beliebigen Terminal bzw. jeder Shell und unter Windows in einem MS-DOS Kommandofenster oder einer Batch-Datei. Beispiele:</p>
 
-<pre><code>  nxtvepg -dump ai tv.xml &gt; networks.txt
-  nxtvepg -dump ai tv.xml | more</code></pre>
+<pre><code>nxtvepg -dump ai tv.xml &gt; networks.txt
+nxtvepg -dump ai tv.xml | more</code></pre>
 
 <p>Das erste Beispiel schreibt die Sendertabelle der XMLTV Datei &quot;tv.xml&quot; in eine Datei namens <i>networks.txt</i>; das zweite lenkt die Ausgabe zum Programm &quot;more&quot; um, einem Programm zur Textanzeige.</p>
 
@@ -734,11 +734,11 @@ width="125" height="37" alt="SourceForge.net Logo"></a></span></span>
 
 <p>Ein weiterer Einsatz ist der Fall das Sie mehrere EPG Anbieter verwenden die dieselben Sender abdecken. In dem Fall erlaubt der Merge die Daten f&uuml;r jedes TV-Programm in der Anzeige zu vereinigen. F&uuml;r Informationen wie Beschreibungstexte werden die Daten aller EPG Anbieter aneinenderge&uuml;gt. F&uuml;r Informationstypen wo das Aneinanderf&uuml;gen nicht sinnvoll ist, wird die Information aus den Daten des ersten Anbieters angezeigt (d.h. die Reihenfolge der Auswahl ist relevant; Details siehe unten).</p>
 
-<p>&Uuml;ber den Men&uuml;eintrag <b>Merge XMLTV files</b> im <b>Control</b>-Men&uuml; erhalten Sie einen Dialog mit zwei Listenfeldern: das Linke davon enth&auml;lt eine Liste von XMLTV Dateien. Ein anderes Verzeichnis kann mit Klick auf den Knopf neben dem Eingabefeld gew&auml;hlt werden. Der Verzeichnisname kann auch manuell editiert werden; Nach Dr&uuml;cken der Return-Taste wird die Liste der Dateien aktualisiert. (Zu beachten ist dass nur Dateien mit Endung &quot;.xml&quot; und g&uuml;ltigem XMLTV Format in der Liste angezeigt werden.)</p>
+<p>&Uuml;ber den Men&uuml;eintrag <b>Merge XMLTV files</b> im <b>Control</b>-Men&uuml; erhalten Sie einen Dialog mit zwei Listenfeldern: das Linke davon enth&auml;lt eine Liste von XMLTV Dateien. Ein anderes Verzeichnis kann mit Klick auf den Knopf neben dem Eingabefeld gew&auml;hlt werden. Der Verzeichnisname kann auch manuell editiert werden; Nach Dr&uuml;cken der Return-Taste wird die Liste der Dateien aktualisiert. Normalerweise werden nur Dateien mit Endung &quot;<code>.xml</code>&quot; angezeigt; Diese Beschr&auml;nkung kann jedoch durch Auswahl von &quot;<code>all (*.*)</code>&quot; im Men&uuml; unterhalb des Pfadeingabefelds aufgehoben werden.</p>
 
-<p>Das rechte Liste stellt die Dateien dar, die Sie zusammenf&uuml;hren wollen. Bei der ersten Verwendung des Dialogs wird die Liste leer sein; Bei sp&auml;teren Aufrufen wird die zuletzt verwendete Auswahl wieder angezeigt. Sie k&ouml;nnen Eintr&auml;ge in dieser Liste hinzuf&uuml;gen, durch Auswahl eines Eintrags in der linken Liste und Dr&uuml;cken des &quot;Add&quot; Knopfes. Eintr&auml;ge k&ouml;nnen aus der Liste gel&ouml;scht werden durch Auswahl eines oder mehrerer Eintr&auml;ge und Dr&uuml;cken des &quot;Delete&quot; Knopfes. Die Reihenfolge kann durch Auswahl von einem oder mehreren Eintr&auml;gen und Dr&uuml;cken der beiden Pfeil-Kn&ouml;pfe ge&auml;ndert werden. Sind Sie fertig mit Ihrer Auswahl, dr&uuml;cken Sie <b>OK</b>, um das Zusammenf&uuml;hren der ausgew&auml;hlten Dateien zu starten und die so neu erzeugte EPG Datenbank anzuzeigen.</p>
+<p>Das rechte Liste stellt die Dateien dar, die Sie zusammenf&uuml;hren wollen. Bei der ersten Verwendung des Dialogs wird die Liste leer sein; Bei folgenden Aufrufen wird die zuletzt verwendete Auswahl wieder angezeigt, falls dieselben Dateien noch existieren. Sie k&ouml;nnen Eintr&auml;ge in der rechten Liste hinzuf&uuml;gen, durch Auswahl eines Eintrags in der linken Liste und Dr&uuml;cken des &quot;Add&quot; Knopfes. Eintr&auml;ge k&ouml;nnen aus der rechten Liste gel&ouml;scht werden durch Auswahl eines oder mehrerer Eintr&auml;ge und Dr&uuml;cken des &quot;Delete&quot; Knopfes. Die Reihenfolge kann durch Auswahl von einem oder mehreren Eintr&auml;gen und Dr&uuml;cken der beiden Pfeil-Kn&ouml;pfe ge&auml;ndert werden. Sind Sie fertig mit Ihrer Auswahl, dr&uuml;cken Sie <b>OK</b>, um das Zusammenf&uuml;hren der ausgew&auml;hlten Dateien zu starten und die so neu erzeugte EPG Datenbank anzuzeigen.</p>
 
-<p>Durch das Anordnen der Provider in Ihrer Auswahl, weisen Sie ihnen Priorit&auml;ten zu, die f&uuml;r eine Konfliktl&ouml;sung sehr wichtig sind. Ein Konflikt tritt dann auf, wenn Start- und Stopzeiten der Sendung bei den Providern verschieden sind. Die Wahrscheinlichkeit solch eines Konfliktes h&auml;ngt von der Qualit&auml;t Ihrer Provider ab; theoretisch sollten sie nie auftreten, au&szlig;er wenn kurzfristige Programm&auml;nderungen erfolgen. In der Realit&auml;t sind solche Konflikte gar nicht so unwahrscheinlich, speziell bei Sendungen, die fr&uuml;h am Morgen ausgestrahlt werden. Sie sollten den verl&auml;sslichsten Provider an die erste Stelle setzen, da widerspr&uuml;chliche Sendungen von darunter stehenden Providern abgelehnt werden, d.h. nicht mit in die zusammengef&uuml;hrte Datenbank aufgenommen werden.</p>
+<p>Durch die Reihenfolge der Provider in Ihrer Auswahl weisen Sie ihnen Priorit&auml;ten zu, die f&uuml;r eine Konfliktl&ouml;sung von Bedeutung. Ein Konflikt tritt dann auf, wenn Start- und Stopzeiten der Sendung bei den Providern verschieden sind. Die Wahrscheinlichkeit solch eines Konfliktes h&auml;ngt von der Qualit&auml;t Ihrer Provider ab; theoretisch sollten sie nie auftreten, au&szlig;er wenn kurzfristige Programm&auml;nderungen erfolgen. In der Realit&auml;t sind solche Konflikte gar nicht so unwahrscheinlich (erfahrungsgem&auml;&szlig; speziell bei Sendungen, die fr&uuml;h am Morgen ausgestrahlt werden.) Sie sollten den verl&auml;sslichsten Provider an die erste Stelle setzen, da widerspr&uuml;chliche Sendungen von darunter stehenden Providern abgelehnt werden, d.h. nicht mit in die zusammengef&uuml;hrte Datenbank aufgenommen werden.</p>
 
 <p>Durch Anw&auml;hlen der Option <b>Automatically include Teletext EPG</b> werden alle durch den Teletext EPG Grabber erzeugten XMLTV Dateien mit eingebunden. Auch erst sp&auml;ter neu angelegte Dateien werden dynamisch hinzugef&uuml;gt. Bei Verwendung der Option ist die Reihenfolge der Dateien beim Zusammenf&uuml;hren nicht festgelegt; Dies ist jedoch in dem Fall nicht entscheidend, da zwischen den Dateien des Grabbers keine Konflikte bestehen da jede Datei ein separates Netzwerk abdeckt. Falls Sie dennoch das Zusammenf&uuml;hren genauer konfigurieren wollen, k&ouml;nnen Sie die Dateien des Teletext Grabbers auch manuell angeben. Das geht am schnellsten indem Sie im &uuml;ber den kleinen Pfeil neben dem Pfadeingabefeld erreichbaren Men&uuml; den Eintrag <i>Teletext Grabber XMLTV directory</i> anklicken. Danach k&ouml;nnen Sie alle Eintr&auml;ge in der Linken liste selektieren und mit dem &quot;add&quot; Knopf in die Liste der zusammenzuf&uuml;hrenden Dateien &uuml;bernehmen.</p>
 
@@ -754,7 +754,7 @@ width="125" height="37" alt="SourceForge.net Logo"></a></span></span>
 
 <p>Sie k&ouml;nnen beliebig viele Filter miteinander kombinieren um einen komplexen Filter zusammenzustellen. Wenn Sie zwei Filter unterschiedlichen Typs kombinieren, werden nur solche Sendungen aufgelistet, auf die beide Attribute zutreffen (logisches UND). W&auml;hlen Sie zwei Filter vom gleichen Typ, werden alle Sendungen mit einem von beiden Attributen aufgelistet (logisches ODER). Beachten Sie, dass einige Filtertypen auch mehrere &quot;Klassen&quot; unterst&uuml;tzen, was ein logisches UND innerhalb einer Kategorie erm&ouml;glicht; dies wird ausf&uuml;hrlicher in der unten stehenden Liste der Filtertypen erkl&auml;rt.</p>
 
-<p><i>Beispiele:</i> Wollen Sie etwa alle Sendungen aufgelistet bekommen f&uuml;r entweder Sender A <b>ODER</b> Sender B, w&auml;hlen Sie einfach beide Sender in der Filterliste. Wollen Sie alle auf A geplanten Filme, d.h. alle Sendungen, die auf Sender A laufen <b>UND</b> mit Spielfilm gekennzeichnet sind, w&auml;hlen Sie Sender A und als Thema &quot;Spielfilm - allgemein&quot;.</p>
+<p><i>Beispiele:</i> Wollen Sie etwa alle Sendungen aufgelistet bekommen f&uuml;r entweder Sender A <b>ODER</b> Sender B, w&auml;hlen Sie einfach beide Sender in der Filterliste. Wollen Sie alle auf A geplanten Filme, d.h. alle Sendungen, die auf Sender A laufen <b>UND</b> mit Themenkategorie Spielfilm gekennzeichnet sind, w&auml;hlen Sie Sender A und als Themenkategorie &quot;Spielfilm&quot;.</p>
 
 <h2 id="Filter-Types">Filter Types</h2>
 
@@ -765,9 +765,11 @@ width="125" height="37" alt="SourceForge.net Logo"></a></span></span>
 <dt id="Theme-categories"><b>Theme categories</b></dt>
 <dd>
 
-<p>Begrenzt die Auflistung auf Sendungen, denen eines der vorgegebenen Themenkategorien zugeordnet ist (logisches ODER). Aktuell wird eine Liste von 76 vordefinierten Themen verwendet, die in 11 Hauptkategorien strukturiert sind. Kategorien in XMLTV Dateien werden auf diese einheitliche Liste abgebildet.</p>
+<p>Begrenzt die Auflistung auf Sendungen denen die ausgew&auml;hlte Themenkategorie zugeordnet ist. Wird mehr als eine Kategorie ausgew&auml;hlt, zeigt die Auflistung Sendungen den eine beliebige der ausgew&auml;hlten Kategorien zugeordnet ist (logisches ODER).</p>
 
-<p>Wollen Sie die Auflistung auf Sendungen begrenzen, die mehr als eines der vorgegebenen Themen besitzen (logisches UND), m&uuml;ssen Sie diese in unterschiedlichen Themenklassen spezifizieren. Zum Beispiel: um eine Auflistung aller Sendungen zu erhalten, die beides sind Sci-Fi und Kom&ouml;die, w&auml;hlen Sie die Themenkategorie Sci-Fi, dann wechseln Sie zu einer anderen Themenklasse und w&auml;hlen die Themenkategorie Kom&ouml;die. Die aktuellen Klassennummern spielen keine Rolle, Sie sollten einfach nur zwei verschiedene verwenden (d.h. Sie k&ouml;nnen entweder #1 und #2 oder #5 und #6 etc. anwenden).</p>
+<p>Die Liste von verf&uuml;gbaren Themenkategorien ist die Summe aller Kategorien die in der Datenbank verwendet werden. Daher unterscheidet sich die Liste je nach der verwendeten Datenbank. Dies bedeutet jedoch leider dass Shortcuts die Themen-Filter beinhalten nicht generell zwischn Providern &uuml;bertragbar sind. (Dies ist auch der Grund, dass solche Shortcuts nicht in der Grundeinstellung von nxtvepg enthalten sind.)</p>
+
+<p>F&uuml;r Provider die ein hierarchisches System von Themenkategorien verwenden, ist es &uuml;blich dass einer Sendung mehrere Kategorien zugeordnet sind. Zum Beispiel, es k&ouml;nnte Hauptkategorien &quot;Film&quot; und &quot;Serie&quot; geben und Unterkategorien &quot;Kom&ouml;die&quot; usw. Wenn nun als Kategorien &quot;Film&quot; und &quot;Kom&ouml;die&quot; ausgew&auml;hlt wird, w&uuml;rden auch kom&ouml;diantische Serien in der Liste angezeigt. Um nur Filme die Kom&ouml;dien sind anzuzeigen, wird ein logisches &quot;UND&quot; zwischen Kategorien ben&ouml;tigt. Dies kann erreicht werden, indem man die Kategorien verschiedenen &quot;Klassen&quot; zuordnet. Zum Beispiel: Man w&auml;hlt zuerst in Klasse 1 Kategorie &quot;Film&quot;, wechselt dann zu Klasse 2 und w&auml;hlt &quot;Kom&ouml;die&quot;. Welche Nummern verwendet werden ist dabei egal, es kommt nur darauf an unterschiedliche Klassen zu verwenden um ein &quot;UND&quot; zwischen den Kategorien zu erzwingen.</p>
 
 </dd>
 <dt id="Networks"><b>Networks</b></dt>
@@ -851,9 +853,11 @@ width="125" height="37" alt="SourceForge.net Logo"></a></span></span>
 <dt id="Expired-Programmes-Display"><b>Expired Programmes Display</b></dt>
 <dd>
 
-<p>Im Gegensatz zu allen anderen Filteroptionen wird diese genutzt, um den Satz zutreffender Sendungen zu <i>vergr&ouml;&szlig;ern</i>. Sie erm&ouml;glicht es, abgelaufene Sendungen mit in die Liste einzuschlie&szlig;en (d.h. solche mit Stopzeit in der Vergangenheit); diese werden mit einem gelblichen Hintergrund gekennzeichnet (die Farbe k&ouml;nnen Sie &auml;ndern, siehe <code>.Xdefaults</code> und <code>nxtvepg.ad</code> in <a href="#FILES">&quot;FILES&quot;</a>). Mit dem Schieberegler k&ouml;nnen Sie die Schwelle der Ablaufzeit Minutengenau verstellen. Die Eingabefelder unterhalb des Schiebers geben die &auml;quivalente Zeitschwelle in Einheiten von Tagen und Stunden an. Sie k&ouml;nnen diese Felder auch direkt editieren; Dr&uuml;cken Sie die Return-Taste um &Auml;nderungen zu &uuml;bernehmen.</p>
+<p>Im Gegensatz zu allen anderen Filteroptionen wird diese genutzt, um den Satz zutreffender Sendungen zu <i>vergr&ouml;&szlig;ern</i>. Standardm&auml;&szlig;ig ist die Schwelle f&uuml;r die Ablaufzeit Null, sodass abgelaufene Sendungen sofort aus der Anzeige verschwinden. Die Optionen in diesem Dialog erbauben, die Schwelle zu &auml;ndern, so da&szlig; auch Sendungen mit Stoppzeit in der Vergangenheit angezeigt werden. Diese werden mit einem gelblichen Hintergrund gekennzeichnet (die Farbe k&ouml;nnen Sie &auml;ndern, siehe <code>.Xdefaults</code> und <code>nxtvepg.ad</code> in <a href="#FILES">&quot;FILES&quot;</a>).</p>
 
-<p>Standardm&auml;&szlig;ig ist die Schwelle f&uuml;r die Ablaufzeit Null, sodass abgelaufene Sendungen sofort aus der Anzeige verschwinden.</p>
+<p>Mit dem Schieberegler k&ouml;nnen Sie die Schwelle der Ablaufzeit minutengenau verstellen. Die Eingabefelder unterhalb des Schiebers geben die &auml;quivalente Zeitschwelle in Einheiten von Tagen und Stunden an. Sie k&ouml;nnen diese Felder auch direkt editieren; Dr&uuml;cken Sie die Return-Taste um &Auml;nderungen zu &uuml;bernehmen.</p>
+
+<p>Mit der Option <i>Show all expired programmes</i> kann dieser Filter abgeschalten werden, so dass alle abgelaufenen Sendungen angezeigt werden. Die Programmliste beginnt dann mit der &auml;ltesten Sendung die noch in der Programmdatenbank vorhanden ist.</p>
 
 <p>Beachten Sie, dass Sie nicht mehr Sendungen hinzuf&uuml;gen k&ouml;nnen, als in der Datenbank gespeichert sind. nxtvepg l&ouml;scht abgelaufene Programme zwar nicht aus der Datenbank, jedoch passiert dies &uuml;blicherweise bei der Aktualisierung des XMLTV Files. Ob bzw. wie lange abgelaufene Programme bei Aktualisierung erhalten bleiben h&auml;ngt von Ihrem Anbieter bzw. dem zur Aktualisierung verwendeten Programm ab. Beim Teletext EPG Grabber k&ouml;nnen sie den Schwellwert frei konfigurieren (siehe <a href="#CONFIGURE-MENU">&quot;CONFIGURE MENU&quot;</a> Kapitel &quot;Teletext Grabber&quot;).</p>
 
@@ -1110,59 +1114,62 @@ width="125" height="37" alt="SourceForge.net Logo"></a></span></span>
 
 <p>&Ouml;ffnet einen Dialog, der es erlaubt, alle Programminformationen in einem fixen Textformat in eine Datei zu exportieren. Jede Zeile dieser Datei wird einen Eintrag in der Datenbank repr&auml;sentieren. Die einzelnen Datenfelder der Zeilen sind durch Tabulator-Zeichen getrennt; die Zeile wird durch ein einziges new-line-Zeichen abgeschlossen (d.h. UNIX-Textformat, auch auf Windows). Fehlende Werte werden in einigen F&auml;llen durch <code>\N</code> repr&auml;sentiert, welches den MySQL-NULL-Identifier darstellt (zurzeit nur f&uuml;r das VPS/PDC-Feld verwendet).</p>
 
-<p>Die erzeugte Textdatei kann direkt in eine relationale Datenbank geladen werden. Sie ist nicht f&uuml;r das Betrachten in einem regul&auml;ren Texteditor formatiert. Sender und Themen werden entsprechend als numerische Indizes innerhalb Sender- und Thementabelle dargestellt. Deshalb werden diese Tabellen zus&auml;tzlich zur Programmtabelle ben&ouml;tigt. Um sie in eine Datenbank zu laden, m&uuml;ssen Sie sie in unterschiedliche Dateien exportieren.</p>
+<p>Zeilenumbr&uuml;che im Beschreibungstext werden im Export durch &quot;<code> // </code>&quot; ersetzt. In einer zusammengef&uuml;hrten Datenbank wird zwischen aus mehrereren Quellen zusammengesetzten Beschreibungstexten &quot;<code> //%// </code>&quot; eingef&uuml;gt. Diese Ersatzzeichen sollten bei Anzeige der Texte durch Zeilenumbr&uuml;che bzw. eine horizontale Trennlinie ersetzt werden.</p>
+
+<p>Die erzeugte Textdatei kann direkt in eine relationale Datenbank geladen werden. Sie ist nicht f&uuml;r das Betrachten in einem regul&auml;ren Texteditor formatiert. Sender werden entsprechend als numerische Indizes innerhalb Sender- und Thementabelle dargestellt. Deshalb wird die Sendertabelle zus&auml;tzlich zur Programminformationstabelle ben&ouml;tigt. Um sie in eine Datenbank zu laden, m&uuml;ssen Sie sie in unterschiedliche Dateien exportieren.</p>
 
 <p>F&uuml;r <i>MySQL</i> k&ouml;nnen Sie die Tabellen wie folgt definieren:</p>
 
-<pre><code>   CREATE TABLE PI (
-      netwop smallint(2) unsigned NOT NULL,
-      Dstart date NOT NULL,
-      Hstart time NOT NULL,
-      Hstop time NOT NULL,
-      vpspdc_pil datetime,
-      prat tinyint(2) unsigned,
-      erat tinyint(2) unsigned,
-      sound enum(&quot;mono&quot;,&quot;2-chan&quot;,&quot;stereo&quot;,&quot;surround&quot;),
-      is_wide BOOL,
-      is_palplus BOOL,
-      is_digital BOOL,
-      is_encrypted BOOL,
-      is_live BOOL,
-      is_repeat BOOL,
-      is_subtitled BOOL,
-      theme_0 tinyint(3) unsigned,
-      theme_1 tinyint(3) unsigned,
-      theme_2 tinyint(3) unsigned,
-      theme_3 tinyint(3) unsigned,
-      theme_4 tinyint(3) unsigned,
-      theme_5 tinyint(3) unsigned,
-      theme_6 tinyint(3) unsigned,
-      title varchar(40) NOT NULL,
-      descr text,
-      PRIMARY KEY (netwop, Dstart, Hstart)
-   );
+<pre><code>CREATE TABLE PI (
+   netwop smallint(2) unsigned NOT NULL,
+   Dstart date NOT NULL,
+   Hstart time NOT NULL,
+   Hstop time NOT NULL,
+   vpspdc_pil datetime,
+   parental_rating tinyint(2) unsigned,
+   editorial_rating tinyint(2) unsigned,
+   editorial_max_val tinyint(2) unsigned,
+   sound enum(&quot;none&quot;,&quot;mono&quot;,&quot;2-chan&quot;,&quot;stereo&quot;,&quot;surround&quot;,&quot;dolby&quot;),
+   is_wide BOOL,
+   no_video BOOL,
+   is_video_hd BOOL,
+   is_video_bw BOOL,
+   is_new BOOL,
+   is_premiere BOOL,
+   is_repetition BOOL,
+   is_last_repetition BOOL,
+   subtitles enum(&quot;no&quot;,&quot;yes&quot;,&quot;onscreen&quot;,&quot;deaf-signed&quot;,&quot;onscreen,deaf-signed&quot;),
+   theme_0 text,
+   theme_1 text,
+   theme_2 text,
+   theme_3 text,
+   theme_4 text,
+   theme_5 text,
+   theme_6 text,
+   theme_7 text,
+   title varchar(40) NOT NULL,
+   descr text,
+   PRIMARY KEY (netwop, Dstart, Hstart)
+);
 
-   CREATE TABLE AI (
-      netwop_idx smallint(2) unsigned NOT NULL,
-      cni smallint(5) unsigned,
-      lto_mins smallint(5),
-      daycount smallint(5) unsigned,
-      alphabet smallint(5) unsigned,
-      addinfo smallint(5) unsigned,
-      name text,
-      UNIQUE netwop_idx (netwop_idx)
-   );
+CREATE TABLE AI (
+   netwop_idx smallint(2) unsigned NOT NULL,
+   cni smallint(5) unsigned,
+   lto_mins smallint(5),
+   daycount smallint(5) unsigned,
+   alphabet smallint(5) unsigned,
+   addinfo smallint(5) unsigned,
+   name text,
+   UNIQUE netwop_idx (netwop_idx)
+);
 
-   CREATE TABLE pdc_themes (
-      theme_idx smallint(3) unsigned NOT NULL,
-      cat_idx smallint(3) unsigned,
-      name_eng text,
-      name_ger text,
-      name_fra text,
-      UNIQUE theme_idx (theme_idx)
-   );</code></pre>
+CREATE TABLE themes (
+   theme_idx smallint(3) unsigned NOT NULL,
+   category_name text,
+   UNIQUE theme_idx (theme_idx)
+);</code></pre>
 
-<p><b>Tipp:</b> Die Dateien k&ouml;nnen auch direkt &uuml;ber die Befehlszeile mittels der Schalter <b>-dump pi</b>, <b>-dump ai</b> bzw. <b>-dump pdc</b> geschrieben werden. (Siehe auch <a href="#OPTIONS">&quot;OPTIONS&quot;</a>)</p>
+<p><b>Tipp:</b> Die Dateien k&ouml;nnen auch direkt &uuml;ber die Befehlszeile mittels der Schalter <b>-dump pi</b>, <b>-dump ai</b> bzw. <b>-dump themes</b> geschrieben werden. (Siehe auch <a href="#OPTIONS">&quot;OPTIONS&quot;</a>)</p>
 
 <h2 id="Export-as-XMLTV">Export as XMLTV</h2>
 
@@ -1484,19 +1491,19 @@ width="125" height="37" alt="SourceForge.net Logo"></a></span></span>
 
 <h2 id="Network-names">Network names</h2>
 
-<p>&Ouml;ffnet einen Dialog zur Konfiguration der Sendernamen. Dessen Hauptzweck ist, die Sendernamen zwischen nxtvepg und Ihrer TV-Anwendungen zu synchronisieren. Dies ist notwendig, weil der Sendername der Kommunikation dient, wenn Sie die &quot;<i>Tune TV</i>&quot;-Fernbedienung verwenden und ebenso f&uuml;r die Bekanntgaben der Kanalwechsel von Seiten der TV-Anwendungen. Bei vielen Sendern muss nichts ver&auml;ndert werden, bei anderen jedoch bestehen mehrere Varianten, z.B. in Deutschland &quot;Super RTL&quot; versus &quot;S-RTL&quot; oder &quot;MDR3&quot; versus &quot;MDR&quot;.</p>
+<p>&Ouml;ffnet einen Dialog zur Konfiguration der Sendernamen. Der Hauptzweck des Dialogs ist die Sendernamen zwischen nxtvepg und Ihrer TV-Anwendungen zu synchronisieren. Dies ist notwendig, weil der Sendername der Kommunikation dient, wenn Sie die &quot;<i>Tune TV</i>&quot;-Fernbedienung verwenden und ebenso f&uuml;r die Bekanntgaben der Kanalwechsel von Seiten der TV-Anwendungen. Bei vielen Sendern muss nichts ver&auml;ndert werden, bei anderen jedoch bestehen mehrere Varianten, z.B. in Deutschland &quot;Super RTL&quot; versus &quot;S-RTL&quot; oder &quot;MDR3&quot; versus &quot;MDR&quot;.</p>
 
-<p>Zuerst sollten Sie ausw&auml;hlen, mit welcher TV-Anwendung Sie synchronisieren wollen und wo sich die Konfigurationsdateien befinden. Dies geschieht &uuml;ber den Dialog &quot;<i>TV app. interaction</i>&quot; im Configure-Men&uuml; (siehe <a href="#CONFIGURE-MENU">&quot;CONFIGURE MENU&quot;</a>, Kapitel &quot;TV application interaction&quot;).</p>
+<p>Falls Sie also eine der von nxtvepg unterst&uuml;tzten TV-Applikationen verwenden und Features wie den &quot;Tune-TV&quot; Knopf zum Senderwechsel verwenden wollen, sollten Sie diese zuerst mittels des Dialogs &quot;<i>TV app. interaction</i>&quot; im <a href="#CONFIGURE-MENU">&quot;CONFIGURE MENU&quot;</a> konfigurieren. Ansonsten k&ouml;nnen Sie den Dialog verwenden um die Sendernamen individuall anzupassen.</p>
 
-<p>Ein weiterer Zweck dieses Dialoges ist es, die Namen der Sender &uuml;ber alle XMLTV Quellen hinweg einheitlich zu machen. Die hier angegebenen Namen, werden unabh&auml;ngig vom Provider, in der Programm&uuml;bersicht und allen Filter-Men&uuml;s verwendet.</p>
+<p>Auf der linken Seite des Dialogs finden Sie eine Liste aller Sender der aktuell geladenen bzw. zusammengef&uuml;hrten XMLTV Dateien. Beim ersten Aufruf des Dialogs nachdem eine TV-Applikation konfiguriert wurde, wird nxtvepg nach &auml;hnlichen Namen in der TV-Sendertabelle suchen, die sich nur durch Leerzeichen oder Punktierung vom Namen in der XMLTV Datei unterscheidet. Diese Namen werden automatisch in der Namensliste ersetzt. Falls keiner TV-Applikation konfiguriert ist, wird der Name aus der XMLTV unver&auml;ndert &uuml;bernommen. Im Fall einer zusammengef&uuml;hrten Datenbank, wird der Name der ersten XMLTV Datei &uuml;bernommen.</p>
 
-<p>Auf der linken Seite des Dialogs finden Sie eine Liste aller Sender der aktuell geladenen bzw. zusammengef&uuml;hrten XMLTV Dateien. Die hier benutzten Namen sind jene, welche Sie zuvor konfiguriert haben, oder falls Sie dies noch nicht getan haben, welche am besten auf die Stationsnamen Ihrer TV-Anwendung zutreffen. Nicht zutreffende Namen sind rot markiert. Ist keine TV-Anwendung konfiguriert, werden die von der aktuell geladenen XMLTV Datei gew&auml;hlten Namen &uuml;bernommen.</p>
+<p>Namen in der linken Liste sind rot markiert, wenn eine TV-Applikation konfiguriert ist aber der Name nicht in der TV-Sendertabelle enthalten ist.</p>
 
-<p>Auf der rechten Seite werden Ihnen vier M&ouml;glichkeiten angeboten, den Namen zu &auml;ndern: zuoberst liegt ein Eingabefeld, in das Sie einen beliebigen Namen eintippen k&ouml;nnen. Darunter befindet sich ein Popupmen&uuml;, welches alle in der Kanaltabelle Ihrer TV-Anwendung definierten Sendernamen enth&auml;lt. Darunter liegt ein Button, der einen &auml;hnlichen Namen aus der Kanaltabelle Ihrer TV-Anwendung enth&auml;lt, oder <i>none</i>. Er ist rot markiert, solange er sich durch Leerzeichen, Bindestriche oder &auml;hnliches vom Eingabefeld unterscheidet. Durch einen Klick auf den Button k&ouml;nnen Sie den Namen in das Eingabefeld kopieren. Darunter liegt ein Listenfeld mit den Originalnamen, die in den verschiedenen Provider-Datenbanken benutzt werden. Wenn Sie einen Namen aus dem Men&uuml; oder dem Listenfeld w&auml;hlen, wird er in das Eingabefeld und in die Liste der Sendernamen links daneben kopiert.</p>
+<p>Auf der rechten Seite werden Ihnen drei M&ouml;glichkeiten angeboten, den Namen zu &auml;ndern: zuoberst liegt ein normales Eingabefeld, in das Sie einen beliebigen Namen eintippen k&ouml;nnen. Im Rahmen darunter werden &auml;nlich lautende Namen in der Sendertabelle der TV-Applikation aufgef&uuml;hrt. Im untersten Rahmen werden die Originalnamen in der XMLTV Datei angezeigt. Sie k&ouml;nnen einen Namen aus den Listen durch einen Doppelclick in das Eingebefeld &uuml;bernehmen.</p>
 
 <p>Wollen Sie die ge&auml;nderte Liste speichern, verlassen Sie den Dialog mit <i>Save</i>, andernfalls benutzen Sie <i>Abort</i>.</p>
 
-<p><b>Wichtig</b>: wenn Sie Kan&auml;le empfangen, die mehrere Sender &uuml;bertragen, z.B. in Deutschland &quot;Arte / Kinderkanal&quot;, ist zu empfehlen, alle Sendernamen im Namen des Senders seitens der TV-Anwendung, durch einen Schr&auml;gstrich &quot;/&quot; getrennt, einzubeziehen. Der Schr&auml;gstrich wird von nxtvepg als ein Trennzeichen erkannt und so lassen sich alle daraus ergebenden Abschnitte als Sendernamen verwenden.</p>
+<p><b>Wichtig</b>: wenn Sie Kan&auml;le empfangen, die mehrere Sender &uuml;bertragen, z.B. in Deutschland &quot;Arte / Kinderkanal&quot;, ist zu empfehlen, alle Sendernamen im Namen des Senders auf Seite der TV-Anwendung durch einen Schr&auml;gstrich &quot;/&quot; getrennt einzubeziehen. Der Schr&auml;gstrich wird von nxtvepg als ein Trennzeichen erkannt und so lassen sich alle daraus ergebenden Abschnitte als Sendernamen in nxtvepg verwenden.</p>
 
 <h2 id="Context-menu-configuration">Context menu configuration</h2>
 
@@ -1525,7 +1532,7 @@ width="125" height="37" alt="SourceForge.net Logo"></a></span></span>
 
 <p>Beispiel:</p>
 
-<pre><code>  setstation ${network}</code></pre>
+<pre><code>setstation ${network}</code></pre>
 
 <p>Bewirkt dass die TV-Anwendung auf den Sender des aktuell in nxtvepg selektierten Programms umschaltet (d.h. identisch zum Klicken des Knopfs &quot;<i>Tune TV</i>&quot;). Welche Kommandos die TV-Applikation unterst&uuml;tzt entnehmen Sie bitte deren Dokumentation.</p>
 
@@ -1554,25 +1561,25 @@ width="125" height="37" alt="SourceForge.net Logo"></a></span></span>
 
 <p>Wie oben bereits erw&auml;hnt, k&ouml;nnen die Befehlszeilen Platzhalter umgeben von <code>${}</code> beinhalten, die beim Aufruf durch Attribute des im Hauptfenster selektierten Programms ersetzt werden. Im Folgenden finden Sie eine Liste aller verf&uuml;gbaren Variablen. Die Bedeutung sollte selbsterkl&auml;rend sein, au&szlig;er eventuell &quot;CNI&quot;: dies ist ein Europaweit eindeutiger Senderidentifikations-Code; e/p_rating: bezeichnet Wertung bzw. Altersfreigabe.</p>
 
-<pre><code>  ${title}
-  ${network}
-  ${start}
-  ${stop}
-  ${relstart}
-  ${duration}
-  ${CNI}
-  ${description}
-  ${themes}
-  ${VPS}  or  ${PDC}
-  ${e_rating}
-  ${p_rating}
-  ${sound}
-  ${format}
-  ${digital}
-  ${encrypted}
-  ${live}
-  ${repeat}
-  ${subtitle}</code></pre>
+<pre><code>${title}
+${network}
+${start}
+${stop}
+${relstart}
+${duration}
+${CNI}
+${description}
+${themes}
+${VPS}  or  ${PDC}
+${e_rating}
+${p_rating}
+${sound}
+${format}
+${digital}
+${encrypted}
+${live}
+${repeat}
+${subtitle}</code></pre>
 
 <p>Auf Start- und Stopzeit bezogene Schl&uuml;sselw&ouml;rter k&ouml;nnen optional entweder von einem Plus- oder Minuszeichen und einer Zeitabweichung gefolgt werden. Der Wert der Abweichung wird in Minuten angenommen. F&uuml;r Start und Dauer kann die Genauigkeit je nach Format ge&auml;ndert werden (siehe unten). Beispiel: um die Startzeit minus 5 Minuten ausgeben zu lassen (z.B. um eine Aufnahme 5 Minuten fr&uuml;her zu starten) verwenden Sie <code>${start-5:%H:%M}</code>.</p>
 
@@ -1595,7 +1602,7 @@ width="125" height="37" alt="SourceForge.net Logo"></a></span></span>
 <dt id="Themenkategorien"><i>Themenkategorien</i></dt>
 <dd>
 
-<p>Man kann zwischen numerischer oder textueller Ausgabe durch Anh&auml;ngen von &quot;n&quot; oder &quot;t&quot; w&auml;hlen. Eine Liste aller Kategorien erhalten Sie mit der Befehlszeilenoption <i>-dump pdc</i> (siehe <a href="#OPTIONS">&quot;OPTIONS&quot;</a>.)</p>
+<p>Man kann zwischen numerischer oder textueller Ausgabe durch Anh&auml;ngen von &quot;n&quot; oder &quot;t&quot; w&auml;hlen. Eine Liste aller Kategorien erhalten Sie mit der Befehlszeilenoption <i>-dump themes</i> (siehe <a href="#OPTIONS">&quot;OPTIONS&quot;</a>.)</p>
 
 </dd>
 </dl>
@@ -1606,19 +1613,19 @@ width="125" height="37" alt="SourceForge.net Logo"></a></span></span>
 
 <p>Beispiel: Die Befehlszeile</p>
 
-<pre><code>  plan ${start:%d.%m.%Y %H:%M} ${title}</code></pre>
+<pre><code>plan ${start:%d.%m.%Y %H:%M} ${title}</code></pre>
 
 <p>w&uuml;rde zum Beispiel resultieren in</p>
 
-<pre><code>  plan &#39;22.08.2001 13:05&#39; &#39;K&auml;pt&#39;\&#39;&#39;n Blaub&auml;rs Seemannsgarn&#39;</code></pre>
+<pre><code>plan &#39;22.08.2001 13:05&#39; &#39;K&auml;pt&#39;\&#39;&#39;n Blaub&auml;rs Seemannsgarn&#39;</code></pre>
 
 <p>Unter Windows werden nur einfache und doppelte Anf&uuml;hrungszeichen sowie Leerzeichen mit einem Backslash &quot;\&quot; gesch&uuml;tzt. Daher &auml;ndert sich die Ausgabe des obigen Beispiels folgenderma&szlig;en:</p>
 
-<pre><code>  plan 22.08.2001\ 13:05 K&auml;pt\&#39;n\ Blaub&auml;rs\ Seemannsgarn</code></pre>
+<pre><code>plan 22.08.2001\ 13:05 K&auml;pt\&#39;n\ Blaub&auml;rs\ Seemannsgarn</code></pre>
 
 <p><b>Tipp:</b> Sie k&ouml;nnen zwei separate Substitutionen f&uuml;r Datum und Uhrzeit verwenden, wenn Sie einen Backslash innerhalb Datum und Uhrzeit vermeiden wollen (falls das aufgerufene Programm den Backslash nicht verarbeiten kann). Beispiel:</p>
 
-<pre><code>  plan ${start:%d.%m.%Y} ${start:%H:%M} ${title}</code></pre>
+<pre><code>plan ${start:%d.%m.%Y} ${start:%H:%M} ${title}</code></pre>
 
 <h2 id="Themes-language">Themes language</h2>
 
@@ -1735,7 +1742,7 @@ width="125" height="37" alt="SourceForge.net Logo"></a></span></span>
 
 <p>Ger&auml;tedateien, aus denen Teletext w&auml;hrend der Akquisition gelesen wird wenn eine analoge TV-Karte konfiguriert wurde. Der Index von Postfix kann mit der Befehlszeilenoption <b>-card</b> (siehe <a href="#OPTIONS">&quot;OPTIONS&quot;</a>) spezifiziert werden. Sie m&uuml;ssen Lese-/Schreibzugriff auf diese Dateien haben; standardm&auml;&szlig;ig ist dies bei vielen Linux-Distributionen aus Sicherheitsgr&uuml;nden nicht der Fall (da Sie eine Webcam angeschlossen haben k&ouml;nnten und Mike oder sonst wer Sie aus der Ferne ausspionieren k&ouml;nnte). Auf einem Einzelplatzsystem ist es aber sicher, diese world-readable und writable zu machen, geben Sie dazu in der Root-Shell ein:</p>
 
-<pre><code>  chmod 666 /dev/vbi</code></pre>
+<pre><code>chmod 666 /dev/vbi</code></pre>
 
 <p>Alternativ kann man sich zum Mitglied einer Gruppe in <i>/etc/groups</i> - die Zugriff auf die Ger&auml;te hat - machen, oder eine solche Gruppe erstellen.</p>
 
@@ -1749,7 +1756,7 @@ width="125" height="37" alt="SourceForge.net Logo"></a></span></span>
 
 <p>Beachten Sie: das Video-Ger&auml;t muss zwingend denselben Index wie das VBI-Ger&auml;t besitzen. Haben Sie ein Video-Ger&auml;t an index 0, das kein Teletext unterst&uuml;tzt (eine Webcam zum Beispiel), kann das zum Video-Ger&auml;t 1 geh&ouml;rende VBI-Ger&auml;t an index 0 auftauchen. Sie sollten den Treiber dazu zwingen, das Ger&auml;t an index 1 des VBI-Index zu setzen. Auf Linux ist dies mittels der Parameter <i>insmod</i> in <i>/etc/modules.conf</i> m&ouml;glich, z.B. f&uuml;r bttv:</p>
 
-<pre><code>   options bttv video_nr=1 vbi_nr=1</code></pre>
+<pre><code>options bttv video_nr=1 vbi_nr=1</code></pre>
 
 </dd>
 <dt id="dev-v4l-vbi0-dev-v4l-video0"><b>/dev/v4l/vbi0</b>, <b>/dev/v4l/video0</b></dt>
@@ -1763,7 +1770,7 @@ width="125" height="37" alt="SourceForge.net Logo"></a></span></span>
 
 <p>Diese Datei enth&auml;lt die PID des nxtvepg Prozesses (oder des Akquisitions-Subprozesses, wenn kein Threading genutzt wird) solange ein VBI device ge&ouml;ffnet ist. Der Prozess kann gezwungen werden, das Ger&auml;t freizugeben, indem ihm das Signal SIGHUP gesendet wird, zum Beispiel durch ein Wrapper-Skript f&uuml;r einen Teletextdekoder. Ein Beispiel, das mit allen Shells funktioniert:</p>
 
-<pre><code>   kill -HUP `cat /tmp/.vbi0.pid`</code></pre>
+<pre><code>kill -HUP `cat /tmp/.vbi0.pid`</code></pre>
 
 <p>Zu bemerken ist, dass der Daemon nicht am Leben gehalten wird, wenn die Akquisition deaktiviert ist, sodass das Senden des HUP gleichbedeutend dem Senden des TERM ist. Sie k&ouml;nnen die Akquisition neu starten, indem Sie einen neuen Daemon starten. Der Browser versucht alle 10 Sekunden Verbindung aufzunehmen, wenn diese unterbrochen wurde. Sie k&ouml;nnen jedoch auch eine unmittelbare Wiederaufnahme der Verbindung ausl&ouml;sen, in dem Sie ihm ein HUP signalisieren.</p>
 
@@ -1789,7 +1796,7 @@ width="125" height="37" alt="SourceForge.net Logo"></a></span></span>
 
 <p>Standardwerte f&uuml;r alle offiziell unterst&uuml;tzten Optionen werden in der so genannten &quot;app-defaults&quot;-Datei <i>Nxtvepg.ad</i> aufgelistet, die gew&ouml;hnlich nach <i>/usr/X11/lib/X11/app-defaults</i> installiert wird (die Erweiterung .ad wird w&auml;hrend der Installation weggelassen). Sie sollten dort jedoch keine Werte ver&auml;ndern, da diese bei der Installation einer neuen Version &uuml;berschrieben werden. Kopieren Sie stattdessen ge&auml;nderte Zeilen in Ihre Datei .Xdefaults (ohne das vorangehende &quot;!&quot; Kommentarzeichen). Beachten Sie, dass Sie nxtvepg neu starten m&uuml;ssen, um diese &Auml;nderungen wirksam werden zu lassen. Wenn X11 bereits l&auml;uft, k&ouml;nnen Sie individuelle Einstellungen mittels xrdb wie folgt &uuml;berschreiben:</p>
 
-<pre><code>   echo &quot;nxtvepg*text_bg: #E9E9EC&quot; | xrdb -merge</code></pre>
+<pre><code>echo &quot;nxtvepg*text_bg: #E9E9EC&quot; | xrdb -merge</code></pre>
 
 <p>Farben k&ouml;nnen entweder symbolisch (z.B. &quot;red&quot;) oder als hexadezimale RGB-Werte im Format #RRGGBB angegeben werden. Ein Sonderfall sind die 7 Farben f&uuml;r den Wochentagshintergrund im Hauptfenster: ihr Wert besteht aus einer kommagetrennten Liste von 7 Farben.</p>
 
@@ -1842,7 +1849,7 @@ width="125" height="37" alt="SourceForge.net Logo"></a></span></span>
 
 <h1 id="COPYRIGHT">COPYRIGHT</h1>
 
-<p>Copyright (C) 1999 - 2009, 2020 - 2021 by T. Z&ouml;rner. Alle Rechte vorbehalten.</p>
+<p>Copyright (C) 1999 - 2009, 2020 - 2023 by T. Z&ouml;rner. Alle Rechte vorbehalten.</p>
 
 <p>Zus&auml;tzliche Copyrights gelten f&uuml;r Teile des verwendeten Quelltexts. Bitte in der Datei COPYRIGHT und den Kommentaren im Quelltext nach Details sehen.</p>
 

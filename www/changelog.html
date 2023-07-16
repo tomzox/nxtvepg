@@ -79,6 +79,55 @@ Even more detailed information is available via the source code repository
 at the <A HREF="https://github.com/tomzox/nxtvepg">nxtvepg github site</A>.
 </P>
 
+<H2><A NAME="release_3_1_0">From 3.0.0 to 3.1.0 (Jul/23/2023)</A></H2>
+<P>
+Focus of this release are extensions to the support of the XMLTV specification
+and thus to the information available for display in the GUI. Additionally,
+a number of old bugs in the GUI were fixed.
+</P>
+<UL>
+<LI>Theme category handling was enhanced to support this attribute exactly as
+  present in XMLTV files: The pre-defined theme category table was replaced by
+  a table that is created dynamically from the categories present in the loaded
+  XMLTV file. A new filter dialog was added which can be used for browsing the
+  list of all defined theme categories and for finding associated programmes.
+<LI>Support for several new programme attributes defined by XMLTV was added,
+  namely "review", "new", "premiere" and "last-chance". The "audio", "video"
+  and "subtitles" attributes parsing was updated to support new attributes
+  defined by XMLTV. (Note you'll benefit from these enhancements only if your
+  XMLTV provider supports these attributes.)
+<LI>Processing of parental and editorial ratings was enhanced by removing
+  rounding to multiples of two and adding support for a Polish and an American
+  parental rating category. For editorial ratings, the GUI now displays both
+  the actual rating and maximum value.
+<LI>The expiry threshold filter dialog was extended to allow disabling the expiry
+  time filter completely, so that even programme data that is completely
+  expired can be viewed.
+<LI>Case-insensitive text search was corrected, so that it now also works as
+  expected for text containing non-ASCII characters (i.e. locale-specific
+  characters).
+<LI>The limitation to 254 channels when importing a database from XMLTV was
+  relaxed to about 8000 channels and the import procedures were optimized to
+  reduce load time for huge XMLTV files.
+<LI>Performance of several GUI dialogs was improved for large databases, namely
+  the programme index filter and "Recurring titles" drop-down menu.
+<LI>Usability of the "Load XMLTV file" menu command was improved by replacing
+  this command with a standard file selection dialog. The previous more complex
+  dialog was kept as a separate menu command "Browse XMLTV files" with an
+  additional possibility to configure file name extension of XMLTV files.
+<LI>Usability of the "Network name configuration" dialog was improved by omitting
+  optional notifications and dialog sub-frames that are not relevant when
+  nxtvepg is not configured to interact with a TV application.
+<LI>When using MS Windows, the "nxtvepg.ini" configuration file is now stored in
+  the user's "AppData" directory instead of the current working directory.
+  Note this means that a config file created by previous versions of nxtvepg
+  will not be loaded automatically.
+<LI>Encoding of the config file has been changed to UTF-8 so that characters
+  imported from XMLTV can be stored without corruption. If your system is not
+  configured to use UTF-8 by default, it's recommended to delete your old
+  "nxtvepg.ini" (MS Windows) or "config/nxtvepg/nxtvepg.rc" (Linux) file.
+</UL>
+
 <H2><A NAME="release_3_0_0">From 2.9.0 to 3.0.0 (Mar/22/2021)</A></H2>
 <P>
 After 10 years gap in development, this new release strips features that

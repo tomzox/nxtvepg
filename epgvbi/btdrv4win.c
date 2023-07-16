@@ -1,7 +1,7 @@
 /*
  *  Win32 VBI capture driver management
  *
- *  Copyright (C) 1999-2008, 2020-2021 T. Zoerner
+ *  Copyright (C) 1999-2008, 2020-2023 T. Zoerner
  *
  *  Original WDM support:
  *      February 2004 by Gerard Chevalier (gd_chevalier@hotmail.com)

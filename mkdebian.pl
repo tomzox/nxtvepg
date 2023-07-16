@@ -4,7 +4,7 @@
 #
 use strict;
 
-my $version = "3.0.3";
+my $version = "3.1.0";
 my $name = "nxtvepg";
 my $arch = "amd64";
 
@@ -97,7 +97,7 @@ close(CTRL);
 #
 open(CTRL, ">deb/usr/share/doc/$name/copyright") || die;
 print CTRL <<EoF;
-Copyright (C) 2006-2011,2020-2021 T. Zoerner. All rights reserved.
+Copyright (C) 2006-2011,2020-2023 T. Zoerner. All rights reserved.
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by

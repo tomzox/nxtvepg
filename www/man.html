@@ -74,7 +74,8 @@ width="125" height="37" alt="SourceForge.net Logo"></a></span></span>
 <H1>nxtvepg manual</H1>
 <P>
 This is the manual page for release 3.0.0 of the
-<A HREF="http://nxtvepg.sourceforge.net/">nxtvepg</A> software package.</P>
+<A HREF="http://nxtvepg.sourceforge.net/">nxtvepg</A> software package.
+</P>
 
 <ul id="index">
   <li><a href="#NAME">NAME</a></li>
@@ -261,8 +262,8 @@ This is the manual page for release 3.0.0 of the
 
 <p>UNIX warning: for security reasons it&#39;s depreciated to run the daemon with root privileges, because nxtvepg has not been reviewed yet for possible exploits. If you want to start the daemon already during system startup, you should use su(1). Also note that you&#39;ll probably need to specify <i>-rcfile</i> and <i>-dbdir</i> because the <i>$HOME</i> environment variable might not be (correctly) defined. Example:</p>
 
-<pre><code>   su nobody -c &quot;/usr/local/bin/nxtvepg -daemon \
-                 -rcfile /usr/local/etc/nxtvepgrc&quot;</code></pre>
+<pre><code>su nobody -c &quot;/usr/local/bin/nxtvepg -daemon \
+              -rcfile /usr/local/etc/nxtvepgrc&quot;</code></pre>
 
 <p>For terminating the daemon process, see the -daemonstop option below. Alternatively you can stop the daemon via the graphical user interface by disabling <i>enable acquisition</i> in the control menu.</p>
 
@@ -282,18 +283,18 @@ This is the manual page for release 3.0.0 of the
 
 <p>Note you can query the daemon directly without use of a nxtvepg client by connecting to the host and port where the daemon accepts client connections and send the string &quot;\x00\x11\x00\x00ACQSTAT&quot;. The daemon will reply with a 4-byte header followed by a variable-length string: The first two header bytes specify the message length including header in beg-endian binary format; the next two bytes are two and zero; the remaining bytes are the message text. Example script implemented in the <i>Tcl</i> programming language:</p>
 
-<pre><code>   #!/usr/bin/tclsh
-   if {[catch {set sock_fd [socket localhost 7658]} err] == 0} {
-      fconfigure $sock_fd -buffering none -encoding binary
-      puts -nonewline $sock_fd [binary format Scxa7 11 0 ACQSTAT]
-      set line [read $sock_fd 4]
-      binary scan $line &quot;Scx&quot; len type
-      set line [read $sock_fd [expr {$len - 4}]]
-      binary scan $line &quot;a*&quot; msg
-      puts -nonewline $msg
-   } else {
-      puts stderr &quot;Failed to connect to daemon ($err)&quot;
-   }</code></pre>
+<pre><code>#!/usr/bin/tclsh
+if {[catch {set sock_fd [socket localhost 7658]} err] == 0} {
+   fconfigure $sock_fd -buffering none -encoding binary
+   puts -nonewline $sock_fd [binary format Scxa7 11 0 ACQSTAT]
+   set line [read $sock_fd 4]
+   binary scan $line &quot;Scx&quot; len type
+   set line [read $sock_fd [expr {$len - 4}]]
+   binary scan $line &quot;a*&quot; msg
+   puts -nonewline $msg
+} else {
+   puts stderr &quot;Failed to connect to daemon ($err)&quot;
+}</code></pre>
 
 </dd>
 <dt id="nodetach"><b>-nodetach</b></dt>
@@ -325,7 +326,7 @@ This is the manual page for release 3.0.0 of the
 
 <p>To export programme data into a HTML document, use keyword <i>html</i> as mode. The same options as configured in the HTML export dialog are applied (unless you are using the daemon executable <i>nxtvepgd</i> to perform the export.) For details see <a href="#CONTROL-MENU:-Export-as-HTML">&quot;CONTROL MENU: Export as HTML&quot;</a>. The number of exported programmes can be limited by adding a number after the keyword, separated by a colon (e.g. <code>-dump html:50</code>.) However the format of the programme list is currently not configurable via command line options.</p>
 
-<p>To export the database into a plain text file (e.g. for import into an SQL database) three mode keywords are supported: <i>pi</i> to dump programmes (i.e. the complete TV schedules), <i>ai</i> to dump the content provider&#39;s network table, <i>pdc</i> to dump the PDC theme categories table. For more details see <a href="#CONTROL-MENU:-Export-as-text">&quot;CONTROL MENU: Export as text&quot;</a>.</p>
+<p>To export the database into a plain text file (e.g. for import into an SQL database) three mode keywords are supported: <i>pi</i> to dump programmes (i.e. the complete TV schedules), <i>ai</i> to dump the content provider&#39;s network table, <i>themes</i> to dump the provider&#39;s theme categories table. For more details see <a href="#CONTROL-MENU:-Export-as-text">&quot;CONTROL MENU: Export as text&quot;</a>.</p>
 
 <p>The output is written to <i>stdout</i> unless you redirect it into a file or pipe it into another program. See also option <i>-outfile</i></p>
 
@@ -339,8 +340,8 @@ This is the manual page for release 3.0.0 of the
 
 <p>Note: instead of using this option you can also redirect output with the &quot;&gt;&quot; or &quot;|&quot; operators in UNIX shells or under M$ Windows at the MS-DOS command prompt. For example you could use either of the following:</p>
 
-<pre><code>  nxtvepg -dump ai tv.xml &gt; networks.txt
-  nxtvepg -dump ai tv.xml | more</code></pre>
+<pre><code>nxtvepg -dump ai tv.xml &gt; networks.txt
+nxtvepg -dump ai tv.xml | more</code></pre>
 
 <p>to either write the network table of XMLTV file &quot;tv.xml&quot; into a file named <i>networks.txt</i>, or pipe it to the paging program &quot;more&quot; respectively.</p>
 
@@ -367,7 +368,7 @@ This is the manual page for release 3.0.0 of the
 <dt id="NETNAME-name"><i>NETNAME=name</i></dt>
 <dd>
 
-<p>This command will only list programmes running on a network with the given name. To allow for multiple networks, use separate <i>-epgquery</i> options for each network. The name comparison is case-insensitive; unknown network names are silently ignored.</p>
+<p>This command will only list programmes running on a network with the given name. To allow for multiple networks, use separate <i>-epgquery</i> options for each network. The name has to be specified exactly as it appears in the XMLTV file. Unknown names are silently ignored.</p>
 
 </dd>
 <dt id="NETIDX-index_list"><i>NETIDX=index_list</i></dt>
@@ -388,10 +389,10 @@ This is the manual page for release 3.0.0 of the
 <p>This command restricts networks to the same list you have configured for the nxtvepg main application. This command has no parameters and cannot be combined with any other network selection commands.</p>
 
 </dd>
-<dt id="THEME-pdc_code-or-THEME-name"><i>THEME=pdc_code</i> or <i>THEME=name</i></dt>
+<dt id="THEME-name"><i>THEME=name</i></dt>
 <dd>
 
-<p>This command will only list programmes labeled with the given theme. The theme should be specified by its numeric PDC theme code as listed with <code>-dump pdc</code> (e.g. <code>THEME=16</code> to search for movies.) Multiple codes can be given when separated by commas, or as a range separated by a dash. Alternatively, the theme can be specified as a string (e.g. <code>theme=movie</code>) where the language must match that of the database, or English for XMLTV sources.</p>
+<p>This command will only list programmes labeled with the given theme category. The theme name should be specified exactly as it appears in the XMLTV input file. Unknown names are silently ignored.</p>
 
 </dd>
 <dt id="TITLE-text"><i>TITLE=text</i></dt>
@@ -454,8 +455,8 @@ This is the manual page for release 3.0.0 of the
 
 <p>Example:</p>
 
-<pre><code>  nxtvepg -dump html tv.xml -outfile tv.html \
-            -epgquery TITLE=Tagesschau -epgquery expire=NOW</code></pre>
+<pre><code>nxtvepg -dump html tv.xml -outfile tv.html \
+          -epgquery TITLE=Tagesschau -epgquery expire=NOW</code></pre>
 
 </dd>
 <dt id="remctrl-command"><b>-remctrl</b> <i>command</i></dt>
@@ -858,9 +859,9 @@ This is the manual page for release 3.0.0 of the
 
 <p>The second use for merged databases is when you have multiple EPG providers that cover the same network. In this case merging accumulates the data from both providers for display. For information elements such as descriptions, text from all providers is concatenated. For attributes that cannot be accumulated, the attribute from the first providers that supports it is selected (see details below).</p>
 
-<p>When you select the <b>Merge XMLTV files</b> entry from the <b>Control</b> menu, you will get a dialog with two listboxes: the left one contains a list of XMLTV files in the directory selected at the top of the dialog window. Click the button next to the entry field to open a directory selector dialog. You can also edit the directory name directly and press the Return key to update the list of files. (Note only files that have extension &quot;.xml&quot; and contain valid XMLTV syntax are shown in the list.)</p>
+<p>When you select the <b>Merge XMLTV files</b> entry from the <b>Control</b> menu, you will get a dialog with two listboxes: the left one contains a list of XMLTV files in the directory selected at the top of the dialog window. Click the button next to the entry field to open a directory selector dialog. You can also edit the directory name directly and press the Return key to update the list of files. By default, only files with extension &quot;<code>.xml</code>&quot; are shown; You can remove this filter by selecting &quot;<code>all (*.*)</code>&quot; from the drop down menu below the directory name.</p>
 
-<p>The list on the right side of the dialog shows XMLTV files selected for merge. Initially the list will be empty; After having merged databases once, the right side will show the last used configuration. You can add files to the list on the right by selecting an entry in the list on the left side and pressing &quot;Add&quot;. Inversely, you can remove entries in the right by selecting them and pressing &quot;Delete&quot;. You can reorder entries in the list on the right side by selecting one or more entries and pressing the arrow buttons in the middle between the two boxes. When you&#39;re done with your selection, press <b>Ok</b> to start the merge and switch the browser to the newly merged database.</p>
+<p>The list on the right side of the dialog shows XMLTV files selected for merge. Initially the list will be empty; After having merged databases once, the right side will show the previously used configuration, if the used files still exist. You can add files to the list on the right by selecting an entry in the list on the left side and pressing &quot;Add&quot;. Inversely, you can remove entries from the list on the right side by selecting them and pressing &quot;Delete&quot;. Entries can be reordered in the list on the right side by selecting one or more entries and pressing the arrow buttons in the middle between the two boxes. When you&#39;re done with your selection, press <b>Ok</b> to start the merge and switch the browser to the newly merged database.</p>
 
 <p>By ordering providers in your selection, you assign priorities which are important for conflict resolution. A conflict occurs when programme start and stop times differ between providers. The likelihood of such conflicts depends on the quality of your providers; theoretically they should never happen except if there are late program changes. In reality, conflicts are not that unlikely, particularly for programmes early in the morning. You should put the most reliable provider in the first position, because conflicting programmes from providers further down will be rejected, i.e. not added to the merged database.</p>
 
@@ -872,13 +873,13 @@ This is the manual page for release 3.0.0 of the
 
 <h1 id="FILTERING">FILTERING</h1>
 
-<p>The commands in this menu allow controlling which of the programmes in the database are presented in the listing. There&#39;s a filter for every kind of attribute that can be attached to a program, for example its network, start time, theme descriptors, or description text.</p>
+<p>The commands in this menu allow controlling which of the programmes in the database are presented in the listing. There&#39;s a filter for every kind of attribute that can be attached to a program, for example its network, start time, theme categories, or description text.</p>
 
 <p>Filters can be undone either singularly by selecting the same filter menu entry again, or globally by clicking on the <i>Reset</i> button.</p>
 
 <p>You can combine as many filters as you want to build a complex filter. If you combine two filters of different types, only programmes that match both attributes will be listed (logical AND). If you choose more than one filter of the same type, all programmes that match either attribute will be listed (logical OR). Note some filter types also support multiple &quot;classes&quot; which allow logical AND within a category; this is explained in more detail in the filter types list below.</p>
 
-<p><i>Examples:</i> If you want to get all programmes listed for either network A <b>OR</b> B, simply select both networks in the filter list. If you want to see all movies scheduled on A, i.e. all programmes which run on network A <b>AND</b> are flagged as movies, select network A and theme &quot;movie - general&quot;.</p>
+<p><i>Examples:</i> If you want to get all programmes listed for either network A <b>OR</b> B, simply select both networks in the filter list. If you want to see all movies scheduled on A, i.e. all programmes which run on network A <b>AND</b> are flagged as movies, select network A and from the themes dialog all categories related to movies.</p>
 
 <h2 id="Filter-Types">Filter Types</h2>
 
@@ -889,9 +890,11 @@ This is the manual page for release 3.0.0 of the
 <dt id="Theme-categories"><b>Theme categories</b></dt>
 <dd>
 
-<p>Restrict the listing to programmes that have any of the given theme categories attached to them (logical OR). Currently there is an internal list of 76 predefined themes, which are structured into 11 main categories and subcategories. Categories loaded from XMLTV sources are mapped to these themes.</p>
+<p>Restrict the listing to programmes that have any a given theme categories attached to them. When selecting more than one category, programmes that jave any of the selected categories are shown (logical OR).</p>
 
-<p>If you want to restrict the listing to programmes that have more than one of the given themes (logical AND) you need to specify them in different theme classes. For example: to get a listing of all programmes which are both Sci-Fi and Comedy, select theme category Sci-Fi, then switch to a different theme class, and select theme category Comedy. The actual class numbers do not matter, you just need to use two different ones (i.e. you can use either #1 and #2 or #5 and #6 etc.)</p>
+<p>The list of available theme categories is built from categories attached to programmes in the database. Therefore the list of categories will change between EPG providers. Unfortunately this means that shortcuts with theme filters may not work across different providers. (For this reason there is no theme shortcut in the default shortcut list.)</p>
+
+<p>For providers using hierarchical theme categories, multiple themes may be associated with individual programmes. For example, there may be main categories &quot;Movie&quot; and &quot;Series&quot; and sub-categories &quot;Comedy&quot; et.al. In that case, selecting theme categories &quot;Movie&quot; and &quot;Comedy&quot; would also show comedy series. To show only comedy movies, one needs to apply a logical &quot;AND&quot; between the categories. This is done by selecting the two categories in different &quot;theme classes&quot;. For example, first select &quot;Movie&quot;, then select class &quot;2&quot; via the selection box at the bottom of the theme selection dialog, then select &quot;Comedy&quot;. The actual used class numbers do not matter, you just need to use two different ones. There will be logical &quot;AND&quot; between themes in different classes.</p>
 
 </dd>
 <dt id="Networks"><b>Networks</b></dt>
@@ -975,9 +978,11 @@ This is the manual page for release 3.0.0 of the
 <dt id="Expired-Programmes-Display"><b>Expired Programmes Display</b></dt>
 <dd>
 
-<p>Unlike all other filter options this one is used to <i>enlarge</i> the set of matching programmes. It allows to include expired programmes (i.e. those with a stop time in the past) into the list; they will be marked with a yellow background (you can change that color, see <code>.Xdefaults</code> and <code>nxtvepg.ad</code> in <a href="#FILES">&quot;FILES&quot;</a>.) With the slider you can select how for to shift the expire time threshold into the past. The entry fields below the slider show the threshold in units of days and hours. You can also edit these fields directly: Press the Return key to apply the change.</p>
+<p>Unlike all other filter options this one is used to <i>enlarge</i> the set of matching programmes. By default the threshold is zero so that expired programmes immediately disappear from the list. The options in this dialog allow including programmes with a stop time in the past into the list; They will be marked with a yellow background (you can change that color, see <code>.Xdefaults</code> and <code>nxtvepg.ad</code> in <a href="#FILES">&quot;FILES&quot;</a>.)</p>
 
-<p>By default the threshold is zero so that expired programmes immediately disappear from the list.</p>
+<p>With the slider you can select how for to shift the expire time threshold into the past. The entry fields below the slider show the threshold in units of days and hours. You can also edit these fields directly: Press the Return key to apply the change.</p>
+
+<p>When enabling check-button &quot;Show all expired&quot;, then filtering of expired programmes is disabled. The list will then start with the oldest programme that is still present in the database.</p>
 
 <p>Note you cannot add more programmes this way than are stored in the database. nxtvepg will not remove expired programmes from the database, however they usually get removed whenever you update the respective XMLTV source file. If and how long expired programmes are kept, depends on your provider. For the Teletext EPG grabber, you can configure this threshold (see <a href="#CONFIGURE-MENU">&quot;CONFIGURE MENU&quot;</a> section &quot;Teletext grabber&quot;).</p>
 
@@ -1084,17 +1089,17 @@ This is the manual page for release 3.0.0 of the
 
 <h1 id="REMINDERS">REMINDERS</h1>
 
-<p>Reminders allow to mark TV shows which interest you and have nxtvepg mark them in the programme list and display a message or execute an external command when they start. You can select either individual programmes in the programme list or complete filter shortcuts, e.g. for TV series.</p>
+<p>Reminders allow to mark TV shows which interest you and have nxtvepg mark them in the programme list and optionally display a message or execute an external command before they start. You can select either individual programmes in the programme list or complete filter shortcuts, e.g. for TV series.</p>
 
-<p>To set a new reminder simply select it with the cursor in the programme list and choose <i>Add reminder for selected title</i> from the <i>Reminder</i> menu. The same command is also available in the context menu, i.e. by clicking on the selected title with the right mouse button. To remove the reminder, simply select the title again and choose <i>Remove reminder for selected title</i>.</p>
+<p>To set a new reminder, simply select it with the cursor in the programme list and choose <i>Add reminder for selected title</i> from the <i>Reminder</i> menu. The same command is also available in the context menu, i.e. by clicking on the selected title with the right mouse button. To remove the reminder, open the context menu again and choose <i>Remove reminder for selected title</i>.</p>
 
-<p>By default nxtvepg will display a message popup for every reminded programmme 5 minutes before and directly at the start time. You can change this in the <i>Configure reminder groups...</i> dialog described in a separate chapter below.</p>
+<p>By default nxtvepg will display a message popup for every reminded programmme 5 minutes before and once more directly at the start time. You can change this in the <i>Configure reminder groups...</i> dialog described in a separate chapter below.</p>
 
-<p>If you want to set a reminder for an entire series, you need to create a filter shortcut first which matches the series (e.g. filtering by title). To reduce the overhead you can create a shortcut which matches all your favorite series and set a reminder for this collection. To assign a reminder to the shortcut use the <i>Edit reminder list</i> described in the next chapter.</p>
+<p>If you want to set a reminder for an entire series, you need to create a filter shortcut first which matches the series (e.g. filtering by title). To reduce the overhead, you can create a shortcut which matches all your favorite series and set a reminder for this collection. To assign a reminder to the shortcut use the <i>Edit reminder list</i> described in the next chapter.</p>
 
-<p>Note you can add a single reminder for entries which already match a shortcut reminders. This allows to assign an additional, specific action for that TV show (if you use different groups.) Additionally you can suppress handling of reminders for individual shows; this option if offered in the Reminder and context menus when applicable. This option may help to get around excessively complex or restrictive shortcut filters.</p>
+<p>Note you can add a single reminder for entries which already match a shortcut reminders. This allows to assign an additional, specific action for that TV show (if you use different groups.) Additionally, you can suppress handling of reminders for individual shows; this option is offered in the Reminder and context menus when applicable. (This possibility may help avoiding the need for excessively complex or restrictive shortcut filters.)</p>
 
-<p>By default nxtvepg has (in the single list layout) a column titled <i>Mark</i> which contains a red dot for all programmes which have a reminder registered, i.e. both single programmes and those which match shortcuts with associated reminders. You can also set a filter which will display only programmes with reminders in the programme list by selecting <i>Show reminder matches</i> from the Reminder menu.</p>
+<p>By default, nxtvepg has (in the single list layout) a column titled <i>Mark</i> which contains a red dot for all programmes which have a reminder registered, i.e. both single programmes and those which match shortcuts with associated reminders. You can also set a filter which will display only programmes with reminders in the programme list by selecting <i>Show reminder matches</i> from the Reminder menu.</p>
 
 <h2 id="Edit-reminder-list">Edit reminder list</h2>
 
@@ -1234,61 +1239,64 @@ This is the manual page for release 3.0.0 of the
 
 <h2 id="Export-as-text">Export as text</h2>
 
-<p>Open a dialog that allows to export the complete database into a text file. Each line in the file will represent one item in the database. The item&#39;s different fields are separated by TAB characters; the line is terminated by a single new-line character (no line feed character, even on Windows). In some cases missing values are represented by <code>\N</code> which is the MySQL <i>NULL</i> identifier (currently only used for the VPS/PDC field).</p>
+<p>Open a dialog that allows to export the complete database into a text file. Each line in the file will represent one item in the database. The items&#39; different fields are separated by TAB characters; the line is terminated by a single new-line character (no line feed character, even on Windows). In some cases missing values are represented by <code>\N</code> which is the MySQL <i>NULL</i> identifier (currently only used for the VPS/PDC field).</p>
 
-<p>The generated text file can be loaded directly into a relational database. It&#39;s not formatted for viewing in a regular text editor. Networks and themes are represented as numerical indices into the network and themes table respectively. Hence these tables are required in addition to the programme table. To load them into a database, you need to export them into different files.</p>
+<p>Paragraph breaks within the description text are represented as text &quot;<code> // </code>&quot;. In a merged database, paragraph breaks between description texts originating from different providers are represented as &quot;<code> //%// </code>. When using the texts for display, the first should be replaced with a single newline character, and the latter with either dual newline, or a horizontal ruler.</p>
+
+<p>The generated text file can be loaded directly into a relational database. It&#39;s not formatted for viewing in a regular text editor. Networks are represented as numerical indices into the network table. Hence this table is required in addition to the programme table. To load them into a database, you need to export them into different files.</p>
 
 <p>For <i>MySQL</i> you could create the following tables:</p>
 
-<pre><code>   CREATE TABLE PI (
-      netwop smallint(2) unsigned NOT NULL,
-      Dstart date NOT NULL,
-      Hstart time NOT NULL,
-      Hstop time NOT NULL,
-      vpspdc_pil datetime,
-      prat tinyint(2) unsigned,
-      erat tinyint(2) unsigned,
-      sound enum(&quot;mono&quot;,&quot;2-chan&quot;,&quot;stereo&quot;,&quot;surround&quot;),
-      is_wide BOOL,
-      is_palplus BOOL,
-      is_digital BOOL,
-      is_encrypted BOOL,
-      is_live BOOL,
-      is_repeat BOOL,
-      is_subtitled BOOL,
-      theme_0 tinyint(3) unsigned,
-      theme_1 tinyint(3) unsigned,
-      theme_2 tinyint(3) unsigned,
-      theme_3 tinyint(3) unsigned,
-      theme_4 tinyint(3) unsigned,
-      theme_5 tinyint(3) unsigned,
-      theme_6 tinyint(3) unsigned,
-      title varchar(40) NOT NULL,
-      descr text,
-      PRIMARY KEY (netwop, Dstart, Hstart)
-   );
+<pre><code>CREATE TABLE PI (
+   netwop smallint(2) unsigned NOT NULL,
+   Dstart date NOT NULL,
+   Hstart time NOT NULL,
+   Hstop time NOT NULL,
+   vpspdc_pil datetime,
+   parental_rating tinyint(2) unsigned,
+   editorial_rating tinyint(2) unsigned,
+   editorial_max_val tinyint(2) unsigned,
+   sound enum(&quot;none&quot;,&quot;mono&quot;,&quot;2-chan&quot;,&quot;stereo&quot;,&quot;surround&quot;,&quot;dolby&quot;),
+   is_wide BOOL,
+   no_video BOOL,
+   is_video_hd BOOL,
+   is_video_bw BOOL,
+   is_new BOOL,
+   is_premiere BOOL,
+   is_repetition BOOL,
+   is_last_repetition BOOL,
+   subtitles enum(&quot;no&quot;,&quot;yes&quot;,&quot;onscreen&quot;,&quot;deaf-signed&quot;,&quot;onscreen,deaf-signed&quot;),
+   theme_0 text,
+   theme_1 text,
+   theme_2 text,
+   theme_3 text,
+   theme_4 text,
+   theme_5 text,
+   theme_6 text,
+   theme_7 text,
+   title varchar(40) NOT NULL,
+   descr text,
+   PRIMARY KEY (netwop, Dstart, Hstart)
+);
 
-   CREATE TABLE AI (
-      netwop_idx smallint(2) unsigned NOT NULL,
-      cni smallint(5) unsigned,
-      lto_mins smallint(5),
-      daycount smallint(5) unsigned,
-      alphabet smallint(5) unsigned,
-      addinfo smallint(5) unsigned,
-      name text,
-      UNIQUE netwop_idx (netwop_idx)
-   );
+CREATE TABLE AI (
+   netwop_idx smallint(2) unsigned NOT NULL,
+   cni smallint(5) unsigned,
+   lto_mins smallint(5),
+   daycount smallint(5) unsigned,
+   alphabet smallint(5) unsigned,
+   addinfo smallint(5) unsigned,
+   name text,
+   UNIQUE netwop_idx (netwop_idx)
+);
 
-   CREATE TABLE pdc_themes (
-      theme_idx smallint(3) unsigned NOT NULL,
-      cat_idx smallint(3) unsigned,
-      name_eng text,
-      name_ger text,
-      name_fra text,
-      UNIQUE theme_idx (theme_idx)
-   );</code></pre>
+CREATE TABLE themes (
+   theme_idx smallint(3) unsigned NOT NULL,
+   category_name text,
+   UNIQUE theme_idx (theme_idx)
+);</code></pre>
 
-<p>Note that the database can also be exported directly from the command line by using <b>-dump pi</b>, <b>-dump ai</b> or <b>-dump pdc</b>. In this case you can use one or more <i>-epgquery</i> options to export only selected channels and programmes (for details see <a href="#OPTIONS">&quot;OPTIONS&quot;</a>.)</p>
+<p>Note that the database can also be exported directly from the command line by using <b>-dump pi</b>, <b>-dump ai</b> or <b>-dump themes</b>. In this case you can use one or more <i>-epgquery</i> options to export only selected channels and programmes (for details see <a href="#OPTIONS">&quot;OPTIONS&quot;</a>.)</p>
 
 <h2 id="Export-as-XMLTV">Export as XMLTV</h2>
 
@@ -1612,13 +1620,13 @@ This is the manual page for release 3.0.0 of the
 
 <p>Open the network names configuration dialog. Its main purpose is synchronizing network names between nxtvepg and your TV application. This is required because the network name is used in communication when you use the <i>Tune TV</i> remote controls, and as well for channel change notifications by the TV applications. For many networks there will be no need to change anything, but for some there exist different variants, e.g. in Germany &quot;Super RTL&quot; vs. &quot;S-RTL&quot; or &quot;MDR3&quot; vs. &quot;MDR&quot;.</p>
 
-<p>Initially, you need to select which TV application you want to synchronize with and where the configuration files are located. This is done in the <i>TV app. interaction</i> dialog in the Configure menu (see <a href="#CONFIGURE-MENU">&quot;CONFIGURE MENU&quot;</a>, section &quot;TV application interaction&quot;).</p>
+<p>If you are using one of the TV applications supported by nxtvepg and want to use the &quot;Tune TV&quot; button and other interaction features, then you should configure the TV application via the <i>TV app. interaction</i> dialog in the <a href="#CONFIGURE-MENU">&quot;CONFIGURE MENU&quot;</a>. Otherwise you can use the dialog to freely edit channel names according to your personal preference.</p>
 
-<p>Another use of this dialog is to make network naming consistent across all XMLTV EPG providers. The names you specify here will be used in the programme listbox and all filter menus, independently of the provider.</p>
+<p>On the left side of the network name dialog you find a list of all networks used in the currently loaded or merged XMLTV files. When opening the dialog for the first time, and a TV application is configured, nxtvepg will automatically synchronize names with those used in the TV application. This means that when there is a channel name in the TV application that only differs in spaces or non-alpanumeric letters from the one in XMLTV, then the name from the TV application is used. Names for which no obvious match is found are kept undhanged and marked in red text color. If no TV application is configured, the network names used by your currently selected EPG provider are taken directly from the XMLTV files In case of a merged database, the channel name found in the first merged XMLTV file is used.</p>
 
-<p>On the left side of the dialog you find a list of all networks used in the currently loaded or merged XMLTV files. The names used here are the ones you configured before, or if you haven&#39;t done so yet, the names that match the station names of your TV application best. Unmatched names are marked red. If no TV application is configured, the network names used by your currently selected EPG provider are kept unchanged.</p>
+<p>On the right side, you are offered three ways to change the channel name used by nxtvepg: Top-most is a plain entry field where you can type in an arbitrary name. Below is a listbox which lists similar channel names found in your TV application&#39;s channel table. The bottom-most frame lists the original names used in the XMLTV file. If you double-click on an entry in either list, the name is copied to the entry field at the top.</p>
 
-<p>On the right side, you&#39;re offered four ways to change the name: Topmost is a simple entry field where you can type in an arbitrary name. Below is a popup menu which contains all network names defined in your TV app.&#39;s channel table. Below is a button which contains the one name in your TV app.&#39;s channel table which resembles the current string in the entry field most, or <i>none</i>. It&#39;s marked red until it&#39;s identical to the entry field. You can copy the name to the entry field by clicking the button. Below is a listbox with the original names used in the various provider databases. When you select a name from the menu or the listbox, it will be copied into the entry field and the network name list on the left. If you want to save the changed list, leave the dialog with <i>Save</i>, else use <i>Abort</i>.</p>
+<p>If you want to save the changed list, leave the dialog with <i>Save</i>, else use <i>Abort</i>.</p>
 
 <p><b>Note:</b> If you receive channels that carry multiple networks, e.g. in Germany &quot;Arte / Kinderkanal&quot;, it&#39;s recommended to include all networks&#39; names in the network name on side of the TV application, separated by a slash. The slash is recognized as separator by nxtvepg and all resulting segments can be used as network names.</p>
 
@@ -1647,7 +1655,7 @@ This is the manual page for release 3.0.0 of the
 
 <p>Send the given command line to an attached TV application, e.g. to switch TV channels. Variable substitution can be used here, too. How the command is sent depends on the TV application; when no TV app. is connected, such entries are automatically disabled (see also <a href="#CONFIGURE-MENU">&quot;CONFIGURE MENU&quot;</a>, section &quot;TV application interaction&quot;) For example</p>
 
-<pre><code>  setstation ${network}</code></pre>
+<pre><code>setstation ${network}</code></pre>
 
 <p>would create a command that switches the TV app&#39;s channel to that of the currently selected programme (i.e. the same what the <i>Tune TV</i> button does). You should refer to the documentation of your TV app to see which commands it supports.</p>
 
@@ -1676,25 +1684,25 @@ This is the manual page for release 3.0.0 of the
 
 <p>As mentioned above, external commands and TV app. remote commands allow to include placeholders enclosed in ${} which are replaced by attributes of the programme selected in the browser listbox at the time the context menu command is invoked. The following is a list of such formal variables The meaning of the variables should be self-explanatory, except possibly for CNI: this is a hexadecimal network code, and e/p_rating: these are editorial and parental ratings respectively.</p>
 
-<pre><code>  ${title}
-  ${network}
-  ${start}
-  ${stop}
-  ${relstart}
-  ${duration}
-  ${CNI}
-  ${description}
-  ${themes}
-  ${VPS}  or  ${PDC}
-  ${e_rating}
-  ${p_rating}
-  ${sound}
-  ${format}
-  ${digital}
-  ${encrypted}
-  ${live}
-  ${repeat}
-  ${subtitle}</code></pre>
+<pre><code>${title}
+${network}
+${start}
+${stop}
+${relstart}
+${duration}
+${CNI}
+${description}
+${themes}
+${VPS}  or  ${PDC}
+${e_rating}
+${p_rating}
+${sound}
+${format}
+${digital}
+${encrypted}
+${live}
+${repeat}
+${subtitle}</code></pre>
 
 <p>Start and stop time related keywords can optionally be followed by either a plus or minus sign and a time offset. The offset value is assumed to be given as minutes. For relstart and duration the precision can be changed by means of the format (see below.) Example: to print the start time minus 5 minutes (e.g. to start a recording 5 minutes earlier) use <code>${start-5:%H:%M}</code></p>
 
@@ -1717,7 +1725,7 @@ This is the manual page for release 3.0.0 of the
 <dt id="Theme-categories1"><i>Theme categories</i></dt>
 <dd>
 
-<p>You can choose between numerical and textual output by appending &quot;n&quot; or &quot;t&quot;. Use command line option <i>-dump pdc</i> to get a list of theme categories (see <a href="#OPTIONS">&quot;OPTIONS&quot;</a>.)</p>
+<p>You can choose between numerical and textual output by appending &quot;n&quot; or &quot;t&quot;. Use command line option <i>-dump themes</i> to get a list of theme categories (see <a href="#OPTIONS">&quot;OPTIONS&quot;</a>.)</p>
 
 </dd>
 </dl>
@@ -1728,19 +1736,19 @@ This is the manual page for release 3.0.0 of the
 
 <p>Example: The command line</p>
 
-<pre><code>  plan ${start:%d.%m.%Y %H:%M} ${title}</code></pre>
+<pre><code>plan ${start:%d.%m.%Y %H:%M} ${title}</code></pre>
 
 <p>could for example on UNIX systems result in</p>
 
-<pre><code>  plan &#39;22.08.2001 13:05&#39; &#39;Fish &#39;\&#39;&#39;n&#39;\&#39;&#39; Fun&#39;</code></pre>
+<pre><code>plan &#39;22.08.2001 13:05&#39; &#39;Fish &#39;\&#39;&#39;n&#39;\&#39;&#39; Fun&#39;</code></pre>
 
 <p>On Windows only single- and double quotes and space characters are escaped with a backslash. Hence the above example would result in:</p>
 
-<pre><code>  plan 22.08.2001\ 13:05 Fish\ \&#39;n\&#39;\ Fun</code></pre>
+<pre><code>plan 22.08.2001\ 13:05 Fish\ \&#39;n\&#39;\ Fun</code></pre>
 
 <p>Note if you want to prevent the backslash inbetween date and time (if the called program doesn&#39;t understand it), you can simply use two separate substitutions for date and time. Example:</p>
 
-<pre><code>  plan ${start:%d.%m.%Y} ${start:%H:%M} ${title}</code></pre>
+<pre><code>plan ${start:%d.%m.%Y} ${start:%H:%M} ${title}</code></pre>
 
 <h2 id="Themes-language">Themes language</h2>
 
@@ -1859,7 +1867,7 @@ This is the manual page for release 3.0.0 of the
 
 <p>You must have read/write access to these files; by default this is not the case for many Linux distributions for security reasons (since you might have connected a WebCam and mike and someone could spy on you from remote). However on a single-user system it&#39;s safe to make them world-readable and writable, i.e. in a root shell enter:</p>
 
-<pre><code>  chmod 666 /dev/vbi</code></pre>
+<pre><code>chmod 666 /dev/vbi</code></pre>
 
 <p>Alternatively you can make yourself a member of a group in <i>/etc/groups</i> which has access to the devices or create such a group.</p>
 
@@ -1873,7 +1881,7 @@ This is the manual page for release 3.0.0 of the
 
 <p>Note: it&#39;s mandatory that the video device has the same index as the VBI device. If you have a video device at index 0 which does not support teletext (a webcam, for example) the VBI device belonging to video device #1 may appear at index 0. You should force the driver to assign device index #1 to the VBI index. On Linux this is possible by using <i>insmod</i> parameters in <i>/etc/modules.conf</i>, e.g. for bttv:</p>
 
-<pre><code>   options bttv video_nr=1 vbi_nr=1</code></pre>
+<pre><code>options bttv video_nr=1 vbi_nr=1</code></pre>
 
 </dd>
 <dt id="dev-v4l-vbi0-dev-v4l-video0"><b>/dev/v4l/vbi0</b>, <b>/dev/v4l/video0</b></dt>
@@ -1887,7 +1895,7 @@ This is the manual page for release 3.0.0 of the
 
 <p>This file contains the PID of the nxtvepg process (or the acquisition slave process unless threading is used) whenever a VBI device is kept open. The process can be forced to free the device by sending it signal <i>SIGHUP</i>, e.g. from a wrapper script around a teletext decoder. An example which works with all shells:</p>
 
-<pre><code>   kill -HUP `cat /tmp/.vbi0.pid`</code></pre>
+<pre><code>kill -HUP `cat /tmp/.vbi0.pid`</code></pre>
 
 <p>Note that the daemon is not kept alive when acquisition is disabled, so that sending HUP to the daemon equals sending TERM. You can restart acquisition by starting a new daemon. The browser attempts to reconnect every 10 seconds when the connection was broken, but you can also trigger an immediate reconnect be sending the GUI process SIGHUP.</p>
 
@@ -1913,7 +1921,7 @@ This is the manual page for release 3.0.0 of the
 
 <p>Defaults for all officially supported options are listed in the so-called &quot;app-defaults&quot; file <i>Nxtvepg.ad</i> which is usually installed in <i>/usr/X11/lib/X11/app-defaults</i> (the .ad extension is omitted during installation.) You should not change values there however, because they would be overwritten when you install new versions. Instead copy changed lines into your .Xdefaults file (without the leading comment ! sign.) Note you have to restart nxtvepg for changes to take effect. When X11 is already running you can override individual settings with xrdb like this:</p>
 
-<pre><code>   echo &quot;nxtvepg*text_bg: #E9E9EC&quot; | xrdb -merge</code></pre>
+<pre><code>echo &quot;nxtvepg*text_bg: #E9E9EC&quot; | xrdb -merge</code></pre>
 
 <p>Color values can specified either symbolically (e.g. &quot;red&quot;) or as hexadecimal RGB values in #RRGGBB format. A special case are the 7 colors for weekday background colors in the main window&#39;s date scale: it&#39;s resource value consists of a comma separated list of 7 colors.</p>
 
@@ -1964,7 +1972,7 @@ This is the manual page for release 3.0.0 of the
 
 <h1 id="COPYRIGHT">COPYRIGHT</h1>
 
-<p>Copyright (C) 1999 - 2011, 2020 - 2021 by T. Zoerner. All rights reserved.</p>
+<p>Copyright (C) 1999 - 2011, 2020 - 2023 by T. Zoerner. All rights reserved.</p>
 
 <p>Additional copyrights apply to portions of the code herein. Please see file COPYRIGHT and source file headers for details.</p>
 

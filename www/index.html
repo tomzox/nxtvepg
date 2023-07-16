@@ -27,7 +27,7 @@
 
 <H2 class="navhead">News</H2>
 <P>
-Mar/22/2021: <A HREF="index.html#releases">Release 3.0.0</A>
+Jul/23/2023: <A HREF="index.html#releases">Release 3.1</A>
 </P>
 
 <H2 class="navhead">Documentation</H2>
@@ -114,53 +114,53 @@ release 3.0.
 </UL>
 
 
-<H2><A NAME="releases">New release 3.0 (Mar/22/2021)</A></H2>
+<H2><A NAME="releases">New release 3.1 (Jul/23/2023)</A></H2>
 <P>
-After 10 years gap in development, this new release strips features that
-no longer are useful (namely Nextview EPG and analog TV driver for Windows),
-but improves support for those features that still work, in particular
-import of XMLTV import and the Teletext EPG grabber. In detail:
+Focus of this release are extensions to the support of the XMLTV specification
+and thus to the information available for display in the GUI. Additionally,
+a number of bugs in the GUI were fixed.
 </P>
 <UL>
-<LI>The Teletext EPG grabber was enhanced to allow reception from DVB TV
-  capture cards (Linux only yet). Digital TV channel tables can be loaded
-  from mplayer, VDR, or compatible TV-applications.
-<LI>Capture duration of the Teletext EPG Grabber was reduced to a fraction by
-  supporting concurrent acquisition from DVB channels sharing a transponder.
-<LI>Use of Teletext EPG grabber was simplified via an "auto-merge" feature,
-  available directly via the "Control" menu or the Merge dialog.
-<LI>The Nextview-specific "series" filter was replaced with a new "recurring
-  titles" filter.
-<LI>The database and teletext statistics displays were enhanced to show the
-  same extent of information as formerly for Nextview EPG databases.
-<LI>XMLTV import was simplified by allowing to specify multiple files on the
-  command line and directory selection in the load &amp; merge dialog windows.
-<LI>The internal text for Text imported from XMLTV was switched to UTF-8
-  so that it supports encodings used outside of Western Europe.
-<LI>Nextview EPG support was removed, as this service is no longer provided.
-<LI>The integrated driver for analog PCI TV capture cards on MS Windows was
-  also removed.
-</UL>
-<P>
-You can get this release via the <A HREF="download.html">download section</A>.
-<BR>Refer to the <A HREF="changelog.html">changelog</A> for a detailed
-list of changes of this and previous releases.
-</P>
-
-<H2>Release 2.9.0 (Mar/22/2021) - Last release with Nextview EPG</H2>
-<P>
-This release mainly consists of enhancements done during the years 2008 to
-2011, which at that time were only published in form of "pre-releases"
-(2.9.0pre0 to pre4). On top of these, except for a few small corrections,
-more recent updates only address issues with building the software with
-current tools and using it with current Linux drivers. The reason for making
-this release at the same time as 3.0.0 is providing one final version with
-latest and greatest support for Nextview EPG before its removal from nxtvepg.
-</P><P>
-Refer to the <A HREF="changelog.html#release_2_9_0">changelog</A> for a detailed list of
-changes of this release. Use this release only if you still have a Nextview
-EPG provider (if so, I'd like to hear about it). You can download it from the
-<A HREF="http://sourceforge.net/project/showfiles.php?group_id=64430">SourceForge File List</A>.
+<LI>Theme category handling was enhanced to support this attribute exactly as
+  present in XMLTV files: The pre-defined theme category table was replaced by
+  a table that is created dynamically from the categories present in the loaded
+  XMLTV file. A new filter dialog was added which can be used for browsing the
+  list of all defined theme categories and for finding associated programmes.
+<LI>Support for several new programme attributes defined by XMLTV was added,
+  namely "review", "new", "premiere" and "last-chance". The "audio", "video"
+  and "subtitles" attributes parsing was updated to support new attributes
+  defined by XMLTV. (Note you'll benefit from these enhancements only if your
+  XMLTV provider supports these attributes.)
+<LI>Processing of parental and editorial ratings was enhanced by removing
+  rounding to multiples of two and adding support for a Polish and an American
+  parental rating category. For editorial ratings, the GUI now displays both
+  the actual rating and maximum value.
+<LI>The expiry threshold filter dialog was extended to allow disabling the expiry
+  time filter completely, so that even programme data that is completely
+  expired can be viewed.
+<LI>Case-insensitive text search was corrected, so that it now also works as
+  expected for text containing non-ASCII characters (i.e. locale-specific
+  characters).
+<LI>The limitation to 254 channels when importing a database from XMLTV was
+  relaxed to about 8000 channels and the import procedures were optimized to
+  reduce load time for huge XMLTV files.
+<LI>Performance of several GUI dialogs was improved for large databases, namely
+  the programme index filter and "Recurring titles" drop-down menu.
+<LI>Usability of the "Load XMLTV file" menu command was improved by replacing
+  this command with a standard file selection dialog. The previous more complex
+  dialog was kept as a separate menu command "Browse XMLTV files" with an
+  additional possibility to configure file name extension of XMLTV files.
+<LI>Usability of the "Network name configuration" dialog was improved by omitting
+  optional notifications and dialog sub-frames that are not relevant when
+  nxtvepg is not configured to interact with a TV application.
+<LI>When using MS Windows, the "nxtvepg.ini" configuration file is now stored in
+  the user's "AppData" directory instead of the current working directory.
+  Note this means that a config file created by previous versions of nxtvepg
+  will not be loaded automatically.
+<LI>Encoding of the config file has been changed to UTF-8 so that characters
+  imported from XMLTV can be stored without corruption. If your system is not
+  configured to use UTF-8 by default, it's recommended to delete your old
+  "nxtvepg.ini" (MS Windows) or "config/nxtvepg/nxtvepg.rc" (Linux) file.
 </P>
 
 <H2><A NAME="feedback">Questions and feedback</A></H2>
@@ -189,7 +189,7 @@ if the same question hasn't been asked recently.
 
 <H2><A NAME="copyright">Copyright</A></H2>
 <P>
-&copy; Copyright 1999 - 2011, 2020 - 2021 by T. Zoerner (and others).
+&copy; Copyright 1999 - 2011, 2020 - 2023 by T. Zoerner (and others).
 </P><P>
 This program is free software; you can redistribute it and/or modify
 it under the terms of the

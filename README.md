@@ -201,9 +201,8 @@ modules. Then try to reproduce your problem and send me the resulting
 debug.out log file.
 
 The latest version of this software is available at:
-<http://nxtvepg.sourceforge.net/>
+<http://github.com/tomzox/nxtvepg>
 
-Best way to provide feedback is via the discussion forum at the above site,
-but you can also contact me personally at: tomzo (at) users.sourceforge.net
+Best way to provide feedback is via email: tomzo (at) users.sourceforge.net
 
 have fun.

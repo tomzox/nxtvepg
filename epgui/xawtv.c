@@ -1,7 +1,7 @@
 /*
  *  Nextview EPG: xawtv remote control module
  *
- *  Copyright (C) 1999-2011, 2020-2021 T. Zoerner
+ *  Copyright (C) 1999-2011, 2020-2023 T. Zoerner
  *
  *     Parts of the code implementing the Xawtv protocol (root and toplevel
  *     window tree traversal) originates from Netscape (author unknown).

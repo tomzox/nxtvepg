@@ -8,7 +8,7 @@
  *    Copyright (c) Xerox Corporation 1992. All rights reserved.
  *
  *    Completely rewritten and functionality added by T. Zoerner
- *    Copyright (C) 1999-2011, 2020-2021 T. Zoerner
+ *    Copyright (C) 1999-2011, 2020-2023 T. Zoerner
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License Version 2 as

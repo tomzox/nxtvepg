@@ -1,4 +1,4 @@
-%define    version   3.0.3
+%define    version   3.1.0
 
 %define    prefix      /usr
 %define    res_prefix  /usr/share/X11

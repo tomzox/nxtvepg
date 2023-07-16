@@ -1,7 +1,7 @@
 /*
  *  Command line argument handling
  *
- *  Copyright (C) 1999-2011, 2020-2021 T. Zoerner
+ *  Copyright (C) 1999-2011, 2020-2023 T. Zoerner
  *  Win32 SetArgv() function taken from the Tcl/Tk library, see COPYRIGHT
  *
  *  This program is free software; you can redistribute it and/or modify

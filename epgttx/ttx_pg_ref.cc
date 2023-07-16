@@ -14,7 +14,7 @@
  *   You should have received a copy of the GNU General Public License
  *   along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * Copyright 2006-2011,2020-2021 by T. Zoerner (tomzo at users.sf.net)
+ * Copyright 2006-2011,2020-2023 by T. Zoerner (tomzo at users.sf.net)
  */
 
 #include <stdio.h>

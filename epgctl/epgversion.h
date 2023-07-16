@@ -1,7 +1,7 @@
 /*
  *  Software version of the Nextview decoder
  *
- *  Copyright (C) 1999-2011, 2020-2021 T. Zoerner
+ *  Copyright (C) 1999-2011, 2020-2023 T. Zoerner
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License Version 2 as
@@ -28,10 +28,10 @@
 #define NXTVEPG_MAILTO      "tomzo@users.sourceforge.net"
 
 #define EPG_VERSION_MAJOR   3   // major revision
-#define EPG_VERSION_MINOR   0   // minor revision
-#define EPG_VERSION_PL      4   // bugfix revision / patch level
+#define EPG_VERSION_MINOR   1   // minor revision
+#define EPG_VERSION_PL      0   // bugfix revision / patch level
 
-#define EPG_VERSION_STR     "3.0.4"
+#define EPG_VERSION_STR     "3.1.0"
 
 // Pseudo-RCS id to be included to the object code for ident(1)
 #define EPG_VERSION_RCS_ID  "$Compiledate: " __DATE__ " " __TIME__" $";

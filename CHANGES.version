@@ -18,6 +18,7 @@ update github:
 - push latest versions
 
 version no contained in:
+- nxtvepg.iss
 - nxtvepg.spec
 - epgctl/epgversion.h
 - tvsim/tvsim_version.h

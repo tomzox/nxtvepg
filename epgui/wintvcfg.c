@@ -1,7 +1,7 @@
 /*
  *  Retrieve channel table and TV card config from TV app INI files
  *
- *  Copyright (C) 1999-2011, 2020-2021 T. Zoerner
+ *  Copyright (C) 1999-2011, 2020-2023 T. Zoerner
  *
  *    Some parser code fragments have been extracted from TV applications,
  *    so their respective copyright applies too. Please see the notes in

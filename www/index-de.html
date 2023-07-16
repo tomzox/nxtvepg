@@ -27,7 +27,7 @@
 
 <H2 class="navhead">News</H2>
 <P>
-22. März 2021: <A HREF="index.html#releases">Release 3.0.0</A>
+23. Juli 2023: <A HREF="index.html#releases">Release 3.1</A>
 </P>
 
 <H2 class="navhead">Dokumentation</H2>
@@ -116,62 +116,62 @@ entfernt.
 <LI><A HREF="index-de.html#copyright">Copyright</A>
 </UL>
 
-<H2><A NAME="releases">Aktueller release 3.0 (22. März 2021)</A></H2>
+<H2><A NAME="releases">Aktueller release 3.1 (23. Juli 2023)</A></H2>
 <P>
-Nach einer 10-jährigen Entwicklunspause wurde nxtvepg aktualisiert um zum
-einen obsolete Features wie "Nextview" und analoge TV-Kartentreiber (Windows)
-zu entfernen, und im Gegenzug die verbleibenden Features zu optimieren,
-insbesondere den Import aus XMLTV Dateien und den Teletext EPG Grabber.
-Details:
+Ziel dieses Releases sind Verbesserungen der Unterstützung für den XMLTV
+Standard und damit der im nxtvepg GUI darstellbaren EPG Informationen.
+Zusätzlich wurden eine Reihe von alten Fehlern behoben.
 </P>
 <UL>
-<LI>Der Teletext EPG Grabber unterstützt nun auch den Empfang über digitale
-  TV-Karten (DVB-C/S/T; nur für Linux).
-<LI>Die Geschwindigkeit des Teletext Grabbers wurde erheblich erhöht durch
-  paralleles Laden von mehreren TV-Sendern auf demselben DVB Transponder.
-<LI>Die Verwendung des Teletext EPG Grabbers wurde vereinfacht durch ein neues
-  Kommando im "Control" Menü, das automatisch alle aus Teletext geladenen
-  Programminformationen zusammenführt und anzeigt.
-<LI>Der obsolete Nextview-EPG-spezifische "Serien" Filter wurde durch einen
-  neuen Filter "Wiederkehrende Sendungen" ersetzt.
-<LI>Statistik-Fenster für zusammengeführte Datenbanken und Teletext EPG
-  wurden erweitert gleichwertig zu den früher für Nextview EPG vorhandenen
-  Informationen (u.a. Tortendiagramm und Akquisitionshistorie)
-<LI>Import aus XMLTV wurde vereinfacht zum einen indem nun mehrere Dateien
-  auf der Kommandozeile angegeben werden können, und zum anderen über
-  erweitere Verzeichnisauswahl in den interaktiven Dialogen.
-<LI>Die interne Textkodierung wurde auf UTF-8 umgestellt damit auch Texte
-  von Ländern außerhalb Westeuropas korrekt dargestellt werden.
-<LI>Unterstützung des Nextview EPG Standards wurde komplett entfernt, da
-  dieser Service nicht mehr übertragen wird.
-<LI>Der zuvor integrierte Treiber für analoge TV-Karten auf MS Windows wurde
-entfernt.
+<LI>Die Verarbeitung von Themenkategorien wurde von einer vordefinierten Liste
+  umgestellt auf eine Liste die dynamisch aus den in der importieren XMLTV Datei
+  tatsächnlich vorhandenen Kategoriebezeichnern generiert wird. Ein neuer Dialog
+  im GUI erlaubt Kategorien auszuwählen und als Filter anzuwenden.
+<LI>Mehrere neue Informationselemente des XMLTV Standards werden unterstützt:
+  "review", "new", "premiere" und "last-chance". Unterstützung für "audio",
+  "video" und "subtitles" wurde aktualisiert um neuere Attribute anzeigen zu
+  können. (Von diesen Verbesserungen profitieren jedoch nur Nutzer die eine
+  XMLTV Quelle verwenden die diese Informationselemente auch anbietet.)
+<LI>Darstellung der "Editorial Ratings" (Filmbewertungen) wurde verbessert
+  indem die Information genauso dargestellt wird wie im XMLTV enthalten (d.h.
+  als "X von Y Sterne"). Außerdem werden zwei neue Alterseinstufungssysteme
+  für Polen bzw. USA unterstützt und Rundung entfernt.
+<LI>Der "Expire time" Filter, der die Anzeige bereits abgelaufener Sendungen
+  kontrolliert, wurde um eine Einstellung erweitert die es erlaubt, ihn
+  komplett abzuschalten, so dass auch sehr alte EPG Datenbanken noch komplett
+  betrachtet werden können.
+<LI>Fehler in der Textsuche wurden korrigiert, so dass diese nun auch wieder
+  funktioniert wenn Unterscheidung von Groß-/Kleinschreibung abgeschaltet ist.
+  (Der Fehler bestand seit der internen Umstellung auf die UTF-8 Textkodierung
+  in Release 3.0.0).
+<LI>Die Beschränkung auf 254 Sender beim XMLTV Import wurde auf ca. 8000 Sender
+  angehoben und die Verarbeitung optimiert so dass sehr große Dateien in
+  akzeptabler Zeit (d.h. wenigen Sekunden auf durchschnittlichen PCs) geladen
+  werden können.
+<LI>Die "Programmindex" und "Serien" Filter wurden ebenfalls für große
+  Datenbanken optimiert.
+<LI>Benutzerfreundlichkeit des "Load XMLTV file" Menübefehls wurde verbessert:
+  Dieser Befehl öffnet nun einen normalen Dateiauswahldialog. Der bisherige,
+  komplexere Dialog ist noch als "Browse XMLTV files" Befehl vorhanden mit
+  einigen Verbesserungen in der Bedienbarkeit.
+<LI>Benutzerfreundlichkeit der Sendernamenkonfiguration wurde verbessert durch
+  Reduktion der Informationen und Auswhlmöglichkeiten auf solche die in der
+  aktuellen Konfiguration relevant sind.
+<LI>Auf MS Windows wird die "nxtvepg.ini" Konfigurationsdatei jetzt im
+  "AppData" Verzeichnis im Benutzer-Home-Verzeichnis abgelegt, anstelle des
+  aktuellen Arbeitsverzeichnisses. Dadurch wird der aktuelle Release
+  Konfigurationsdateien von älteren Releases nicht automatisch laden.
+<LI>Die Textenkodierung in der "nxtvepg.ini" Konfigurationsdatei wurde auf UTF-8
+  umgestellt um alle aus XMLTV stammendedn Texte unverändert speichern zu
+  können. Auf Rechnern wo UTF-8 nicht Systemstandard ist, empfiehlt es sich, die
+  alte Konfigurationsdatei zu löschen. ("nxtvepg.ini" auf MS Windows, bzw.
+  "config/nxtvepg/nxtvepg.rc" auf Linux.)
 </UL>
 <P>
 Zum Herunterladen siehe die <A HREF="download-de.html">Download Sektion</A>.
 <BR>Für weitere Details siehe auch die komplette, detaillierte Liste aller
 Änderungen im <A HREF="changelog.html">Änderungsprotokoll</A>.
 </P>
-
-<H2>Release 2.9.0 (22. März 2021) - Letzter release mit Nextview EPG</H2>
-<P>
-Dieser Release enthält Verbesserungen aus den Jahren 2008 bis 2011, die vormals
-in Form von "Pre-Releases" 2.9.0pre0-pre4 veröffentlicht wurden. Für den
-jetzigen Release wurde neben kleinen Korrekturen lediglich eine Aktualisierung
-vorgenommen die den Software-Build mit aktuellen Tools erlaubt und den Betrieb
-mit aktuellen Linux Treibern. Der Grund für die Veröffentlichung dieses
-älteren Softwarestands zur gleichen Zeit wie Release 3.0.0 ist einen letzten
-Stand mit Nextview EPG zur Verfügung zu stellen, bevor die Unterstützung dieses
-Standards entfernt wird.
-</P><P>
-Details zu dem Release finden Sie im
-<A HREF="changelog.html#release_2_9_0">Änderungsprotokoll</A>.
-Diesen Release sollten Sie nur verwenden falls Sie noch Nextview EPG
-empfangen. Der Release kann von der
-<A HREF="http://sourceforge.net/project/showfiles.php?group_id=64430">SourceForge File List</A>
-heruntergeladen werden.
-</P>
-
 
 <H2><A NAME="feedback">Feedback</A></H2>
 <P>
@@ -202,7 +202,7 @@ nach ob dieselbe Frage bereits beantwortet wurde.
 
 <H2><A NAME="copyright">Copyright</A></H2>
 <P>
-&copy; Copyright 1999 - 2011, 2020 - 2021 T. Z&ouml;rner (und andere).
+&copy; Copyright 1999 - 2011, 2020 - 2023 T. Z&ouml;rner (und andere).
 </P><P>
 Diese Software ist kostenlos; Weiterverbreitung und/oder Modifikation
 ist erlaubt, solange Sie die Richtlinien der

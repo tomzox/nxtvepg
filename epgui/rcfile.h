@@ -1,7 +1,7 @@
 /*
  *  Reading/writing the .nxtvepgrc / nxtvepg.ini file
  *
- *  Copyright (C) 1999-2011, 2020-2021 T. Zoerner
+ *  Copyright (C) 1999-2011, 2020-2023 T. Zoerner
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License Version 2 as
@@ -77,7 +77,7 @@ typedef enum
 #define RC_LINE_BUF_SIZE        (8192 * 11 + 100)  // max len: "0x01234567 " * RC_MAX_DB_NETWOPS
 
 // limit for forwards compatibility
-#define RC_FILE_COMPAT_VERSION 0x030004
+#define RC_FILE_COMPAT_VERSION 0x030100
 
 // ---------------------------------------------------------------------------
 // Type definitions
