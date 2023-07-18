@@ -46,7 +46,6 @@
 #include <fcntl.h>
 #include <stdlib.h>
 #include <string.h>
-#include <ctype.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <time.h>
@@ -758,15 +757,16 @@ static uint RcFile_ParseTclList( char * pList )
    p = pList;
    while (*p != 0)
    {
-      // skip leading space
-      while (isspace(*p))
+      // Skip leading space. Theoretically, Tcl also accepts any isspace() chars
+      // as list separators, but we assume we only get well-formed lists here.
+      while (*p == ' ')
          p++;
       if (*p == 0)
          break;
       // found an element
       count += 1;
       // skip element
-      while ((*p != 0) && !isspace(*p))
+      while ((*p != 0) && (*p != ' '))
          p++;
    }
 

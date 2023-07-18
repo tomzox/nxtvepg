@@ -22,15 +22,6 @@
 
 
 // ----------------------------------------------------------------------------
-// Table to implement isalnum() for all latin fonts
-//
-extern const schar alphaNumTab[256];
-
-#define ALNUM_NONE    0
-#define ALNUM_DIGIT   1
-#define ALNUM_UCHAR   2
-#define ALNUM_LCHAR  -1
-#define ALNUM_NATION  4
 
 typedef struct
 {

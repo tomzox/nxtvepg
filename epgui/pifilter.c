@@ -30,7 +30,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <ctype.h>
 
 #include <tcl.h>
 #include <tk.h>
@@ -1165,7 +1164,6 @@ static int GetSeriesByLetter( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_
    Tcl_Obj * pResultList;
    Tcl_Obj * pTmpObj;
    FILTER_CONTEXT *fc;
-   uchar letter, c;
    bool isShortened;
    int isNewCacheEntry;
    int result;
@@ -1194,10 +1192,8 @@ static int GetSeriesByLetter( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_
 
          // get the starting letter from the parameters; "other" means non-alpha chars, e.g. digits
          pLetter = Tcl_GetString(objv[1]);
-         if ((pLetter == NULL) || (strcmp(pLetter, "other") == 0))
-            letter = 0;
-         else
-            letter = tolower(pLetter[0]);
+         if ((pLetter != NULL) && (strcmp(pLetter, "other") == 0))
+            pLetter = NULL;
 
          pPiBlock = EpgDbSearchFirstPi(dbc, fc);
          while (pPiBlock != NULL)
@@ -1205,9 +1201,10 @@ static int GetSeriesByLetter( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_
             // FIXME use second half of comm buffer here, and first half below
             pTitleDict = PiDescription_DictifyTitle(PI_GET_TITLE(pPiBlock), pPiBlock->lang_title, comm + TCL_COMM_BUF_SIZE/2, TCL_COMM_BUF_SIZE/2);
             // check if the starting letter matches
-            c = tolower(pTitleDict[0]);
-            if ( (c == letter) ||
-                 ((letter == 0) && ((c < 'a') || (c > 'z'))) )
+            if (  (pLetter != NULL)
+                ? (Tcl_UtfNcasecmp(pLetter, pTitleDict, 1) == 0)
+                : ( (((uint8_t)pTitleDict[0] < 'a') || ((uint8_t)pTitleDict[0] > 'z')) &&
+                    (((uint8_t)pTitleDict[0] < 'A') || ((uint8_t)pTitleDict[0] > 'Z')) ))
             {
                pTitleSerial = PiDescription_RemoveSeriesIndex(PI_GET_TITLE(pPiBlock), comm, TCL_COMM_BUF_SIZE / 2);
                isShortened = (pTitleSerial != PI_GET_TITLE(pPiBlock));

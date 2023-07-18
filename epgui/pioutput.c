@@ -897,16 +897,18 @@ void PiOutput_PiListboxInsert( const PI_BLOCK *pPiBlock, uint textrow )
             // check how many chars of the string fit the column width
             maxlen = Tk_MeasureChars(isBoldFont ? piBoldFont : piboxFont, comm + off, len, pPiboxColCfg[idx].width, 0, &dummy);
 
+#if 0       // Code would have to be ported to Unicode. Omitted, as not really needed.
             // strip word fragments from the end of shortened theme strings
             if ((type == PIBOX_COL_THEME) && (maxlen < len) && (maxlen > 3))
             {
-               if (alphaNumTab[(uchar)comm[off + maxlen - 1]] == ALNUM_NONE)
+               if (!isalnum(comm[off + maxlen - 1]))  //TODO
                   maxlen -= 1;
-               else if (alphaNumTab[(uchar)comm[off + maxlen - 2]] == ALNUM_NONE)
+               else if (!isalnum(comm[off + maxlen - 2]))
                   maxlen -= 2;
-               else if (alphaNumTab[(uchar)comm[off + maxlen - 3]] == ALNUM_NONE)
+               else if (!isalnum(comm[off + maxlen - 3]))
                   maxlen -= 3;
             }
+#endif
             if (maxlen < len)
             {
                len = maxlen;

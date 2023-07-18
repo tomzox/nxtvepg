@@ -19,8 +19,8 @@
  *    This module implements the 'lower' half of the merge functionality
  *    where the actual merging is done. It offers three services to the
  *    upper half in the epgctl directory: 1 - merge AI blocks of the source
- *    databases; 2 - merge all PI of all source databases; 3 - insert one
- *    PI from one of the source databases into an existing merged database.
+ *    databases; 2 - merge all PI of all source databases; 3 - replace all
+ *    PI blocks of networks merged from the given providers.
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB
@@ -29,7 +29,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
-#include <ctype.h>
 
 #include "epgctl/mytypes.h"
 #include "epgctl/debug.h"
@@ -83,6 +82,7 @@ static EPGDB_PI_BLOCK * EpgDbMergePiBlocks( PDBC dbc, EPGDB_PI_BLOCK **pFoundBlo
    EPGDB_MERGE_SRC  piDesc[MAX_MERGED_DB_COUNT];
    const char *pTitle;
    uint descTextLen;
+   uint descTextCount;
    uint blockSize, off;
    uint dbCount, dbIdx, actIdx;
    uint firstIdx, piCount;
@@ -136,6 +136,7 @@ static EPGDB_PI_BLOCK * EpgDbMergePiBlocks( PDBC dbc, EPGDB_PI_BLOCK **pFoundBlo
 
    // calculate length of concatenated description texts
    descTextLen = 0;
+   descTextCount = 0;
    for (dbIdx=0; dbIdx < dbCount; dbIdx++)
    {
       actIdx = dbmc->max[MERGE_TYPE_DESCR][dbIdx];
@@ -146,6 +147,7 @@ static EPGDB_PI_BLOCK * EpgDbMergePiBlocks( PDBC dbc, EPGDB_PI_BLOCK **pFoundBlo
             if (PI_HAS_DESC_TEXT(&pFoundBlocks[actIdx]->pi))
             {
                descTextLen += 3 + strlen(PI_GET_DESC_TEXT(&pFoundBlocks[actIdx]->pi));
+               descTextCount += 1;
             }
          }
       }
@@ -346,9 +348,13 @@ static EPGDB_PI_BLOCK * EpgDbMergePiBlocks( PDBC dbc, EPGDB_PI_BLOCK **pFoundBlo
                   strcpy((char*)PI_GET_STR_BY_OFF(pPi, off), PI_GET_DESC_TEXT(&pFoundBlocks[actIdx]->pi));
                   off += strlen(PI_GET_STR_BY_OFF(pPi, off));
 
-                  ((char *) PI_GET_STR_BY_OFF(pPi, off))[0] = EPG_DB_MERGE_DESC_TEXT_SEP;
-                  ((char *) PI_GET_STR_BY_OFF(pPi, off))[1] = 0;
-                  off += 1;
+                  descTextCount -= 1;
+                  if (descTextCount > 0)
+                  {  // at least one more description text following: append separator
+                     ((char *) PI_GET_STR_BY_OFF(pPi, off))[0] = EPG_DB_MERGE_DESC_TEXT_SEP;
+                     ((char *) PI_GET_STR_BY_OFF(pPi, off))[1] = 0;
+                     off += 1;
+                  }
                }
             }
          }
@@ -374,7 +380,6 @@ static EPGDB_PI_BLOCK * EpgDbMergePiBlocks( PDBC dbc, EPGDB_PI_BLOCK **pFoundBlo
 //
 static bool EpgDbMerge_PiMatch( const PI_BLOCK * pRefPi, const PI_BLOCK * pNewPi )
 {
-   const char * p1, * p2, *pe, *ps;
    sint ovl, rtmin, rtmax;
    uint rt1, rt2;
    bool result = FALSE;
@@ -404,6 +409,9 @@ static bool EpgDbMerge_PiMatch( const PI_BLOCK * pRefPi, const PI_BLOCK * pNewPi
            ( (rtmin == 1) &&
              (labs(pNewPi->start_time - pRefPi->start_time) < 20*60)) )
       {
+#if 0 // TODO adapt to UTF
+         const char * p1, * p2, *pe, *ps;
+
          // compare the titles
          p1 = PI_GET_TITLE(pRefPi);
          p2 = PI_GET_TITLE(pNewPi);
@@ -432,7 +440,7 @@ static bool EpgDbMerge_PiMatch( const PI_BLOCK * pRefPi, const PI_BLOCK * pNewPi
                ps++;
          }
          if ( (*pe == 0) ||
-              !isalnum(*ps) ||
+              ispunct(*ps) || isspace(*ps) ||
               (isspace(*pe) && ((p1 - PI_GET_TITLE(pRefPi)) >= 20)) )
          {
             result = TRUE;
@@ -443,6 +451,7 @@ static bool EpgDbMerge_PiMatch( const PI_BLOCK * pRefPi, const PI_BLOCK * pNewPi
          {
             result = TRUE;
          }
+#endif
       }
       if (result == FALSE)
          dprintf6("        CMP FAIL   '%s' %s -- %d,%d,%d,%ld\n", PI_GET_TITLE(pNewPi), EpgDbMergePrintTime(pNewPi), ovl, rt1, rt2, labs(pNewPi->start_time - pRefPi->start_time));

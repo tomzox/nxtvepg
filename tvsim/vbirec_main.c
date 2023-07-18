@@ -44,7 +44,6 @@
 #include <fcntl.h>
 #include <stdlib.h>
 #include <string.h>
-#include <ctype.h>
 #include <unistd.h>
 #include <time.h>
 #include <locale.h>
@@ -92,6 +91,10 @@
 #ifndef O_BINARY
 #define O_BINARY       0          // for M$-Windows only
 #endif
+
+// Replacement for ctype's isspace() to avoid locale dependency
+#define IS_ASCII_SPACE(C)  (((C)==' ') || ((C)=='\t') || ((C)=='\v') || \
+                            ((C)=='\n') || ((C)=='\r') || ((C)=='\f'))
 
 char tvsim_rcs_id_str[] = TVSIM_VERSION_RCS_ID;
 

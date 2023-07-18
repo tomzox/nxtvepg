@@ -28,7 +28,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <ctype.h>
+
+#include <tcl.h>  // Unicode support
 
 #include "epgctl/mytypes.h"
 #include "epgctl/debug.h"
@@ -40,30 +41,7 @@
 #include "epgui/pidescr.h"
 
 
-// ----------------------------------------------------------------------------
-// Table to implement isalnum() for all latin fonts
-//
-const schar alphaNumTab[256] =
-{
-/* 0  1  2  3  4  5  6  7  8  9  A  B  C  D  E  F */
-   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,  /* 0 */
-   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,  /* 1 */
-   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,  /* 2 */
-   1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0,  /* 3 */ // 0 - 9
-   0, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,  /* 4 */ // A - Z
-   2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 0, 0, 0, 0, 0,  /* 5 */
-   0,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,  /* 6 */ // a - z
-  -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1, 0, 0, 0, 0, 0,  /* 7 */
-   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,  /* 8 */
-   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,  /* 9 */
-   0, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4,  /* A */ // national
-   4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4,  /* B */
-   4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4,  /* C */
-   4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4,  /* D */
-   4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4,  /* E */
-   4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4,  /* F */
-/* 0  1  2  3  4  5  6  7  8  9  A  B  C  D  E  F */
-};
+#define ISDIGIT_ASCII(C) (((C) >= '0') && ((C) <= '9'))
 
 // ----------------------------------------------------------------------------
 // Remove appended series counter from title string
@@ -82,12 +60,12 @@ const char * PiDescription_RemoveSeriesIndex( const char * pTitle, char * outbuf
 
       while (TRUE)
       {
-         if (isdigit(*pe))
+         if (ISDIGIT_ASCII(*pe))
          {  // at least one digit found
             len -= 1;
             pe -= 1;
             // skip preceeding digits
-            while ((len > 0) && isdigit(*pe))
+            while ((len > 0) && ISDIGIT_ASCII(*pe))
             {
                pe--;
                len--;
@@ -137,25 +115,26 @@ const char * PiDescription_DictifyTitle( const char * pTitle, uint lang, char * 
    {
       case EPG_LANG_EN:
          // English
-         if ((tolower(pTitle[0]) == 't') && (tolower(pTitle[1]) == 'h') && (tolower(pTitle[2]) == 'e') && (pTitle[3] == ' '))
+         if (((pTitle[0] == 'T') || (pTitle[0] == 't')) &&
+             (pTitle[1] == 'h') && (pTitle[2] == 'e') && (pTitle[3] == ' '))
             cut = 4;
-         else if ((tolower(pTitle[0]) == 'a') && (pTitle[1] == ' '))
+         else if (((pTitle[0] == 'A') || (pTitle[0] == 'a')) && (pTitle[1] == ' '))
             cut = 2;
          break;
       case EPG_LANG_DE:
          // German
-         if (tolower(pTitle[0]) == 'd')
+         if ((pTitle[0] == 'D') || (pTitle[0] == 'd'))
          {
-            if      ((tolower(pTitle[1]) == 'e') && (tolower(pTitle[2]) == 'r') && (pTitle[3] == ' '))
+            if      ((pTitle[1] == 'e') && (pTitle[2] == 'r') && (pTitle[3] == ' '))
                cut = 4;
-            else if ((tolower(pTitle[1]) == 'i') && (tolower(pTitle[2]) == 'e') && (pTitle[3] == ' '))
+            else if ((pTitle[1] == 'i') && (pTitle[2] == 'e') && (pTitle[3] == ' '))
                cut = 4;
-            else if ((tolower(pTitle[1]) == 'a') && (tolower(pTitle[2]) == 's') && (pTitle[3] == ' '))
+            else if ((pTitle[1] == 'a') && (pTitle[2] == 's') && (pTitle[3] == ' '))
                cut = 4;
          }
-         else if (tolower(pTitle[0]) == 'e')
+         else if ((pTitle[0] == 'E') || (pTitle[0] == 'e'))
          {
-            if ((tolower(pTitle[1]) == 'i') && (tolower(pTitle[2]) == 'n'))
+            if ((pTitle[1] == 'i') && (pTitle[2] == 'n'))
             {
                if (pTitle[3] == ' ')
                   cut = 4;
@@ -166,34 +145,37 @@ const char * PiDescription_DictifyTitle( const char * pTitle, uint lang, char * 
          break;
       case EPG_LANG_IT:
          // Italian
-         if ((tolower(pTitle[0]) == 'u') && (tolower(pTitle[1]) == 'n'))
+         if (((pTitle[0] == 'U') || (pTitle[0] == 'u')) &&
+             (pTitle[1] == 'n'))
          {
-            if      ((tolower(pTitle[2]) == 'a') && (pTitle[3] == ' '))
+            if      ((pTitle[2] == 'a') && (pTitle[3] == ' '))
                cut = 4;
-            else if ((tolower(pTitle[2]) == 'o') && (pTitle[3] == ' '))
+            else if ((pTitle[2] == 'o') && (pTitle[3] == ' '))
                cut = 4;
          }
-         else if ((tolower(pTitle[0]) == 'l') && (tolower(pTitle[1]) == 'a') && (pTitle[2] == ' '))
+         else if (((pTitle[0] == 'L') || (pTitle[0] == 'l')) &&
+                  (pTitle[1] == 'a') && (pTitle[2] == ' '))
             cut = 3;
          break;
       case EPG_LANG_FR:
          // French
-         if ((tolower(pTitle[0]) == 'u') && (tolower(pTitle[1]) == 'n'))
+         if (((pTitle[0] == 'U') || (pTitle[0] == 'u')) &&
+             (pTitle[1] == 'n'))
          {
             if (pTitle[2] == ' ')
                cut = 3;
-            else if ((tolower(pTitle[2]) == 'e') && (pTitle[3] == ' '))
+            else if ((pTitle[2] == 'e') && (pTitle[3] == ' '))
                cut = 4;
          }
-         else if (tolower(pTitle[0]) == 'l')
+         else if ((pTitle[0] == 'L') || (pTitle[0] == 'l'))
          {
-            if      ((tolower(pTitle[1]) == 'a') && (pTitle[2] == ' '))
+            if      ((pTitle[1] == 'a') && (pTitle[2] == ' '))
                cut = 3;
-            else if ((tolower(pTitle[1]) == 'e') && (pTitle[2] == ' '))
+            else if ((pTitle[1] == 'e') && (pTitle[2] == ' '))
                cut = 3;
-            else if (tolower(pTitle[1]) == '\'')
+            else if (pTitle[1] == '\'')
                cut = 2;
-            else if ((tolower(pTitle[1]) == 'e') && (tolower(pTitle[2]) == 's') && (pTitle[3] == ' '))
+            else if ((pTitle[1] == 'e') && (pTitle[2] == 's') && (pTitle[3] == ' '))
                cut = 4;
          }
          break;
@@ -239,15 +221,30 @@ const char * PiDescription_DictifyTitle( const char * pTitle, uint lang, char * 
    }
 
    // force the new first title character to be uppercase (for sorting)
-   if (alphaNumTab[(uchar) pTitle[0]] == ALNUM_LCHAR)
+   Tcl_UniChar uniChar;
+   uint oldUniLen = Tcl_UtfToUniChar(pTitle, &uniChar);
+   if (Tcl_UniCharIsLower(uniChar))
    {
       if (pTitle != outbuf)
       {
-         strncpy(outbuf, pTitle, maxLen);
+         uint newUniLen = Tcl_UniCharToUtf(Tcl_UniCharToUpper(uniChar), outbuf);
+         if (maxLen > newUniLen)
+            strncpy(outbuf + newUniLen, pTitle + oldUniLen, maxLen - newUniLen);
          outbuf[maxLen - 1] = 0;
          pTitle = outbuf;
       }
-      outbuf[0] = toupper(outbuf[0]);
+      else
+      {
+         char tmpBuf[5];
+         uint newUniLen = Tcl_UniCharToUtf(Tcl_UniCharToUpper(uniChar), tmpBuf);
+         if (oldUniLen != newUniLen)
+         {
+            uint strLen = strlen(outbuf) + 1;
+            if (strLen <= oldUniLen)
+               memmove(outbuf + newUniLen, outbuf + oldUniLen, strlen(outbuf) - oldUniLen);
+         }
+         memcpy(outbuf, tmpBuf, newUniLen);
+      }
    }
 
    return pTitle;
@@ -427,13 +424,13 @@ static char * PiDescription_UnifyShortLong( const char * pShort, uint shortInfoL
 }
 #endif
 
+#if 0
 // ----------------------------------------------------------------------------
 // Remove descriptions that are substrings of other info strings in the given list
 //
 static uint PiDescription_UnifyMergedInfo( char ** infoStrTab, uint infoCount )
 {
    register uchar c1, c2;
-   register schar ia1, ia2;
    char *pidx, *pcmp, *p1, *p2;
    uint idx, cmpidx;
    int len, cmplen;
@@ -441,7 +438,7 @@ static uint PiDescription_UnifyMergedInfo( char ** infoStrTab, uint infoCount )
    for (idx = 0; idx < infoCount; idx++)
    {
       pidx = infoStrTab[idx];
-      while ( (*pidx != 0) && (alphaNumTab[(uchar)*pidx] == ALNUM_NONE) )
+      while ( (*pidx != 0) && !isalnum(*pidx))  //TODO Unicode
          pidx += 1;
       len = strlen(pidx);
 
@@ -450,7 +447,7 @@ static uint PiDescription_UnifyMergedInfo( char ** infoStrTab, uint infoCount )
          if ((idx != cmpidx) && (infoStrTab[cmpidx] != NULL))
          {
             pcmp = infoStrTab[cmpidx];
-            while ( (*pcmp != 0) && (alphaNumTab[(uchar)*pcmp] == ALNUM_NONE) )
+            while ( (*pcmp != 0) && !isalnum(*pcmp) )
                pcmp += 1;
             cmplen = strlen(pcmp);
             if (cmplen >= len)
@@ -466,21 +463,16 @@ static uint PiDescription_UnifyMergedInfo( char ** infoStrTab, uint infoCount )
 
                      while ( ((c1 = *p1) != 0) && ((c2 = *p2) != 0) )
                      {
-                        ia1 = alphaNumTab[c1];
-                        ia2 = alphaNumTab[c2];
-                        if (ia1 == ALNUM_NONE)
+                        if (!isalnum(c1))
                            p1++;
-                        else if (ia2 == ALNUM_NONE)
+                        else if (!isalnum(c2))
                            p2++;
                         else
                         {
-                           if ( (ia1 ^ ia2) < 0 )
-                           {  // different case -> make both upper case
-                              c1 &= ~0x20;
-                              c2 &= ~0x20;
-                           }
-                           if (c1 != c2)
+                           if (toupper(c1) != toupper(c2))  //TODO Unicode
+                           {
                               break;
+                           }
                            else
                            {
                               p1++;
@@ -552,6 +544,7 @@ static uint PiDescription_SeparateMergedInfo( const PI_BLOCK * pPiBlock, char **
 
    return count;
 }
+#endif
 
 // ----------------------------------------------------------------------------
 // Print description text
@@ -562,6 +555,7 @@ void PiDescription_AppendDescriptionText( const PI_BLOCK * pPiBlock,
 {
    if (PI_HAS_DESC_TEXT(pPiBlock))
    {
+#if 0 // Currently obsolete as XMLTV import does not support merging different channels
       if (isMerged)
       {
          char *infoStrTab[MAX_MERGED_DB_COUNT];
@@ -588,6 +582,7 @@ void PiDescription_AppendDescriptionText( const PI_BLOCK * pPiBlock,
          }
       }
       else
+#endif
       {
          AppendInfoTextCb(fp, PI_GET_DESC_TEXT(pPiBlock), FALSE);
       }

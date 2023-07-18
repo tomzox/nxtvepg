@@ -46,7 +46,6 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <string.h>
-#include <ctype.h>
 #include <time.h>
 
 #include "epgctl/mytypes.h"
@@ -64,6 +63,10 @@
 
 #include "epgtcl/dlg_xawtvcf.h"
 
+
+// Replacement for ctype's isspace() to avoid locale dependency
+#define IS_ASCII_SPACE(C)  (((C)==' ') || ((C)=='\t') || ((C)=='\v') || \
+                            ((C)=='\n') || ((C)=='\r') || ((C)=='\f'))
 
 // ----------------------------------------------------------------------------
 // Cache for channel table of currently configured TV app. / path
@@ -922,7 +925,7 @@ static uint WintvCfg_SplitStringColon( char * sbuf, char ** fields, uint maxCnt 
    // trim trailing newline char from last field
    char *p1 = fields[fieldIdx - 1];
    char *p2 = p1 + strlen(p1) - 1;
-   while ((p2 >= p1) && isspace(*p2))
+   while ((p2 >= p1) && IS_ASCII_SPACE(*p2))
       *(p2--) = 0;
 
    // detect excessive fields above maxCnt

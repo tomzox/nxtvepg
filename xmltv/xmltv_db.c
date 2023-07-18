@@ -87,7 +87,6 @@
 #include "epgdb/epgdbfil.h"
 #include "epgdb/epgdbif.h"
 #include "epgdb/epgdbmgmt.h"
-#include "epgui/pidescr.h"
 
 #include "xmltv/xml_cdata.h"
 #include "xmltv/xml_hash.h"
@@ -912,8 +911,7 @@ void Xmltv_PiEpisodeTitleAdd( XML_STR_BUF * pBuf )
 {
    const char * pStr = XML_STR_BUF_GET_STR(*pBuf);
 
-   if ( (alphaNumTab[(uchar)*pStr] == ALNUM_UCHAR) ||
-        (alphaNumTab[(uchar)*pStr] == ALNUM_LCHAR) )
+   if ( !ispunct(*pStr) )
    {
       XmlCdata_AppendRaw(&xds.pi_desc, "\"", 1);
       XmlCdata_AppendRaw(&xds.pi_desc, pStr, XML_STR_BUF_GET_STR_LEN(*pBuf));

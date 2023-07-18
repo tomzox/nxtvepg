@@ -7,6 +7,7 @@ you have ideas for additional features.
 Post-Nextview EPG:
 - Network selection dialog: on the left show only removed networks
 - Network name selection dialog: Show all channel name variants listed in XMLTV
+- Replace recurring titles drop-down menu with listbox
 - update xmltv.dtd support (e.g. video/audio "present")
 - change AI/PI to hold original XMLTV info elements (i.e. reduce conversion)
   e.g. parental rating: store native string; support multiple ratings
@@ -14,7 +15,8 @@ Post-Nextview EPG:
 - during XMLTV import, skip programmes from channels de-selected by user
 - remove use of CNI for networks: use "netwop" index instead for browser
   use XMLTV channel_id for configuration (netwop selection, netname)
-- allow merge of different channel ID from different providers
+- allow merge of different channel ID from different providers;
+  requires porting title and description merge to UTF ("TODO" in epgdbmerge, pidescr)
 - Remove merge provider limit of 63 (MAX_MERGED_DB_COUNT)
 - Remove RC file limit for netwop selection 8192 (RC_MAX_DB_NETWOPS)
 - netwop name config start: for after auto-config message, do not count names that were exactly the same
