@@ -28,6 +28,7 @@
 
 #ifdef WIN32
 #include <windows.h>
+#include <shlobj.h>
 #endif
 #include <unistd.h>
 #include <stdio.h>
@@ -891,9 +892,45 @@ static void CmdLine_SetDefaults( bool daemonOnly )
    mainOpts.defaultDbDir = pEnvCache;
 
 #else  // WIN32
-   mainOpts.defaultRcFile = xstrdup("nxtvepg.ini");
-   mainOpts.defaultDbDir = ".";
-#endif
+   char * appPath = NULL;
+   char appBase[MAX_PATH];
+
+   if (SHGetFolderPathA(0, CSIDL_LOCAL_APPDATA|CSIDL_FLAG_CREATE, NULL, 0, appBase) == S_OK)
+   {
+      appPath = xmalloc(strlen(appBase) + 1 + 7 + 1);
+      strcpy(appPath, appBase);
+      strcat(appPath, "\\Nxtvepg");
+
+      DWORD dwAttrib = GetFileAttributes(appPath);
+      if (dwAttrib == INVALID_FILE_ATTRIBUTES)
+      {
+         // Nxtvepg config directory does not yet exist: try to create it
+         if (CreateDirectoryA(appPath, NULL) == 0)
+         {
+            debug2("CmdLine-SetDefaults: failed create app path directory '%s': %ld", appPath, (ulong)GetLastError());
+            xfree(appPath);
+            appPath = NULL;
+         }
+      }
+   }
+   else
+      debug0("CmdLine-SetDefaults: failed to query app path directory");
+
+   if (appPath != NULL)
+   {
+      char * rcFileName = xmalloc(strlen(appPath) + 1 + 11 + 1);
+      strcpy(rcFileName, appPath);
+      strcat(rcFileName, "\\nxtvepg.ini");
+
+      mainOpts.defaultRcFile = rcFileName;
+      mainOpts.defaultDbDir = appPath;
+   }
+   else
+   {
+      mainOpts.defaultRcFile = xstrdup("nxtvepg.ini");
+      mainOpts.defaultDbDir = xstrdup(".");
+   }
+#endif // WIN32
 }
 
 // ---------------------------------------------------------------------------
@@ -910,12 +947,10 @@ uint CmdLine_GetXmlFileNames( const char * const ** pppList )
 //
 void CmdLine_Destroy( void )
 {
-#ifndef WIN32
    if (mainOpts.defaultRcFile != NULL)
       xfree((void *) mainOpts.defaultRcFile);
    if (mainOpts.defaultDbDir != NULL)
       xfree((void *) mainOpts.defaultDbDir);
-#endif
    if (mainOpts.rcfile != NULL)
       xfree((void *) mainOpts.rcfile);
 }

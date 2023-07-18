@@ -27,6 +27,7 @@
 
 #ifdef WIN32
 #include <windows.h>
+#include <shlobj.h>
 #else
 #include <X11/Xlib.h>
 #include <X11/Xatom.h>
@@ -1350,7 +1351,42 @@ static void ParseArgv( int argc, char * argv[] )
    else
       rcfile = CmdLine_ConcatPaths(pEnvConfig, "nxtvepg/nxtvepgrc", NULL);
 #else
-   rcfile = xstrdup("nxtvepg.ini");
+   char * appPath = NULL;
+   char appBase[MAX_PATH];
+
+   if (SHGetFolderPathA(0, CSIDL_LOCAL_APPDATA|CSIDL_FLAG_CREATE, NULL, 0, appBase) == S_OK)
+   {
+      appPath = xmalloc(strlen(appBase) + 1 + 7 + 1);
+      strcpy(appPath, appBase);
+      strcat(appPath, "\\Nxtvepg");
+
+      DWORD dwAttrib = GetFileAttributes(appPath);
+      if (dwAttrib == INVALID_FILE_ATTRIBUTES)
+      {
+         // Nxtvepg config directory does not yet exist: try to create it
+         if (CreateDirectoryA(appPath, NULL) == 0)
+         {
+            debug2("CmdLine-SetDefaults: failed create app path directory '%s': %ld", appPath, (ulong)GetLastError());
+            xfree(appPath);
+            appPath = NULL;
+         }
+      }
+   }
+   else
+      debug0("Failed to query WIN32 app path directory");
+
+   if (appPath != NULL)
+   {
+      char * tmpPath = xmalloc(strlen(appPath) + 1 + 11 + 1);
+      strcpy(tmpPath, appPath);
+      strcat(tmpPath, "\\nxtvepg.ini");
+
+      rcfile = tmpPath;
+   }
+   else
+   {
+      rcfile = xstrdup("nxtvepg.ini");
+   }
 #endif
 
    while (argIdx < argc)
