@@ -244,6 +244,8 @@ uint PiOutput_MatchUserCol( const PI_BLOCK * pPiBlock, PIBOX_COL_TYPES * pType, 
 
 // ----------------------------------------------------------------------------
 // Print PI listing table element into string
+// - returns number of bytes written to the output buffer, limited to maxLen.
+// - value returned in "*pCharLen" is the number of Unicode characters written.
 //
 uint PiOutput_PrintColumnItem( const PI_BLOCK * pPiBlock, PIBOX_COL_TYPES type,
                                char * pOutBuffer, uint maxLen, int * pCharLen )
@@ -496,7 +498,7 @@ uint PiOutput_PrintColumnItem( const PI_BLOCK * pPiBlock, PIBOX_COL_TYPES type,
                   pOutBuffer[maxLen - 1] = 0;
                   outlen = maxLen - 1;
                }
-               *pCharLen = outlen;
+               *pCharLen = Tcl_NumUtfChars(pOutBuffer, outlen);
                break;
          }
       }
@@ -505,13 +507,13 @@ uint PiOutput_PrintColumnItem( const PI_BLOCK * pPiBlock, PIBOX_COL_TYPES type,
          // make sure the output buffer is 0 terminated
          // (note: cannot determine here if the string was truncated above, hence no debug output)
          pOutBuffer[outlen] = 0;
-         *pCharLen = outlen;
+         *pCharLen = Tcl_NumUtfChars(pOutBuffer, outlen);
       }
       else if (maxLen > 0)
       {
          pOutBuffer[maxLen - 1] = 0;
          outlen = maxLen - 1;
-         *pCharLen = outlen;
+         *pCharLen = Tcl_NumUtfChars(pOutBuffer, outlen);
       }
       else
          outlen = 0;
@@ -908,7 +910,7 @@ void PiOutput_PiListboxInsert( const PI_BLOCK *pPiBlock, uint textrow )
             if (maxlen < len)
             {
                len = maxlen;
-               charLen = Tcl_NumUtfChars(comm, len);
+               charLen = Tcl_NumUtfChars(comm + off, len);
             }
             off += len;
             charOff += charLen;
