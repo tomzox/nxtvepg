@@ -125,7 +125,7 @@ typedef struct
 #define TVAPP_FEAT_ALL_000701 (TVAPP_FEAT_TTX_FWD|TVAPP_FEAT_VPS_FWD|TVAPP_FEAT_TUNER|TVAPP_FEAT_REQ_CNAME|TVAPP_FEAT_CMD_TUNE|TVAPP_FEAT_CMD_MUTE)
 #define TVAPP_FEAT_REMIND     0x0080  // supports "remind" command (OSD display of reminder msg)
 
-#define EPG_SHM_VERSION       0xFF020800  // protocol version id
+#define EPG_SHM_VERSION       0xFF030004  // protocol version id
 #define EPG_SHM_VERSION_MAJOR(V)   (((V) >> 16) & 0xFF)
 #define EPG_SHM_VERSION_MINOR(V)   (((V) >>  8) & 0xFF)
 #define EPG_SHM_VERSION_PATLEV(V)  (((V)      ) & 0xFF)

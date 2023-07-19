@@ -2,7 +2,7 @@
 #
 #  TV application interaction simulator online manual
 #
-#  Copyright (C) 2002-2008 T. Zoerner
+#  Copyright (C) 2002-2008, 2023 T. Zoerner
 #
 #  This program is free software; you can redistribute it and/or modify
 #  it under the terms of the GNU General Public License Version 2 as
@@ -91,6 +91,21 @@ Bt878A, Bt848, Bt849, Philips SAA7134, Conexant 23881 (aka Bt811).
 If you have more than one TV card with the same chip, the order
 between those is undefined, but still constant (i.e. depends on
 the driver, not tvsim or nxtvepg).
+
+=item B<-noacq>
+
+This option allows starting the simulator on PCs without a video
+hardware.
+
+=item B<-fakechantab>
+
+This option allows using the simulator when none of the supported
+TV applications is installed, so that no TV channel table is available.
+The simulator will then load the table of configured network names
+from the nxtvepg configuration file.
+
+Note: For this option to work you need to open and save the I<Network name>
+configuration dialog in nxtvepg at least once while an XMLTV file is loaded.
 
 =item B<-help>
 
@@ -283,7 +298,7 @@ made to Xawtv.)
 
 =head1 COPYRIGHT
 
-Copyright (C) 2002,2004,2005 by T. Zoerner.
+Copyright (C) 2002,2004,2005, 2023 by T. Zoerner.
 All rights reserved.
 
 This program is free software; you can redistribute it and/or modify

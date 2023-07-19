@@ -931,7 +931,7 @@ static bool RcFile_ParseLine( char * sbuf, uint * pSectIdx, RCFILE_DYN_LIST * pD
       else if (sscanf(sbuf, "%99s = %n", key, &scanlen) >= 1)
       {
          pValStr = sbuf + scanlen;
-         // search key in the descriptior list of the current section
+         // search key in the descriptor list of the current section
          pDesc = rcParseCfg[sectIdx].pList;
          for (elemIdx = 0; elemIdx < rcParseCfg[sectIdx].listLen; elemIdx++, pDesc++)
          {

@@ -104,14 +104,29 @@ if $extended_pi {
    pack      .epgi.pi.sb -side left -fill y
    pack      .epgi.pi -side top -fill both -expand 1
 
-   # copy event bindings which are required for scrolling and selection (outbound copy&paste)
-   foreach event {<ButtonPress-1> <ButtonRelease-1> <B1-Motion> <Double-Button-1> <Shift-Button-1> \
-                  <Triple-Button-1> <Triple-Shift-Button-1> <Button-2> <B2-Motion> <MouseWheel> \
-                  <<Copy>> <<Clear>> <Shift-Key-Tab> <Control-Key-Tab> <Control-Shift-Key-Tab> \
-                  <Key-Prior> <Key-Next> <Key-Down> <Key-Up> <Key-Left> <Key-Right> \
-                  <Shift-Key-Left> <Shift-Key-Right> <Shift-Key-Up> <Shift-Key-Down> \
-                  <Key-Home> <Key-End> <Shift-Key-Home> <Shift-Key-End> <Control-Key-slash>} {
-      bind TextReadOnly $event [bind Text $event]
+   if {$tcl_version < 8.6} {
+      # copy event bindings which are required for scrolling and selection (outbound copy&paste)
+      foreach event {<ButtonPress-1> <ButtonRelease-1> <B1-Motion> <Double-Button-1> <Shift-Button-1> \
+                     <Triple-Button-1> <Triple-Shift-Button-1> <Button-2> <B2-Motion> <MouseWheel> \
+                     <<Copy>> <<Clear>> <Shift-Key-Tab> <Control-Key-Tab> <Control-Shift-Key-Tab> \
+                     <Key-Prior> <Key-Next> <Key-Down> <Key-Up> <Key-Left> <Key-Right> \
+                     <Shift-Key-Left> <Shift-Key-Right> <Shift-Key-Up> <Shift-Key-Down> \
+                     <Key-Home> <Key-End> <Shift-Key-Home> <Shift-Key-End> <Control-Key-slash>} {
+         bind TextReadOnly $event [bind Text $event]
+      }
+   } else {
+      set text_modifier_events {
+         <<Clear>> <<Cut>> <<Paste>> <<PasteSelection>>
+         <<Redo>> <<Undo>> <<TkAccentBackspace>> <Key-BackSpace>
+         <Key> <Key-Delete> <Key-Insert> <Key-Return>
+         # Not modifiers, but events are overridden below
+         <Key-Tab> <Control-Key-c>}
+
+      foreach event [bind Text] {
+         if {[lsearch -exact $text_modifier_events $event] == -1} {
+            bind TextReadOnly $event [bind Text $event]
+         }
+      }
    }
    # allow to scroll the text with a wheel mouse
    bind TextReadOnly <Button-4>     {%W yview scroll -3 units}
@@ -119,6 +134,12 @@ if $extended_pi {
    bind TextReadOnly <MouseWheel>   {%W yview scroll [expr {- (%D / 120) * 3}] units}
    bind TextReadOnly <Key-Tab> [bind Text <Control-Key-Tab>]
    bind TextReadOnly <Control-Key-c> [bind Text <<Copy>>]
+   bind Listbox "<Key-Home>" [bind "Listbox" "<Control-Key-Home>"]
+   bind Listbox "<Key-End>" [bind "Listbox" "<Control-Key-End>"]
+   bind Button "<Return>" [bind "Button" "<Key-Space>"]
+   foreach class_name {Text Entry Listbox} {
+      bind $class_name "<Control-Key-a>" {event generate %W "<<SelectAll>>"}
+   }
    bindtags  .epgi.pi.desc {.epgi.pi.desc TextReadOnly . all}
    .epgi.pi.desc tag configure title -font [list $font_family -14 bold] -justify center -spacing1 2 -spacing3 4
    .epgi.pi.desc tag configure features -font [list $font_family -12 bold] -justify center -spacing3 6
@@ -304,14 +325,18 @@ proc ConnectEpg {enable} {
 ConnectEpg 0
 
 # read channel table from TV app ini file during startup
-proc LoadChanTable {} {
+proc LoadChanTable {fake_chan_table} {
    global chan_table
 
    # clear the listbox
    .chan.cl delete 0 end
 
    # load the TV application's channel table from the configured directory
-   set chan_table [C_Tvapp_GetStationNames 0]
+   if {$fake_chan_table} {
+      set chan_table [C_GetNetwopNames]
+   } else {
+      set chan_table [C_Tvapp_GetStationNames 0]
+   }
 
    if {[llength $chan_table] > 0} {
       # fill the channel listbox with the names
@@ -377,6 +402,9 @@ proc DisplayPiDescription {pi_list} {
    if $extended_pi {
       .epgi.pi.desc delete 1.0 end
       set first_line 1
+
+      # avoid that split produces an empty entry
+      set pi_list [string trimright $pi_list "\n"]
 
       foreach tabs [split $pi_list "\n"] {
          set tmpl [split $tabs "\t"]
@@ -460,7 +488,7 @@ proc CreateAbout {} {
       label .about.name -text "TV application interaction simulator - tvsim v$TVSIM_VERSION"
       pack .about.name -side top -pady 8
 
-      label .about.copyr1 -text "Copyright (C) 2002,2004,2005,2007 by T. Zoerner"
+      label .about.copyr1 -text "Copyright (C) 2002-2007, 2023 by T. Zoerner"
       label .about.copyr2 -text "tomzo@users.sourceforge.net"
       label .about.copyr3 -text "http://nxtvepg.sourceforge.net/" -font [list $font_family_fixed -12 normal] -foreground blue
       pack .about.copyr1 .about.copyr2 -side top

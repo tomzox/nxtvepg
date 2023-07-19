@@ -141,6 +141,7 @@ static bool isDefaultRcfile = TRUE;
 static bool withoutDevice = FALSE;
 static uint videoCardIndex = TVSIM_CARD_IDX;
 static bool startIconified = FALSE;
+static bool fakeChanTable = FALSE;
 #ifndef WIN32
 static EPG_IPC_PROTOCOL epgIpcProtocol = EPG_IPC_BOTH;
 #endif
@@ -1305,9 +1306,12 @@ static void Usage( const char *argv0, const char *argvn, const char * reason )
                    "       -iconic     \t\t: iconify window\n"
                    "       -rcfile <path>      \t: path and file name of setup file\n"
                    "       -card <digit>       \t: index of TV card for acq (starting at 0)\n"
+                   "       -noacq              \t: work without a TV card\n"
+                   "       -fakechantab        \t: work without a TV application's channel table\n"
 #ifndef WIN32
                    "       -protocol xawtv|iccc\t: protocol for communication with EPG app\n"
 #endif
+                   "See manual page for more details.\n"
                    , argv0, reason, argvn, argv0);
 #if 0
       /*balance brackets for syntax highlighting*/  )
@@ -1370,6 +1374,11 @@ static void ParseArgv( int argc, char * argv[] )
             }
             else
                Usage(argv[0], argv[argIdx], "missing file name after");
+         }
+         else if (!strcmp(argv[argIdx], "-fakechantab"))
+         {
+            fakeChanTable = TRUE;
+            argIdx += 1;
          }
          else if (!strcmp(argv[argIdx], "-noacq"))
          {
@@ -1675,7 +1684,6 @@ static void TvSimuMsg_HandleEpgCmd( void )
 //
 static void TvSimuMsg_UpdateProgInfo( void )
 {
-   EPG_PI epg_pi;
    char * pBuffer;
 
    pBuffer = WinSharedMemClient_GetProgInfo();
@@ -1689,6 +1697,7 @@ static void TvSimuMsg_UpdateProgInfo( void )
       TvSimu_DisplayPiDescription(pBuffer);
 
 #ifndef DPRINTF_OFF
+      EPG_PI epg_pi;
       if ( (pBuffer[0] != 0) &&
            TvSimu_ParsePiDescription(pBuffer, &epg_pi) )
       {
@@ -1860,7 +1869,7 @@ static int TclCb_TuneChan( ClientData ttp, Tcl_Interp *interp, int argc, CONST84
    const char * const pUsage = "C_TuneChan <idx> <name>";
    const TVAPP_CHAN_TAB * pChanTab;
    char  * pErrMsg;
-   int     freqIdx;
+   int     chanIdx;
    bool    isTuner;
    int     result;
 
@@ -1871,19 +1880,22 @@ static int TclCb_TuneChan( ClientData ttp, Tcl_Interp *interp, int argc, CONST84
    }
    else
    {
-      result = Tcl_GetInt(interp, argv[1], &freqIdx);
+      result = Tcl_GetInt(interp, argv[1], &chanIdx);
       if (result == TCL_OK)
       {
          // read frequencies & norms from channel table file
          pErrMsg = NULL;
          pChanTab = WintvCfg_GetFreqTab(&pErrMsg);
-         if ((pChanTab != NULL) && (pChanTab->chanCount > 0))
+         if (withoutDevice || ((pChanTab != NULL) && (pChanTab->chanCount > 0)))
          {
-            if ((freqIdx < pChanTab->chanCount) && (freqIdx >= 0))
+            if (withoutDevice || ((chanIdx < pChanTab->chanCount) && (chanIdx >= 0)))
             {
-               // Change the tuner frequency via the BT8x8 driver
-               BtDriver_TuneChannel(TVSIM_INPUT_IDX, &pChanTab->pFreqTab[freqIdx], FALSE, &isTuner);
-               BtDriver_SelectSlicer(VBI_SLICER_ZVBI);
+               if (!withoutDevice)
+               {
+                  // Change the tuner frequency via the BT8x8 driver
+                  BtDriver_TuneChannel(TVSIM_INPUT_IDX, &pChanTab->pFreqTab[chanIdx], FALSE, &isTuner);
+                  BtDriver_SelectSlicer(VBI_SLICER_ZVBI);
+               }
 
                #ifdef WIN32
                {
@@ -1900,15 +1912,17 @@ static int TclCb_TuneChan( ClientData ttp, Tcl_Interp *interp, int argc, CONST84
                   // - norms are coded into the high byte of the frequency dword (0=PAL-BG, 1=NTSC, 2=SECAM)
                   // - input source is hard-wired to TV tuner in this simulation
                   // - channel ID is hard-wired to 0 too (see comments in the winshmclnt.c)
-                  WinSharedMemClient_SetStation(argv[2], -1, 0,
-                                                isTuner, pChanTab->pFreqTab[freqIdx].freq,
-                                                pChanTab->pFreqTab[freqIdx].norm, piCount);
+                  WinSharedMemClient_SetStation(argv[2], -1, 0, isTuner,
+                                                withoutDevice ? 0 : pChanTab->pFreqTab[chanIdx].freq,
+                                                withoutDevice ? 0 : pChanTab->pFreqTab[chanIdx].norm,
+                                                piCount);
                }
                #else
                // Xawtv: provide station name and frequency (FIXME channel code omitted)
                if (IPC_XAWTV_ENABLED)
                {
-                  TvSim_XawtvSetStation(pChanTab->pFreqTab[freqIdx].freq, "-", argv[2]);
+                  TvSim_XawtvSetStation(withoutDevice ? 0 : pChanTab->pFreqTab[chanIdx].freq,
+                                        "-", argv[2]);
                }
                if (IPC_ICCCM_ENABLED)
                {
@@ -1923,7 +1937,7 @@ static int TclCb_TuneChan( ClientData ttp, Tcl_Interp *interp, int argc, CONST84
                      if (pPiCountStr == NULL)
                         pPiCountStr = "1";
 
-                     sprintf(freq_buf, "%ld", pChanTab->pFreqTab[freqIdx].freq);
+                     sprintf(freq_buf, "%ld", withoutDevice ? 0 : pChanTab->pFreqTab[chanIdx].freq);
 
                      Xiccc_BuildArgv(&pArgv, &arg_len, ICCCM_PROTO_VSTR, argv[2], freq_buf, "-", "", "Text/Tabular", pPiCountStr, "1", NULL);
                      Xiccc_SendQuery(&xiccc, pArgv, arg_len, xiccc.atoms._NXTVEPG_SETSTATION,
@@ -2064,6 +2078,40 @@ static int ClockScanIso( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *
    return result;
 }
 
+// ----------------------------------------------------------------------------
+// Get list of network name definitions
+// - only returns user-configured names (i.e. not names in AI)
+// - returns a list of CNI/name pairs in one flat list
+//
+static int MenuCmd_GetNetwopNames( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
+{
+   const char * const pUsage = "Usage: C_GetNetwopNames";
+   const RCFILE * pRc;
+   Tcl_Obj * pResultList;
+   int result;
+
+   if (objc != 1)
+   {  // wrong # of parameters for this TCL cmd -> display error msg
+      Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
+      result = TCL_ERROR;
+   }
+   else
+   {
+      pResultList = Tcl_NewListObj(0, NULL);
+
+      pRc = RcFile_Query();
+
+      for (uint idx = 0; idx < pRc->net_names_count; idx++)
+      {
+         Tcl_ListObjAppendElement(interp, pResultList, Tcl_NewStringObj(pRc->net_names[idx].name, -1));
+      }
+
+      Tcl_SetObjResult(interp, pResultList);
+      result = TCL_OK;
+   }
+   return result;
+}
+
 // ---------------------------------------------------------------------------
 // Initialize the Tcl/Tk interpreter and load our scripts
 //
@@ -2164,6 +2212,8 @@ static int ui_init( int argc, char **argv )
    Tcl_CreateObjCommand(interp, "C_ClockFormat", ClockFormat, (ClientData) NULL, NULL);
    Tcl_CreateObjCommand(interp, "C_ClockScanIso", ClockScanIso, (ClientData) NULL, NULL);
 
+   Tcl_CreateObjCommand(interp, "C_GetNetwopNames", MenuCmd_GetNetwopNames, (ClientData) NULL, NULL);
+
    if (TCL_EVAL_CONST(interp, (char*)tvsim_gui_tcl_static) != TCL_OK)
    {
       debug1("tvsim_gui_tcl_static error: %s\n", Tcl_GetStringResult(interp));
@@ -2236,7 +2286,7 @@ int main( int argc, char *argv[] )
       {
          // fill channel listbox with names from TV app channel table
          // a warning is issued if the table is empty (used during startup)
-         sprintf(comm, "LoadChanTable");
+         sprintf(comm, "LoadChanTable %d", fakeChanTable);
          eval_check(interp, comm);
 
          if (withoutDevice || BtDriver_StartAcq())
