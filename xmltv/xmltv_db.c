@@ -583,13 +583,13 @@ void Xmltv_ChannelCreate( void )
              (xds.chn_tab_size - prev_size) * sizeof(xds.p_chn_table[0]));
 
       // grow PI tables
-      xds.pFirstNetwopPi = xrealloc(xds.pFirstNetwopPi,
-                                    xds.chn_tab_size * sizeof(xds.pFirstNetwopPi[0]));
+      xds.pFirstNetwopPi = (EPGDB_PI_BLOCK**)xrealloc(xds.pFirstNetwopPi,
+                                                      xds.chn_tab_size * sizeof(xds.pFirstNetwopPi[0]));
       memset((xds.pFirstNetwopPi + prev_size), 0,
              (xds.chn_tab_size - prev_size) * sizeof(xds.pFirstNetwopPi[0]));
 
-      xds.pLastNetwopPi = xrealloc(xds.pLastNetwopPi,
-                                    xds.chn_tab_size * sizeof(xds.pLastNetwopPi[0]));
+      xds.pLastNetwopPi = (EPGDB_PI_BLOCK**) xrealloc(xds.pLastNetwopPi,
+                                                      xds.chn_tab_size * sizeof(xds.pLastNetwopPi[0]));
       memset((xds.pLastNetwopPi + prev_size), 0,
              (xds.chn_tab_size - prev_size) * sizeof(xds.pLastNetwopPi[0]));
    }
@@ -950,8 +950,8 @@ void Xmltv_PiCatAddText( XML_STR_BUF * pBuf )
          // grow theme table
          xds.theme_table_size = (xds.theme_table_size == 0) ? 256 : (xds.theme_table_size * 2);
 
-         xds.p_theme_table = xrealloc(xds.p_theme_table,
-                                      xds.theme_table_size * sizeof(xds.p_theme_table[0]));
+         xds.p_theme_table = (char**) xrealloc(xds.p_theme_table,
+                                               xds.theme_table_size * sizeof(xds.p_theme_table[0]));
       }
       xds.p_theme_table[xds.theme_count] = xstrdup(pStr);
 
@@ -1574,7 +1574,7 @@ EPGDB_CONTEXT * XmltvDb_GetDatabase( const char * pProvName )
    if (xds.chn_count > 0)
    {
       xds.pDbContext->netwopCount = xds.chn_count;
-      xds.pDbContext->pFirstNetwopPi = xmalloc(xds.chn_count * sizeof(xds.pDbContext->pFirstNetwopPi[0]));
+      xds.pDbContext->pFirstNetwopPi = (EPGDB_PI_BLOCK**)xmalloc(xds.chn_count * sizeof(xds.pDbContext->pFirstNetwopPi[0]));
       memset(xds.pDbContext->pFirstNetwopPi, 0, xds.chn_count * sizeof(xds.pDbContext->pFirstNetwopPi[0]));
 
       // combine PI of different networks into a single database

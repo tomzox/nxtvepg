@@ -430,7 +430,7 @@ static char * PiDescription_UnifyShortLong( const char * pShort, uint shortInfoL
 //
 static uint PiDescription_UnifyMergedInfo( char ** infoStrTab, uint infoCount )
 {
-   register uchar c1, c2;
+   uchar c1, c2;
    char *pidx, *pcmp, *p1, *p2;
    uint idx, cmpidx;
    int len, cmplen;

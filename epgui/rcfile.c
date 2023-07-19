@@ -976,7 +976,7 @@ bool RcFile_Load( const char * pRcPath, bool isDefault, char ** ppErrMsg )
       fp = fopen(pRcPath, "r");
       if (fp != NULL)
       {
-         sbuf = xmalloc(RC_LINE_BUF_SIZE);
+         sbuf = (char*) xmalloc(RC_LINE_BUF_SIZE);
          sectIdx = RC_ARR_CNT(rcParseCfg);
          parseError = FALSE;
          result = TRUE;

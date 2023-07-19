@@ -29,11 +29,19 @@
 
 #include <stdio.h>
 
+#if defined (__cplusplus)
+extern "C" {
+#endif
+
 #if DEBUG_GLOBAL_SWITCH != ON
 # ifdef DEBUG_SWITCH
 #  undef DEBUG_SWITCH
 # endif
 # define DEBUG_SWITCH OFF
+#endif
+
+#ifndef __cplusplus
+#define static_assert _Static_assert
 #endif
 
 #if DEBUG_SWITCH == ON
@@ -277,5 +285,7 @@ char * xstrdup( const char * pSrc );
 #endif
 #endif
 
+#if defined (__cplusplus)
+} // extern "C"
+#endif
 #endif  /* not __DEBUG_H */
-

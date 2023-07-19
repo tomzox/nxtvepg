@@ -135,7 +135,7 @@ static void EpgContextMergeAllocNetwopMap( EPGDB_MERGE_CONTEXT * dbmc, uint cniC
    {
       // "netwopMap" maps from local AI netwop index to merged DB netwop index
       uint aiNetwopCount = dbmc->prov[dbIdx].pDbContext->pAiBlock->ai.netwopCount;
-      dbmc->prov[dbIdx].netwopMap = xmalloc(sizeof(uint) * aiNetwopCount);
+      dbmc->prov[dbIdx].netwopMap = (uint*) xmalloc(sizeof(uint) * aiNetwopCount);
 
       for (uint idx = 0; idx < aiNetwopCount; ++idx)
       {
@@ -143,7 +143,7 @@ static void EpgContextMergeAllocNetwopMap( EPGDB_MERGE_CONTEXT * dbmc, uint cniC
       }
 
       // "revNetwopMap" maps from merged DB netwop index to local AI netwop index
-      dbmc->prov[dbIdx].revNetwopMap = xmalloc(sizeof(uint) * cniCount);
+      dbmc->prov[dbIdx].revNetwopMap = (uint*) xmalloc(sizeof(uint) * cniCount);
 
       for (uint idx = 0; idx < cniCount; ++idx)
       {
@@ -228,14 +228,14 @@ static void EpgContextMergeBuildThemesMap( EPGDB_MERGE_CONTEXT * pMergeContext,
    }
    if (themeMaxSize > 0)
    {
-       pMergedThemes = xmalloc(themeMaxSize * sizeof(char*));
+       pMergedThemes = (char**) xmalloc(themeMaxSize * sizeof(char*));
 
        for (uint dbIdx=0; dbIdx < pMergeContext->dbCount; dbIdx++)
        {
           EPGDB_CONTEXT * pDbContext = pMergeContext->prov[0].pDbContext;
 
-          pMergeContext->prov[dbIdx].themeIdMap = xmalloc(pDbContext->themeCount *
-                                                          sizeof(pDbContext->pThemes[0]));
+          pMergeContext->prov[dbIdx].themeIdMap = (uint*) xmalloc(pDbContext->themeCount *
+                                                                  sizeof(pDbContext->pThemes[0]));
 
           for (uint idx = 0; idx < pDbContext->themeCount; idx++)
           {
@@ -259,7 +259,7 @@ static void EpgContextMergeBuildThemesMap( EPGDB_MERGE_CONTEXT * pMergeContext,
           }
        }
        // Reduce size of theme table to actual used length
-       pMergedThemes = xrealloc(pMergedThemes, themeCount * sizeof(pMergedThemes[0]));
+       pMergedThemes = (char**) xrealloc(pMergedThemes, themeCount * sizeof(pMergedThemes[0]));
    }
 
    *pThemeCount = themeCount;
@@ -360,7 +360,7 @@ static void EpgContextMergeExtendProvList( uint addCount, const uint * pProvCni,
    EPGDB_MERGE_CONTEXT * dbmc = (EPGDB_MERGE_CONTEXT*) pUiDbContext->pMergeContext;
    const AI_BLOCK * pOldAi = &pUiDbContext->pAiBlock->ai;
    uint netwopCount = pOldAi->netwopCount;
-   uint * netCnis = xmalloc(sizeof(uint) * netwopCount);
+   uint * netCnis = (uint*) xmalloc(sizeof(uint) * netwopCount);
 
    for (uint idx = 0; idx < netwopCount; ++idx)
       netCnis[idx] = AI_GET_NET_CNI_N(pOldAi, idx);
@@ -372,7 +372,7 @@ static void EpgContextMergeExtendProvList( uint addCount, const uint * pProvCni,
       if (dbmc->prov[dbmc->dbCount].pDbContext != NULL)
       {
          const AI_BLOCK * pTmpAi = &dbmc->prov[dbmc->dbCount].pDbContext->pAiBlock->ai;
-         netCnis = xrealloc(netCnis, sizeof(uint) * (netwopCount + pTmpAi->netwopCount));
+         netCnis = (uint*) xrealloc(netCnis, sizeof(uint) * (netwopCount + pTmpAi->netwopCount));
 
          // append all CNIs of this provider to merged network table;
          // omitting check for duplicates, as this is done already during the function called below
@@ -431,7 +431,7 @@ bool EpgContextMergeUpdateDb( uint updCount, uint addCount, const uint * pProvCn
       // open the db contexts of all dbs in the merge context
       // assume that if one db is open, then all are
       if ( (dbmc->prov[0].pDbContext != NULL) ||
-           EpgDbMergeOpenDatabases(dbmc, errHand) )
+           EpgDbMergeOpenDatabases(dbmc, (CONTEXT_RELOAD_ERR_HAND)errHand) )
       {
          if (addCount > 0)
          {
@@ -498,7 +498,7 @@ EPGDB_CONTEXT * EpgContextMerge( uint dbCount, const uint * pCni, MERGE_ATTRIB_V
       pMergeContext->prov[dbIdx].themeIdMap = NULL;
    }
 
-   if ( EpgDbMergeOpenDatabases(pMergeContext, errHand) )
+   if ( EpgDbMergeOpenDatabases(pMergeContext, (CONTEXT_RELOAD_ERR_HAND) errHand) )
    {
       // create target database
       pDbContext = EpgDbCreate();
@@ -511,7 +511,7 @@ EPGDB_CONTEXT * EpgContextMerge( uint dbCount, const uint * pCni, MERGE_ATTRIB_V
       EpgContextMergeBuildNetwopMap(pMergeContext, &netwopCount, pNetwopList);
       pMergeContext->netwopCount = netwopCount;
 
-      pDbContext->pFirstNetwopPi = xmalloc(netwopCount * sizeof(pDbContext->pFirstNetwopPi[0]));
+      pDbContext->pFirstNetwopPi = (EPGDB_PI_BLOCK**) xmalloc(netwopCount * sizeof(pDbContext->pFirstNetwopPi[0]));
       memset(pDbContext->pFirstNetwopPi, 0, netwopCount * sizeof(pDbContext->pFirstNetwopPi[0]));
       pDbContext->netwopCount = netwopCount;
 

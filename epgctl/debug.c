@@ -474,7 +474,7 @@ void * xrealloc( void * ptr, size_t size )
 //
 char * xstrdup( const char * pSrc )
 {
-   char * pDst = xmalloc(strlen(pSrc) + 1);
+   char * pDst = (char*) xmalloc(strlen(pSrc) + 1);
    strcpy(pDst, pSrc);
    return pDst;
 }  

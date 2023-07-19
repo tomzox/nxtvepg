@@ -97,7 +97,7 @@ static const uchar * TtxGrab_PrintHeader( const uchar * pHeader, uint headOff, b
 {
    static uchar buf[41];
    uint idx;
-   register uchar c;
+   uchar c;
    uint len;
 
    assert(headOff < sizeof(buf) - 1);

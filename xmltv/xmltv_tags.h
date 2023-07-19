@@ -22,6 +22,10 @@
 
 #include "epgdb/epg_lang.h"
 
+#if defined (__cplusplus)
+extern "C" {
+#endif
+
 typedef enum
 {
    XML_ENC_ISO8859_1,
@@ -93,4 +97,7 @@ bool XmlScan_SetEncoding( XML_ENCODING encoding );
 void XmlScan_EntityDefName( const char * pName, int isParamEntity );
 void XmlScan_EntityDefValue( const char * pValue );
 
+#if defined (__cplusplus)
+} // extern "C"
+#endif
 #endif  // __XMLTV_TAGS_H

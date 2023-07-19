@@ -440,7 +440,7 @@ void EpgDumpXml_Standalone( EPGDB_CONTEXT * pDbContext, FILTER_CONTEXT * fc,
          {
             pNetFilter = EpgDbFilterGetNetwopFilter(fc, pAiBlock->netwopCount);
          }
-         pChnIds = xmalloc(sizeof(*pChnIds) * pAiBlock->netwopCount);
+         pChnIds = (char**) xmalloc(sizeof(*pChnIds) * pAiBlock->netwopCount);
          memset(pChnIds, 0, sizeof(*pChnIds) * pAiBlock->netwopCount);
 
          // channel table

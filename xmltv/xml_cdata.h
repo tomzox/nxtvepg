@@ -20,6 +20,10 @@
 #ifndef __XMLTV_CDATA_H
 #define __XMLTV_CDATA_H
 
+#if defined (__cplusplus)
+extern "C" {
+#endif
+
 // ----------------------------------------------------------------------------
 // String buffer definition
 //
@@ -126,4 +130,7 @@ void XmlCdata_AssignOrAppend( XML_STR_BUF * pDestBuf, XML_STR_BUF * pSrcBuf );
 void XmlCdata_Reset( XML_STR_BUF * pBuf );
 #endif // XML_CDATA_INLINE
 
+#if defined (__cplusplus)
+} // extern "C"
+#endif
 #endif // __XMLTV_CDATA_H

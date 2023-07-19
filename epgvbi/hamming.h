@@ -20,20 +20,20 @@
 #ifndef __HAMMING_H
 #define __HAMMING_H
 
-#ifdef __HAMMING_C
-# define EXT
-#else
-# define EXT extern
-#endif
+extern const uchar unhamtab[256];
+extern const uchar parityTab[256];
+extern const uchar reverse4Bits[16];
+extern const uchar reverse8Bits[256];
+extern const uchar byteBitDistTable[256];
 
 // ----------------------------------------------------------------------------
 // Hamming 8/4 decoding table
 // - single errors are ignored
 // - 0xff = double-error
 //
-EXT const uchar unhamtab[256]
 #ifdef __HAMMING_C
-= {
+const uchar unhamtab[256] =
+{
    0x01, 0xff, 0x01, 0x01, 0xff, 0x00, 0x01, 0xff,
    0xff, 0x02, 0x01, 0xff, 0x0a, 0xff, 0xff, 0x07,
    0xff, 0x00, 0x01, 0xff, 0x00, 0x00, 0xff, 0x00,
@@ -66,16 +66,15 @@ EXT const uchar unhamtab[256]
    0x0f, 0xff, 0x0f, 0x0f, 0xff, 0x0e, 0x0f, 0xff,
    0x08, 0xff, 0xff, 0x05, 0xff, 0x0e, 0x0d, 0xff,
    0xff, 0x0e, 0x0f, 0xff, 0x0e, 0x0e, 0xff, 0x0e
-}
+};
 #endif  //__HAMMING_C
-;
 
 // ----------------------------------------------------------------------------
 // odd-parity decoding table: bit 7 set <-> parity error
 //
-EXT const uchar parityTab[256]
 #ifdef __HAMMING_C
-= {
+const uchar parityTab[256] =
+{
    0x80, 0x01, 0x02, 0x83, 0x04, 0x85, 0x86, 0x07,
    0x08, 0x89, 0x8a, 0x0b, 0x8c, 0x0d, 0x0e, 0x8f,
    0x10, 0x91, 0x92, 0x13, 0x94, 0x15, 0x16, 0x97,
@@ -108,29 +107,27 @@ EXT const uchar parityTab[256]
    0xe8, 0x69, 0x6a, 0xeb, 0x6c, 0xed, 0xee, 0x6f,
    0xf0, 0x71, 0x72, 0xf3, 0x74, 0xf5, 0xf6, 0x77,
    0x78, 0xf9, 0xfa, 0x7b, 0xfc, 0x7d, 0x7e, 0xff,
-}
+};
 #endif  //__HAMMING_C
-;
 
 // ----------------------------------------------------------------------------
 // Table to reverse order of bits in one "nibble" (i.e. 4-bit integer)
 // - used to decode P8/30/2 (PDC) which has different bit order than teletext
 //
-EXT const uchar reverse4Bits[16]
 #ifdef __HAMMING_C
-= {
+const uchar reverse4Bits[16] =
+{
    0x00, 0x08, 0x04, 0x0c, 0x02, 0x0a, 0x06, 0x0e,
    0x01, 0x09, 0x05, 0x0d, 0x03, 0x0b, 0x07, 0x0f
-}
+};
 #endif  //__HAMMING_C
-;
 
 // ----------------------------------------------------------------------------
 // Table to reverse order of bits in one byte
 //
-EXT const uchar reverse8Bits[256]
 #ifdef __HAMMING_C
-= {
+const uchar reverse8Bits[256] =
+{
    0x00, 0x80, 0x40, 0xc0, 0x20, 0xa0, 0x60, 0xe0,
    0x10, 0x90, 0x50, 0xd0, 0x30, 0xb0, 0x70, 0xf0,
    0x08, 0x88, 0x48, 0xc8, 0x28, 0xa8, 0x68, 0xe8,
@@ -163,18 +160,17 @@ EXT const uchar reverse8Bits[256]
    0x17, 0x97, 0x57, 0xd7, 0x37, 0xb7, 0x77, 0xf7,
    0x0f, 0x8f, 0x4f, 0xcf, 0x2f, 0xaf, 0x6f, 0xef,
    0x1f, 0x9f, 0x5f, 0xdf, 0x3f, 0xbf, 0x7f, 0xff
-}
+};
 #endif  //__HAMMING_C
-;
 
 // ----------------------------------------------------------------------------
 // Table to count number of bits in a byte
 // - used to calculate bit distance between two byte values (after XOR)
 // - i.e. used to count number of differing/erronous bits in a value
 //
-EXT const uchar byteBitDistTable[256]
 #ifdef __HAMMING_C
-= {
+const uchar byteBitDistTable[256] =
+{
    0, 1, 1, 2, 1, 2, 2, 3, 1, 2, 2, 3, 2, 3, 3, 4,
    1, 2, 2, 3, 2, 3, 3, 4, 2, 3, 3, 4, 3, 4, 4, 5,
    1, 2, 2, 3, 2, 3, 3, 4, 2, 3, 3, 4, 3, 4, 4, 5,
@@ -191,9 +187,8 @@ EXT const uchar byteBitDistTable[256]
    3, 4, 4, 5, 4, 5, 5, 6, 4, 5, 5, 6, 5, 6, 6, 7,
    3, 4, 4, 5, 4, 5, 5, 6, 4, 5, 5, 6, 5, 6, 6, 7,
    4, 5, 5, 6, 5, 6, 6, 7, 5, 6, 6, 7, 6, 7, 7, 8
-}
+};
 #endif  //__HAMMING_C
-;
 
 #define ByteBitDistance(X,Y) (byteBitDistTable[(uchar)((X)^(Y))])
 
@@ -212,7 +207,5 @@ ushort UnHamParityArray( const uchar *pin, uchar *pout, uint byteCount );
 void DebugDumpTeletextPkg( const uchar * pHead, const uchar * pData, uint frameSeqNo,
                            uint lineNo, uint pkgNo, uint pageNo, uint subPageNo, bool isEpgPage );
 #endif
-
-#undef EXT
 
 #endif  // __HAMMING_H

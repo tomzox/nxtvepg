@@ -554,14 +554,14 @@ EPGSCAN_START_RESULT EpgScan_Start( int inputSource, bool doSlow, bool useXawtv,
             nameTabLen += strlen(chnNames + nameTabLen) + 1;
 
          // copy names
-         scanCtl.chnNames = xmalloc(nameTabLen);
+         scanCtl.chnNames = (char*) xmalloc(nameTabLen);
          memcpy(scanCtl.chnNames, chnNames, nameTabLen);
 
          // copy frequency table
-         scanCtl.provFreqTab = xmalloc(freqCount * sizeof(*freqTab));
+         scanCtl.provFreqTab = (EPGACQ_TUNER_PAR*) xmalloc(freqCount * sizeof(*freqTab));
          memcpy(scanCtl.provFreqTab, freqTab, freqCount * sizeof(*freqTab));
 
-         scanCtl.chnDone = xmalloc(freqCount * sizeof(bool));
+         scanCtl.chnDone = (bool*) xmalloc(freqCount * sizeof(bool));
          memset(scanCtl.chnDone, 0, freqCount * sizeof(bool));
       }
 

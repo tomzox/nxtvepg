@@ -28,7 +28,7 @@
 
 static inline void swap16( void * pVal )
 {
-   register uint val = * (ushort *) pVal;
+   uint val = * (ushort *) pVal;
 
    * (ushort *) pVal = ((((ushort)(val) & 0x00ffU) <<  8) |
                         (((ushort)(val) & 0xff00U) >>  8));
@@ -36,7 +36,7 @@ static inline void swap16( void * pVal )
 
 static inline void swap32( void * pVal )
 {
-   register uint val = * (uint *) pVal;
+   uint val = * (uint *) pVal;
 
    * (uint *) pVal = ((((uint)(val) & 0x000000ffU) << 24) |
                       (((uint)(val) & 0x0000ff00U) <<  8) |
@@ -46,8 +46,8 @@ static inline void swap32( void * pVal )
 
 static inline void swap64( void * pVal )
 {
-   register uint val1 = * ((uint *) pVal);
-   register uint val2 = * (((uint *) pVal) + 1);
+   uint val1 = * ((uint *) pVal);
+   uint val2 = * (((uint *) pVal) + 1);
 
    * ((uint *) pVal) = ((((uint)(val2) & 0x000000ffU) << 24) |
                         (((uint)(val2) & 0x0000ff00U) <<  8) |

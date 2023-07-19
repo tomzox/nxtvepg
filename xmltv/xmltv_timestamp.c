@@ -284,7 +284,7 @@ static const tz_map_t date_manip_tz_wordlist[] =
 __inline
 #endif
 static unsigned int
-tz_hash (register const char *str, register unsigned int len)
+tz_hash (const char *str, unsigned int len)
 {
   static const unsigned short asso_values[] =
     {
@@ -315,7 +315,7 @@ tz_hash (register const char *str, register unsigned int len)
       266, 266, 266, 266, 266, 266, 266, 266, 266, 266,
       266, 266, 266, 266, 266, 266, 266
     };
-  register int hval = 0;
+  int hval = 0;
 
   switch (len)
     {
@@ -336,15 +336,15 @@ tz_hash (register const char *str, register unsigned int len)
 }
 
 static const tz_map_t *
-tz_lookup (register const char *str, register unsigned int len)
+tz_lookup (const char *str, unsigned int len)
 {
   if (len > 0)
     {
-      register int key = tz_hash (str, len);
+      int key = tz_hash (str, len);
 
       if (key <= MAX_HASH_VALUE && key >= 0)
         {
-          register const char *s = date_manip_tz_wordlist[key].name;
+          const char *s = date_manip_tz_wordlist[key].name;
 
           if (strcasecmp(str, s) == 0)
             {

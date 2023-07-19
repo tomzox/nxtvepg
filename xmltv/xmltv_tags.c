@@ -48,9 +48,15 @@
 #include "xmltv/xmltv_db.h"
 #include "xmltv/xmltv_tags.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 extern FILE *yyin;
 extern int yyparse( void );
 extern int yylex( void );
+#ifdef __cplusplus
+} // extern "C"
+#endif
 
 // ----------------------------------------------------------------------------
 // Definition of tags and their hierarchy

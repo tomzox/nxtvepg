@@ -26,7 +26,7 @@ typedef int vbi_bool;
 #undef ABS
 #define ABS(n)								\
 ({									\
-	register int _n = n, _t = _n;					\
+	int _n = n, _t = _n;					\
 									\
 	_t >>= sizeof(_t) * 8 - 1;					\
 	_n ^= _t;							\

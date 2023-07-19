@@ -351,7 +351,7 @@ static bool PiNetBox_ConsistancyCheck( void )
          assert(netbox.pi_off   == EpgDbCountPrevPi(dbc, pPiFilterContext, pPiBlock));
          assert(netbox.pi_count == netbox.pi_off + EpgDbCountPi(dbc, pPiFilterContext, pPiBlock));
 
-         elcnt = xmalloc(netbox.net_count * sizeof(elcnt[0]));
+         elcnt = (uint*) xmalloc(netbox.net_count * sizeof(elcnt[0]));
          memset(elcnt, 0, sizeof(elcnt));
          last_row = -32768;
          col_with_max = 0;
@@ -545,7 +545,7 @@ static void PiNetBox_UpdateNetwopNames( void )
    {
       EpgDbFilterInitNetwopPreFilter2(pPiFilterContext, pAiBlock->netwopCount);
 
-      netbox.net_ai2sel = xrealloc(netbox.net_ai2sel, pAiBlock->netwopCount * sizeof(netbox.net_ai2sel[0]));
+      netbox.net_ai2sel = (uint*) xrealloc(netbox.net_ai2sel, pAiBlock->netwopCount * sizeof(netbox.net_ai2sel[0]));
 
       for ( ; (colIdx < netbox.col_count) && (colIdx < netbox.net_count); colIdx++, pCol++)
       {
@@ -610,7 +610,7 @@ static void PiNetBox_SearchPrevNext( uint colIdx, time_t cur_time,
    {
       // make a copy of the current pre-filter to recover it later
       uint  pre2Size = sizeof(pPiFilterContext->pNetwopPreFilter2[0]) * pPiFilterContext->netwopCount;
-      bool  * pre2copy = xmalloc(pre2Size);
+      bool  * pre2copy = (bool*) xmalloc(pre2Size);
       memcpy(pre2copy, pPiFilterContext->pNetwopPreFilter2, pre2Size);
       EpgDbFilterInitNetwopPreFilter2(pPiFilterContext, pPiFilterContext->netwopCount);
 
@@ -4783,7 +4783,7 @@ static uint * PiNetBox_BuildJoinMap( const AI_BLOCK * pAiBlock )
    int   cni;
    uint  netwop;
 
-   uint * pMap = xmalloc(pAiBlock->netwopCount * sizeof(pMap[0]));
+   uint * pMap = (uint*) xmalloc(pAiBlock->netwopCount * sizeof(pMap[0]));
    for (uint idx = 0; idx < pAiBlock->netwopCount; ++idx)
       pMap[idx] = INVALID_NETWOP_IDX;
 
@@ -4845,11 +4845,11 @@ static void PiNetBox_UpdateNetwopMap( void )
    {
       if (pAiBlock->netwopCount > 0)
       {
-         netbox.net_ai2sel = xrealloc(netbox.net_ai2sel, pAiBlock->netwopCount * sizeof(netbox.net_ai2sel[0]));
+         netbox.net_ai2sel = (uint*) xrealloc(netbox.net_ai2sel, pAiBlock->netwopCount * sizeof(netbox.net_ai2sel[0]));
 
          pNetJoin = PiNetBox_BuildJoinMap(pAiBlock);
 
-         pNetJoinCol = xmalloc(pAiBlock->netwopCount * sizeof(pNetJoinCol[0]));
+         pNetJoinCol = (uint*) xmalloc(pAiBlock->netwopCount * sizeof(pNetJoinCol[0]));
          for (uint idx = 0; idx < pAiBlock->netwopCount; ++idx)
          {
             pNetJoinCol[idx] = INVALID_NETWOP_IDX;

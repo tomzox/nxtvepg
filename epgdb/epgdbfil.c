@@ -55,11 +55,11 @@ typedef const EPGDB_CONTEXT * CPDBC;
 typedef       EPGDB_CONTEXT * PDBC;
 
 
-#define DUP_ARRAY(PSRC, PDST, COUNT) do{\
+#define DUP_ARRAY(PSRC, PDST, COUNT, TYPE) do{\
       if (PSRC != NULL) \
       { \
          uint size = sizeof(PSRC[0]) * COUNT; \
-         PDST = xmalloc(size); \
+         PDST = (TYPE) xmalloc(size); \
          memcpy(PDST, PSRC, size); \
       }} while(0)
 
@@ -72,7 +72,7 @@ FILTER_CONTEXT * EpgDbFilterCreateContext( void )
 {
    FILTER_CONTEXT * fc;
 
-   fc = (FILTER_CONTEXT *) (FILTER_CONTEXT*) xmalloc(sizeof(*fc));
+   fc = (FILTER_CONTEXT*) xmalloc(sizeof(*fc));
    memset(fc, 0, sizeof(*fc));
    fc->pFocus = &fc->act;
    fc->act.forkCombMode = FILTER_FORK_AND;
@@ -129,10 +129,10 @@ FILTER_CONTEXT * EpgDbFilterCopyContext( const FILTER_CONTEXT * fc )
       memcpy(newfc, fc, sizeof(*fc));
 
       // copy dynamically allocated arrays
-      DUP_ARRAY(fc->pNetwopPreFilter1, newfc->pNetwopPreFilter1, fc->netwopCount);
-      DUP_ARRAY(fc->pNetwopPreFilter2, newfc->pNetwopPreFilter2, fc->netwopCount);
-      DUP_ARRAY(fc->pNetwopAirTimeStart, newfc->pNetwopAirTimeStart, fc->netwopCount);
-      DUP_ARRAY(fc->pNetwopAirTimeStop, newfc->pNetwopAirTimeStop, fc->netwopCount);
+      DUP_ARRAY(fc->pNetwopPreFilter1, newfc->pNetwopPreFilter1, fc->netwopCount, bool*);
+      DUP_ARRAY(fc->pNetwopPreFilter2, newfc->pNetwopPreFilter2, fc->netwopCount, bool*);
+      DUP_ARRAY(fc->pNetwopAirTimeStart, newfc->pNetwopAirTimeStart, fc->netwopCount, uint*);
+      DUP_ARRAY(fc->pNetwopAirTimeStop, newfc->pNetwopAirTimeStop, fc->netwopCount, uint*);
 
       // do not copy forked contexts
       newfc->act.pNext = NULL;
@@ -144,8 +144,8 @@ FILTER_CONTEXT * EpgDbFilterCopyContext( const FILTER_CONTEXT * fc )
       newfc->act.pCustomDestroyFunc  = NULL;
 
       // copy dynamically allocated arrays
-      DUP_ARRAY(fc->act.pNetwopFilterField, newfc->act.pNetwopFilterField, fc->act.netwopCount);
-      DUP_ARRAY(fc->act.themeFilterField, newfc->act.themeFilterField, fc->act.themeCount);
+      DUP_ARRAY(fc->act.pNetwopFilterField, newfc->act.pNetwopFilterField, fc->act.netwopCount, bool*);
+      DUP_ARRAY(fc->act.themeFilterField, newfc->act.themeFilterField, fc->act.themeCount, uchar*);
 
       // copy filter parameter chain
       newfc->act.pSubStrCtx = EpgDbFilterCopySubContexts(fc->act.pSubStrCtx);
@@ -366,7 +366,7 @@ uchar * EpgDbFilterGetNetwopFilter( FILTER_CONTEXT *fc, uint count )
    FILT_MATCH  matchCode;
    bool  fail, invert;
 
-   uchar * pNetFilter = xmalloc(sizeof(*pNetFilter) * count);
+   uchar * pNetFilter = (uchar*) xmalloc(sizeof(*pNetFilter) * count);
 
    for (uint netwop = 0; netwop < count; netwop++)
    {
@@ -433,7 +433,7 @@ uchar EpgDbFilterInitThemes( FILTER_CONTEXT *fc, uint themeCount, uchar themeCla
    if (fc_act->themeCount < themeCount)
    {
       uint size = sizeof(*fc_act->themeFilterField) * themeCount;
-      fc_act->themeFilterField = xrealloc(fc_act->themeFilterField, size);
+      fc_act->themeFilterField = (uchar*) xrealloc(fc_act->themeFilterField, size);
       memset(fc_act->themeFilterField + fc_act->themeCount, 0,
              (themeCount - fc_act->themeCount) * sizeof(*fc_act->themeFilterField));
       fc_act->themeCount = themeCount;
@@ -569,7 +569,7 @@ void EpgDbFilterInitNetwop( FILTER_CONTEXT *fc, uint netwopCount )
    {
       if (fc_act->netwopCount < netwopCount)
       {
-         fc_act->pNetwopFilterField = xrealloc(fc_act->pNetwopFilterField, size);
+         fc_act->pNetwopFilterField = (bool*) xrealloc(fc_act->pNetwopFilterField, size);
          fc_act->netwopCount = netwopCount;
       }
       fc_act = fc_act->pNext;
@@ -604,14 +604,14 @@ static void EpgDbFilterAllocNetwops( FILTER_CONTEXT *fc, uint netwopCount )
       assert((((fc->pNetwopPreFilter1 == NULL) ^ (fc->pNetwopPreFilter2 == NULL)) ^
               ((fc->pNetwopAirTimeStart == NULL) ^ (fc->pNetwopAirTimeStop == NULL))) == 0);
 
-      fc->pNetwopPreFilter1   = xrealloc(fc->pNetwopPreFilter1,
-                                         sizeof(*fc->pNetwopPreFilter1) * netwopCount);
-      fc->pNetwopPreFilter2   = xrealloc(fc->pNetwopPreFilter2,
-                                         sizeof(*fc->pNetwopPreFilter2) * netwopCount);
-      fc->pNetwopAirTimeStart = xrealloc(fc->pNetwopAirTimeStart,
-                                         sizeof(*fc->pNetwopAirTimeStart) * netwopCount);
-      fc->pNetwopAirTimeStop  = xrealloc(fc->pNetwopAirTimeStop,
-                                         sizeof(*fc->pNetwopAirTimeStop) * netwopCount);
+      fc->pNetwopPreFilter1   = (bool*) xrealloc(fc->pNetwopPreFilter1,
+                                                 sizeof(*fc->pNetwopPreFilter1) * netwopCount);
+      fc->pNetwopPreFilter2   = (bool*) xrealloc(fc->pNetwopPreFilter2,
+                                                 sizeof(*fc->pNetwopPreFilter2) * netwopCount);
+      fc->pNetwopAirTimeStart = (uint*) xrealloc(fc->pNetwopAirTimeStart,
+                                                 sizeof(*fc->pNetwopAirTimeStart) * netwopCount);
+      fc->pNetwopAirTimeStop  = (uint*) xrealloc(fc->pNetwopAirTimeStop,
+                                                 sizeof(*fc->pNetwopAirTimeStop) * netwopCount);
 
       fc->netwopCount = netwopCount;
    }

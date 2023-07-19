@@ -176,7 +176,7 @@ bool EpgDbCheckChains( CPDBC dbc )
       blocks = 0;
       pWalk = dbc->pFirstPi;
       pPrev = NULL;
-      pPrevNetwop = xmalloc(sizeof(pPrevNetwop[0]) * dbc->netwopCount);
+      pPrevNetwop = (EPGDB_PI_BLOCK**) xmalloc(sizeof(pPrevNetwop[0]) * dbc->netwopCount);
       memset(pPrevNetwop, 0, sizeof(pPrevNetwop[0]) * dbc->netwopCount);
 
       while (pWalk != NULL)
@@ -318,7 +318,7 @@ void EpgDbMergeLinkNetworkPi( PDBC dbc, EPGDB_PI_BLOCK ** pFirstNetwopBlock )
    memset(dbc->pFirstNetwopPi, 0, sizeof(dbc->pFirstNetwopPi[0]));
 
    netCount = dbc->pAiBlock->ai.netwopCount;
-   pPrevNetwopBlock = xmalloc(sizeof(pPrevNetwopBlock[0]) * netCount);
+   pPrevNetwopBlock = (EPGDB_PI_BLOCK**) xmalloc(sizeof(pPrevNetwopBlock[0]) * netCount);
    memset(pPrevNetwopBlock, 0, sizeof(pPrevNetwopBlock[0]) * netCount);
 
    // combine blocks of separately merged networks into one database

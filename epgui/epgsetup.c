@@ -322,7 +322,7 @@ static bool EpgSetup_GetMergeDbNetwops( uint provCniCount, const uint * pProvCni
       // copy network selection list of merge config
       netwopCount = cfNetCount;
       cniTabCapacity = netwopCount;
-      pCniTab = xmalloc(cniTabCapacity * sizeof(pCniTab[0]));
+      pCniTab = (uint*) xmalloc(cniTabCapacity * sizeof(pCniTab[0]));
       memcpy(pCniTab, pCfSelCni, cniTabCapacity * sizeof(pCniTab[0]));
    }
 
@@ -359,7 +359,7 @@ static bool EpgSetup_GetMergeDbNetwops( uint provCniCount, const uint * pProvCni
                      if (netwopCount >= cniTabCapacity)
                      {
                         cniTabCapacity = ((cniTabCapacity == 0) ? 256 : (cniTabCapacity * 2));
-                        pCniTab = xrealloc(pCniTab, cniTabCapacity * sizeof(pCniTab[0]));
+                        pCniTab = (uint*) xrealloc(pCniTab, cniTabCapacity * sizeof(pCniTab[0]));
                      }
                      dprintf3("EpgSetup-InitMergeDbNetwops: add net #%d: CNI 0x%04X of DB 0x%04X\n", netIdx, cni, pProvCniTab[dbIdx]);
                      pCniTab[netwopCount] = cni;

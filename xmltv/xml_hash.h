@@ -20,6 +20,9 @@
 #ifndef __XML_HASH_H
 #define __XML_HASH_H
 
+#if defined (__cplusplus)
+extern "C" {
+#endif
 
 typedef void * XML_HASH_PTR;
 typedef void * XML_HASH_PAYLOAD;
@@ -37,4 +40,7 @@ const char * XmlHash_Enum( XML_HASH_PTR pHashRef, XML_HASH_ENUM_CB pCb, void * p
 void XmlHash_Destroy( XML_HASH_PTR pHash, XML_HASH_FREE_CB pCb );
 XML_HASH_PTR XmlHash_Init( void );
 
+#if defined (__cplusplus)
+} // extern "C"
+#endif
 #endif /* __XML_HASH_H */

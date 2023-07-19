@@ -592,7 +592,7 @@ void EpgDbMergeAllPiBlocks( PDBC dbc )
    uint netwop, netCount;
 
    netCount = dbc->pAiBlock->ai.netwopCount;
-   pFirstNetwopBlock = xmalloc(sizeof(pFirstNetwopBlock[0]) * netCount);
+   pFirstNetwopBlock = (EPGDB_PI_BLOCK**) xmalloc(sizeof(pFirstNetwopBlock[0]) * netCount);
    memset(pFirstNetwopBlock, 0, sizeof(pFirstNetwopBlock[0]) * netCount);
 
    // loop across target networks: merge networks separately
@@ -628,7 +628,7 @@ void EpgDbMergeUpdateNetworks( EPGDB_CONTEXT * pDbContext, uint provCount, const
    assert(pDbContext->merged);
    dbmc = (EPGDB_MERGE_CONTEXT*) pDbContext->pMergeContext;
 
-   needMerge = xmalloc(sizeof(needMerge[0]) * dbmc->netwopCount);
+   needMerge = (bool*) xmalloc(sizeof(needMerge[0]) * dbmc->netwopCount);
    memset(needMerge, 0, sizeof(needMerge[0]));
 
    for (provIdx = 0; provIdx < provCount; ++provIdx)
@@ -654,7 +654,7 @@ void EpgDbMergeUpdateNetworks( EPGDB_CONTEXT * pDbContext, uint provCount, const
    }
 
    netCount = pDbContext->pAiBlock->ai.netwopCount;
-   pFirstNetwopBlock = xmalloc(sizeof(pFirstNetwopBlock[0]) * netCount);
+   pFirstNetwopBlock = (EPGDB_PI_BLOCK**) xmalloc(sizeof(pFirstNetwopBlock[0]) * netCount);
    memset(pFirstNetwopBlock, 0, sizeof(pFirstNetwopBlock[0]) * netCount);
 
    for (netwop = 0; netwop < netCount; ++netwop)
@@ -794,7 +794,7 @@ void EpgDbMergeAiBlocks( PDBC dbc, uint netwopCount, const uint * pNetwopList )
    dbCount = dbmc->dbCount;
    nameLen = 0;
 
-   netOrigIdx = xmalloc(sizeof(netOrigIdx[0]) * netwopCount);
+   netOrigIdx = (uchar*) xmalloc(sizeof(netOrigIdx[0]) * netwopCount);
 
    for (idx = 0; idx < netwopCount; idx++)
    {
