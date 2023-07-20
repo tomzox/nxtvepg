@@ -18,6 +18,8 @@
 #
 #    Implements methods to invoke or undo filter shortcuts.
 #
+#=INCLUDE= "epgtcl/mainwin.h"
+
 #=CONST= ::fsc_name_idx 0
 #=CONST= ::fsc_mask_idx 1
 #=CONST= ::fsc_filt_idx 2
@@ -42,8 +44,8 @@ proc PreloadShortcuts {} {
       set shortcuts(10100) {{} {} {} {} merge separator}
       set shortcuts(10110) {{>15 Minuten} dursel {dursel {16 1435}} {} merge {}}
       set shortcuts(10120) {{>80 Minuten} dursel {dursel {80 1435}} {} merge {}}
-      set shortcuts(10130) {{Untertitel} features {features {256 256}} {} merge {}}
-      set shortcuts(10140) {{Zweikanalton} features {features {3 1}} {} merge {}}
+      set shortcuts(10130) {{Untertitel} features {features {$::PI_FEATURE_SUBTITLE_ANY $::PI_FEATURE_SUBTITLE_ANY}} {} merge {}}
+      set shortcuts(10140) {{Zweikanalton} features {features {$::PI_FEATURE_SOUND_MASK $::PI_FEATURE_SOUND_2CHAN}} {} merge {}}
       set shortcuts(10200) {{} {} {} {} merge separator}
       set shortcuts(10210) {Spielfilm substr {substr {{film 0 1 0 0 0 0}}} {} merge {}}
       set shortcuts(10220) {Serie substr {substr {{serie 0 1 0 0 0 0}}} {} merge {}}
@@ -59,9 +61,9 @@ proc PreloadShortcuts {} {
       set shortcuts(10100) {{} {} {} {} merge separator}
       set shortcuts(10110) {{45 minutes et +} dursel {dursel {45 1435}} {} merge {}}
       set shortcuts(10120) {{80 minutes et +} dursel {dursel {80 1435}} {} merge {}}
-      set shortcuts(10130) {{12 ans et +} parental {parental 10} parental merge {}}
+      set shortcuts(10130) {{12 ans et +} parental {parental 11} parental merge {}}
       set shortcuts(10140) {{16 ans et +} parental {parental 15} parental merge {}}
-      set shortcuts(10150) {{sous-titre} features {features {256 256}} {} merge {}}
+      set shortcuts(10150) {{sous-titre} features {features {$::PI_FEATURE_SUBTITLE_ANY $::PI_FEATURE_SUBTITLE_ANY}} {} merge {}}
       set shortcuts(10200) {{} {} {} {} merge separator}
       set shortcuts(10210) {Films substr {substr {{film 0 1 0 0 0 0}}} {} merge {}}
       set shortcuts(10220) {Série substr {substr {{série 0 1 0 0 0 0}}} {} merge {}}
@@ -76,10 +78,10 @@ proc PreloadShortcuts {} {
       set shortcuts(10100) {{} {} {} {} merge separator}
       set shortcuts(10110) {{>15 minutes} dursel {dursel {16 1435}} {} merge {}}
       set shortcuts(10120) {{>80 minutes} dursel {dursel {80 1435}} {} merge {}}
-      set shortcuts(10130) {{age 12+} parental {parental 10} parental merge {}}
+      set shortcuts(10130) {{age 12+} parental {parental 11} parental merge {}}
       set shortcuts(10140) {{age 16+} parental {parental 15} parental merge {}}
-      set shortcuts(10130) {{subtitled} features {features {256 256}} {} merge {}}
-      set shortcuts(10140) {{2-channel} features {features {3 1}} {} merge {}}
+      set shortcuts(10130) {{subtitled} features {features {$::PI_FEATURE_SUBTITLE_ANY $::PI_FEATURE_SUBTITLE_ANY}} {} merge {}}
+      set shortcuts(10140) {{2-channel} features {features {$::PI_FEATURE_SOUND_MASK $::PI_FEATURE_SOUND_2CHAN}} {} merge {}}
       set shortcuts(10200) {{} {} {} {} merge separator}
       set shortcuts(10210) {movies substr {substr {{movie 0 1 0 0 0 0}}} {} merge {}}
       set shortcuts(10220) {series substr {substr {{series 0 1 0 0 0 0}}} {} merge {}}
@@ -328,7 +330,17 @@ proc SelectSingleShortcut {sc_tag} {
       switch -glob $ident {
          theme_class*   {
             scan $ident "theme_class%d" class
-            C_SelectThemes [expr {1 << ($class - 1)}] $valist
+            if {![info exists all_theme_names]} {
+               set all_theme_names [C_GetAllThemesStrings]
+            }
+            set theme_idx_list {}
+            foreach theme_name $valist {
+               set theme_idx [lsearch -exact $all_theme_names $theme_name]
+               if {$theme_idx >= 0} {
+                  lappend theme_idx_list $theme_idx
+               }
+            }
+            C_SelectThemes [expr {1 << ($class - 1)}] $theme_idx_list
          }
          features {
             C_SelectFeatures $valist
@@ -1252,65 +1264,123 @@ proc ShortcutPrettyPrint {filter inv_list} {
             foreach {mask value} $valist {
                set str_feature {}
                set str_AND {}
-               if {($mask & 0x03) == 0x03} {
-                  append str_feature [switch -exact [expr $value & 0x03] {
-                     0 {format "mono"}
-                     1 {format "2-channel"}
-                     2 {format "stereo"}
-                     3 {format "surround"}
-                  }] " sound\n"
-                  set str_AND {   AND }
-               }
-               if {(($mask & 0x0c) == 0x0c) && (($value & 0x0c) == 0)} {
-                  append str_feature "${str_AND}fullscreen picture\n"
-                  set str_AND {   AND }
-               } else {
-                  if {$mask & 0x04} {
+               if {($mask & $::PI_FEATURE_FMT_WIDE) != 0} {
+                  if {($value & $::PI_FEATURE_FMT_WIDE) != 0} {
                      append str_feature "${str_AND}widescreen picture\n"
-                     set str_AND {   AND }
-                  }
-                  if {$mask & 0x08} {
-                     append str_feature "${str_AND}PAL+ picture\n"
-                     set str_AND {   AND }
-                  }
-               }
-               if {$mask & 0x10} {
-                  if {$value & 0x10} {
-                     append str_feature "${str_AND}digital\n"
                   } else {
-                     append str_feature "${str_AND}analog\n"
+                     append str_feature "${str_AND}fullscreen picture\n"
                   }
                   set str_AND {   AND }
                }
-               if {$mask & 0x20} {
-                  if {$value & 0x20} {
-                     append str_feature "${str_AND}encrypted\n"
+               if {($mask & $::PI_FEATURE_VIDEO_HD) != 0} {
+                  if {($value & $::PI_FEATURE_VIDEO_HD) != 0} {
+                     append str_feature "${str_AND}HD video\n"
                   } else {
-                     append str_feature "${str_AND}not encrypted\n"
+                     append str_feature "${str_AND}non-HD video\n"
                   }
                   set str_AND {   AND }
                }
-               if {(($mask & 0xc0) == 0xc0) && (($value & 0xc0) == 0)} {
-                  append str_feature "${str_AND}new (i.e. no repeat)\n"
+               if {($mask & $::PI_FEATURE_VIDEO_BW) != 0} {
+                  if {($value & $::PI_FEATURE_VIDEO_BW) != 0} {
+                     append str_feature "${str_AND}black & white\n"
+                  } else {
+                     append str_feature "${str_AND}color\n"
+                  }
                   set str_AND {   AND }
-               } else {
-                  if {($mask & 0x40) && ($value & 0x40)} {
-                     append str_feature "${str_AND}live transmission\n"
-                     set str_AND {   AND }
-                  }
-                  if {($mask & 0x80) && ($value & 0x80)} {
-                     append str_feature "${str_AND}repeat\n"
-                     set str_AND {   AND }
-                  }
                }
-               if {$mask & 0x100} {
-                  if {$value & 0x100} {
+               if {($mask & $::PI_FEATURE_VIDEO_NONE) != 0} {
+                  if {($value & $::PI_FEATURE_VIDEO_NONE) != 0} {
+                     append str_feature "${str_AND}no video (radio)\n"
+                  } else {
+                     append str_feature "${str_AND}with video\n"
+                  }
+                  set str_AND {   AND }
+               }
+               if {($mask & $::PI_FEATURE_SUBTITLE_ANY) != 0} {
+                  if {($value & $::PI_FEATURE_SUBTITLE_ANY) != 0} {
                      append str_feature "${str_AND}subtitled\n"
                   } else {
-                     append str_feature "${str_AND}not subtitled\n"
+                     append str_feature "${str_AND}no subtitles\n"
                   }
                   set str_AND {   AND }
                }
+               if {($mask & $::PI_FEATURE_SUBTITLE_SIGN) != 0} {
+                  if {($value & $::PI_FEATURE_SUBTITLE_SIGN) != 0} {
+                     append str_feature "${str_AND}deaf-signed\n"
+                  } else {
+                     append str_feature "${str_AND}not deaf-signed\n"
+                  }
+                  set str_AND {   AND }
+               }
+               if {($mask & $::PI_FEATURE_SUBTITLE_OSC) != 0} {
+                  if {($value & $::PI_FEATURE_SUBTITLE_OSC) != 0} {
+                     append str_feature "${str_AND}on-screen subtitles\n"
+                  } else {
+                     append str_feature "${str_AND}no on-screen subtitles\n"
+                  }
+                  set str_AND {   AND }
+               }
+               if {($mask & $::PI_FEATURE_SUBTITLE_TTX) != 0} {
+                  if {($value & $::PI_FEATURE_SUBTITLE_TTX) != 0} {
+                     append str_feature "${str_AND}teletext subtitles\n"
+                  } else {
+                     append str_feature "${str_AND}no teletext subtitles\n"
+                  }
+                  set str_AND {   AND }
+               }
+               if {($mask & $::PI_FEATURE_NEW) != 0} {
+                  if {($value & $::PI_FEATURE_NEW) != 0} {
+                     append str_feature "${str_AND}new\n"
+                  } else {
+                     append str_feature "${str_AND}not new\n"
+                  }
+                  set str_AND {   AND }
+               }
+               if {($mask & $::PI_FEATURE_PREMIERE) != 0} {
+                  if {($value & $::PI_FEATURE_PREMIERE) != 0} {
+                     append str_feature "${str_AND}premiere\n"
+                  } else {
+                     append str_feature "${str_AND}not a premiere\n"
+                  }
+                  set str_AND {   AND }
+               }
+               if {($mask & $::PI_FEATURE_LAST_REP) != 0} {
+                  if {($value & $::PI_FEATURE_LAST_REP) != 0} {
+                     append str_feature "${str_AND}last repetition\n"
+                  } else {
+                     append str_feature "${str_AND}not last repetition\n"
+                  }
+                  set str_AND {   AND }
+               }
+               if {($mask & $::PI_FEATURE_REPEAT) != 0} {
+                  if {($value & $::PI_FEATURE_REPEAT) != 0} {
+                     append str_feature "${str_AND}previously shown\n"
+                  } else {
+                     append str_feature "${str_AND}not previously shown\n"
+                  }
+                  set str_AND {   AND }
+               }
+               if {($mask & $::PI_FEATURE_SOUND_MASK) == $::PI_FEATURE_SOUND_MASK} {
+                  set masked_value [expr $value & $::PI_FEATURE_SOUND_MASK]
+                  if {$masked_value == $::PI_FEATURE_SOUND_NONE} {
+                     set txt "none"
+                  } elseif {$masked_value == $::PI_FEATURE_SOUND_MONO} {
+                     set txt "mono"
+                  } elseif {$masked_value == $::PI_FEATURE_SOUND_STEREO} {
+                     set txt "stereo"
+                  } elseif {$masked_value == $::PI_FEATURE_SOUND_2CHAN} {
+                     set txt "2-channel"
+                  } elseif {$masked_value == $::PI_FEATURE_SOUND_SURROUND} {
+                     set txt "surround"
+                  } elseif {$masked_value == $::PI_FEATURE_SOUND_DOLBY} {
+                     set txt "dolby"
+                  } else {
+                     set txt "invalid"
+                  }
+                  append str_feature "${str_AND}sound: $txt\n"
+                  set str_AND {   AND }
+               }
+
                append out "${not}Feature: $str_feature"
                set first_feature 0
             }
@@ -1340,7 +1410,7 @@ proc ShortcutPrettyPrint {filter inv_list} {
             } elseif {($start == 1) && ($stop == 1)} {
                append out "${not}Program running NEXT\n"
             } else {
-               append out "${not}Program indices #$start..#$stop\n"
+               append out "${not}Program indices #$start..#$stop after NOW\n"
             }
          }
          timsel {
@@ -1375,22 +1445,22 @@ proc ShortcutPrettyPrint {filter inv_list} {
             }
          }
          dursel {
-            append out "${not}Duration: from [Motd2HHMM [lindex $valist 0]] to [Motd2HHMM [lindex $valist 1]]"
+            append out "${not}Duration: from [Motd2HHMM [lindex $valist 0]] to [Motd2HHMM [lindex $valist 1]]\n"
          }
          vps_pdc {
             if {[lindex $valist 0] == 1} {
-               append out "${not}VPS/PDC: restrict to programs with VPS/PDC code"
+               append out "${not}VPS/PDC: restrict to programs with VPS/PDC code\n"
             } elseif {[lindex $valist 0] == 2} {
-               append out "${not}VPS/PDC: restrict to programs with differing VPS/PDC code"
+               append out "${not}VPS/PDC: restrict to programs with differing VPS/PDC code\n"
             }
          }
          piexpire {
             if {[lindex $valist 0] == -1} {
-               append out "Expire time: show all expired programmes"
+               append out "Expire time: show all expired programmes\n"
             } elseif {[lindex $valist 0] < 60} {
-               append out "Expire time: include expired programmes up to [lindex $valist 0] minutes"
+               append out "Expire time: include expired programmes up to [lindex $valist 0] minutes\n"
             } else {
-               append out "Expire time: include expired programmes up to [expr int([lindex $valist 0]/60)]:[expr [lindex $valist 0]%60] hours"
+               append out "Expire time: include expired programmes up to [expr int([lindex $valist 0]/60)]:[expr [lindex $valist 0]%60] hours\n"
             }
          }
          substr {

@@ -236,7 +236,7 @@ void EpgDbFilterDestroyContext( FILTER_CONTEXT * fc )
 // ---------------------------------------------------------------------------
 // Forks a new filter sub-context to implement an "OR" of filters
 // - subsequent "set" calls will modify the forked context until a new fork
-//   of the fork is closed
+//   or the fork is closed
 // - tag can be used to allow removing this specific sub-context at a later time
 //
 void EpgDbFilterFork( FILTER_CONTEXT * fc, uint combMode, sint tag )
@@ -1059,8 +1059,6 @@ static bool EpgDbFilterMatchAct( const EPGDB_CONTEXT *dbc, const FILTER_CONTEXT 
    uint  index;
    bool  fail_buf;
    bool  fail, invert;
-   bool  skipThemes = FALSE;
-   bool  skipSubstr = FALSE;
 
    // variable to temporarily keep track of failed matches, because matches
    // cannot be aborted with "goto failed" until all possible "failed_pre"
@@ -1236,7 +1234,7 @@ static bool EpgDbFilterMatchAct( const EPGDB_CONTEXT *dbc, const FILTER_CONTEXT 
          goto failed;
    }
 
-   if ((fc_act->enabledFilters & FILTER_THEMES) && (skipThemes == FALSE))
+   if (fc_act->enabledFilters & FILTER_THEMES)
    {
       if (fc_act->usedThemeClasses == 0)
       {  // no theme selected in filter: disable all
@@ -1250,7 +1248,7 @@ static bool EpgDbFilterMatchAct( const EPGDB_CONTEXT *dbc, const FILTER_CONTEXT 
             fail = TRUE;
             for (index=0; index < pPi->no_themes; index++)
             {  // OR across all themes in a class
-               if ((pPi->themes[index] < fc->pFocus->themeCount) &&
+               if ((pPi->themes[index] < fc_act->themeCount) &&
                    (fc_act->themeFilterField[pPi->themes[index]] & fclass))
                {
                   fail = FALSE;
@@ -1265,7 +1263,7 @@ static bool EpgDbFilterMatchAct( const EPGDB_CONTEXT *dbc, const FILTER_CONTEXT 
       }
    }
 
-   if ((fc_act->enabledFilters & FILTER_SUBSTR) && (skipSubstr == FALSE))
+   if (fc_act->enabledFilters & FILTER_SUBSTR)
    {
       fail = ( EpgDbFilter_MatchSubstr(fc_act->pSubStrCtx,
                                        PI_GET_TITLE(pPi),
