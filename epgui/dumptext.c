@@ -342,7 +342,7 @@ void EpgDumpText_Standalone( EPGDB_CONTEXT * pDbContext, FILTER_CONTEXT * fc,
       }
    }
    else
-      debug1("EpgDumpText-Standalone: invalid mode:%d\n", mode);
+      debug1("EpgDumpText-Standalone: invalid mode:%d", mode);
 
    EpgDbLockDatabase(pDbContext, FALSE);
 }

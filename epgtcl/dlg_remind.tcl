@@ -162,7 +162,7 @@ proc Reminder_InitData {} {
              ![info exists sc_cache($sc_tag)]} {
             lappend scl $sc_tag
             set sc_cache($sc_tag) {}
-         } elseif $::is_unix {
+         } elseif {$::is_unix} {
             puts stderr "Warning: removing obsolete/redundant shortcut reference $sc_tag from reminder group $grp_tag"
          }
       }
@@ -181,7 +181,7 @@ proc Reminder_InitData {} {
    # remove references to obsolete groups from order list
    set ltmp {}
    foreach grp_tag $remgroup_order {
-      if [info exists remgroups($grp_tag)] {
+      if {[info exists remgroups($grp_tag)]} {
          lappend ltmp $grp_tag
       }
    }
@@ -220,7 +220,7 @@ proc Reminder_SetShortcuts {} {
       set all_mask [expr $all_mask | (1 << $group)]
 
       foreach sc_tag [lindex $remgroups($grp_tag) $::rgp_sclist_idx] {
-         if [info exists shortcuts($sc_tag)] {
+         if {[info exists shortcuts($sc_tag)]} {
             C_PiFilter_ForkContext or
             SelectSingleShortcut $sc_tag
             lappend all_sc $sc_tag
@@ -336,7 +336,7 @@ proc Reminder_DisplayMessage {topwid msg_list} {
       pack   ${topwid}.f2 -side top -fill x
 
       bind   ${topwid} <Return> [list tkButtonInvoke ${topwid}.f2.f22.ok]
-      if $is_cmd {
+      if {$is_cmd} {
          bind   ${topwid} <Escape> [list tkButtonInvoke ${topwid}.f2.f22.cancel]
       } else {
          bind   ${topwid} <Escape> [list tkButtonInvoke ${topwid}.f2.f22.ok]
@@ -354,7 +354,7 @@ proc Reminder_DisplayMessage {topwid msg_list} {
    ${topwid}.f1.msg delete 1.0 end
 
    set line_count [llength $msg_list]
-   if $is_cmd {
+   if {$is_cmd} {
       set group [lindex [lindex $msg_list 0] $::rev_grptag_idx]
       set grp_name [lindex $remgroups($group) $::rgp_name_idx]
       ${topwid}.f1.msg tag configure tag_bold -font [DeriveFont $pi_font 0 bold]
@@ -376,7 +376,7 @@ proc Reminder_DisplayMessage {topwid msg_list} {
 
    foreach ev_desc $msg_list {
       set this_msg {}
-      append this_msg [C_ClockFormat [lindex $ev_desc $::rev_start_idx] {%a %e.%m. %H:%M - }] \
+      append this_msg [C_ClockFormat [lindex $ev_desc $::rev_start_idx] {%a %d.%m. %H:%M - }] \
                       [C_ClockFormat [lindex $ev_desc $::rev_stop_idx] {%H:%M}] { } \
                       [lindex $ev_desc $::rev_title_idx] \
                       " (" [RemAlarm_GetNetname [lindex $ev_desc $::rev_netwop_idx]] ")\n"
@@ -414,7 +414,7 @@ proc RemAlarm_GetSelected {topwid} {
    global remalarm_list
 
    # caution: may be called before list is set
-   if [info exists remalarm_list] {
+   if {[info exists remalarm_list]} {
       set ltmp [${topwid}.f1.msg tag nextrange cur 1.0]
       if {[llength $ltmp] > 0} {
          scan [lindex $ltmp 0] "%d.%d" tline foo
@@ -445,7 +445,7 @@ proc RemAlarm_SetSelection {topwid tline} {
 
    # disable "suppress" button if no more messages will follow
    set ev_desc [lindex $remalarm_list $tline]
-   if [lindex $ev_desc $::rev_islast_idx] {
+   if {[lindex $ev_desc $::rev_islast_idx]} {
       ${topwid}.f2.f22.suppress configure -state disabled
    } else {
       ${topwid}.f2.f22.suppress configure -state normal
@@ -458,7 +458,7 @@ proc RemAlarm_GetNetname {netwop} {
    set netsel_ailist [C_GetAiNetwopList "" netsel_names]
 
    set cni [lindex $netsel_ailist $netwop]
-   if [info exists netsel_names($cni)] {
+   if {[info exists netsel_names($cni)]} {
       set netname $netsel_names($cni)
    } else {
       set netname "network $cni"
@@ -881,7 +881,7 @@ proc Reminder_PostGroupMenu {wid rem_idx} {
 proc Reminder_DisableGroup {grp_tag flag} {
    global remgroups
 
-   if [info exists remgroups($grp_tag)] {
+   if {[info exists remgroups($grp_tag)]} {
       set elem $remgroups($grp_tag)
       set elem [lreplace $elem $::rgp_disable_idx $::rgp_disable_idx $flag]
       set remgroups($grp_tag) $elem
@@ -908,7 +908,7 @@ proc Reminder_ExternalChange {add_idx} {
    # save the new reminder in the rc/ini file
    UpdateRcFile
 
-   if $remlist_popup {
+   if {$remlist_popup} {
       if {$add_idx != -1} {
          # place cursor onto the added/modified element
          set elem [lindex $reminders $add_idx]
@@ -954,7 +954,7 @@ proc Reminder_Match {group_list} {
          set mask [expr $mask | (1 << $idx)]
 
          foreach sc_tag [lindex $remgroups($grp_tag) $::rgp_sclist_idx] {
-            if [info exists shortcuts($sc_tag)] {
+            if {[info exists shortcuts($sc_tag)]} {
                C_PiFilter_ForkContext or
                SelectSingleShortcut $sc_tag
             }
@@ -1214,7 +1214,7 @@ proc RemPiList_FillPi {mode} {
    global remlist_lastpi_start remlist_lastpi_netwop
    global reminders remgroups
 
-   if $remlist_popup {
+   if {$remlist_popup} {
       set frm1 [Rnotebook:frame .remlist.nb 1]
 
       # generate sorted index list into reminder list (sort by start time & network)
@@ -1240,7 +1240,7 @@ proc RemPiList_FillPi {mode} {
          set elem [lindex $reminders $rem_idx]
          set grp_tag [lindex $elem $::rpi_grptag_idx]
          set cni [lindex $elem $::rpi_cni_idx]
-         if [info exists netnames($cni)] {
+         if {[info exists netnames($cni)]} {
             set netname $netnames($cni)
          } else {
             set netname $cni
@@ -1345,7 +1345,7 @@ proc RemPiList_SetGroup {} {
    if {[llength $sel_idx] == 1} {
       set rem_idx [lindex $remlist_pilist $sel_idx]
       if {$rem_idx < [llength $reminders]} {
-         if [info exists remgroups($remlist_cfpigrp)] {
+         if {[info exists remgroups($remlist_cfpigrp)]} {
             C_PiRemind_PiSetGroup $remlist_cfpigrp $rem_idx
 
             # update reminder list display
@@ -1575,7 +1575,7 @@ proc RemList_WindowClose {} {
 proc RemList_PostGroupMenu {wid is_pi} {
    global remgroups remgroup_order
 
-   if $is_pi {
+   if {$is_pi} {
       set rbvar remlist_cfpigrp
       set rbcmd RemPiList_SetGroup
    } else {
@@ -1602,11 +1602,11 @@ proc RemScList_FillShortcuts {} {
    global remlist_popup remlist_sclist remlist_scgrplist
    global reminders remgroups remgroup_order shortcuts
 
-   if $remlist_popup {
+   if {$remlist_popup} {
       set ltmp {}
       foreach grp_tag $remgroup_order {
          foreach sc_tag [lindex $remgroups($grp_tag) $::rgp_sclist_idx] {
-            if [info exists shortcuts($sc_tag)] {
+            if {[info exists shortcuts($sc_tag)]} {
                lappend ltmp [list $sc_tag $grp_tag [lindex $shortcuts($sc_tag) $::fsc_name_idx]]
             }
          }
@@ -1688,7 +1688,7 @@ proc RemScList_SaveList {{group_list {}}} {
    }
 
    foreach grp_tag $group_list {
-      if [info exists remgroups($grp_tag)] {
+      if {[info exists remgroups($grp_tag)]} {
          set ltmp {}
          for {set idx 0} {$idx < [llength $remlist_sclist]} {incr idx} {
             if {[lindex $remlist_scgrplist $idx] == $grp_tag} {
@@ -1710,7 +1710,7 @@ proc RemScList_AddShortcut {sc_tag} {
 
    set grp_tag [lindex $remgroup_order 0]
 
-   if [info exists shortcuts($sc_tag)] {
+   if {[info exists shortcuts($sc_tag)]} {
 
       lappend remlist_sclist $sc_tag
       lappend remlist_scgrplist $grp_tag
@@ -1750,7 +1750,7 @@ proc RemScList_SetGroup {} {
    set sel_idx [${frm2}.selist curselection]
    if {[llength $sel_idx] == 1} {
       if {$sel_idx < [llength $remlist_sclist]} {
-         if [info exists remgroups($remlist_cfscgrp)] {
+         if {[info exists remgroups($remlist_cfscgrp)]} {
 
             set remlist_scgrplist [lreplace $remlist_scgrplist $sel_idx $sel_idx $remlist_cfscgrp]
             RemScList_SaveList
@@ -2061,7 +2061,7 @@ proc RemCfg_GroupSelect {} {
       } else {
          .remcfg.frm1.frm11.new configure -state disabled
       }
-      if [info exists remgroups([lindex $elem $::rgp_ctxcache_idx])] {
+      if {[info exists remgroups([lindex $elem $::rgp_ctxcache_idx])]} {
          .remcfg.frm1.frm11.show configure -state normal
       } else {
          .remcfg.frm1.frm11.show configure -state disabled
@@ -2251,7 +2251,7 @@ proc RemCfg_ShowMatch {} {
          set elem [lindex $remcfg_selist $sel_idx]
          set grp_tag [lindex $elem $::rgp_ctxcache_idx]
          # check if it's a new group (can't have any assignments yet)
-         if [info exists remgroups($grp_tag)] {
+         if {[info exists remgroups($grp_tag)]} {
 
             Reminder_Match $grp_tag
             C_PiBox_Refresh
@@ -2272,7 +2272,7 @@ proc RemCfg_MergeScIntoTempList {} {
    set ltmp {}
    foreach new_elem $remcfg_selist {
       set grp_tag [lindex $new_elem $::rgp_ctxcache_idx]
-      if [info exists remgroups($grp_tag)] {
+      if {[info exists remgroups($grp_tag)]} {
          lappend ltmp [lreplace $new_elem $::rgp_sclist_idx $::rgp_sclist_idx \
                                 [lindex $remgroups($grp_tag) $::rgp_sclist_idx]]
       } else {
@@ -2310,7 +2310,7 @@ proc RemCfg_WindowClose {mode} {
       } else {
          set changed 1
       }
-      if $changed {
+      if {$changed} {
          set answer [tk_messageBox -type okcancel -icon warning -parent .remcfg \
                        -message "Discard all changes to reminder groups?"]
          if {[string compare $answer "cancel"] == 0} {
@@ -2342,7 +2342,7 @@ proc RemCfg_WindowClose {mode} {
       # remove reminders which refer to undefined group tags
       set ltmp {}
       foreach elem $reminders {
-         if [info exists remgroups([lindex $elem $::rpi_grptag_idx])] {
+         if {[info exists remgroups([lindex $elem $::rpi_grptag_idx])]} {
             lappend ltmp $elem
          }
       }

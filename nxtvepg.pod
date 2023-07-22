@@ -1782,38 +1782,38 @@ with the theme column, so that for movies with ER >= 6 the text
 =head1 REMINDERS
 
 Reminders allow to mark TV shows which interest you and have nxtvepg mark
-them in the programme list and display a message or execute an external
-command when they start.  You can select either individual programmes in
-the programme list or complete filter shortcuts, e.g. for TV series.
+them in the programme list and optionally display a message or execute an
+external command before they start. You can select either individual programmes
+in the programme list or complete filter shortcuts, e.g. for TV series.
 
-To set a new reminder simply select it with the cursor in the programme
+To set a new reminder, simply select it with the cursor in the programme
 list and choose I<Add reminder for selected title> from the I<Reminder>
 menu.  The same command is also available in the context menu, i.e. by
 clicking on the selected title with the right mouse button.  To remove
-the reminder, simply select the title again and choose
+the reminder, open the context menu again and choose
 I<Remove reminder for selected title>.
 
 By default nxtvepg will display a message popup for every reminded
-programmme 5 minutes before and directly at the start time.  You can
-change this in the I<Configure reminder groups...> dialog described
+programmme 5 minutes before and once more directly at the start time.
+You can change this in the I<Configure reminder groups...> dialog described
 in a separate chapter below.
 
 If you want to set a reminder for an entire series, you need to create
 a filter shortcut first which matches the series (e.g. filtering
-by title).  To reduce the overhead you can create a
+by title).  To reduce the overhead, you can create a
 shortcut which matches all your favorite series and set a reminder for
 this collection.  To assign a reminder to the shortcut use the
 I<Edit reminder list> described in the next chapter.
 
 Note you can add a single reminder for entries which already match a
 shortcut reminders.  This allows to assign an additional, specific
-action for that TV show (if you use different groups.)  Additionally
+action for that TV show (if you use different groups.)  Additionally,
 you can suppress handling of reminders for individual shows; this
-option if offered in the Reminder and context menus when applicable.
-This option may help to get around excessively complex or restrictive
-shortcut filters.
+option is offered in the Reminder and context menus when applicable.
+(This possibility may help avoiding the need for excessively complex
+or restrictive shortcut filters.)
 
-By default nxtvepg has (in the single list layout) a column titled
+By default, nxtvepg has (in the single list layout) a column titled
 I<Mark> which contains a red dot for all programmes which have a
 reminder registered, i.e. both single programmes and those which
 match shortcuts with associated reminders.  You can also set a filter

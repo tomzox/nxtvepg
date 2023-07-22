@@ -1419,7 +1419,7 @@ void Xmltv_PiActorSetGuest( XML_STR_BUF * pBuf )
       xds.pi_actor_is_guest = FALSE;
    }
    else
-      debug1("Xmltv-SetGuest: unknown value for attr 'guest': '%s'\n", pStr);
+      debug1("Xmltv-SetGuest: unknown value for attr 'guest': '%s'", pStr);
 }
 
 void Xmltv_PiCreditsAddActor( XML_STR_BUF * pBuf )
@@ -1507,7 +1507,7 @@ void Xmltv_PiReviewType( XML_STR_BUF * pBuf )
    else if (strcasecmp(pStr, "text") == 0)
       xds.pi_review_is_url = FALSE;
    else
-      debug1("Xmltv-PiReviewType: unknown type:'%s'\n", pStr);
+      debug1("Xmltv-PiReviewType: unknown type:'%s'", pStr);
 }
 
 void Xmltv_PiReviewSource( XML_STR_BUF * pBuf )

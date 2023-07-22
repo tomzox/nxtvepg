@@ -2443,9 +2443,11 @@ static int MenuCmd_ClockFormat( ClientData ttp, Tcl_Interp *interp, int objc, Tc
    {
       reqTime = (time_t) reqTimeVal;
       if (strftime(comm, sizeof(comm) - 1, Tcl_GetString(objv[2]), localtime(&reqTime)) == 0)
-      {  // error
+      {
+         debug2("Error strftime time:%ld, format: %s", reqTimeVal, Tcl_GetString(objv[2]));
          comm[0] = 0;
       }
+
       Tcl_SetObjResult(interp, TranscodeToUtf8(EPG_ENC_SYSTEM, NULL, comm, NULL));
       result = TCL_OK;
    }
