@@ -730,6 +730,7 @@ proc CreateListboxNetCol {idx} {
                                       -highlightthickness 0 -takefocus [expr $idx == 0]
    AssignPiTextTags .all.pi.list.nets.n_$idx
    bind      .all.pi.list.nets.n_$idx <Button-1> [list SelectPi %W %x %y $idx]
+   bind      .all.pi.list.nets.n_$idx <Button-3> "SelectPi %W %x %y $idx; CreateContextMenu mouse %W %x %y"
    bindtags  .all.pi.list.nets.n_$idx [list .all.pi.list.nets.n_$idx TextPiBox . all]
 
    grid      .all.pi.list.nets.h_$idx -row 0 -column $idx -sticky news
