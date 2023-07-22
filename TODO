@@ -48,6 +48,7 @@ Post-Nextview EPG:
 - teletext acq stats: percentage cycle loaded (i.e. cycles done vs. max. sub-page count)
 - teletext configuration dialog: allow channel-specific config of page range, exclusion & duration
 - teletext emit XML encoding UTF-8
+- Win32: upgrade bundled Tcl/Tk library from version 8.5 to 8.6
 - port to WIN32: "Broadcast Driver Architecture" (filter graph)
 - move "air times" config from GUI/Tcl config section into C section
 

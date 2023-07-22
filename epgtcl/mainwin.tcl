@@ -330,13 +330,17 @@ proc CreateMainWindow {} {
    # copy event bindings which are required for scrolling and selection (outbound copy&paste)
    if {$tcl_version < 8.6} {
       foreach event {<ButtonPress-1> <ButtonRelease-1> <B1-Motion> <Double-Button-1> <Shift-Button-1> \
-                     <Triple-Button-1> <Triple-Shift-Button-1> <Button-2> <B2-Motion> <MouseWheel> \
+                     <Triple-Button-1> <Triple-Shift-Button-1> <Button-2> <B2-Motion> \
+                     <MouseWheel> <Button-4> <Button-5> \
                      <<Copy>> <<Clear>> <Shift-Key-Tab> <Control-Key-Tab> <Control-Shift-Key-Tab> \
                      <Key-Prior> <Key-Next> <Key-Down> <Key-Up> <Key-Left> <Key-Right> \
                      <Shift-Key-Left> <Shift-Key-Right> <Shift-Key-Up> <Shift-Key-Down> \
                      <Key-Home> <Key-End> <Shift-Key-Home> <Shift-Key-End> <Control-Key-slash>} {
          bind TextReadOnly $event [bind Text $event]
       }
+      # override broken default behavior for scrolling listbox upwards
+      bind Listbox <MouseWheel>  {%W yview scroll [expr {int(%D / -30)}] units; break}
+
    } else {
       set text_modifier_events {
          <<Clear>> <<Cut>> <<Paste>> <<PasteSelection>>
@@ -352,10 +356,6 @@ proc CreateMainWindow {} {
       }
    }
 
-   # allow to scroll the text with a wheel mouse
-   bind TextReadOnly <Button-4>     {%W yview scroll -3 units}
-   bind TextReadOnly <Button-5>     {%W yview scroll 3 units}
-   bind TextReadOnly <MouseWheel>   {%W yview scroll [expr {- (%D / 120) * 3}] units}
    bind TextReadOnly <Key-Tab> [bind Text <Control-Key-Tab>]
    bind TextReadOnly <Control-Key-c> [bind Text <<Copy>>]
 
@@ -427,7 +427,8 @@ proc CreateMainWindow {} {
    bind      .all.shortcuts.netwops <Button-3> {tk_popup .ctx_netsel %X %Y 0}
    #grid     .all.shortcuts.netwops -row 4 -column 0 -sticky nwe
    #pack     .all.shortcuts -anchor nw -side left
-   checkbutton .all.shortcuts.pitype -text "Grid\nLayout" -justify left -command Toggle_PiBoxType -variable pibox_type
+   checkbutton .all.shortcuts.pitype -text "Grid\nLayout" -justify left -takefocus 0 \
+                                     -command Toggle_PiBoxType -variable pibox_type
    #grid     .all.shortcuts.pitype -row 5 -column 0 -sticky nwe
 
    frame     .all.pi
@@ -447,7 +448,7 @@ proc CreateMainWindow {} {
    grid      .all.pi.list.sc -row 3 -column 0 -sticky ns
    bind      .all.pi.list.sc <Button-4>        {C_PiBox_Scroll scroll -1 pages; break}
    bind      .all.pi.list.sc <Button-5>        {C_PiBox_Scroll scroll 1 pages; break}
-   bind      .all.pi.list.sc <MouseWheel>      {C_PiBox_Scroll scroll [expr int(%D / %D)] pages; break}
+   bind      .all.pi.list.sc <MouseWheel>      {C_PiBox_Scroll scroll [expr {int(%D / abs(%D))}] pages; break}
    text      .all.pi.list.text -width 50 -height 25 -wrap none \
                                -font $pi_font -exportselection false \
                                -cursor top_left_arrow \
@@ -462,7 +463,17 @@ proc CreateMainWindow {} {
    bind      TextPiBox <Button-3>        {SelectPi %W %x %y; CreateContextMenu mouse %W %x %y}
    bind      TextPiBox <Button-4>        {C_PiBox_Scroll scroll -3 units}
    bind      TextPiBox <Button-5>        {C_PiBox_Scroll scroll 3 units}
-   bind      TextPiBox <MouseWheel>      {C_PiBox_Scroll scroll [expr int((%D + 20) / -40)] units}
+   bind      TextPiBox <Shift-Button-4>  {C_PiBox_ScrollHorizontal scroll -1 units}
+   bind      TextPiBox <Shift-Button-5>  {C_PiBox_ScrollHorizontal scroll 1 units}
+
+   if {$tcl_version < 8.6} {
+      # scrolling direction in Tcl8.5 is inverted
+      bind   TextPiBox <MouseWheel>      {C_PiBox_Scroll scroll [expr {int(%D / -30)}] units; break}
+      # Tcl8.5 has no default binding for horizontal scrolling
+      bind   TextPiBox <Shift-MouseWheel> {C_PiBox_ScrollHorizontal scroll [expr {int(%D / -30)}] units}
+   } else {
+      bind   TextPiBox <MouseWheel>      {C_PiBox_Scroll scroll [expr {int(%D / 30)}] units; break}
+   }
    bind      TextPiBox <Key-Up>          {C_PiBox_CursorUp}
    bind      TextPiBox <Key-Down>        {C_PiBox_CursorDown}
    bind      TextPiBox <Key-Left>        {C_PiBox_CursorLeft}
@@ -506,7 +517,7 @@ proc CreateMainWindow {} {
    bind      .all.pi.list.dscale <ButtonRelease-1> {PiDateScale_Goto %y 0}
    bind      .all.pi.list.dscale <Button-4>        {C_PiBox_Scroll scroll -1 pages; break}
    bind      .all.pi.list.dscale <Button-5>        {C_PiBox_Scroll scroll 1 pages; break}
-   bind      .all.pi.list.dscale <MouseWheel>      {C_PiBox_Scroll scroll [expr int(%D / %D)] pages; break}
+   bind      .all.pi.list.dscale <MouseWheel>      {C_PiBox_Scroll scroll [expr {int(%D / abs(%D))}] pages; break}
    grid      .all.pi.list.dscale -row 1 -rowspan 3 -column 3 -sticky n -pady 2
 
 
